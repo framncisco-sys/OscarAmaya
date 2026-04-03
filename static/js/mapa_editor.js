@@ -110,7 +110,10 @@
       return;
     }
     var payload = { geometry: { type: "Polygon", coordinates: [ring] } };
-    var url = cfg.apiGuardarBase.replace(/0\/$/, inmuebleId + "/");
+    var url = (cfg.apiGuardarBase || "").replace(
+      /\/inmueble\/\d+\//,
+      "/inmueble/" + inmuebleId + "/"
+    );
     fetch(url, {
       method: "POST",
       headers: {
@@ -118,17 +121,26 @@
         "X-CSRFToken": cfg.csrfToken || "",
       },
       body: JSON.stringify(payload),
+      credentials: "same-origin",
     })
-      .then(function (r) { return r.json(); })
-      .then(function (r) {
-        if (!r.ok) {
-          alert(r.error || "No se pudo guardar.");
-          return;
-        }
-        if (showSuccessMessage) {
-          alert("Geometría guardada.");
-        }
-        fetchProyectoData();
+      .then(function (res) {
+        return res.json().then(function (body) {
+          if (!res.ok) {
+            alert((body && body.error) || "Error HTTP " + res.status);
+            return;
+          }
+          if (!body.ok) {
+            alert((body && body.error) || "No se pudo guardar.");
+            return;
+          }
+          if (showSuccessMessage) {
+            alert("Geometría guardada.");
+          }
+          fetchProyectoData();
+        });
+      })
+      .catch(function (err) {
+        alert("Error al guardar (red o respuesta no válida). " + (err && err.message ? err.message : ""));
       });
   }
 
