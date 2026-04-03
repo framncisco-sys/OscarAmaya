@@ -89,7 +89,7 @@ def _razon_social_negocio_pdf() -> str:
 
 def _pdf_static_base_url() -> str:
     """Directorio de estáticos donde están los logos (cualquiera sirve como ancla)."""
-    for fname in ("logo_paredes.png", "logo_valle_alegre.png"):
+    for fname in ("logo_paredes_desarrollos.png", "logo_valle_alegre.png"):
         found = finders.find(fname)
         if found:
             return Path(found).parent.as_uri() + "/"
