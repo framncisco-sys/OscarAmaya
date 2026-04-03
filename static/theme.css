@@ -289,9 +289,9 @@ a.button:hover {
 
 .brand__img {
   display: block;
-  height: 44px;
+  height: 56px;
   width: auto;
-  max-width: min(320px, 78vw);
+  max-width: min(420px, 90vw);
 }
 
 .brand__wordmark {
@@ -329,7 +329,7 @@ a.button:hover {
 .login-card__logo {
   display: inline-block;
   height: auto;
-  max-height: 88px;
+  max-height: 120px;
   width: auto;
   max-width: 100%;
 }
@@ -748,8 +748,8 @@ a.button:hover {
 /* Misma marca gráfica que en el resto del sitio (no sustituir por texto en login) */
 .app-body--login .brand__img {
   display: block;
-  height: 48px;
-  max-width: min(320px, 72vw);
+  height: 56px;
+  max-width: min(420px, 88vw);
 }
 
 .app-body--login .brand__wordmark {
@@ -1987,8 +1987,8 @@ html[data-pbr-reduced-motion="1"] .status-badge--online::after {
   }
 
   .brand__img {
-    height: 34px;
-    max-width: min(220px, 58vw);
+    height: 46px;
+    max-width: min(320px, 82vw);
   }
 
   .page-title {
@@ -2174,7 +2174,8 @@ html[data-pbr-view="tablet"] .app-nav {
 }
 
 html[data-pbr-view="tv"] .brand__img {
-  height: 48px;
+  height: 64px;
+  max-width: min(480px, 40vw);
 }
 
 html[data-pbr-view="tv"] .app-session__name {
