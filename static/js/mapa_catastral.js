@@ -70,18 +70,28 @@
   var btnBuscarCoords = document.getElementById("catastral-buscar-coords");
   var btnLimpiarBusqueda = document.getElementById("catastral-limpiar-busqueda");
 
+  function normalizeCoordText(t) {
+    t = String(t || "")
+      .replace(/^\uFEFF/, "")
+      .replace(/\u00a0/g, " ")
+      .trim();
+    t = t.replace(/[\u2018\u2019\u2032]/g, "'").replace(/[\u201c\u201d\u2033]/g, '"');
+    return t;
+  }
+
+  /** Coma decimal solo antes de comillas de segundos: 26,4" -> 26.4" (no toca 13°30'). */
+  function normalizeDecimalCommaInDms(t) {
+    return t.replace(/(\d+),(\d{1,4})(?=["\u201c\u201d\u2033])/g, "$1.$2");
+  }
+
   function parseCoordToken(s) {
     if (s == null || s === "") return NaN;
-    var t = String(s).trim();
-    // Permitir formatos como:
-    //  - 13.6929
-    //  - 13,6929
-    //  - 13°30'26.4"N
-    //  - 88°16'03.7\"W
+    var t = normalizeCoordText(s);
+    t = normalizeDecimalCommaInDms(t);
+    // Permitir: 13.6929 | 13,6929 | 13°30'26.4"N | 88°16'03.7"W
     var hasHem = /[NSEW]/i.test(t);
     var nums = t.match(/-?\d+(?:\.\d+)?/g);
     if (!nums || !nums.length) return NaN;
-    // Solo un número → decimal directo (tras normalizar coma)
     if (nums.length === 1 && !hasHem) {
       if (t.indexOf(",") >= 0 && t.indexOf(".") < 0) {
         t = t.replace(",", ".");
@@ -89,7 +99,6 @@
       var dec = parseFloat(t);
       return isNaN(dec) ? NaN : dec;
     }
-    // DMS: grados, minutos, segundos
     var deg = parseFloat(nums[0]);
     var min = nums.length > 1 ? parseFloat(nums[1]) : 0;
     var sec = nums.length > 2 ? parseFloat(nums[2]) : 0;
@@ -97,30 +106,59 @@
     var sign = 1;
     if (/S/i.test(t) || /W/i.test(t)) sign = -1;
     if (/^-/.test(nums[0])) sign = -1;
-    var out = sign * (Math.abs(deg) + min / 60 + sec / 3600);
-    return out;
+    return sign * (Math.abs(deg) + min / 60 + sec / 3600);
   }
 
+  /**
+   * Separa latitud y longitud en una sola línea (DMS o decimal).
+   * Prioridad: bloque que termina en N/S + bloque que termina en E/W (evita fallos con espacios raros).
+   */
   function parseLineCoords(line) {
-    var raw = (line || "").trim();
+    var raw = normalizeCoordText(line);
     if (!raw) return null;
+
+    var pair = raw.match(/^(.+?[NS])\s+(.+?[EW])$/i);
+    if (pair) {
+      var lat1 = parseCoordToken(pair[1]);
+      var lng1 = parseCoordToken(pair[2]);
+      if (!isNaN(lat1) && !isNaN(lng1)) return { lat: lat1, lng: lng1 };
+    }
+    pair = raw.match(/^(.+?[EW])\s+(.+?[NS])$/i);
+    if (pair) {
+      var lng2 = parseCoordToken(pair[1]);
+      var lat2 = parseCoordToken(pair[2]);
+      if (!isNaN(lat2) && !isNaN(lng2)) return { lat: lat2, lng: lng2 };
+    }
+
     var parts = raw.split(/[,;]/).map(function (p) {
       return p.trim();
     }).filter(Boolean);
-    if (parts.length < 2) {
-      parts = raw.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      var a = parseCoordToken(parts[0]);
+      var b = parseCoordToken(parts[1]);
+      if (!isNaN(a) && !isNaN(b)) return { lat: a, lng: b };
     }
-    if (parts.length < 2) return null;
-    var lat = parseCoordToken(parts[0]);
-    var lng = parseCoordToken(parts[1]);
-    if (isNaN(lat) || isNaN(lng)) return null;
-    return { lat: lat, lng: lng };
+
+    parts = raw.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      var p0 = parseCoordToken(parts[0]);
+      var p1 = parseCoordToken(parts[1]);
+      if (!isNaN(p0) && !isNaN(p1)) return { lat: p0, lng: p1 };
+    }
+
+    return null;
   }
 
   function readCoordsFromInputs() {
     if (inpLine && inpLine.value.trim()) {
       var parsed = parseLineCoords(inpLine.value);
       if (parsed) return { lat: parsed.lat, lng: parsed.lng, fromLine: true };
+      return {
+        lat: NaN,
+        lng: NaN,
+        fromLine: true,
+        lineParseFailed: true,
+      };
     }
     return {
       lat: inpLat ? parseCoordToken(inpLat.value) : NaN,
@@ -133,6 +171,14 @@
     var o = readCoordsFromInputs();
     var lat = o.lat;
     var lng = o.lng;
+    if (o.lineParseFailed) {
+      alert(
+        "No se pudo leer la línea pegada. Pruebe:\n" +
+          "• Decimal: 13.5073, -89.2688\n" +
+          "• Grados (una línea, con espacio entre lat y long): 13°30'26.4\"N 89°16'03.7\"W"
+      );
+      return;
+    }
     if (isNaN(lat) || isNaN(lng)) {
       alert(
         "Ingrese latitud y longitud (números), o una línea con ambas separadas por coma o espacio (ej. 13.69, -89.21)."
