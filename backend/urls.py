@@ -47,9 +47,14 @@ urlpatterns = [
     re_path(r"^admin(?:/.*)?$", admin_legacy_redirect),
 ]
 
-if settings.DEBUG:
+# Con media en S3/Spaces los archivos no viven en MEDIA_ROOT del contenedor.
+_use_s3_media = getattr(settings, "DJANGO_USE_S3_MEDIA", False)
+if settings.DEBUG and not _use_s3_media:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-elif getattr(settings, "DJANGO_SERVE_MEDIA_PUBLIC", False):
+elif (
+    not _use_s3_media
+    and getattr(settings, "DJANGO_SERVE_MEDIA_PUBLIC", False)
+):
     _media_prefix = (getattr(settings, "MEDIA_URL", "/media/") or "/media/").strip("/")
     if _media_prefix:
         urlpatterns += [

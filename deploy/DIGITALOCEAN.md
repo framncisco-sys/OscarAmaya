@@ -23,6 +23,7 @@ Guía para probar la aplicación Django en **DigitalOcean**. Hay dos caminos hab
 | `PGHOST` / `PG*` | Si el entorno define `PGHOST` (estilo libpq), el proyecto puede usar `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGPORT` sin duplicar `POSTGRES_*`. |
 | `POSTGRES_*` | Si no hay `DATABASE_URL` ni `PGHOST`: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT` (en bases administradas el puerto suele ser **25060** y hace falta **SSL**; vea nota más abajo). |
 | `PUBLIC_BASE_URL` | URL pública `https://...` (recibos y enlaces). |
+| `DJANGO_USE_S3_MEDIA` + `AWS_*` | Opcional y **recomendado** en App Platform: guardar PDFs/planos en **Spaces** (S3) para que no se pierdan al redeploy. Vea `.env.example` y `deploy/COPIAR_A_DIGITALOCEAN.txt`. |
 
 Copie `.env.example` a `.env` y complételo. En DigitalOcean use la pestaña **Environment** del componente o los **Secrets**.
 

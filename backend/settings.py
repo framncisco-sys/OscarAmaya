@@ -101,6 +101,7 @@ INSTALLED_APPS = [
     'crm.apps.CrmConfig',
     'docs.apps.DocsConfig',
     'usuarios.apps.UsuariosConfig',
+    'storages',
 ]
 
 def _build_middleware():
@@ -345,12 +346,69 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 # collectstatic → esta carpeta (producción + WhiteNoise)
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Media (PDFs emitidos)
+# Media (PDFs emitidos, planos, etc.)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 # Con DEBUG=False, /media/ no se sirve salvo que active esto (enlace HTTPS en WhatsApp vía PUBLIC_BASE_URL).
 # Los PDF quedan accesibles sin login por URL; use solo si acepta ese riesgo o proteja con otro mecanismo.
 DJANGO_SERVE_MEDIA_PUBLIC = env.bool("DJANGO_SERVE_MEDIA_PUBLIC", default=False)
+
+# --- Almacenamiento S3-compatible (DigitalOcean Spaces, AWS S3, MinIO) ---
+# Con DJANGO_USE_S3_MEDIA=1 los FileField se guardan en el bucket (sobreviven a redeploy en App Platform).
+DJANGO_USE_S3_MEDIA = env.bool("DJANGO_USE_S3_MEDIA", default=False)
+AWS_ACCESS_KEY_ID = env.str("AWS_ACCESS_KEY_ID", default="").strip()
+AWS_SECRET_ACCESS_KEY = env.str("AWS_SECRET_ACCESS_KEY", default="").strip()
+AWS_STORAGE_BUCKET_NAME = env.str("AWS_STORAGE_BUCKET_NAME", default="").strip()
+AWS_S3_REGION_NAME = env.str("AWS_S3_REGION_NAME", default="").strip()
+AWS_S3_ENDPOINT_URL = env.str("AWS_S3_ENDPOINT_URL", default="").strip()
+AWS_S3_CUSTOM_DOMAIN = env.str("AWS_S3_CUSTOM_DOMAIN", default="").strip()
+AWS_DEFAULT_ACL = env.str("AWS_DEFAULT_ACL", default="private").strip() or None
+AWS_QUERYSTRING_AUTH = env.bool("AWS_QUERYSTRING_AUTH", default=True)
+AWS_S3_ADDRESSING_STYLE = env.str("AWS_S3_ADDRESSING_STYLE", default="virtual")
+AWS_S3_SIGNATURE_VERSION = env.str("AWS_S3_SIGNATURE_VERSION", default="s3v4")
+AWS_S3_FILE_OVERWRITE = env.bool("AWS_S3_FILE_OVERWRITE", default=False)
+AWS_S3_OBJECT_PARAMETERS = {
+    "CacheControl": env.str("AWS_S3_CACHE_CONTROL", default="max-age=86400"),
+}
+# Base pública de MEDIA con S3 (opcional). Si vacío: CUSTOM_DOMAIN o patrón DigitalOcean Spaces.
+DJANGO_S3_MEDIA_URL = env.str("DJANGO_S3_MEDIA_URL", default="").strip().rstrip("/")
+
+if DJANGO_USE_S3_MEDIA:
+    from django.core.exceptions import ImproperlyConfigured
+
+    _s3_missing = [
+        name
+        for name, val in (
+            ("AWS_ACCESS_KEY_ID", AWS_ACCESS_KEY_ID),
+            ("AWS_SECRET_ACCESS_KEY", AWS_SECRET_ACCESS_KEY),
+            ("AWS_STORAGE_BUCKET_NAME", AWS_STORAGE_BUCKET_NAME),
+            ("AWS_S3_REGION_NAME", AWS_S3_REGION_NAME),
+            ("AWS_S3_ENDPOINT_URL", AWS_S3_ENDPOINT_URL),
+        )
+        if not val
+    ]
+    if _s3_missing:
+        raise ImproperlyConfigured(
+            "DJANGO_USE_S3_MEDIA=1 requiere definir: " + ", ".join(_s3_missing)
+        )
+
+    if DJANGO_S3_MEDIA_URL:
+        MEDIA_URL = DJANGO_S3_MEDIA_URL + "/"
+    else:
+        _domain = (AWS_S3_CUSTOM_DOMAIN or "").strip().strip("/")
+        if _domain:
+            MEDIA_URL = f"https://{_domain}/"
+        else:
+            MEDIA_URL = (
+                f"https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com/"
+            )
+
+    STORAGES = {
+        **STORAGES,
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+    }
 
 # Correo (recibos, recordatorios). Toda la configuración sale del entorno / .env — ver .env.example
 # - Si define EMAIL_HOST y no fuerza otro EMAIL_BACKEND, se usa SMTP.

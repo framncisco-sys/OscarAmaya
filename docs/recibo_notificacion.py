@@ -21,6 +21,18 @@ from .recibo_text import format_monto_sv
 logger = logging.getLogger(__name__)
 
 
+def _url_archivo_field_absoluta_o_ruta(file_field) -> str | None:
+    """
+    URL del archivo: absoluta (https://…) con S3/Spaces o ruta relativa (/media/…) en disco local.
+    """
+    if not file_field or not file_field.name:
+        return None
+    u = str(file_field.url)
+    if u.lower().startswith(("http://", "https://")):
+        return u
+    return u if u.startswith("/") else f"/{u}"
+
+
 @dataclass(frozen=True)
 class ReciboNotificacionInfo:
     """Resultado de notificar un recibo (para mensajes en la interfaz)."""
@@ -47,16 +59,17 @@ def _correo_entrega_a_bandejas_reales() -> bool:
 
 def url_pdf_publica_https(doc: "DocumentoEmitido") -> str | None:
     """
-    URL absoluta HTTPS al PDF en /media/... Solo útil si PUBLIC_BASE_URL apunta a un sitio
-    accesible desde internet (no localhost) y /media/ se sirve sin login.
+    URL absoluta HTTPS al PDF (S3/Spaces o /media/... con PUBLIC_BASE_URL).
     """
-    base = (getattr(settings, "PUBLIC_BASE_URL", "") or "").strip().rstrip("/")
-    if not base or not doc.pdf_file or not doc.pdf_file.name:
+    rel_or_abs = _url_archivo_field_absoluta_o_ruta(doc.pdf_file)
+    if not rel_or_abs:
         return None
-    path = doc.pdf_file.url
-    if not str(path).startswith("/"):
-        path = "/" + str(path)
-    url = f"{base}{path}"
+    if rel_or_abs.lower().startswith("https://"):
+        return rel_or_abs
+    base = (getattr(settings, "PUBLIC_BASE_URL", "") or "").strip().rstrip("/")
+    if not base:
+        return None
+    url = f"{base}{rel_or_abs}"
     if not url.lower().startswith("https://"):
         return None
     return url
@@ -64,16 +77,17 @@ def url_pdf_publica_https(doc: "DocumentoEmitido") -> str | None:
 
 def url_pdf_enlace_absoluto(doc: "DocumentoEmitido") -> str | None:
     """
-    URL al PDF con PUBLIC_BASE_URL (http o https) para texto en wa.me.
-    Meta/Twilio para adjuntar archivo siguen requiriendo HTTPS público donde aplique.
+    URL al PDF (https directo desde Spaces o http(s) con PUBLIC_BASE_URL + /media/...).
     """
-    base = (getattr(settings, "PUBLIC_BASE_URL", "") or "").strip().rstrip("/")
-    if not base or not doc.pdf_file or not doc.pdf_file.name:
+    rel_or_abs = _url_archivo_field_absoluta_o_ruta(doc.pdf_file)
+    if not rel_or_abs:
         return None
-    path = doc.pdf_file.url
-    if not str(path).startswith("/"):
-        path = "/" + str(path)
-    return f"{base}{path}"
+    if rel_or_abs.lower().startswith(("http://", "https://")):
+        return rel_or_abs
+    base = (getattr(settings, "PUBLIC_BASE_URL", "") or "").strip().rstrip("/")
+    if not base:
+        return None
+    return f"{base}{rel_or_abs}"
 
 
 def _telefono_a_whatsapp(telefono: str) -> str | None:
@@ -304,13 +318,17 @@ def notificar_recibo_emitido(doc: "DocumentoEmitido", pago: "Pago") -> ReciboNot
     """
     correo_ok = enviar_recibo_por_email(doc, pago)
 
-    base = getattr(settings, "PUBLIC_BASE_URL", "").rstrip("/")
-    path = doc.pdf_file.url if doc.pdf_file else ""
-    if path and not str(path).startswith("/"):
-        path = "/" + str(path)
-    media_url = f"{base}{path}" if base and doc.pdf_file else None
-    if media_url and not media_url.lower().startswith("https://"):
-        media_url = None
+    rel_or_abs = _url_archivo_field_absoluta_o_ruta(doc.pdf_file) if doc.pdf_file else None
+    media_url = None
+    if rel_or_abs:
+        if rel_or_abs.lower().startswith("https://"):
+            media_url = rel_or_abs
+        else:
+            base = getattr(settings, "PUBLIC_BASE_URL", "").strip().rstrip("/")
+            if base:
+                cand = f"{base}{rel_or_abs}"
+                if cand.lower().startswith("https://"):
+                    media_url = cand
 
     twilio_pdf = False
     if media_url and getattr(settings, "RECIBO_ENVIAR_WHATSAPP_TWILIO", False):

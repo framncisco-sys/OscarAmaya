@@ -56,6 +56,24 @@ Otras variables útiles para la misma app (Web Service)
 (Sustituye la URL si tu app tiene otro nombre en *.ondigitalocean.app)
 
 --------------------------------------------------------------------------------
+Media persistente (PDFs, planos) — DigitalOcean Spaces + django-storages
+--------------------------------------------------------------------------------
+
+Sin esto, cada redeploy borra la carpeta media del contenedor y fallan descargas de PDFs viejos
+(aunque la BD siga apuntando al archivo). Cree un Space, genere una "Spaces access key" y añada:
+
+  DJANGO_USE_S3_MEDIA=1
+  AWS_ACCESS_KEY_ID=<key>
+  AWS_SECRET_ACCESS_KEY=<secret>
+  AWS_STORAGE_BUCKET_NAME=<nombre_del_space>
+  AWS_S3_REGION_NAME=nyc3
+  AWS_S3_ENDPOINT_URL=https://nyc3.digitaloceanspaces.com
+
+(Ajuste región y endpoint a la de su Space: fra1, sfo3, etc.)
+
+Opcional: AWS_S3_CUSTOM_DOMAIN=... si usa CDN. Detalle en .env.example del repo.
+
+--------------------------------------------------------------------------------
 Si aparece: password authentication failed for user "doadmin"
 --------------------------------------------------------------------------------
 
