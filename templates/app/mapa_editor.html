@@ -6,7 +6,9 @@
 <header class="page-toolbar">
   <div class="page-toolbar__intro">
     <h1 class="page-title">Mapa interactivo</h1>
-    <p class="page-toolbar__meta">Seleccione proyecto, filtre por polígono y dibuje el lote para guardarlo.</p>
+    <p class="page-toolbar__meta">
+      Use el plano maestro del proyecto como imagen de fondo, delimité los lotes (0–100&nbsp;% sobre la imagen) y al hacer clic vea el mismo detalle que en el mapa catastral (estado, cliente, contrato, precios).
+    </p>
   </div>
 </header>
 
@@ -47,6 +49,14 @@
       <button type="button" id="mapa-save" class="btn-primary">Guardar geometría</button>
     </div>
   </div>
+
+  <div class="mapa-catastral-leyenda" aria-label="Leyenda de estatus">
+    <span class="mapa-catastral-leyenda__item"><span class="swatch swatch--contado"></span> Contado (vendido)</span>
+    <span class="mapa-catastral-leyenda__item"><span class="swatch swatch--reservado"></span> Reservado</span>
+    <span class="mapa-catastral-leyenda__item"><span class="swatch swatch--disponible"></span> Disponible</span>
+    <span class="mapa-catastral-leyenda__item"><span class="swatch swatch--bloqueado"></span> Bloqueado</span>
+  </div>
+
   <div id="mapa-lotes" class="mapa-lotes-canvas"></div>
   <p class="field__help muted">
     Use dibujo de polígono para calcar el lote. Las coordenadas se guardan en porcentaje (0..100), por eso funciona con cualquier tamaño de imagen.

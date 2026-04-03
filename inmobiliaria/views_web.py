@@ -908,7 +908,7 @@ class ParametroMoraDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, Delet
 def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
     proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
     lotes = (
-        Inmueble.objects.select_related("poligono")
+        Inmueble.objects.select_related("poligono", "cliente_reserva", "proyecto")
         .filter(proyecto_id=proyecto_id, tipo=Inmueble.Tipo.LOTE)
         .order_by("poligono__orden", "codigo")
     )
@@ -916,23 +916,50 @@ def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
     if poligono_id:
         lotes = lotes.filter(poligono_id=poligono_id)
 
+    inmueble_ids = [i.pk for i in lotes]
+    contratos_por_inmueble: dict[int, Contrato] = {}
+    if inmueble_ids:
+        contratos = (
+            Contrato.objects.filter(inmueble_id__in=inmueble_ids)
+            .exclude(estado=Contrato.Estado.CANCELADO)
+            .select_related("cliente", "vendedor_perfil")
+            .order_by("inmueble_id", "-fecha_firma")
+        )
+        for c in contratos:
+            if c.inmueble_id not in contratos_por_inmueble:
+                contratos_por_inmueble[c.inmueble_id] = c
+
+    _leyenda = {
+        "contado": "Contado (vendido)",
+        "reservado": "Reservado",
+        "disponible": "Disponible",
+        "bloqueado": "Bloqueado",
+    }
+
     features = []
     for lote in lotes:
-        if lote.geometria_json:
-            features.append(
-                {
-                    "type": "Feature",
-                    "id": lote.pk,
-                    "properties": {
-                        "inmueble_id": lote.pk,
-                        "codigo": lote.codigo,
-                        "estado": lote.estado,
-                        "poligono_id": lote.poligono_id,
-                        "poligono_nombre": lote.poligono.nombre if lote.poligono else "",
-                    },
-                    "geometry": lote.geometria_json,
-                }
-            )
+        if not lote.geometria_json:
+            continue
+        c = contratos_por_inmueble.get(lote.pk)
+        style_key = _mapa_catastral_style_por_estado(lote.estado)
+        features.append(
+            {
+                "type": "Feature",
+                "id": lote.pk,
+                "properties": {
+                    "inmueble_id": lote.pk,
+                    "codigo": lote.codigo,
+                    "estado": lote.estado,
+                    "estado_display": lote.get_estado_display(),
+                    "mapa_style": style_key,
+                    "venta_leyenda": _leyenda.get(style_key, lote.get_estado_display()),
+                    "poligono_id": lote.poligono_id,
+                    "poligono_nombre": lote.poligono.nombre if lote.poligono else "",
+                    "popup_html": _popup_html_mapa_catastral(lote, c),
+                },
+                "geometry": lote.geometria_json,
+            }
+        )
 
     return JsonResponse(
         {
@@ -947,6 +974,7 @@ def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
                     "estado": i.estado,
                     "poligono_id": i.poligono_id,
                     "poligono_nombre": i.poligono.nombre if i.poligono else "",
+                    "tiene_geometria_plano": bool(i.geometria_json),
                 }
                 for i in lotes
             ],

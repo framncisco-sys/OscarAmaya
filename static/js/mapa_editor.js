@@ -48,11 +48,17 @@
     return [Number(pt.lng.toFixed(4)), Number(pt.lat.toFixed(4))];
   }
 
-  function styleByEstado(estado) {
-    if (estado === "VENDIDO") return { color: "#9b1c1c", fillColor: "#ef4444" };
-    if (estado === "RESERVADO") return { color: "#92400e", fillColor: "#f59e0b" };
-    if (estado === "BLOQUEADO") return { color: "#374151", fillColor: "#6b7280" };
-    return { color: "#0a4f94", fillColor: "#1d8cf8" };
+  /** Misma leyenda que mapa catastral: contado / reservado / disponible / bloqueado */
+  var STYLES_PLANO = {
+    contado: { color: "#0d47a1", fillColor: "#1565c0", weight: 2, fillOpacity: 0.55 },
+    reservado: { color: "#e65100", fillColor: "#ff9800", weight: 2, fillOpacity: 0.55 },
+    disponible: { color: "#424242", fillColor: "#ffffff", weight: 2, fillOpacity: 0.75 },
+    bloqueado: { color: "#424242", fillColor: "#9e9e9e", weight: 2, fillOpacity: 0.55 },
+  };
+
+  function styleForPlanoFeature(f) {
+    var key = (f.properties && f.properties.mapa_style) || "disponible";
+    return STYLES_PLANO[key] || STYLES_PLANO.disponible;
   }
 
   function getFeatureByLoteId(loteId) {
@@ -212,7 +218,9 @@
       if (selPoligono.value && String(l.poligono_id || "") !== selPoligono.value) return;
       var opt = document.createElement("option");
       opt.value = String(l.id);
-      opt.textContent = (l.poligono_nombre ? l.poligono_nombre + " - " : "") + "Lote " + l.codigo;
+      var suf = l.tiene_geometria_plano ? "" : " (sin polígono en plano)";
+      opt.textContent =
+        (l.poligono_nombre ? l.poligono_nombre + " - " : "") + "Lote " + l.codigo + suf;
       selLote.appendChild(opt);
     });
     if (prev) selLote.value = prev;
@@ -251,14 +259,21 @@
         var coords = ((f.geometry || {}).coordinates || [])[0] || [];
         var latlngs = coords.map(percentToLatLng);
         if (!latlngs.length) return;
-        var s = styleByEstado(f.properties.estado);
+        var s = styleForPlanoFeature(f);
         var pol = L.polygon(latlngs, {
           color: s.color,
           fillColor: s.fillColor,
-          weight: 1.2,
-          fillOpacity: 0.28
+          weight: s.weight != null ? s.weight : 1.2,
+          fillOpacity: s.fillOpacity != null ? s.fillOpacity : 0.28
         });
-        pol.bindPopup("Lote " + f.properties.codigo + " (" + (f.properties.poligono_nombre || "Sin polígono") + ")");
+        var html =
+          (f.properties && f.properties.popup_html) ||
+          "Lote " +
+            f.properties.codigo +
+            " (" +
+            (f.properties.poligono_nombre || "Sin polígono") +
+            ")";
+        pol.bindPopup(html, { maxWidth: 420, className: "mapa-catastral-popup-wrap" });
         pol.feature = f;
         pol.on("click", function () {
           var id = this.feature && this.feature.id ? String(this.feature.id) : "";
