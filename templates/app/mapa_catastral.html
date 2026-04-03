@@ -51,6 +51,37 @@
     </div>
   </div>
 
+  <div class="mapa-catastral-buscar" aria-label="Buscar coordenadas WGS84">
+    <p class="mapa-catastral-buscar__title">Buscar coordenadas (WGS84)</p>
+    <div class="mapa-catastral-buscar__row">
+      <div class="field mapa-catastral-buscar__field">
+        <label class="field__label" for="catastral-lat">Latitud</label>
+        <div class="field__control">
+          <input type="text" id="catastral-lat" inputmode="decimal" placeholder="Ej. 13.6929" autocomplete="off" spellcheck="false" />
+        </div>
+      </div>
+      <div class="field mapa-catastral-buscar__field">
+        <label class="field__label" for="catastral-lng">Longitud</label>
+        <div class="field__control">
+          <input type="text" id="catastral-lng" inputmode="decimal" placeholder="Ej. -89.2182" autocomplete="off" spellcheck="false" />
+        </div>
+      </div>
+      <div class="field mapa-catastral-buscar__field mapa-catastral-buscar__field--wide">
+        <label class="field__label" for="catastral-coords-line">O pegar en una línea</label>
+        <div class="field__control">
+          <input type="text" id="catastral-coords-line" placeholder="13.69, -89.21" autocomplete="off" spellcheck="false" />
+        </div>
+      </div>
+      <div class="mapa-catastral-buscar__actions">
+        <button type="button" id="catastral-buscar-coords" class="btn-secondary">Ir al punto</button>
+        <button type="button" id="catastral-limpiar-busqueda" class="btn-secondary" title="Quitar el marcador de búsqueda">Quitar marcador</button>
+      </div>
+    </div>
+    <p class="field__help muted mapa-catastral-buscar__help">
+      Orden: latitud, longitud (grados). Centra el mapa para marcar el terreno con el dibujo de polígono.
+    </p>
+  </div>
+
   <div class="mapa-catastral-leyenda" aria-label="Leyenda de estatus">
     <span class="mapa-catastral-leyenda__item"><span class="swatch swatch--contado"></span> Contado (vendido)</span>
     <span class="mapa-catastral-leyenda__item"><span class="swatch swatch--reservado"></span> Reservado</span>

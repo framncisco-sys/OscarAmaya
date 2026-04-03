@@ -1735,6 +1735,73 @@ a.btn-secondary:active {
   flex-wrap: wrap;
 }
 
+.mapa-catastral-buscar {
+  margin-top: 1rem;
+  padding: 0.75rem 0 0;
+  border-top: 1px solid var(--pbr-border-light);
+}
+
+.mapa-catastral-buscar__title {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--pbr-text, inherit);
+}
+
+.mapa-catastral-buscar__row {
+  display: grid;
+  gap: 0.65rem 0.75rem;
+  grid-template-columns: repeat(2, minmax(120px, 1fr)) minmax(160px, 1.4fr) auto;
+  align-items: end;
+}
+
+.mapa-catastral-buscar__field .field__label {
+  font-size: 0.8rem;
+}
+
+.mapa-catastral-buscar__field--wide {
+  grid-column: span 1;
+}
+
+.mapa-catastral-buscar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+  padding-bottom: 0.15rem;
+}
+
+.mapa-catastral-buscar__help {
+  margin-top: 0.45rem;
+  margin-bottom: 0;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 900px) {
+  .mapa-catastral-buscar__row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mapa-catastral-buscar__field--wide {
+    grid-column: span 2;
+  }
+
+  .mapa-catastral-buscar__actions {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 639px) {
+  .mapa-catastral-buscar__row {
+    grid-template-columns: 1fr;
+  }
+
+  .mapa-catastral-buscar__field--wide,
+  .mapa-catastral-buscar__actions {
+    grid-column: span 1;
+  }
+}
+
 .mapa-lotes-canvas {
   margin-top: 0.75rem;
   width: 100%;

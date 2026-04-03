@@ -16,6 +16,9 @@
   map.addLayer(geoLayer);
   map.addLayer(drawnItems);
 
+  /** Marcador temporal al buscar coordenadas (no se guarda en BD). */
+  var searchMarkerLayer = L.layerGroup().addTo(map);
+
   var osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "&copy; OpenStreetMap",
@@ -60,6 +63,86 @@
 
   var currentData = null;
   var currentLoteId = "";
+
+  var inpLat = document.getElementById("catastral-lat");
+  var inpLng = document.getElementById("catastral-lng");
+  var inpLine = document.getElementById("catastral-coords-line");
+  var btnBuscarCoords = document.getElementById("catastral-buscar-coords");
+  var btnLimpiarBusqueda = document.getElementById("catastral-limpiar-busqueda");
+
+  function parseCoordToken(s) {
+    if (s == null || s === "") return NaN;
+    var t = String(s).trim();
+    if (t.indexOf(",") >= 0 && t.indexOf(".") < 0) {
+      t = t.replace(",", ".");
+    }
+    return parseFloat(t);
+  }
+
+  function parseLineCoords(line) {
+    var raw = (line || "").trim();
+    if (!raw) return null;
+    var parts = raw.split(/[,;]/).map(function (p) {
+      return p.trim();
+    }).filter(Boolean);
+    if (parts.length < 2) {
+      parts = raw.split(/\s+/).filter(Boolean);
+    }
+    if (parts.length < 2) return null;
+    var lat = parseCoordToken(parts[0]);
+    var lng = parseCoordToken(parts[1]);
+    if (isNaN(lat) || isNaN(lng)) return null;
+    return { lat: lat, lng: lng };
+  }
+
+  function readCoordsFromInputs() {
+    if (inpLine && inpLine.value.trim()) {
+      var parsed = parseLineCoords(inpLine.value);
+      if (parsed) return { lat: parsed.lat, lng: parsed.lng, fromLine: true };
+    }
+    return {
+      lat: inpLat ? parseCoordToken(inpLat.value) : NaN,
+      lng: inpLng ? parseCoordToken(inpLng.value) : NaN,
+      fromLine: false,
+    };
+  }
+
+  function goToSearchCoords() {
+    var o = readCoordsFromInputs();
+    var lat = o.lat;
+    var lng = o.lng;
+    if (isNaN(lat) || isNaN(lng)) {
+      alert(
+        "Ingrese latitud y longitud (números), o una línea con ambas separadas por coma o espacio (ej. 13.69, -89.21)."
+      );
+      return;
+    }
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      alert("Latitud entre -90 y 90; longitud entre -180 y 180.");
+      return;
+    }
+    searchMarkerLayer.clearLayers();
+    var mk = L.marker([lat, lng], { title: "Punto de búsqueda" });
+    mk.bindPopup(
+      "<strong>Punto de referencia</strong><br>" +
+        lat.toFixed(6) +
+        ", " +
+        lng.toFixed(6) +
+        "<br><span class='muted'>Use el dibujo de polígono para delimitar el lote.</span>"
+    );
+    searchMarkerLayer.addLayer(mk);
+    var z = Math.max(map.getZoom(), 17);
+    map.setView([lat, lng], z);
+    mk.openPopup();
+    if (o.fromLine && inpLat && inpLng) {
+      inpLat.value = String(lat);
+      inpLng.value = String(lng);
+    }
+  }
+
+  function clearSearchMarker() {
+    searchMarkerLayer.clearLayers();
+  }
 
   var STYLES = {
     contado: { color: "#0d47a1", fillColor: "#1565c0", weight: 2, fillOpacity: 0.55 },
@@ -326,6 +409,25 @@
   btnSave.addEventListener("click", function () {
     saveCurrentGeometry(true);
   });
+
+  if (btnBuscarCoords) {
+    btnBuscarCoords.addEventListener("click", goToSearchCoords);
+  }
+  if (btnLimpiarBusqueda) {
+    btnLimpiarBusqueda.addEventListener("click", clearSearchMarker);
+  }
+  function bindEnterToSearch(el) {
+    if (!el) return;
+    el.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        goToSearchCoords();
+      }
+    });
+  }
+  bindEnterToSearch(inpLat);
+  bindEnterToSearch(inpLng);
+  bindEnterToSearch(inpLine);
 
   if (!selProyecto.value && selProyecto.options.length === 2) {
     selProyecto.value = selProyecto.options[1].value;
