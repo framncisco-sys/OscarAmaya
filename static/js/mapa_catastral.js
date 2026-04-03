@@ -73,10 +73,32 @@
   function parseCoordToken(s) {
     if (s == null || s === "") return NaN;
     var t = String(s).trim();
-    if (t.indexOf(",") >= 0 && t.indexOf(".") < 0) {
-      t = t.replace(",", ".");
+    // Permitir formatos como:
+    //  - 13.6929
+    //  - 13,6929
+    //  - 13°30'26.4"N
+    //  - 88°16'03.7\"W
+    var hasHem = /[NSEW]/i.test(t);
+    var nums = t.match(/-?\d+(?:\.\d+)?/g);
+    if (!nums || !nums.length) return NaN;
+    // Solo un número → decimal directo (tras normalizar coma)
+    if (nums.length === 1 && !hasHem) {
+      if (t.indexOf(",") >= 0 && t.indexOf(".") < 0) {
+        t = t.replace(",", ".");
+      }
+      var dec = parseFloat(t);
+      return isNaN(dec) ? NaN : dec;
     }
-    return parseFloat(t);
+    // DMS: grados, minutos, segundos
+    var deg = parseFloat(nums[0]);
+    var min = nums.length > 1 ? parseFloat(nums[1]) : 0;
+    var sec = nums.length > 2 ? parseFloat(nums[2]) : 0;
+    if (isNaN(deg) || isNaN(min) || isNaN(sec)) return NaN;
+    var sign = 1;
+    if (/S/i.test(t) || /W/i.test(t)) sign = -1;
+    if (/^-/.test(nums[0])) sign = -1;
+    var out = sign * (Math.abs(deg) + min / 60 + sec / 3600);
+    return out;
   }
 
   function parseLineCoords(line) {
