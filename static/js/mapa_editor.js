@@ -18,6 +18,8 @@
   var overlay = null;
   var currentData = null;
   var currentLoteId = "";
+  var imageWidth = 100;
+  var imageHeight = 100;
 
   var drawControl = new L.Control.Draw({
     edit: { featureGroup: drawnItems, remove: true },
@@ -41,11 +43,19 @@
   }
 
   function percentToLatLng(pt) {
-    return xyToLatLng(pt[0], pt[1]);
+    // GeoJSON del mapa editor se guarda en porcentaje 0..100.
+    var x = (Number(pt[0]) / 100) * imageWidth;
+    var y = (Number(pt[1]) / 100) * imageHeight;
+    return xyToLatLng(x, y);
   }
 
   function latLngToPercent(pt) {
-    return [Number(pt.lng.toFixed(4)), Number(pt.lat.toFixed(4))];
+    if (!imageWidth || !imageHeight) return [0, 0];
+    var xPct = (pt.lng / imageWidth) * 100;
+    var yPct = (pt.lat / imageHeight) * 100;
+    xPct = Math.max(0, Math.min(100, xPct));
+    yPct = Math.max(0, Math.min(100, yPct));
+    return [Number(xPct.toFixed(4)), Number(yPct.toFixed(4))];
   }
 
   /** Misma leyenda que mapa catastral: contado / reservado / disponible / bloqueado */
@@ -252,6 +262,8 @@
     if (!data.plano_url) return;
     var img = new Image();
     img.onload = function () {
+      imageWidth = img.width || 100;
+      imageHeight = img.height || 100;
       var bounds = boundsForImage(img.width, img.height);
       overlay = L.imageOverlay(data.plano_url, bounds).addTo(map);
       map.fitBounds(bounds);
