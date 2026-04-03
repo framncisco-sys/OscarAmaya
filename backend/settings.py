@@ -48,10 +48,10 @@ ALLOWED_HOSTS = env.list(
     default=["127.0.0.1", "localhost", "[::1]"],
 )
 
-# DigitalOcean App Platform: el host público es *.ondigitalocean.app. Si en el panel no
-# definió DJANGO_ALLOWED_HOSTS, Django queda solo en localhost y aparece DisallowedHost.
-# Este sufijo evita ese error; desactívelo con DJANGO_TRUST_ONDIGITALOCEAN_APP_DOMAIN=0
-if env.bool("DJANGO_TRUST_ONDIGITALOCEAN_APP_DOMAIN", default=True):
+# DigitalOcean App Platform: el Host es *.ondigitalocean.app. Sin esto aparece DisallowedHost
+# si no configuró DJANGO_ALLOWED_HOSTS en el panel (o el deploy no trae el último código).
+# Desactivar solo si no usa App Platform: DJANGO_DISABLE_ONDIGITALOCEAN_HOST=1
+if not env.bool("DJANGO_DISABLE_ONDIGITALOCEAN_HOST", default=False):
     _do_suffix = ".ondigitalocean.app"
     if _do_suffix not in ALLOWED_HOSTS:
         ALLOWED_HOSTS = list(ALLOWED_HOSTS) + [_do_suffix]
