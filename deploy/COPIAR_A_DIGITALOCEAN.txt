@@ -56,6 +56,24 @@ Otras variables útiles para la misma app (Web Service)
 (Sustituye la URL si tu app tiene otro nombre en *.ondigitalocean.app)
 
 --------------------------------------------------------------------------------
+Si aparece: password authentication failed for user "doadmin"
+--------------------------------------------------------------------------------
+
+La red y el host suelen estar bien; el servidor rechaza la clave que recibe.
+
+1) Deje DATABASE_URL pero añada OTRA variable (secreto) con la clave exacta del panel:
+      POSTGRES_PASSWORD=<misma clave que en DigitalOcean, sin comillas>
+   El proyecto usará esa variable en lugar de la contraseña incrustada en la URL
+   (útil si al copiar la URI se truncó o hubo un carácter raro).
+
+2) O bien BORRE DATABASE_URL y use solo la OPCIÓN B (variables sueltas), pegando la
+   contraseña solo en POSTGRES_PASSWORD.
+
+3) Revise que no queden variables viejas con otra contraseña en el mismo Web Service.
+
+4) En el panel, "Encrypt" / tipo SECRET para la contraseña; sin espacios al inicio o final.
+
+--------------------------------------------------------------------------------
 Después de guardar y desplegar
 --------------------------------------------------------------------------------
 

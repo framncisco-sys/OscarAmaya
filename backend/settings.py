@@ -206,11 +206,18 @@ def _database_from_url() -> dict | None:
         opts["sslmode"] = "require"
     if _postgres_sslmode and "sslmode" not in opts:
         opts["sslmode"] = _postgres_sslmode
+    user = (unquote_plus(u.username or "") or "").strip()
+    password = (unquote_plus(u.password or "") or "").strip()
+    # Si la contraseña en la URL está mal copiada o con caracteres que rompen el parseo,
+    # defina POSTGRES_PASSWORD (o PGPASSWORD) en el panel: sustituye la de DATABASE_URL.
+    _pw_override = (os.environ.get("POSTGRES_PASSWORD") or os.environ.get("PGPASSWORD") or "").strip()
+    if _pw_override:
+        password = _pw_override
     return {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": unquote_plus(dbname),
-        "USER": unquote_plus(u.username or ""),
-        "PASSWORD": unquote_plus(u.password or ""),
+        "USER": user,
+        "PASSWORD": password,
         "HOST": u.hostname or "",
         "PORT": str(u.port or 5432),
         "OPTIONS": opts,
