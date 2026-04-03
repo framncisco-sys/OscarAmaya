@@ -197,6 +197,7 @@ def emitir_recibo_ingreso(*, pago, emitido_por=None) -> tuple[DocumentoEmitido, 
 
     notif = ReciboNotificacionInfo(
         correo_enviado=False,
+        correo_entrega_real=False,
         whatsapp_pdf_por_api=False,
         meta_configurado=False,
         meta_solo_texto=False,

@@ -24,10 +24,23 @@ class ReciboNotificacionInfo:
     """Resultado de notificar un recibo (para mensajes en la interfaz)."""
 
     correo_enviado: bool
+    """True si se llamó a send() sin excepción (puede ser solo consola / dummy)."""
+    correo_entrega_real: bool
+    """True solo si hay SMTP configurado y el backend no es consola/dummy."""
     whatsapp_pdf_por_api: bool
     meta_configurado: bool
     meta_solo_texto: bool
     twilio_pdf: bool
+
+
+def _correo_entrega_a_bandejas_reales() -> bool:
+    """Sin EMAIL_HOST o con QuietConsole el mensaje no llega al cliente."""
+    be = (getattr(settings, "EMAIL_BACKEND", "") or "").strip()
+    if "QuietConsole" in be or be.endswith("console.EmailBackend") or "dummy" in be.lower():
+        return False
+    if not (getattr(settings, "EMAIL_HOST", "") or "").strip():
+        return False
+    return True
 
 
 def url_pdf_publica_https(doc: "DocumentoEmitido") -> str | None:
@@ -310,6 +323,7 @@ def notificar_recibo_emitido(doc: "DocumentoEmitido", pago: "Pago") -> ReciboNot
 
     return ReciboNotificacionInfo(
         correo_enviado=correo_ok,
+        correo_entrega_real=bool(correo_ok and _correo_entrega_a_bandejas_reales()),
         whatsapp_pdf_por_api=meta_pdf or twilio_pdf,
         meta_configurado=meta_on,
         meta_solo_texto=meta_solo_texto,

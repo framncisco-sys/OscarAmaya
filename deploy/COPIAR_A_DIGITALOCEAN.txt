@@ -74,6 +74,36 @@ La red y el host suelen estar bien; el servidor rechaza la clave que recibe.
 4) En el panel, "Encrypt" / tipo SECRET para la contraseña; sin espacios al inicio o final.
 
 --------------------------------------------------------------------------------
+Recibos: correo con PDF y WhatsApp
+--------------------------------------------------------------------------------
+
+CORREO
+  Sin variables SMTP, Django usa "consola": el PDF no llega al cliente (solo log).
+  En el Web Service añada, según su proveedor (Gmail, Office365, hosting, etc.):
+    EMAIL_HOST=...
+    EMAIL_PORT=587
+    EMAIL_USE_TLS=True
+    EMAIL_USE_SSL=False
+    EMAIL_HOST_USER=...
+    EMAIL_HOST_PASSWORD=...
+    DEFAULT_FROM_EMAIL=...   (suele ser el mismo correo que EMAIL_HOST_USER)
+  Vea .env.example para más ejemplos.
+
+WHATSAPP
+  El botón "Abrir WhatsApp" usa wa.me: solo abre el chat con TEXTO; no adjunta PDF
+  (así funciona WhatsApp, no es un fallo del sistema).
+  Opciones para enviar el PDF como documento:
+    - Meta WhatsApp Cloud API: WHATSAPP_CLOUD_ENABLED=1, RECIBO_ENVIAR_WHATSAPP_META=1,
+      token, PHONE_NUMBER_ID, etc. (ver .env.example)
+    - Twilio: RECIBO_ENVIAR_WHATSAPP_TWILIO=1 y credenciales; PUBLIC_BASE_URL en HTTPS
+      para la URL del PDF si aplica.
+
+  Para que el TEXTO de wa.me incluya un enlace de descarga al PDF, defina
+  PUBLIC_BASE_URL=https://su-app.ondigitalocean.app
+  (y que /media/... sea accesible sin login si usa solo enlace; en la app actual
+  la descarga de documentos suele requerir sesión: evalúe Meta/Twilio para el cliente).
+
+--------------------------------------------------------------------------------
 Después de guardar y desplegar
 --------------------------------------------------------------------------------
 

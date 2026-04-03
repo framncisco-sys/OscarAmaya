@@ -19,6 +19,38 @@ from .services import (
 )
 
 
+def _html_estado_correo_recibo(notif: ReciboNotificacionInfo) -> str:
+    if notif.correo_entrega_real:
+        return (
+            '<p class="alert-recibo__meta">Correo: el PDF se envió al email del cliente vía SMTP.</p>'
+        )
+    if notif.correo_enviado:
+        return (
+            '<p class="alert-recibo__meta alert-recibo__meta--warn">'
+            "Correo: el servidor <strong>no</strong> está usando SMTP real (falta <code>EMAIL_HOST</code> o usa backend de consola). "
+            "El cliente <strong>no</strong> recibió el correo. Configure SMTP en App Platform: "
+            "<code>EMAIL_HOST</code>, <code>EMAIL_PORT</code>, <code>EMAIL_HOST_USER</code>, "
+            "<code>EMAIL_HOST_PASSWORD</code>, <code>DEFAULT_FROM_EMAIL</code> (véase <code>.env.example</code>).</p>"
+        )
+    return (
+        '<p class="alert-recibo__meta alert-recibo__meta--warn">'
+        "Correo: no se envió (confirme que el cliente tenga email o revise los logs del servidor).</p>"
+    )
+
+
+def _html_whatsapp_enlace_manual() -> str:
+    return (
+        '<p class="alert-recibo__meta">'
+        "<strong>Abrir WhatsApp</strong> usa un enlace <code>wa.me</code>: solo abre el chat con <strong>texto</strong>. "
+        "WhatsApp <strong>no adjunta el PDF</strong> por ese mecanismo (limitación de la plataforma). "
+        "Si configuró <code>PUBLIC_BASE_URL</code> con una URL <strong>HTTPS pública</strong> del sitio, el mensaje puede "
+        "incluir un enlace para que el cliente descargue el PDF. "
+        "Para enviar el PDF como documento de forma automática, active "
+        "<code>WHATSAPP_CLOUD_ENABLED</code> + <code>RECIBO_ENVIAR_WHATSAPP_META</code> (Meta) o Twilio "
+        "(<code>RECIBO_ENVIAR_WHATSAPP_TWILIO</code>).</p>"
+    )
+
+
 def _alerta_html_recibo_emitido(
     *,
     doc_numero: str,
@@ -27,6 +59,8 @@ def _alerta_html_recibo_emitido(
     notif: ReciboNotificacionInfo,
 ) -> str:
     """HTML del aviso tras emitir recibo: compacto y en bloques."""
+    bloque_correo = _html_estado_correo_recibo(notif)
+
     if wa_url:
         acciones = format_html(
             '<p class="alert-recibo__actions">'
@@ -37,36 +71,35 @@ def _alerta_html_recibo_emitido(
             url_pdf,
             wa_url,
         )
+        partes = [bloque_correo]
         if notif.whatsapp_pdf_por_api:
-            detalle = mark_safe(
-                '<p class="alert-recibo__meta">Correo: se envió copia con PDF si el cliente tiene email.</p>'
-                '<p class="alert-recibo__meta">WhatsApp: el PDF también se entregó como documento (API).</p>'
+            partes.append(
+                '<p class="alert-recibo__meta">WhatsApp: el PDF se entregó como documento (API Meta o Twilio).</p>'
             )
         elif notif.meta_solo_texto:
-            detalle = mark_safe(
-                '<p class="alert-recibo__meta">Correo: se envió copia con PDF si el cliente tiene email.</p>'
+            partes.append(
                 '<p class="alert-recibo__meta alert-recibo__meta--warn">'
-                "WhatsApp (Meta) solo entregó texto, no el archivo. Revise en el servidor: token, URL pública del PDF, "
-                "MIME <code>application/pdf</code> o tamaño del archivo.</p>"
+                "WhatsApp (Meta) solo entregó texto, no el archivo. Revise token, "
+                "<code>PUBLIC_BASE_URL</code> HTTPS, MIME <code>application/pdf</code> o tamaño del PDF."
+                "</p>"
             )
         elif notif.meta_configurado:
-            detalle = mark_safe(
-                '<p class="alert-recibo__meta">Correo: se envió copia con PDF si el cliente tiene email.</p>'
+            partes.append(
                 '<p class="alert-recibo__meta alert-recibo__meta--warn">'
-                "WhatsApp (Meta) no pudo completar el envío. Revise la consola del servidor.</p>"
+                "WhatsApp (Meta) no pudo completar el envío. Revise la consola del servidor."
+                "</p>"
             )
         else:
-            detalle = mark_safe(
-                '<p class="alert-recibo__meta">Correo: se envió copia con PDF si el cliente tiene email.</p>'
-            )
+            partes.append(_html_whatsapp_enlace_manual())
+        detalle = mark_safe("".join(partes))
     else:
         acciones = format_html(
             '<p class="alert-recibo__actions"><a href="{}">Descargar PDF</a></p>',
             url_pdf,
         )
         detalle = mark_safe(
-            '<p class="alert-recibo__meta">Correo: se envió copia con PDF si el cliente tiene email.</p>'
-            '<p class="alert-recibo__meta">Agregue teléfono al cliente para generar el enlace de WhatsApp.</p>'
+            bloque_correo
+            + '<p class="alert-recibo__meta">Agregue teléfono al cliente para generar el enlace de WhatsApp.</p>'
         )
 
     return format_html(
