@@ -2,6 +2,26 @@
 
 No puedo entrar a tu cuenta de DigitalOcean ni a GitHub por ti; sigue esta lista en orden. Tu carpeta del proyecto es `c:\PAREDES BIENES RAICES` y el archivo **`.env` no debe subirse a internet** (ya está en `.gitignore`).
 
+### Si PowerShell dice que no reconoce `git`
+
+Git suele estar en `C:\Program Files\Git\bin\git.exe` pero **no está en el PATH**. Elija una opción:
+
+**A) Solo esta ventana de PowerShell:**
+
+```powershell
+$env:Path = "C:\Program Files\Git\bin;" + $env:Path
+git --version
+```
+
+**B) Para siempre (recomendado):**  
+*Configuración → Sistema → Acerca de → Configuración avanzada del sistema → Variables de entorno → Path (Usuario o Sistema) → Nuevo →* pegue `C:\Program Files\Git\bin` → Aceptar. Cierre y abra PowerShell.
+
+También puede usar la ruta completa sin cambiar PATH:
+
+```powershell
+& "C:\Program Files\Git\bin\git.exe" status
+```
+
 ---
 
 ## Paso 1 — Instalar Git en Windows
