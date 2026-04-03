@@ -306,6 +306,116 @@ def emitir_recibo_comision_vendedor(*, contrato: Contrato, emitido_por=None) -> 
     return doc
 
 
+def regenerar_pdf_documento(doc: DocumentoEmitido) -> bytes:
+    """Reconstruye el PDF desde la BD si el fichero en MEDIA desapareció (p. ej. disco efímero)."""
+    from decimal import Decimal
+
+    if doc.tipo == DocumentoTipo.RECIBO_INGRESO:
+        pago = doc.pago
+        if pago is None:
+            raise ValueError(
+                "Este recibo ya no tiene el pago vinculado; no se puede regenerar el PDF."
+            )
+        contrato = pago.contrato
+        if contrato is None or contrato.inmueble_id is None:
+            raise ValueError("Datos del contrato incompletos; no se puede regenerar el recibo.")
+        proyecto = contrato.inmueble.proyecto
+        html = render_to_string(
+            "docs/recibo_ingreso.html",
+            {
+                "doc": doc,
+                "pago": pago,
+                "contrato": contrato,
+                "cliente": contrato.cliente,
+                "proyecto": proyecto,
+                "lugar_emision": _lugar_emision_republica(proyecto),
+                "razon_social_receptor": _razon_social_negocio_pdf(),
+                "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
+                "monto_fmt": format_monto_sv(pago.monto),
+                "monto_letras": monto_usd_letras_es(pago.monto),
+            },
+        )
+        return _html_to_pdf_bytes(html)
+
+    if doc.tipo == DocumentoTipo.PROMESA_VENTA:
+        contrato = doc.contrato
+        if contrato is None:
+            raise ValueError("Este documento no tiene contrato; no se puede regenerar la promesa.")
+        html = render_to_string(
+            "docs/promesa_venta.html",
+            {
+                "doc": doc,
+                "contrato": contrato,
+                "cliente": contrato.cliente,
+                "inmueble": contrato.inmueble,
+                "proyecto": contrato.inmueble.proyecto,
+                "poligono": contrato.inmueble.poligono,
+                "hoy": timezone.localdate(),
+                "lugar_emision": _lugar_emision_republica(contrato.inmueble.proyecto),
+                "razon_social_vendedor": _razon_social_negocio_pdf(),
+                "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
+            },
+        )
+        return _html_to_pdf_bytes(html)
+
+    if doc.tipo == DocumentoTipo.RECIBO_COMISION_VENDEDOR:
+        contrato = doc.contrato
+        if contrato is None:
+            raise ValueError("Este recibo no tiene contrato; no se puede regenerar el PDF.")
+        monto = contrato.monto_comision_efectivo()
+        if monto is None or monto <= Decimal("0"):
+            raise ValueError(
+                "No hay monto de comisión válido en el contrato; no se puede regenerar este PDF."
+            )
+        nombre_v = contrato.nombre_vendedor_documentos()
+        if not (nombre_v or "").strip():
+            raise ValueError("Falta el vendedor en el contrato; no se puede regenerar el PDF.")
+        proyecto = contrato.inmueble.proyecto
+        pct_txt = ""
+        if contrato.comision_porcentaje is not None:
+            pct_txt = f"{contrato.comision_porcentaje.normalize()} %"
+        html = render_to_string(
+            "docs/recibo_comision_vendedor.html",
+            {
+                "doc": doc,
+                "contrato": contrato,
+                "cliente": contrato.cliente,
+                "proyecto": proyecto,
+                "inmueble": contrato.inmueble,
+                "vendedor_nombre": nombre_v,
+                "monto": monto,
+                "monto_fmt": format_monto_sv(monto),
+                "monto_letras": monto_usd_letras_es(monto),
+                "comision_porcentaje": contrato.comision_porcentaje,
+                "comision_porcentaje_txt": pct_txt,
+                "precio_final_fmt": format_monto_sv(contrato.precio_final),
+                "lugar_emision": _lugar_emision_republica(proyecto),
+                "razon_social_receptor": _razon_social_negocio_pdf(),
+                "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
+            },
+        )
+        return _html_to_pdf_bytes(html)
+
+    raise ValueError(
+        f"El tipo «{doc.get_tipo_display()}» no admite regeneración automática del PDF."
+    )
+
+
+def regenerar_pdf_y_persistir(doc: DocumentoEmitido) -> bytes:
+    """Regenera bytes del PDF y vuelve a guardarlos en `pdf_file` cuando el almacenamiento lo permite."""
+    pdf_bytes = regenerar_pdf_documento(doc)
+    doc.hash_sha256 = _sha256(pdf_bytes)
+    try:
+        doc.pdf_file.save(f"{doc.numero}.pdf", ContentFile(pdf_bytes), save=False)
+        doc.save(update_fields=["hash_sha256", "pdf_file"])
+    except Exception:
+        logger.exception(
+            "PDF regenerado en memoria pero no se pudo volver a guardarlo (documento %s).",
+            doc.numero,
+        )
+    return pdf_bytes
+
+
 def generar_pdf_desde_plantilla(*, template_name: str, context: dict) -> bytes:
     """Renderiza una plantilla HTML y la convierte a PDF (WeasyPrint o xhtml2pdf)."""
     html = render_to_string(template_name, context)
