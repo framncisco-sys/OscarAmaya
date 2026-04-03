@@ -17,7 +17,8 @@ Guía para probar la aplicación Django en **DigitalOcean**. Hay dos caminos hab
 | `DEBUG` | `False` |
 | `DJANGO_ALLOWED_HOSTS` | Dominios o IPs separados por coma, sin espacios. Incluya el hostname de App Platform, ej. `tu-app.ondigitalocean.app` o `.ondigitalocean.app` para todos los subdominios. |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | URLs completas con `https://`, separadas por coma. Ej. `https://tu-app.ondigitalocean.app` |
-| `POSTGRES_*` | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT` (en bases administradas el puerto suele ser **25060** y hace falta **SSL**; vea nota más abajo). |
+| `DATABASE_URL` | Opcional: DigitalOcean suele inyectarla al vincular PostgreSQL; si está definida, **prevalece** sobre `POSTGRES_*`. |
+| `POSTGRES_*` | Si no usa `DATABASE_URL`: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT` (en bases administradas el puerto suele ser **25060** y hace falta **SSL**; vea nota más abajo). |
 | `PUBLIC_BASE_URL` | URL pública `https://...` (recibos y enlaces). |
 
 Copie `.env.example` a `.env` y complételo. En DigitalOcean use la pestaña **Environment** del componente o los **Secrets**.
@@ -96,7 +97,7 @@ Hay un ejemplo incompleto en `deploy/digitalocean-app-spec.example.yaml` solo co
 - `Procfile` — comando web para plataformas tipo Heroku/App Platform.
 - `runtime.txt` — versión de Python (3.12.x).
 - `requirements.txt` — incluye `gunicorn` y `whitenoise`.
-- `STATIC_ROOT` + WhiteNoise en `backend/settings.py` cuando `DEBUG=False` (por defecto) para servir estáticos sin depender solo de nginx.
+- `STATIC_ROOT` + WhiteNoise en `backend/settings.py` cuando `DEBUG=False` **o** cuando existe la variable `PORT` (Gunicorn en App Platform), para servir CSS/JS/imágenes sin depender solo de nginx.
 - `.gitignore` — carpeta `staticfiles/` generada por `collectstatic`.
 
 ## PDF (WeasyPrint)

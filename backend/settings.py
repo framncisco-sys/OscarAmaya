@@ -10,8 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 import re
 from pathlib import Path
+from urllib.parse import parse_qs, unquote_plus, urlparse
 
 import environ
 
@@ -158,17 +160,49 @@ _postgres_sslmode = env.str("POSTGRES_SSLMODE", default="").strip()
 if _postgres_sslmode:
     _pg_options["sslmode"] = _postgres_sslmode
 
-DATABASES = {
-    "default": {
+
+def _database_from_url() -> dict | None:
+    """DigitalOcean App Platform suele inyectar DATABASE_URL al vincular PostgreSQL."""
+    raw = (os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL") or "").strip()
+    if not raw:
+        return None
+    u = urlparse(raw)
+    if u.scheme not in ("postgres", "postgresql"):
+        return None
+    path = (u.path or "").lstrip("/")
+    dbname = path.split("/")[0] or "postgres"
+    opts: dict = {"connect_timeout": 10}
+    q = parse_qs(u.query)
+    if q.get("sslmode"):
+        opts["sslmode"] = q["sslmode"][0]
+    elif u.hostname and "digitalocean" in u.hostname:
+        opts["sslmode"] = "require"
+    return {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": env.str("POSTGRES_DB", default="paredes_bienes"),
-        "USER": env.str("POSTGRES_USER", default="postgres"),
-        "PASSWORD": env.str("POSTGRES_PASSWORD", default=""),
-        "HOST": env.str("POSTGRES_HOST", default="localhost"),
-        "PORT": env.str("POSTGRES_PORT", default="5432"),
-        "OPTIONS": _pg_options,
+        "NAME": unquote_plus(dbname),
+        "USER": unquote_plus(u.username or ""),
+        "PASSWORD": unquote_plus(u.password or ""),
+        "HOST": u.hostname or "",
+        "PORT": str(u.port or 5432),
+        "OPTIONS": opts,
     }
-}
+
+
+_db_url = _database_from_url()
+if _db_url:
+    DATABASES = {"default": _db_url}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": env.str("POSTGRES_DB", default="paredes_bienes"),
+            "USER": env.str("POSTGRES_USER", default="postgres"),
+            "PASSWORD": env.str("POSTGRES_PASSWORD", default=""),
+            "HOST": env.str("POSTGRES_HOST", default="localhost"),
+            "PORT": env.str("POSTGRES_PORT", default="5432"),
+            "OPTIONS": dict(_pg_options),
+        }
+    }
 
 
 # Password validation
