@@ -12,10 +12,12 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import os
 import re
+import sys
 from pathlib import Path
 from urllib.parse import parse_qs, unquote_plus, urlparse
 
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,7 +28,9 @@ env = environ.Env(
     EMAIL_USE_TLS=(bool, True),
     EMAIL_USE_SSL=(bool, False),
 )
-environ.Env.read_env(BASE_DIR / ".env")
+# En App Platform / PaaS no debe existir .env en el repo; las credenciales van en el panel.
+# Si hay .env local, no debe pisar variables ya definidas en el entorno del despliegue.
+environ.Env.read_env(BASE_DIR / ".env", overwrite=False)
 
 
 # Quick-start development settings - unsuitable for production
@@ -220,12 +224,36 @@ def _database_from_pg_env() -> dict | None:
     }
 
 
+def _database_from_db_prefix() -> dict | None:
+    """Convención DB_HOST / DB_NAME / … usada en algunos tutoriales y paneles."""
+    host = (os.environ.get("DB_HOST") or "").strip()
+    if not host:
+        return None
+    opts: dict = {"connect_timeout": 10}
+    if _postgres_sslmode:
+        opts["sslmode"] = _postgres_sslmode
+    elif "digitalocean" in host:
+        opts["sslmode"] = "require"
+    return {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": (os.environ.get("DB_NAME") or env.str("POSTGRES_DB", default="paredes_bienes")).strip(),
+        "USER": (os.environ.get("DB_USER") or "").strip(),
+        "PASSWORD": (os.environ.get("DB_PASSWORD") or "").strip(),
+        "HOST": host,
+        "PORT": str((os.environ.get("DB_PORT") or "5432")).strip(),
+        "OPTIONS": opts,
+    }
+
+
 _db_url = _database_from_url()
 _db_pg = _database_from_pg_env()
+_db_alt = _database_from_db_prefix()
 if _db_url:
     DATABASES = {"default": _db_url}
 elif _db_pg:
     DATABASES = {"default": _db_pg}
+elif _db_alt:
+    DATABASES = {"default": _db_alt}
 else:
     DATABASES = {
         "default": {
@@ -238,6 +266,27 @@ else:
             "OPTIONS": dict(_pg_options),
         }
     }
+
+# Gunicorn en App Platform define PORT; ahí no existe PostgreSQL en localhost:5432.
+_running_on_paas = bool(os.environ.get("PORT"))
+_local_hosts = frozenset({"localhost", "127.0.0.1", "::1", "[::1]"})
+if _running_on_paas:
+    _dh = (DATABASES["default"].get("HOST") or "").strip()
+    _skip_db_host_check = "collectstatic" in sys.argv
+    if (
+        _dh in _local_hosts
+        and not env.bool("DJANGO_ALLOW_LOCALHOST_DB", default=False)
+        and not _skip_db_host_check
+    ):
+        raise ImproperlyConfigured(
+            "La aplicación corre en un PaaS (PORT está definido) pero la base de datos "
+            "sigue apuntando a localhost. En DigitalOcean: cree o vincule un recurso PostgreSQL "
+            "y defina DATABASE_URL (recomendado) o POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, "
+            "POSTGRES_PASSWORD, POSTGRES_DB y POSTGRES_SSLMODE=require. "
+            "En la app → Settings → Components → su Web Service → Environment: añada las variables "
+            "o use una variable enlazada tipo ${nombre_db.DATABASE_URL}. "
+            "Vea deploy/DIGITALOCEAN.md."
+        )
 
 
 # Password validation

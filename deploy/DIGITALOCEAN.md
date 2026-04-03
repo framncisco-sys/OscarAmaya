@@ -50,7 +50,11 @@ Ya está soportado en `backend/settings.py` vía variable de entorno.
    gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120
    ```
 
-5. Cree o vincule una **base de datos PostgreSQL** y asigne las variables `POSTGRES_*` al servicio web (valores del panel de la base).
+5. **Base de datos (obligatorio):** en el contenedor **no** hay PostgreSQL en `localhost`. Debe:
+   - **Recomendado:** añadir el recurso **Database** y en el **Web Service** → **Environment** definir `DATABASE_URL` con el valor **enlazado** del asistente (p. ej. `${db.DATABASE_URL}`). El valor **no** debe quedar como texto literal sin resolver.
+   - **O bien** copiar del panel de la base host, puerto, usuario, contraseña y nombre de BD y definir `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` y `POSTGRES_SSLMODE=require`.
+
+   Si al iniciar sesión aparece `connection refused` a `127.0.0.1:5432`, las variables **no** están llegando al **Web Service** (revise Environment del componente web, no solo de la base).
 6. Añada las variables de Django (`SECRET_KEY`, `DEBUG=False`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `PUBLIC_BASE_URL`).
 7. **Primera migración**: en la consola del componente (Console) o un job de deploy:
 
