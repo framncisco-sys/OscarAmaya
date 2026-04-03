@@ -24,6 +24,17 @@ Guía para probar la aplicación Django en **DigitalOcean**. Hay dos caminos hab
 
 Copie `.env.example` a `.env` y complételo. En DigitalOcean use la pestaña **Environment** del componente o los **Secrets**.
 
+### Si el login falla con `connection refused` a `127.0.0.1:5432`
+
+Eso indica que el **Web Service** no tiene `DATABASE_URL` ni `POSTGRES_HOST` remotos: Django usa los valores por defecto (`localhost`). Las variables deben estar en el **mismo componente** que ejecuta Gunicorn (Web Service), no solo en el recurso Database.
+
+1. **Databases** (menú lateral) → su clúster PostgreSQL → **Connection details** → copie la URI o host, puerto, usuario, contraseña y base.
+2. **Apps** → su app → **Settings** → **Components** → su **Web Service** → **Edit** → **Environment Variables**.
+3. Añada **`DATABASE_URL`** = cadena `postgresql://...?sslmode=require` **o** las variables sueltas `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_SSLMODE=require`.
+4. **Save** y **Deploy**. Luego en la consola del Web Service: `python manage.py migrate --noinput`.
+
+Comprobación rápida (JSON): `https://su-app.ondigitalocean.app/ping/?db=1` con `DEBUG=True` o con la variable `PBR_ALLOW_DB_PING=1` (sin exponer contraseñas).
+
 ### PostgreSQL administrado (SSL)
 
 En DigitalOcean PostgreSQL suele hacer falta:

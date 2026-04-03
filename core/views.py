@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import timedelta
 from pathlib import Path
 
@@ -36,9 +37,31 @@ def admin_legacy_redirect(request: HttpRequest) -> HttpResponse:
     return redirect(f"{reverse('login')}?next=/dashboard/")
 
 
-def ping(_request: HttpRequest) -> HttpResponse:
+def ping(request: HttpRequest) -> HttpResponse:
     """Comprueba que el servidor usa ESTE proyecto y esta URLconf."""
     from django.urls import get_resolver
+
+    if request.GET.get("db") == "1" and (
+        settings.DEBUG or os.environ.get("PBR_ALLOW_DB_PING") == "1"
+    ):
+        db = settings.DATABASES["default"]
+        payload = {
+            "db_engine": db.get("ENGINE"),
+            "db_host": db.get("HOST"),
+            "db_port": db.get("PORT"),
+            "db_name": db.get("NAME"),
+            "db_user": db.get("USER"),
+            "db_has_password": bool(db.get("PASSWORD")),
+            "env_has_DATABASE_URL": bool(os.environ.get("DATABASE_URL")),
+            "hint": (
+                "Si db_host es localhost en App Platform, defina DATABASE_URL o POSTGRES_* "
+                "en el Web Service (deploy/DIGITALOCEAN.md)."
+            ),
+        }
+        return HttpResponse(
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            content_type="application/json; charset=utf-8",
+        )
 
     r = get_resolver()
     names = [getattr(p, "name", None) for p in r.url_patterns]

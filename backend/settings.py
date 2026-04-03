@@ -173,9 +173,24 @@ if _postgres_sslmode:
     _pg_options["sslmode"] = _postgres_sslmode
 
 
+def _first_database_url_raw() -> str:
+    """Cadena de conexión; varias plataformas usan nombres distintos."""
+    for key in (
+        "DATABASE_URL",
+        "POSTGRES_URL",
+        "POSTGRESQL_URL",
+        "POSTGRES_DATABASE_URL",
+    ):
+        v = (os.environ.get(key) or "").strip()
+        if v and not v.startswith("${"):
+            # Valor enlazado no resuelto en el panel de DO (literal ${db...})
+            return v
+    return ""
+
+
 def _database_from_url() -> dict | None:
     """DigitalOcean App Platform suele inyectar DATABASE_URL al vincular PostgreSQL."""
-    raw = (os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL") or "").strip()
+    raw = _first_database_url_raw()
     if not raw:
         return None
     u = urlparse(raw)
@@ -204,7 +219,9 @@ def _database_from_url() -> dict | None:
 
 def _database_from_pg_env() -> dict | None:
     """Variables estilo libpq (PGHOST, PGDATABASE, …) que algunos entornos inyectan."""
-    host = (os.environ.get("PGHOST") or "").strip()
+    host = (
+        (os.environ.get("PGHOST") or os.environ.get("POSTGRES_HOSTNAME") or "").strip()
+    )
     if not host:
         return None
     opts: dict = {"connect_timeout": 10}
