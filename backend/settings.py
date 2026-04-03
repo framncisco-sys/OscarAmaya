@@ -10,14 +10,13 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import logging
 import os
 import re
-import sys
 from pathlib import Path
 from urllib.parse import parse_qs, unquote_plus, urlparse
 
 import environ
-from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -267,24 +266,16 @@ else:
         }
     }
 
-# Gunicorn en App Platform define PORT; ahí no existe PostgreSQL en localhost:5432.
+# Gunicorn en App Platform define PORT; no forzar fallo al arrancar si aún no hay DATABASE_URL
+# (un raise aquí tumba Gunicorn y el health check). Solo avisar en logs.
 _running_on_paas = bool(os.environ.get("PORT"))
 _local_hosts = frozenset({"localhost", "127.0.0.1", "::1", "[::1]"})
 if _running_on_paas:
     _dh = (DATABASES["default"].get("HOST") or "").strip()
-    _skip_db_host_check = "collectstatic" in sys.argv
-    if (
-        _dh in _local_hosts
-        and not env.bool("DJANGO_ALLOW_LOCALHOST_DB", default=False)
-        and not _skip_db_host_check
-    ):
-        raise ImproperlyConfigured(
-            "La aplicación corre en un PaaS (PORT está definido) pero la base de datos "
-            "sigue apuntando a localhost. En DigitalOcean: cree o vincule un recurso PostgreSQL "
-            "y defina DATABASE_URL (recomendado) o POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, "
-            "POSTGRES_PASSWORD, POSTGRES_DB y POSTGRES_SSLMODE=require. "
-            "En la app → Settings → Components → su Web Service → Environment: añada las variables "
-            "o use una variable enlazada tipo ${nombre_db.DATABASE_URL}. "
+    if _dh in _local_hosts and not env.bool("DJANGO_ALLOW_LOCALHOST_DB", default=False):
+        logging.getLogger(__name__).warning(
+            "PBR: PORT (PaaS) activo pero la BD sigue en localhost. "
+            "Defina DATABASE_URL o POSTGRES_* en el Web Service; sin eso el login fallará. "
             "Vea deploy/DIGITALOCEAN.md."
         )
 
