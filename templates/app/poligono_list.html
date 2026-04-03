@@ -1,0 +1,54 @@
+{% extends "app/base_app.html" %}
+{% block title %}Polígonos | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Polígonos</h1>
+    <p class="page-toolbar__meta">Etapas y agrupación de lotes por proyecto.</p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:poligono_create' %}" class="btn-primary btn-sm">Nuevo polígono</a>
+  </div>
+</header>
+<div class="data-panel">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Proyecto</th>
+      <th>Nombre</th>
+      <th>Orden</th>
+      <th>Plano</th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in items %}
+    <tr>
+      <td>{{ p.proyecto.nombre }}</td>
+      <td><strong>{{ p.nombre }}</strong></td>
+      <td>{{ p.orden }}</td>
+      <td>
+        {% if p.plano_vista_url %}
+          {% if p.plano_vista_es_pdf %}
+          <a href="{{ p.plano_vista_url }}" target="_blank" rel="noopener">PDF</a>
+          {% else %}
+          <a href="{{ p.plano_vista_url }}" target="_blank" rel="noopener" class="poligono-plano-thumb-wrap">
+            <img src="{{ p.plano_vista_url }}" alt="" class="poligono-plano-thumb"{% if p.plano_clip_path %} style="clip-path: {{ p.plano_clip_path }}; -webkit-clip-path: {{ p.plano_clip_path }};"{% endif %}>
+          </a>
+          {% endif %}
+        {% else %}
+        <span class="muted">—</span>
+        {% endif %}
+      </td>
+      <td><a href="{% url 'app:poligono_update' p.pk %}" class="link-action">Editar</a></td>
+      <td><a href="{% url 'app:poligono_delete' p.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="muted">No hay polígonos.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "app/pagination.html" %}
+{% endblock %}

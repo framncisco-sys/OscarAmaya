@@ -1,0 +1,12 @@
+Estimado/a {{ cliente.nombres }},
+
+Adjuntamos el recibo PDF {{ doc.numero }} por el pago de ${{ pago.monto }} registrado el {{ pago.fecha }} (contrato {{ contrato.numero }}).
+
+Si tiene alguna consulta, responda a este correo o contáctenos.
+
+{% if whatsapp_url %}
+También puede escribirnos por WhatsApp: {{ whatsapp_url }}
+{% endif %}
+
+Saludos cordiales,
+Paredes Bienes Raíces

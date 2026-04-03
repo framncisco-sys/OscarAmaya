@@ -1,0 +1,126 @@
+{% extends "docs/recibo_ingreso.html" %}
+{# Misma hoja de estilos y cabecera PDF que el recibo de ingreso #}
+{% block content %}
+<div class="rec-wrap">
+
+<div class="rec-hero">
+  <h1>Recibo de comisión por venta</h1>
+  <p class="sub">
+    El Salvador · N.º <strong>{{ doc.numero }}</strong>
+    · Emitido {{ doc.emitido_en|date:"d/m/Y H:i" }}
+    {% if lugar_emision %}<br>{{ lugar_emision }}{% endif %}
+  </p>
+</div>
+
+<table class="rec-context">
+  <tr>
+    <td>
+      <span class="ctx-k">Proyecto</span>
+      <span class="ctx-n">{{ proyecto.nombre|title }}</span>
+      {% if proyecto.direccion or proyecto.municipio or proyecto.departamento %}
+      <p class="ctx-m">
+        {% if proyecto.direccion %}{{ proyecto.direccion }}{% endif %}
+        {% if proyecto.municipio %}{% if proyecto.direccion %} · {% endif %}{{ proyecto.municipio|title }}{% endif %}
+        {% if proyecto.departamento %}{% if proyecto.direccion or proyecto.municipio %} · {% endif %}Dpto. {{ proyecto.departamento|title }}{% endif %}
+      </p>
+      {% endif %}
+    </td>
+    <td class="rec-context__inmo">
+      <span class="ctx-k">Inmobiliaria</span>
+      <span class="ctx-n">{{ razon_social_receptor }}</span>
+      {% if emisor_nit %}<p class="ctx-m"><strong style="color:#52525b;">NIT</strong> {{ emisor_nit }}</p>{% endif %}
+      <p class="ctx-m">Liquidación de comisión por operación inmobiliaria</p>
+    </td>
+  </tr>
+</table>
+
+<div class="rec-amount-block">
+  <p class="who"><strong>Comisión a favor de:</strong> {{ vendedor_nombre }}
+    {% if contrato.vendedor_perfil %}
+      {% if contrato.vendedor_perfil.dui %}<span class="ids"> · DUI {{ contrato.vendedor_perfil.dui }}</span>{% endif %}
+      {% if contrato.vendedor_perfil.telefono %}<span class="ids"> · Tel. {{ contrato.vendedor_perfil.telefono }}</span>{% endif %}
+    {% endif %}
+  </p>
+  <p class="monto">{{ monto_letras }} · <strong>{{ monto_fmt }} USD</strong></p>
+</div>
+
+<table class="rec-pair">
+  <tr>
+    <td>
+      <p class="sec">Vendedor / asesor</p>
+      <p><strong>{{ vendedor_nombre }}</strong></p>
+      {% if contrato.vendedor_perfil %}
+        {% if contrato.vendedor_perfil.email %}<p>{{ contrato.vendedor_perfil.email }}</p>{% endif %}
+      {% else %}
+        <p style="color:#94a3b8;font-size:10px;">Sin ficha en catálogo (nombre según contrato).</p>
+      {% endif %}
+    </td>
+    <td>
+      <p class="sec">Contrato e inmueble</p>
+      <p>N.º <strong>{{ contrato.numero }}</strong> · Firma {{ contrato.fecha_firma|date:"d/m/Y" }} · {{ contrato.get_estado_display }}</p>
+      <p>{{ inmueble.get_tipo_display }} <strong>{{ inmueble.codigo }}</strong> — {{ proyecto.nombre|title }}</p>
+      <p>Comprador: {{ cliente.nombres }} {{ cliente.apellidos }}</p>
+    </td>
+  </tr>
+</table>
+
+<p class="rec-h2">Detalle de la comisión</p>
+<div class="rec-table-wrap">
+<table class="rec-table">
+  <colgroup>
+    <col style="width: 16%;">
+    <col style="width: 38%;">
+    <col style="width: 20%;">
+    <col style="width: 26%;">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>Base</th>
+      <th>Concepto</th>
+      <th>Referencia</th>
+      <th class="rec-col-monto">Monto</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>{{ contrato.fecha_firma|date:"d/m/Y" }}</td>
+      <td>
+        {% if contrato.comision_monto %}
+          Comisión acordada (monto fijo) por intermediación en la venta del inmueble.
+        {% else %}
+          Comisión del {{ comision_porcentaje_txt }} sobre el precio de venta ({{ precio_final_fmt }} USD).
+        {% endif %}
+      </td>
+      <td>Contrato {{ contrato.numero }}</td>
+      <td class="rec-monto-celda">{{ monto_fmt }}</td>
+    </tr>
+    <tr class="rec-total-row">
+      <td colspan="3" class="rec-total-lbl">Total comisión (USD)</td>
+      <td class="rec-total-val">{{ monto_fmt }}</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+{% if contrato.notas %}
+<p class="rec-h2">Observaciones del contrato</p>
+<div class="box">{{ contrato.notas }}</div>
+{% endif %}
+
+<table class="rec-firma">
+  <tr>
+    <td>
+      <div class="rec-line">Firma y sello — {{ razon_social_receptor }}</div>
+    </td>
+    <td>
+      <div class="rec-line">Firma — vendedor / beneficiario</div>
+    </td>
+  </tr>
+</table>
+
+<p class="rec-pie">
+  Comprobante de comisión por venta en USD. Conserve este documento. Ref. <strong>{{ doc.numero }}</strong>.
+</p>
+
+</div>
+{% endblock %}

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page { size: A4; margin: 16mm 14mm; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #1a2d42; }
+    .pdf-header { margin: 0 0 14px; padding-bottom: 12px; border-bottom: 1px solid #cfd9e6; }
+    .pdf-header-logos { width: 100%; border-collapse: collapse; margin: 0; }
+    .pdf-header-logos td {
+      width: 50%;
+      text-align: center;
+      vertical-align: middle;
+      padding: 10px 16px 12px;
+      height: 112px;
+      min-height: 112px;
+    }
+    /* Valle más grande, Paredes más discreto; ancho automático (sin max-width que encoja Valle). */
+    .pdf-logo {
+      display: inline-block;
+      vertical-align: middle;
+      width: auto;
+      border: 0;
+    }
+    .pdf-logo--proyecto {
+      height: 92px;
+      max-height: 92px;
+      width: auto;
+    }
+    .pdf-logo--empresa {
+      height: 46px;
+      max-height: 46px;
+      width: auto;
+    }
+    .pdf-brand-captions { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    .pdf-brand-captions .pdf-brand-cell {
+      width: 50%;
+      text-align: center;
+      vertical-align: top;
+      padding: 8px 12px 6px;
+      border-top: 1px solid #cbd5e1;
+      background: #f8fafc;
+    }
+    .pdf-brand-captions .pdf-brand-kicker {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #003366;
+      margin: 0 0 5px;
+    }
+    .pdf-brand-captions .pdf-brand-name {
+      font-size: 16px;
+      font-weight: 800;
+      color: #003366;
+      margin: 0 0 5px;
+      line-height: 1.2;
+      letter-spacing: 0.02em;
+    }
+    .pdf-brand-captions .pdf-brand-meta {
+      font-size: 10.5px;
+      color: #475569;
+      line-height: 1.45;
+      margin: 0;
+    }
+    h1 { font-size: 16px; margin: 0 0 10px; color: #003366; }
+    h2 { font-size: 12px; margin: 18px 0 6px; text-transform: uppercase; letter-spacing: 0.06em; color: #5c6b7a; }
+    .muted { color: #5c6b7a; }
+    .row { display: flex; gap: 18px; }
+    .col { flex: 1; }
+    .box { border: 1px solid #cfd9e6; border-radius: 8px; padding: 10px; background: #fafbfd; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 6px 4px; border-bottom: 1px solid #e4eaf2; vertical-align: top; }
+    th { text-align: left; color: #5c6b7a; font-weight: 700; background: #f0f4f9; }
+    .right { text-align: right; }
+    {% block pdf_extra_styles %}{% endblock %}
+  </style>
+</head>
+<body{% block pdf_body_class %}{% endblock %}>
+  <div class="pdf-header">
+    <table class="pdf-header-logos">
+      <tr>
+        <td>
+          <img src="logo_valle_alegre.png" alt="Valle Alegre Residencial" class="pdf-logo pdf-logo--proyecto">
+        </td>
+        <td>
+          <img src="logo_paredes.png" alt="Paredes Bienes Raíces" class="pdf-logo pdf-logo--empresa">
+        </td>
+      </tr>
+    </table>
+    {% block pdf_brand_captions %}{% endblock %}
+  </div>
+  {% block content %}{% endblock %}
+</body>
+</html>

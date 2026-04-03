@@ -1,0 +1,52 @@
+{% extends "app/base_app.html" %}
+{% block title %}Inmuebles | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Inmuebles</h1>
+    <p class="page-toolbar__meta">Inventario de lotes y viviendas por proyecto y polígono.</p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:inmueble_create' %}" class="btn-primary btn-sm">Nuevo inmueble</a>
+  </div>
+</header>
+<div class="data-panel">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Código</th>
+      <th>Proyecto</th>
+      <th>Polígono</th>
+      <th>Tipo</th>
+      <th>Estado</th>
+      <th>Reserva hasta</th>
+      <th>Área (m²)</th>
+      <th>Área (v²)</th>
+      <th>Precio</th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for i in items %}
+    <tr>
+      <td><strong>{{ i.codigo }}</strong></td>
+      <td>{{ i.proyecto.nombre }}</td>
+      <td>{% if i.poligono %}{{ i.poligono.nombre }}{% else %}—{% endif %}</td>
+      <td>{% if i.tipo == "LOTE" %}Lote {{ i.codigo }}{% else %}{{ i.get_tipo_display }}{% endif %}</td>
+      <td><span class="badge badge--{{ i.estado|lower }}">{{ i.get_estado_display }}</span></td>
+      <td>{% if i.reserva_hasta %}{{ i.reserva_hasta }}{% else %}—{% endif %}</td>
+      <td>{% if i.area_m2 %}{{ i.area_m2 }}{% else %}—{% endif %}</td>
+      <td>{% if i.area_varas_cuadradas %}{{ i.area_varas_cuadradas }}{% else %}—{% endif %}</td>
+      <td>${{ i.precio_lista }}</td>
+      <td><a href="{% url 'app:inmueble_update' i.pk %}" class="link-action">Editar</a></td>
+      <td><a href="{% url 'app:inmueble_delete' i.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="11" class="muted">No hay inmuebles.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "app/pagination.html" %}
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "app/base_app.html" %}
+{% block title %}Contratos | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Contratos</h1>
+    <p class="page-toolbar__meta">Ventas, condiciones y documentación asociada.</p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:contrato_create' %}" class="btn-primary btn-sm">Nuevo contrato</a>
+  </div>
+</header>
+<div class="data-panel">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Número</th>
+      <th>Cliente</th>
+      <th>Inmueble</th>
+      <th class="right">Precio</th>
+      <th>Estado</th>
+      <th>Etapa venta</th>
+      <th>Firma</th>
+      <th>Vendedor</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in items %}
+    <tr>
+      <td><strong>{{ c.numero }}</strong></td>
+      <td>{{ c.cliente }}</td>
+      <td>{{ c.inmueble.codigo }} — {{ c.inmueble.proyecto.nombre }}</td>
+      <td class="right">${{ c.precio_final }}</td>
+      <td><span class="badge badge--{{ c.estado|lower }}">{{ c.get_estado_display }}</span></td>
+      <td>{{ c.get_etapa_comercial_display }}</td>
+      <td>{{ c.fecha_firma|date:"d/m/Y" }}</td>
+      <td>{{ c.nombre_vendedor_documentos|default:"—" }}</td>
+      <td>
+        <div class="action-cluster">
+          <a href="{% url 'app:contrato_update' c.pk %}" class="link-action">Editar</a>
+          <a href="{% url 'app:contrato_estado_cuenta' c.pk %}" class="link-action">Cuotas</a>
+          <a href="{% url 'app:emitir_promesa' c.pk %}" class="link-action">Promesa PDF</a>
+          <a href="{% url 'app:emitir_recibo_comision' c.pk %}" class="link-action">Recibo comisión</a>
+          <a href="{% url 'app:contrato_delete' c.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a>
+        </div>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="9" class="muted">No hay contratos.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "app/pagination.html" %}
+{% endblock %}

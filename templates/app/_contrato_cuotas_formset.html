@@ -1,0 +1,100 @@
+{% if cuotas_formset %}
+<section class="card" style="margin-top:0.5rem;padding-top:1rem;border-top:1px solid #e2e8f0;">
+  <h2 class="field__label" style="margin-top:0;">Cuotas programadas (calendario)</h2>
+  <p class="field__help muted" style="margin-top:0;">
+    Aquí define cada cuota del financiamiento: número, <strong>fecha de vencimiento</strong> y <strong>monto</strong>.
+    La «cuota mensual estimada» del formulario superior es solo una referencia calculada; <strong>esta tabla es la que usa el sistema</strong>
+    al registrar pagos con concepto «Cuota de financiamiento» y en el plan de cuotas.
+    Puede <strong>generar todas las filas de una vez</strong> (mes a mes) con el bloque siguiente, o editar manualmente la tabla.
+  </p>
+
+  {% if generar_cuotas_form %}
+  <div style="background:#f1f5f9;padding:1rem;border-radius:8px;margin:1rem 0;">
+    <h3 class="field__label" style="margin-top:0;font-size:0.95rem;">Generar calendario automático</h3>
+    <p class="muted field__help" style="margin-top:0;font-size:0.875rem;">
+      {% if object.plan_anos %}
+        Según el contrato, el plazo es <strong>{{ object.get_plan_anos_display }}</strong>
+        (sugerencia: <strong>{% widthratio object.plan_anos 1 12 %}</strong> cuotas mensuales).
+      {% else %}
+        El contrato no tiene «Plazo (años)»; indique usted la cantidad de cuotas mensuales.
+      {% endif %}
+      La primera fecha es el vencimiento de la cuota 1; las siguientes serán el mismo día de cada mes (ajustado si el mes es más corto).
+      El monto se repite en todas; si lo deja vacío, se usa la cuota estimada o precio ÷ cantidad.
+      <strong>No disponible si ya hay cuotas pagadas.</strong> Si aplica, borra las cuotas no pagadas y crea un plan nuevo.
+    </p>
+    {% if generar_cuotas_form.non_field_errors %}
+    <div class="alert" role="alert">{{ generar_cuotas_form.non_field_errors }}</div>
+    {% endif %}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(12rem,1fr));gap:0.75rem 1rem;align-items:end;">
+      {% for field in generar_cuotas_form.visible_fields %}
+      <div class="field" style="margin:0;">
+        <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        <div class="field__control">{{ field }}</div>
+        {% if field.help_text %}<div class="field__help muted" style="font-size:0.8rem;">{{ field.help_text }}</div>{% endif %}
+        {% if field.errors %}<div class="field__error" role="alert">{{ field.errors }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <p style="margin:0.85rem 0 0;">
+      <button type="submit" name="btn_generar_cuotas" value="1" class="btn-secondary btn-sm"
+        onclick="return confirm('Se eliminarán todas las cuotas aún no pagadas de este contrato y se creará un calendario nuevo según los datos indicados. ¿Desea continuar?');">
+        Generar y reemplazar calendario
+      </button>
+    </p>
+  </div>
+  {% endif %}
+
+  {% if cuotas_formset.non_form_errors %}
+  <div class="alert" role="alert">{{ cuotas_formset.non_form_errors }}</div>
+  {% endif %}
+  {{ cuotas_formset.management_form }}
+  <div style="overflow-x:auto;margin-top:0.75rem;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th># Cuota</th>
+          <th>Vence</th>
+          <th class="right">Monto</th>
+          <th>Estado</th>
+          <th>Eliminar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in cuotas_formset %}
+        <tr>
+          {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+          <td>
+            {{ f.numero.errors }}
+            {{ f.numero }}
+          </td>
+          <td>
+            {{ f.vence_en.errors }}
+            {{ f.vence_en }}
+          </td>
+          <td class="right">
+            {{ f.monto.errors }}
+            {{ f.monto }}
+          </td>
+          <td>
+            {% if f.instance.pk %}
+              {{ f.instance.get_estado_display }}
+              {% if f.instance.pago_id %}<span class="muted"> (pago registrado)</span>{% endif %}
+            {% else %}
+              <span class="muted">Nueva</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if f.instance.pk and f.instance.estado == "PAGADA" %}
+              <span class="muted">—</span>
+            {% else %}
+              {{ f.DELETE.errors }}
+              {{ f.DELETE }}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}

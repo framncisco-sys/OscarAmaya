@@ -1,0 +1,46 @@
+{% extends "app/base_app.html" %}
+{% block title %}Vendedores | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Vendedores</h1>
+    <p class="page-toolbar__meta">Catálogo de asesores; comisión sugerida y recibos por venta vinculados al contrato.</p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:vendedor_create' %}" class="btn-primary btn-sm">Nuevo vendedor</a>
+  </div>
+</header>
+<div class="data-panel">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Nombres</th>
+      <th>Apellidos</th>
+      <th>DUI</th>
+      <th>Teléfono</th>
+      <th class="right">% comisión def.</th>
+      <th>Activo</th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for v in items %}
+    <tr>
+      <td>{{ v.nombres }}</td>
+      <td>{{ v.apellidos }}</td>
+      <td>{{ v.dui|default:"—" }}</td>
+      <td>{{ v.telefono|default:"—" }}</td>
+      <td class="right">{{ v.porcentaje_comision_default }} %</td>
+      <td>{% if v.activo %}Sí{% else %}No{% endif %}</td>
+      <td><a href="{% url 'app:vendedor_update' v.pk %}" class="link-action">Editar</a></td>
+      <td><a href="{% url 'app:vendedor_delete' v.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="8" class="muted">No hay vendedores registrados.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "app/pagination.html" %}
+{% endblock %}

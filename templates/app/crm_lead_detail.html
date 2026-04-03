@@ -1,0 +1,74 @@
+{% extends "app/base_app.html" %}
+{% block title %}Lead | {{ lead.nombre }}{% endblock %}
+{% block app_content %}
+<h1 class="page-title">{{ lead.nombre }}</h1>
+<p class="page-lead">
+  {{ lead.get_estado_embudo_display }} ·
+  {% if lead.telefono %}{{ lead.telefono }}{% endif %}
+  {% if lead.email %} · {{ lead.email }}{% endif %}
+  <span style="margin-left:0.75rem;">
+    <a class="btn-secondary btn-sm" href="{% url 'app:crm_lead_update' lead.pk %}">Editar</a>
+  </span>
+</p>
+
+<div class="grid-modulos">
+  <section class="card">
+    <h2>Actividad</h2>
+    <form method="post" action="{% url 'app:crm_lead_add_actividad' lead.pk %}" class="form-stack">
+      {% csrf_token %}
+      {% for field in actividad_form.visible_fields %}
+        <div class="field">
+          <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          <div class="field__control">{{ field }}</div>
+          {% if field.errors %}<div class="field__error">{{ field.errors }}</div>{% endif %}
+        </div>
+      {% endfor %}
+      <div class="form-actions">
+        <button type="submit" class="btn-primary btn-sm">Agregar</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Hoja de visita</h2>
+    <form method="post" action="{% url 'app:crm_lead_add_visita' lead.pk %}" class="form-stack">
+      {% csrf_token %}
+      {% for field in visita_form.visible_fields %}
+        <div class="field">
+          <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          <div class="field__control">{{ field }}</div>
+          {% if field.errors %}<div class="field__error">{{ field.errors }}</div>{% endif %}
+        </div>
+      {% endfor %}
+      <div class="form-actions">
+        <button type="submit" class="btn-primary btn-sm">Guardar visita</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Historial</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Tipo</th>
+        <th>Resumen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in actividades %}
+      <tr>
+        <td>{{ a.fecha }}</td>
+        <td>{{ a.get_tipo_display }}</td>
+        <td>{{ a.resumen }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="3" class="muted">Sin actividad.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+

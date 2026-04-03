@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block body_class %}app-body app-body--login{% endblock %}
+{% block title %}Ingresar | Paredes Bienes Raíces{% endblock %}
+
+{% block content %}
+<div class="login-shell">
+  <div class="login-shell__inner">
+    <section class="login-panel" aria-labelledby="login-heading">
+      <div class="login-panel__accent" aria-hidden="true"></div>
+      <div class="login-panel__body">
+        <p class="login-panel__eyebrow">Paredes Bienes Raíces</p>
+        <h1 id="login-heading" class="login-panel__title">Ingresar al sistema</h1>
+        <p class="login-panel__lead">Gestión inmobiliaria, contratos y cartera en un solo lugar.</p>
+
+        {% if form.errors %}
+        <div class="login-panel__alert alert" role="alert">
+          <strong>No se pudo iniciar sesión.</strong> Revise usuario y contraseña.
+        </div>
+        {% endif %}
+
+        <form method="post" class="login-form" novalidate>
+          {% csrf_token %}
+          <div class="login-field">
+            <label class="login-field__label" for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+            <div class="login-field__row">
+              <span class="login-field__icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                  <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z" fill="currentColor" opacity="0.45"/>
+                </svg>
+              </span>
+              {{ form.username }}
+            </div>
+            {% if form.username.errors %}<p class="login-field__error">{{ form.username.errors.0 }}</p>{% endif %}
+          </div>
+          <div class="login-field">
+            <label class="login-field__label" for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+            <div class="login-field__row">
+              <span class="login-field__icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                  <path d="M18 10h-1V8a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Zm-9-2a3 3 0 0 1 6 0v2H9V8Z" fill="currentColor" opacity="0.45"/>
+                </svg>
+              </span>
+              {{ form.password }}
+            </div>
+            {% if form.password.errors %}<p class="login-field__error">{{ form.password.errors.0 }}</p>{% endif %}
+          </div>
+          <button type="submit" class="btn-primary login-form__submit">Entrar</button>
+        </form>
+      </div>
+      <footer class="login-panel__foot">
+        <p class="pbr-project-mark pbr-project-mark--login-footer" aria-label="UN PROYECTO DE A Y Z" title="UN PROYECTO DE A &amp; Z">
+          <strong class="pbr-project-mark__intro">Un proyecto de</strong>
+          <span class="pbr-project-mark__brand">
+            <span class="pbr-project-mark__a">A</span>
+            <span class="pbr-project-mark__amp">&amp;</span>
+            <span class="pbr-project-mark__z">Z</span>
+          </span>
+        </p>
+        <span class="login-panel__foot-legal">Uso autorizado. Si olvidó su clave, contacte al administrador.</span>
+      </footer>
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,43 @@
+# Referencia breve para DigitalOcean App Platform (revise la documentación oficial
+# porque el esquema puede variar). Ajuste repo, region y todas las variables.
+
+name: paredes-bienes-raices
+region: nyc
+
+services:
+  - name: web
+    github:
+      repo: SU_USUARIO/SU_REPO
+      branch: main
+      deploy_on_push: true
+    # Instala dependencias y deja estáticos listos para WhiteNoise
+    build_command: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    run_command: gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: DEBUG
+        value: "False"
+      - key: DJANGO_SETTINGS_MODULE
+        value: backend.settings
+      - key: SECRET_KEY
+        type: SECRET
+      - key: DJANGO_ALLOWED_HOSTS
+        value: ".ondigitalocean.app,SU_DOMINIO.com"
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: "https://su-app.ondigitalocean.app,https://su-dominio.com"
+      - key: POSTGRES_DB
+        value: defaultdb
+      - key: POSTGRES_USER
+        value: doadmin
+      - key: POSTGRES_PASSWORD
+        type: SECRET
+      - key: POSTGRES_HOST
+        value: db-postgresql-nyc3-XXXXX-do-user-XXXXX-0.db.ondigitalocean.com
+      - key: POSTGRES_PORT
+        value: "25060"
+      - key: POSTGRES_SSLMODE
+        value: require
+      - key: PUBLIC_BASE_URL
+        value: "https://su-app.ondigitalocean.app"

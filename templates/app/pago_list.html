@@ -1,0 +1,57 @@
+{% extends "app/base_app.html" %}
+{% block title %}Pagos | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+{% if contrato_filtro %}
+<p class="alert" role="status" style="margin-bottom:1rem;">
+  Mostrando solo pagos del contrato <strong>{{ contrato_filtro.numero }}</strong>
+  ({{ contrato_filtro.cliente }}).
+  <a href="{% url 'app:pago_list' %}">Quitar filtro</a>
+  · <a href="{% url 'app:contrato_estado_cuenta' contrato_filtro.pk %}">Plan de cuotas</a>
+</p>
+{% endif %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Pagos</h1>
+    <p class="page-toolbar__meta">Primas, cuotas y abonos registrados.</p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:pago_create' %}" class="btn-primary btn-sm">Registrar pago</a>
+    <a href="{% url 'app:export_pagos_csv' %}" class="btn-secondary btn-sm">Exportar CSV (contabilidad)</a>
+  </div>
+</header>
+<div class="data-panel">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Contrato</th>
+      <th>Cliente</th>
+      <th>Concepto</th>
+      <th>Monto</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in items %}
+    <tr>
+      <td>{{ p.fecha }}</td>
+      <td>{{ p.contrato.numero }}</td>
+      <td>{{ p.contrato.cliente }}</td>
+      <td>{{ p.get_concepto_display }}</td>
+      <td>${{ p.monto }}</td>
+      <td>
+        <div class="action-cluster">
+          <a href="{% url 'app:pago_update' p.pk %}" class="link-action">Editar</a>
+          <a href="{% url 'app:emitir_recibo' p.pk %}" class="link-action">Recibo PDF</a>
+          <a href="{% url 'app:pago_delete' p.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a>
+        </div>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="muted">No hay pagos.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "app/pagination.html" %}
+{% endblock %}

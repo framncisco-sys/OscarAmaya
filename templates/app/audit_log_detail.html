@@ -1,0 +1,27 @@
+{% extends "app/base_app.html" %}
+{% block title %}Detalle auditoría #{{ log.pk }} | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<p class="muted" style="margin-bottom:0.75rem;"><a href="{% url 'app:audit_log_list' %}" class="link-action">← Volver al historial</a></p>
+<h1 class="page-title">Evento de auditoría</h1>
+<dl class="muted" style="display:grid;gap:0.35rem 1.5rem;grid-template-columns:auto 1fr;max-width:48rem;">
+  <dt>Fecha</dt><dd>{{ log.created_at|date:"d/m/Y H:i:s" }}</dd>
+  <dt>Acción</dt><dd>{{ log.get_action_display }} (<code>{{ log.action }}</code>)</dd>
+  <dt>Actor</dt><dd>{% if log.actor %}<strong>{{ log.actor.username }}</strong> (id {{ log.actor_id }}){% else %}—{% endif %}</dd>
+  <dt>Rol en app</dt><dd>{{ log.actor_role|default:"—" }}</dd>
+  <dt>Modelo</dt><dd><code>{{ log.app_label }}.{{ log.model_name }}</code></dd>
+  <dt>Id registro</dt><dd>{{ log.object_pk }}</dd>
+  <dt>IP</dt><dd>{{ log.ip_address|default:"—" }}</dd>
+  <dt>User-Agent</dt><dd style="word-break:break-all;font-size:0.85rem;">{{ log.user_agent|default:"—" }}</dd>
+  <dt>Request id</dt><dd><code style="font-size:0.8rem;">{{ log.request_id|default:"—" }}</code></dd>
+</dl>
+
+{% if before_json %}
+<h2 class="page-title" style="font-size:1.1rem;margin-top:1.5rem;">Antes</h2>
+<pre style="background:var(--pbr-surface-muted);padding:1rem;border-radius:10px;overflow:auto;max-height:24rem;font-size:0.8rem;line-height:1.4;">{{ before_json }}</pre>
+{% endif %}
+
+{% if after_json %}
+<h2 class="page-title" style="font-size:1.1rem;margin-top:1.5rem;">Después</h2>
+<pre style="background:var(--pbr-surface-muted);padding:1rem;border-radius:10px;overflow:auto;max-height:24rem;font-size:0.8rem;line-height:1.4;">{{ after_json }}</pre>
+{% endif %}
+{% endblock %}

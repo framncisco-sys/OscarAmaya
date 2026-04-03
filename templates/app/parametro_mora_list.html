@@ -1,0 +1,42 @@
+{% extends "app/base_app.html" %}
+{% block title %}Parámetros de mora | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Parámetros de mora</h1>
+    <p class="page-toolbar__meta">Tasas, gracia y reglas para el cálculo de mora.</p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:parametro_mora_create' %}" class="btn-primary btn-sm">Nuevo parámetro</a>
+  </div>
+</header>
+<div class="data-panel">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>Tasa diaria %</th>
+      <th>Días gracia</th>
+      <th>Activo</th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in items %}
+    <tr>
+      <td><strong>{{ m.nombre }}</strong></td>
+      <td>{{ m.tasa_diaria_porcentaje }}</td>
+      <td>{{ m.dias_gracia }}</td>
+      <td>{% if m.activo %}<span class="badge badge--activo">Sí</span>{% else %}<span class="badge badge--bloqueado">No</span>{% endif %}</td>
+      <td><a href="{% url 'app:parametro_mora_update' m.pk %}" class="link-action">Editar</a></td>
+      <td><a href="{% url 'app:parametro_mora_delete' m.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="muted">No hay parámetros.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "app/pagination.html" %}
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "app/base_app.html" %}
+{% block title %}Tipos de rol | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Tipos de rol en la aplicación</h1>
+    <p class="page-toolbar__meta">Referencia para asignar perfiles coherentes con el trabajo en la inmobiliaria.</p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:usuario_list' %}" class="btn-secondary btn-sm">Volver a usuarios</a>
+  </div>
+</header>
+<div class="data-panel" style="padding:1rem 1.25rem;">
+  <dl style="margin:0;">
+    {% for titulo, texto in bloques %}
+    <dt style="margin-top:1rem;font-weight:700;color:var(--pbr-navy,#003366);">{{ titulo }}</dt>
+    <dd style="margin:0.35rem 0 0 0;color:#475569;line-height:1.5;">{{ texto }}</dd>
+    {% endfor %}
+  </dl>
+  <p class="muted" style="margin-top:1.5rem;font-size:0.9rem;">
+    <strong>Nota:</strong> Los usuarios con rol «Administrador de sistema» o «Gerencia» no deben reingresar contraseña al editar o eliminar en la app (igual que el superusuario de Django).
+    El resto pasa por «Confirmar acceso» o el campo al pie del formulario según la política de seguridad activa.
+  </p>
+</div>
+{% endblock %}

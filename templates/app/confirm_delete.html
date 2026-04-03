@@ -1,0 +1,25 @@
+{% extends "app/base_app.html" %}
+{% block title %}{{ delete_title|default:"Eliminar" }} | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<h1 class="page-title">{{ delete_title|default:"Confirmar eliminación" }}</h1>
+{% if delete_blurb %}
+<p class="muted" style="max-width:40rem;line-height:1.5;">{{ delete_blurb }}</p>
+{% endif %}
+<p style="margin:1rem 0;"><strong>Registro:</strong> {{ object }}</p>
+<form method="post" class="form-stack" style="max-width:min(100%,420px);">
+  {% csrf_token %}
+  {% if sensitive_delete_password %}
+  <div class="field">
+    <label class="field__label" for="id_confirm_password">Contraseña para confirmar eliminación</label>
+    <div class="field__control">
+      <input type="password" name="confirm_password" id="id_confirm_password" required autocomplete="current-password" class="form-control" style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border-radius:10px;border:1px solid var(--pbr-border);">
+    </div>
+    <p class="field__help muted">O confirme acceso antes en el menú lateral para no repetir la contraseña aquí.</p>
+  </div>
+  {% endif %}
+  <div class="form-actions">
+    <button type="submit" class="btn-primary" style="background:#b91c1c;border-color:#b91c1c;">Sí, eliminar</button>
+    <a href="javascript:history.back()" class="btn-secondary">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

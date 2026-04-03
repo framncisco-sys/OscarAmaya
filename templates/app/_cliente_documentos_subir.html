@@ -1,0 +1,50 @@
+{% if form_cliente_documentos %}
+<section class="card cliente-docs-card">
+  <h2 class="field__label" style="margin-top:0;">Documentos del cliente</h2>
+  {% if documentos_cliente %}
+  <ul class="cliente-docs-list muted" style="margin:0 0 1rem;padding-left:1.25rem;font-size:0.875rem;">
+    {% for d in documentos_cliente %}
+    <li style="margin-bottom:0.35rem;">
+      <a href="{{ d.archivo.url }}" target="_blank" rel="noopener noreferrer">
+        {% if d.descripcion %}{{ d.descripcion }}{% else %}Documento adjunto{% endif %}
+      </a>
+      <span class="muted"> — {{ d.creado_en|date:"d/m/Y H:i" }}</span>
+      {% if cliente_pk %}
+      <form method="post" action="{% url 'app:cliente_documento_delete' d.pk %}" style="display:inline;margin-left:0.35rem;">
+        {% csrf_token %}
+        <button type="submit" class="link-btn" style="padding:0;font-size:0.8125rem;color:#b91c1c;">Eliminar</button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <div class="field">
+    <label class="field__label" for="id_documentos_cliente">Subir documentos</label>
+    <div class="field__control">
+      <input
+        type="file"
+        id="id_documentos_cliente"
+        name="documentos_cliente"
+        multiple
+        accept=".pdf,.png,.jpg,.jpeg,.webp,image/*,.doc,.docx,application/pdf"
+      >
+    </div>
+    <p class="field__help muted">PDF, imágenes o Word. Puede elegir varios archivos a la vez. Guarde el formulario para adjuntarlos.</p>
+  </div>
+  <div class="field">
+    <label class="field__label" for="id_documento_descripcion_cliente">Descripción breve (opcional)</label>
+    <div class="field__control">
+      <input
+        type="text"
+        name="documento_descripcion_cliente"
+        id="id_documento_descripcion_cliente"
+        maxlength="200"
+        placeholder="Ej. DUI frente, constancia de ingresos"
+        style="width:100%;max-width:min(100%,560px);box-sizing:border-box;border:1px solid var(--pbr-border);border-radius:10px;padding:0.6rem 0.75rem;font:inherit;"
+      >
+    </div>
+    <p class="field__help muted">La misma descripción se aplica a todos los archivos de esta subida (puede dejarla vacía).</p>
+  </div>
+</section>
+{% endif %}

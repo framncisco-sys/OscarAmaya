@@ -1,0 +1,22 @@
+{# Panel de referencia tras elegir contrato (Nuevo/Editar pago). #}
+<div id="pago-contrato-resumen" class="card cliente-docs-card pago-contrato-resumen" style="margin-bottom:1rem;display:none;" aria-live="polite">
+  <p class="field__label" style="margin-top:0;">Referencia del contrato seleccionado</p>
+  <ul class="muted" style="margin:0;padding-left:1.2rem;font-size:0.9rem;line-height:1.5;">
+    <li><strong>Cliente:</strong> <span id="pago-hint-cliente">—</span></li>
+    <li><strong>Contrato:</strong> <span id="pago-hint-contrato-num">—</span></li>
+    <li><strong>Cuotas del plan (calendario):</strong> <span id="pago-hint-cuotas-contador">—</span></li>
+    <li><strong>Cuota mensual estimada:</strong> <span id="pago-hint-cuota">—</span></li>
+    <li>
+      <strong>Siguiente cuota sin pagar (orden de aplicación):</strong>
+      n.º <span id="pago-hint-nro">—</span>,
+      vence <span id="pago-hint-vence">—</span>,
+      monto <span id="pago-hint-cuota-monto">—</span>
+    </li>
+  </ul>
+  <p id="pago-hint-aplicacion-cuota" class="field__help" style="margin:0.75rem 0 0;padding:0.5rem 0.65rem;background:#f1f5f9;border-radius:6px;font-size:0.9rem;" role="status"></p>
+  <p class="field__help muted" style="margin-bottom:0;margin-top:0.65rem;">
+    La <strong>fecha del pago</strong> (campo siguiente) es cuándo ingresa el dinero.
+    La mora se evalúa frente a la <strong>fecha de vencimiento</strong> de cada cuota programada y a
+    <a href="{% url 'app:parametro_mora_list' %}">Parámetros de mora</a>.
+  </p>
+</div>

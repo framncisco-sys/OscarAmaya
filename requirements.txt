@@ -1,0 +1,10 @@
+# Django + PostgreSQL (driver oficial psycopg 3)
+django>=6.0,<7
+psycopg[binary]>=3.2,<4
+django-environ>=0.11,<1
+gunicorn>=23,<24
+whitenoise>=6.8,<7
+weasyprint>=62,<70
+# Respaldo HTML→PDF sin GTK/GLib (p. ej. Windows donde WeasyPrint no carga libgobject)
+xhtml2pdf>=0.2.15,<0.3
+num2words>=0.5,<1

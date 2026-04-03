@@ -1,0 +1,56 @@
+"""
+URLconf principal (única fuente de rutas: ping, login, dashboard, interno, admin legacy).
+"""
+import sys
+
+from django.contrib import admin
+from django.conf import settings
+from django.conf.urls.static import static
+from django.contrib.auth.views import LoginView, LogoutView
+from django.urls import include, path, re_path
+from django.views.generic import RedirectView
+
+from core.forms import LoginForm
+from core.views import (
+    admin_legacy_redirect,
+    admin_login_to_web,
+    dashboard,
+    home,
+    ping,
+    pbr_service_worker,
+    pbr_web_manifest,
+)
+from core.views_whatsapp import whatsapp_webhook
+
+urlpatterns = [
+    path("pbr-sw.js", pbr_service_worker, name="pbr_service_worker"),
+    path("site.webmanifest", pbr_web_manifest, name="pbr_web_manifest"),
+    path("favicon.ico", RedirectView.as_view(url="/static/favicon.svg", permanent=True)),
+    path("webhooks/whatsapp/", whatsapp_webhook, name="whatsapp_webhook"),
+    path("ping/", ping, name="ping"),
+    path("", home, name="home"),
+    path("app/", include("inmobiliaria.urls_web")),
+    path("dashboard/", dashboard, name="dashboard"),
+    path(
+        "login/",
+        LoginView.as_view(
+            template_name="core/login.html",
+            authentication_form=LoginForm,
+            redirect_authenticated_user=True,
+        ),
+        name="login",
+    ),
+    path("logout/", LogoutView.as_view(), name="logout"),
+    path("admin/login/", admin_login_to_web, name="legacy_admin_login"),
+    path("interno/", admin.site.urls),
+    re_path(r"^admin(?:/.*)?$", admin_legacy_redirect),
+]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+if settings.DEBUG:
+    print(
+        f"[PBR] backend.urls cargado: {__file__} | rutas={len(urlpatterns)}",
+        file=sys.stderr,
+    )

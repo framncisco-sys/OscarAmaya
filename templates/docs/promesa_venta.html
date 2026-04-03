@@ -1,0 +1,297 @@
+{% extends "docs/_base_pdf.html" %}
+{% block pdf_brand_captions %}
+{% include "docs/_pdf_brand_captions.html" with razon_social=razon_social_vendedor pie_inmobiliaria="Promoción y venta del proyecto señalado" %}
+{% endblock %}
+{% block pdf_extra_styles %}
+    body { font-family: "Times New Roman", Times, serif; font-size: 11.5px; line-height: 1.45; color: #111827; }
+    .prom-doc { text-align: justify; }
+    .prom-titulo {
+      text-align: center;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin: 0 0 6px;
+      color: #0f172a;
+    }
+    .prom-subtitulo {
+      text-align: center;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #475569;
+      margin: 0 0 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #94a3b8;
+    }
+    .prom-ref {
+      text-align: center;
+      font-size: 10px;
+      color: #475569;
+      margin: 0 0 16px;
+    }
+    .prom-lugar {
+      margin: 0 0 14px;
+      text-indent: 2.5em;
+    }
+    .prom-sect {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #0f172a;
+      margin: 16px 0 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .prom-clause {
+      margin: 0 0 10px;
+      text-indent: 0;
+    }
+    .prom-clause-num {
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .prom-indent { margin: 0 0 8px; text-indent: 2.5em; }
+    .prom-box {
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      padding: 10px 12px;
+      margin: 8px 0 12px;
+      font-size: 11px;
+    }
+    .prom-box table { width: 100%; border-collapse: collapse; margin: 0; }
+    .prom-box td { padding: 4px 6px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+    .prom-box tr:last-child td { border-bottom: none; }
+    .prom-box .lbl { width: 32%; color: #475569; font-weight: 700; }
+    .prom-firma-wrap { width: 100%; border-collapse: collapse; margin-top: 28px; }
+    .prom-firma-wrap td { width: 50%; vertical-align: top; padding: 8px 12px; text-align: center; }
+    .prom-linea { border-top: 1px solid #0f172a; margin: 48px 8px 6px; padding-top: 6px; font-size: 10px; }
+    .prom-aviso {
+      margin-top: 20px;
+      padding: 10px 12px;
+      border: 1px dashed #94a3b8;
+      background: #fffbeb;
+      font-size: 9.5px;
+      line-height: 1.5;
+      color: #78350f;
+      text-align: justify;
+    }
+{% endblock %}
+
+{% block content %}
+<div class="prom-doc">
+
+<p class="prom-titulo">Promesa bilateral de compraventa</p>
+<p class="prom-subtitulo">Sobre bien inmueble identificado — Proyecto {{ proyecto.nombre }}</p>
+<p class="prom-ref">Referencia interna del documento: <strong>{{ doc.numero }}</strong></p>
+
+<p class="prom-lugar">
+  <strong>REPÚBLICA DE EL SALVADOR.</strong> En {{ lugar_emision }}, a los
+  <strong>{{ hoy|date:"d" }}</strong> días del mes de <strong>{{ hoy|date:"m" }}</strong> de
+  <strong>{{ hoy|date:"Y" }}</strong>, las partes que se identifican en el apartado de comparecientes dejan
+  constancia de su voluntad de obligarse en los términos siguientes, con sujeción al ordenamiento jurídico
+  salvadoreño y, en particular, a las disposiciones aplicables al contrato de compraventa y a la propiedad
+  raíz e inmueble, sin perjuicio de la revisión notarial y registral que corresponda al perfeccionamiento
+  de la operación.
+</p>
+
+<p class="prom-sect">I. Comparecientes</p>
+
+<p class="prom-clause">
+  <span class="prom-clause-num">1.</span>
+  <strong>Promitente vendedor.</strong>
+  <strong>{{ razon_social_vendedor }}</strong>, en adelante <strong>«EL PROMITENTE VENDEDOR»</strong>,
+  entidad dedicada a la promoción, comercialización y enajenación de bienes inmuebles dentro del proyecto
+  denominado <strong>{{ proyecto.nombre }}</strong>, quien declara contar con la legitimación necesaria para
+  obligarse en relación con el bien descrito en este instrumento, en el marco de su gestión comercial habitual.
+</p>
+
+<p class="prom-clause">
+  <span class="prom-clause-num">2.</span>
+  <strong>Promitente comprador.</strong>
+  {% if cliente.dui %}
+  La persona <strong>{{ cliente.nombres }} {{ cliente.apellidos }}</strong>, mayor de edad, de nacionalidad que
+  declara, identificada con el Documento Único de Identidad número <strong>{{ cliente.dui }}</strong>
+  {% elif cliente.pasaporte %}
+  La persona <strong>{{ cliente.nombres }} {{ cliente.apellidos }}</strong>, identificada con pasaporte número
+  <strong>{{ cliente.pasaporte }}</strong>
+  {% else %}
+  La persona <strong>{{ cliente.nombres }} {{ cliente.apellidos }}</strong>
+  {% endif %}
+  {% if cliente.nit %}, contribuyente con NIT <strong>{{ cliente.nit }}</strong>{% endif %}
+  {% if cliente.direccion %}, con domicilio en <strong>{{ cliente.direccion }}</strong>{% endif %}
+  {% if cliente.telefono %}, número de contacto <strong>{{ cliente.telefono }}</strong>{% endif %}
+  , a quien en lo sucesivo se le denominará <strong>«EL PROMITENTE COMPRADOR»</strong>.
+</p>
+
+<p class="prom-sect">II. Objeto</p>
+
+<p class="prom-indent">
+  Las partes declaran que el objeto de la presente promesa es el inmueble que se individualiza a continuación,
+  el cual <strong>EL PROMITENTE COMPRADOR</strong> se obliga a adquirir y <strong>EL PROMITENTE VENDEDOR</strong>
+  a enajenar, sujeto a la suscripción del contrato definitivo de compraventa y a los trámites registrales
+  correspondientes ante la Dirección General de Registro de la Propiedad Raíz e Inmueble u oficina competente.
+</p>
+
+<div class="prom-box">
+  <table>
+    <tr>
+      <td class="lbl">Descripción</td>
+      <td>
+        Lote o unidad inmobiliaria identificada con el código <strong>{{ inmueble.codigo }}</strong>,
+        tipo <strong>{{ inmueble.get_tipo_display }}</strong>, ubicada en el proyecto
+        <strong>{{ proyecto.nombre }}</strong>
+        {% if poligono %}, polígono o sector <strong>{{ poligono.nombre }}</strong>{% endif %}.
+      </td>
+    </tr>
+    {% if proyecto.direccion %}
+    <tr>
+      <td class="lbl">Ubicación aproximada</td>
+      <td>{{ proyecto.direccion }}</td>
+    </tr>
+    {% endif %}
+    <tr>
+      <td class="lbl">Superficie y medidas</td>
+      <td>
+        {% if inmueble.area_varas_cuadradas %}
+        <strong>{{ inmueble.area_varas_cuadradas }}</strong> varas cuadradas (v²)
+        {% endif %}
+        {% if inmueble.area_m2 %}
+        {% if inmueble.area_varas_cuadradas %} — {% endif %}
+        <strong>{{ inmueble.area_m2 }}</strong> metros cuadrados (m²)
+        {% endif %}
+        {% if not inmueble.area_varas_cuadradas and not inmueble.area_m2 %}Según plano y documentación del proyecto.{% endif %}
+        {% if inmueble.frente_m or inmueble.fondo_m %}
+        <br>Frente aproximado: {% if inmueble.frente_m %}<strong>{{ inmueble.frente_m }}</strong> m{% else %}—{% endif %};
+        fondo aproximado: {% if inmueble.fondo_m %}<strong>{{ inmueble.fondo_m }}</strong> m{% else %}—{% endif %}.
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td class="lbl">Contrato marco</td>
+      <td>
+        Operación registrada bajo el contrato número <strong>{{ contrato.numero }}</strong>,
+        con fecha de firma <strong>{{ contrato.fecha_firma|date:"d/m/Y" }}</strong>,
+        en estado <strong>{{ contrato.get_estado_display }}</strong>.
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p class="prom-sect">III. Precio y modalidad de pago</p>
+
+<p class="prom-indent">
+  El precio total convenido por la transferencia del bien objeto de esta promesa es de
+  <strong>${{ contrato.precio_final|floatformat:2 }} ({{ contrato.precio_final|floatformat:2 }} dólares de los Estados Unidos de América)</strong>,
+  obligación que <strong>EL PROMITENTE COMPRADOR</strong> asume en los términos acordados en el contrato referido
+  y en los comprobantes de pago que al efecto se emitan.
+</p>
+<p class="prom-indent">
+  La modalidad de financiamiento o forma de pago acordada entre las partes se resume como sigue, sin perjuicio
+  de lo estipulado en el contrato principal y de las condiciones que el notario autorice en escritura pública:
+</p>
+<div class="prom-box">
+  <table>
+    <tr>
+      <td class="lbl">Modalidad</td>
+      <td>{{ contrato.get_modalidad_financiamiento_display }}</td>
+    </tr>
+    {% if contrato.plan_anos %}
+    <tr>
+      <td class="lbl">Plazo referido</td>
+      <td>{{ contrato.plan_anos }} años (referencia contractual)</td>
+    </tr>
+    {% endif %}
+    {% if contrato.meses_sin_interes %}
+    <tr>
+      <td class="lbl">Período sin interés</td>
+      <td>{{ contrato.meses_sin_interes }} meses iniciales, según contrato.</td>
+    </tr>
+    {% endif %}
+    {% if contrato.tasa_interes_anual is not None %}
+    <tr>
+      <td class="lbl">Tasa anual</td>
+      <td>{{ contrato.tasa_interes_anual }} % (cuando aplique según contrato).</td>
+    </tr>
+    {% endif %}
+    {% if contrato.cuota_mensual_estimada %}
+    <tr>
+      <td class="lbl">Cuota mensual estimada</td>
+      <td>${{ contrato.cuota_mensual_estimada|floatformat:2 }}</td>
+    </tr>
+    {% endif %}
+    {% if contrato.notas %}
+    <tr>
+      <td class="lbl">Observaciones</td>
+      <td>{{ contrato.notas }}</td>
+    </tr>
+    {% endif %}
+  </table>
+</div>
+
+<p class="prom-sect">IV. Obligaciones principales</p>
+
+<p class="prom-clause">
+  <span class="prom-clause-num">1.</span>
+  <strong>EL PROMITENTE VENDEDOR</strong> se obliga a mantener la disponibilidad jurídica y comercial del bien
+  en los términos pactados, a cooperar con la documentación razonablemente necesaria para formalizar la compraventa
+  y a no enajenar el mismo a terceros en perjuicio de <strong>EL PROMITENTE COMPRADOR</strong>, salvo pacto en contrario
+  debidamente documentado.
+</p>
+<p class="prom-clause">
+  <span class="prom-clause-num">2.</span>
+  <strong>EL PROMITENTE COMPRADOR</strong> se obliga a cumplir puntualmente las obligaciones de pago y demás
+  condiciones establecidas en el contrato, así como a comparecer cuando sea requerido para la firma de la escritura
+  pública definitiva y trámites registrales.
+</p>
+<p class="prom-clause">
+  <span class="prom-clause-num">3.</span>
+  Las partes convienen en que la formalización mediante escritura pública y la inscripción registral son
+  condiciones naturales de perfeccionamiento de la compraventa, sin que la presente promesa sustituya a aquéllas.
+</p>
+
+<p class="prom-sect">V. Fuerza mayor, interpretación y jurisdicción</p>
+
+<p class="prom-indent">
+  Para efectos interpretativos y de cumplimiento, las partes se someten a las leyes de la
+  <strong>República de El Salvador</strong>. Las controversias que no puedan resolverse de común acuerdo podrán
+  someterse a los tribunales competentes de la República de El Salvador, pudiendo las partes acordar
+  mecanismos alternos de solución de controversias en el contrato definitivo o en instrumento adicional.
+</p>
+
+<p class="prom-sect">VI. Ejemplares y constancia</p>
+
+<p class="prom-indent">
+  La presente promesa se firma en tantos ejemplares como partes intervinientes requieran para constancia.
+  El documento con referencia <strong>{{ doc.numero }}</strong> queda archivado en los registros del proyecto a
+  efectos administrativos e informativos.
+</p>
+
+<table class="prom-firma-wrap">
+  <tr>
+    <td>
+      <div class="prom-linea">
+        <strong>EL PROMITENTE VENDEDOR</strong><br>
+        {{ razon_social_vendedor }}
+      </div>
+    </td>
+    <td>
+      <div class="prom-linea">
+        <strong>EL PROMITENTE COMPRADOR</strong><br>
+        {{ cliente.nombres }} {{ cliente.apellidos }}
+      </div>
+    </td>
+  </tr>
+</table>
+
+<div class="prom-aviso">
+  <strong>Nota importante.</strong>
+  Este documento ha sido generado por el sistema informático de gestión inmobiliaria como <em>modelo de apoyo</em>
+  a la relación contractual ya registrada. <strong>No sustituye asesoría legal ni revisión por abogado colegiado
+  ni por notario público.</strong> Debe ser adaptado, completado y aprobado por profesionales del derecho antes
+  de su firma, según las particularidades de cada operación y la normativa vigente en El Salvador.
+</div>
+
+</div>
+{% endblock %}

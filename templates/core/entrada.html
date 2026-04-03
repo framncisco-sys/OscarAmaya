@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Inicio | Paredes Bienes Raíces{% endblock %}
+
+{% block content %}
+<div class="app-wrap">
+<section class="card login-card">
+  <p class="login-card__brand">
+    <img src="{% static 'logo_paredes.png' %}" alt="" class="login-card__logo" decoding="async" role="presentation">
+  </p>
+  <h1 class="page-title">Bienvenido</h1>
+  <p class="page-lead">Elige una opción para continuar.</p>
+  <div class="form-grid">
+    <a class="btn-primary btn-block" href="{% url 'login' %}">Ir al ingreso</a>
+    <a class="btn-secondary btn-block" href="{% url 'ping' %}">Probar conexión (/ping/)</a>
+  </div>
+  <p class="muted code-hint">
+    URLs útiles:<br>
+    <code>http://127.0.0.1:8000/login/</code><br>
+    <code>http://127.0.0.1:8000/ping/</code>
+  </p>
+</section>
+</div>
+{% endblock %}

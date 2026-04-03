@@ -1,0 +1,10 @@
+from django.apps import AppConfig
+
+
+class DocsConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "docs"
+    verbose_name = "Documentos"
+
+    def ready(self) -> None:
+        from . import signals  # noqa: F401

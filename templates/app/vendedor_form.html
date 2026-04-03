@@ -1,0 +1,104 @@
+{% extends "app/base_app.html" %}
+{% load static %}
+{% block title %}{{ form_title }} | Paredes Bienes Raíces{% endblock %}
+
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">{{ form_title }}</h1>
+    <p class="page-toolbar__meta">Datos del asesor o corredor; el porcentaje por defecto es solo una sugerencia al crear contratos.</p>
+  </div>
+</header>
+
+<form method="post" class="form-stack form-stack--vendedor pbr-vendedor-form" id="vendedor-form">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+    <div class="alert" role="alert">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <div class="pbr-form-grid pbr-form-grid--vendedor">
+    <div class="field">
+      <label class="field__label" for="{{ form.nombres.id_for_label }}">{{ form.nombres.label }}</label>
+      <div class="field__control">{{ form.nombres }}</div>
+      {% if form.nombres.help_text %}<div class="field__help muted">{{ form.nombres.help_text|safe }}</div>{% endif %}
+      {% if form.nombres.errors %}<div class="field__error" role="alert">{{ form.nombres.errors }}</div>{% endif %}
+    </div>
+    <div class="field">
+      <label class="field__label" for="{{ form.apellidos.id_for_label }}">{{ form.apellidos.label }}</label>
+      <div class="field__control">{{ form.apellidos }}</div>
+      {% if form.apellidos.help_text %}<div class="field__help muted">{{ form.apellidos.help_text|safe }}</div>{% endif %}
+      {% if form.apellidos.errors %}<div class="field__error" role="alert">{{ form.apellidos.errors }}</div>{% endif %}
+    </div>
+
+    <div class="field">
+      <label class="field__label" for="{{ form.dui.id_for_label }}">{{ form.dui.label }}</label>
+      <div class="field__control">{{ form.dui }}</div>
+      {% if form.dui.help_text %}<div class="field__help muted">{{ form.dui.help_text|safe }}</div>{% endif %}
+      {% if form.dui.errors %}<div class="field__error" role="alert">{{ form.dui.errors }}</div>{% endif %}
+    </div>
+    <div class="field">
+      <label class="field__label" for="{{ form.telefono.id_for_label }}">{{ form.telefono.label }}</label>
+      <div class="field__control">{{ form.telefono }}</div>
+      {% if form.telefono.help_text %}<div class="field__help muted">{{ form.telefono.help_text|safe }}</div>{% endif %}
+      {% if form.telefono.errors %}<div class="field__error" role="alert">{{ form.telefono.errors }}</div>{% endif %}
+    </div>
+
+    <div class="field pbr-form-grid__full">
+      <label class="field__label" for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+      <div class="field__control">{{ form.email }}</div>
+      {% if form.email.help_text %}<div class="field__help muted">{{ form.email.help_text|safe }}</div>{% endif %}
+      {% if form.email.errors %}<div class="field__error" role="alert">{{ form.email.errors }}</div>{% endif %}
+    </div>
+
+    <div class="field">
+      <label class="field__label" for="{{ form.porcentaje_comision_default.id_for_label }}">{{ form.porcentaje_comision_default.label }}</label>
+      <div class="field__control">{{ form.porcentaje_comision_default }}</div>
+      {% if form.porcentaje_comision_default.help_text %}<div class="field__help muted">{{ form.porcentaje_comision_default.help_text|safe }}</div>{% endif %}
+      {% if form.porcentaje_comision_default.errors %}<div class="field__error" role="alert">{{ form.porcentaje_comision_default.errors }}</div>{% endif %}
+    </div>
+    <div class="field">
+      <label class="field__label" for="{{ form.usuario_vinculo.id_for_label }}">{{ form.usuario_vinculo.label }}</label>
+      <div class="field__control">{{ form.usuario_vinculo }}</div>
+      {% if form.usuario_vinculo.help_text %}<div class="field__help muted">{{ form.usuario_vinculo.help_text|safe }}</div>{% endif %}
+      {% if form.usuario_vinculo.errors %}<div class="field__error" role="alert">{{ form.usuario_vinculo.errors }}</div>{% endif %}
+    </div>
+
+    <div class="field pbr-form-grid__full pbr-form-grid__checkbox">
+      <div class="field__control field__control--checkbox-inline">
+        {{ form.activo }}
+        <label class="field__label field__label--checkbox" for="{{ form.activo.id_for_label }}">{{ form.activo.label }}</label>
+      </div>
+      {% if form.activo.help_text %}<div class="field__help muted">{{ form.activo.help_text|safe }}</div>{% endif %}
+      {% if form.activo.errors %}<div class="field__error" role="alert">{{ form.activo.errors }}</div>{% endif %}
+    </div>
+
+    <div class="field pbr-form-grid__full">
+      <label class="field__label" for="{{ form.notas.id_for_label }}">{{ form.notas.label }}</label>
+      <div class="field__control">{{ form.notas }}</div>
+      {% if form.notas.help_text %}<div class="field__help muted">{{ form.notas.help_text|safe }}</div>{% endif %}
+      {% if form.notas.errors %}<div class="field__error" role="alert">{{ form.notas.errors }}</div>{% endif %}
+    </div>
+  </div>
+
+  {% if sensitive_password_required %}
+  <div class="field pbr-form-grid__full" style="margin-top:0.5rem;">
+    <label class="field__label" for="id_sensitive_password">Confirmar contraseña</label>
+    <div class="field__control">
+      <input type="password" name="sensitive_password" id="id_sensitive_password" autocomplete="current-password" required
+        style="width:100%;max-width:min(100%,400px);box-sizing:border-box;border:1px solid var(--pbr-border);border-radius:10px;padding:0.6rem 0.75rem;font:inherit;">
+    </div>
+    <p class="field__help muted">Su sesión de edición expiró. Ingrese su contraseña para guardar (no aplica a superusuarios).</p>
+  </div>
+  {% endif %}
+
+  <div class="form-actions pbr-vendedor-form-actions">
+    <button type="submit" class="btn-primary">Guardar</button>
+    <a href="{{ cancel_url }}" class="btn-secondary">Cancelar</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+{{ form.media }}
+{% endblock %}

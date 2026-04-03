@@ -1,0 +1,53 @@
+{% extends "app/base_app.html" %}
+{% block title %}CRM | Leads{% endblock %}
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">CRM — Leads</h1>
+    <p class="page-toolbar__meta">Prospectos y seguimiento comercial.</p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:crm_lead_create' %}" class="btn-primary btn-sm">Nuevo lead</a>
+  </div>
+</header>
+
+<div class="card">
+  <h2>Embudo</h2>
+  <div class="btn-row">
+    <a class="btn-secondary btn-sm" href="{% url 'app:crm_lead_list' %}">Todos</a>
+    {% for val,label in estados %}
+      <a class="btn-secondary btn-sm" href="{% url 'app:crm_lead_list' %}?estado={{ val }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="data-panel">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>Estado</th>
+      <th>Teléfono</th>
+      <th>Interés</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for l in items %}
+    <tr>
+      <td><a href="{% url 'app:crm_lead_detail' l.pk %}">{{ l.nombre }}</a></td>
+      <td><span class="badge badge--{{ l.estado_embudo|lower }}">{{ l.get_estado_embudo_display }}</span></td>
+      <td>{{ l.telefono|default:"—" }}</td>
+      <td>
+        {% if l.inmueble_interes %}{{ l.inmueble_interes.codigo }}{% elif l.poligono_interes %}{{ l.poligono_interes.nombre }}{% elif l.proyecto_interes %}{{ l.proyecto_interes.nombre }}{% else %}—{% endif %}
+      </td>
+      <td><a href="{% url 'app:crm_lead_update' l.pk %}" class="link-action">Editar</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="muted">No hay leads.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "app/pagination.html" %}
+{% endblock %}

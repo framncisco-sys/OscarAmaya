@@ -1,0 +1,140 @@
+{% extends "app/base_app.html" %}
+{% block title %}Plan de cuotas y estado de cuenta | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<h1 class="page-title">Plan de cuotas y estado de cuenta</h1>
+<p class="page-lead">
+  Contrato <strong>{{ contrato.numero }}</strong> —
+  <a href="{% url 'app:contrato_update' contrato.pk %}">Editar contrato</a>
+  · <a href="{% url 'app:pago_list' %}?contrato={{ contrato.pk }}">Pagos de este contrato</a>
+</p>
+
+<section class="card">
+  <h2 style="font-size:1rem;margin:0 0 0.75rem;">Resumen del plan de cuotas</h2>
+  {% if cuotas_resumen.total_cuotas %}
+  <dl class="resumen-cuotas-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(11rem,1fr));gap:0.75rem 1.25rem;margin:0 0 1rem;">
+    <div><dt class="muted" style="font-size:0.8rem;margin:0;">Cuotas en el plan</dt><dd style="margin:0.15rem 0 0;font-size:1.15rem;font-weight:600;">{{ cuotas_resumen.total_cuotas }}</dd></div>
+    <div><dt class="muted" style="font-size:0.8rem;margin:0;">Pagadas</dt><dd style="margin:0.15rem 0 0;font-size:1.15rem;font-weight:600;color:#15803d;">{{ cuotas_resumen.pagadas }}</dd></div>
+    <div><dt class="muted" style="font-size:0.8rem;margin:0;">Pendientes</dt><dd style="margin:0.15rem 0 0;font-size:1.15rem;font-weight:600;">{{ cuotas_resumen.pendientes }}</dd></div>
+    <div><dt class="muted" style="font-size:0.8rem;margin:0;">Vencidas (sin pagar)</dt><dd style="margin:0.15rem 0 0;font-size:1.15rem;font-weight:600;color:#b91c1c;">{{ cuotas_resumen.vencidas }}</dd></div>
+    <div><dt class="muted" style="font-size:0.8rem;margin:0;">Monto total del plan</dt><dd style="margin:0.15rem 0 0;font-weight:600;">${{ cuotas_resumen.monto_plan_total }}</dd></div>
+    <div><dt class="muted" style="font-size:0.8rem;margin:0;">Ya cubierto (cuotas pagadas)</dt><dd style="margin:0.15rem 0 0;font-weight:600;color:#15803d;">${{ cuotas_resumen.monto_cuotas_pagadas }}</dd></div>
+    <div><dt class="muted" style="font-size:0.8rem;margin:0;">Falta por cuotas programadas</dt><dd style="margin:0.15rem 0 0;font-weight:600;color:#b45309;">${{ cuotas_resumen.monto_cuotas_por_pagar }}</dd></div>
+  </dl>
+  <p class="muted" style="font-size:0.875rem;margin:0;">Los montos «falta» son la suma de cuotas aún no marcadas como pagadas en el plan. No incluyen primas u otros conceptos fuera del calendario de cuotas.</p>
+  {% else %}
+  <p class="muted">Este contrato no tiene cuotas programadas cargadas. Si el financiamiento es en cuotas, genéreelas o regístrelas al editar el contrato (formulario de cuotas).</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2 style="font-size:1rem;margin:0 0 0.75rem;">Resumen general</h2>
+  <p><strong>Cliente:</strong> {{ contrato.cliente }}</p>
+  <p><strong>Inmueble:</strong> {{ contrato.inmueble.codigo }} — {{ contrato.inmueble.proyecto.nombre }}</p>
+  <p><strong>Precio acordado:</strong> ${{ contrato.precio_final }}</p>
+  <p><strong>Modalidad de financiamiento:</strong> {{ contrato.get_modalidad_financiamiento_display }}</p>
+  {% if contrato.meses_sin_interes %}
+  <p><strong>Meses iniciales sin interés:</strong> {{ contrato.meses_sin_interes }}</p>
+  {% endif %}
+  {% if contrato.plan_anos %}
+  <p><strong>Plazo (años):</strong> {{ contrato.get_plan_anos_display }}</p>
+  {% endif %}
+  {% if contrato.tasa_interes_anual is not None %}
+  <p><strong>Tasa anual (referencia):</strong> {{ contrato.tasa_interes_anual }}</p>
+  {% endif %}
+  {% if contrato.precio_lista_referencia %}
+  <p><strong>Precio de lista (referencia):</strong> ${{ contrato.precio_lista_referencia }}</p>
+  {% endif %}
+  {% if contrato.descuento_efectivo_monto %}
+  <p><strong>Descuento registrado (efectivo u otra condición):</strong> ${{ contrato.descuento_efectivo_monto }}</p>
+  {% endif %}
+  {% if contrato.precio_lista_referencia %}
+  <p class="muted"><strong>Diferencia lista − precio acordado:</strong> ${{ contrato.descuento_implicito_vs_referencia }}</p>
+  {% endif %}
+  <p><strong>Total pagado (suma de movimientos):</strong> ${{ total_pagado }}</p>
+  <p><strong>Saldo estimado (precio − pagos):</strong> ${{ saldo_estimado }}</p>
+  <p class="muted" style="margin-top:0.75rem;">El saldo es orientativo; valide con política de capital e intereses.</p>
+  <p class="muted" style="margin-top:0.5rem;">
+    La <strong>fecha de pago</strong> de cada cuota es la del <strong>pago</strong> que la liquidó (registrada en Pagos).
+    La <strong>mora</strong> se evalúa comparando esa fecha con el <strong>vencimiento</strong> de la cuota; use
+    <a href="{% url 'app:parametro_mora_list' %}">Parámetros de mora</a> como referencia de tasas y gracias.
+  </p>
+</section>
+
+<section class="card">
+  <h2 style="font-size:1rem;margin:0 0 0.75rem;">Detalle de cada cuota</h2>
+  <p class="muted" style="font-size:0.875rem;margin:0 0 0.75rem;">
+    Fechas en formato día/mes/año. «Cumplimiento»: si ya pagó, días de retraso respecto al vencimiento (0 = a tiempo o antes).
+    Si sigue pendiente o vencida y ya pasó la fecha límite, días impaga tras el vencimiento (corte {{ hoy|date:"d/m/Y" }}).
+  </p>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Vencimiento</th>
+        <th class="right">Monto cuota</th>
+        <th>Estado</th>
+        <th>Fecha del pago</th>
+        <th class="right">Monto del pago</th>
+        <th>Ref. pago</th>
+        <th>Cumplimiento</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in filas_cuotas %}
+      {% with c=row.cuota %}
+      <tr>
+        <td>{{ c.numero }}</td>
+        <td>{{ c.vence_en|date:"d/m/Y" }} <span class="muted">({{ c.vence_en|date:"l" }})</span></td>
+        <td class="right">${{ c.monto }}</td>
+        <td>{{ c.get_estado_display }}</td>
+        <td>{% if row.fecha_pago %}{{ row.fecha_pago|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+        <td class="right">{% if row.pago_monto is not None %}${{ row.pago_monto }}{% else %}—{% endif %}</td>
+        <td>{{ row.pago_referencia|default:"—" }}</td>
+        <td>
+          {% if row.dias_tarde_al_pagar is not None %}
+            {% if row.dias_tarde_al_pagar > 0 %}
+              <span style="color:#b45309;font-weight:600;">{{ row.dias_tarde_al_pagar }} día{% if row.dias_tarde_al_pagar != 1 %}s{% endif %} después del vencimiento</span>
+            {% else %}
+              A tiempo o antes
+            {% endif %}
+          {% elif row.dias_impago_tras_venc %}
+            <span style="color:#b91c1c;font-weight:600;">Impaga: {{ row.dias_impago_tras_venc }} día{% if row.dias_impago_tras_venc != 1 %}s{% endif %} tras vencimiento</span>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+      {% endwith %}
+      {% empty %}
+      <tr><td colspan="8" class="muted">No hay cuotas cargadas para este contrato.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2 style="font-size:1rem;margin:0 0 0.75rem;">Pagos registrados</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Concepto</th>
+        <th class="right">Monto</th>
+        <th>Ref.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pagos %}
+      <tr>
+        <td>{{ p.fecha }}</td>
+        <td>{{ p.get_concepto_display }}</td>
+        <td class="right">${{ p.monto }}</td>
+        <td>{{ p.referencia|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="muted">Sin pagos.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends "app/base_app.html" %}
+{% block title %}Gestión | Paredes Bienes Raíces{% endblock %}
+
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Gestión inmobiliaria</h1>
+    <p class="page-toolbar__meta">Trabaja aquí el día a día; no necesitas abrir la consola administrativa.</p>
+  </div>
+</header>
+
+<section class="grid-modulos">
+  <a class="card modulo" href="{% url 'app:proyecto_list' %}">
+    <h3>Proyectos</h3>
+    <p>Lotificaciones y residenciales.</p>
+  </a>
+  <a class="card modulo" href="{% url 'app:poligono_list' %}">
+    <h3>Polígonos</h3>
+    <p>Etapas y agrupación de lotes.</p>
+  </a>
+  <a class="card modulo" href="{% url 'app:inmueble_list' %}">
+    <h3>Inmuebles</h3>
+    <p>Inventario de lotes y viviendas.</p>
+  </a>
+  <a class="card modulo" href="{% url 'app:cliente_list' %}">
+    <h3>Clientes</h3>
+    <p>Compradores y contacto.</p>
+  </a>
+  {% if puede_gestionar_vendedores_app %}
+  <a class="card modulo" href="{% url 'app:vendedor_list' %}">
+    <h3>Vendedores</h3>
+    <p>Asesores, comisión sugerida y recibos por venta.</p>
+  </a>
+  {% endif %}
+  <a class="card modulo" href="{% url 'app:contrato_list' %}">
+    <h3>Contratos</h3>
+    <p>Ventas y condiciones.</p>
+  </a>
+  <a class="card modulo" href="{% url 'app:pago_list' %}">
+    <h3>Pagos</h3>
+    <p>Primas, cuotas y abonos.</p>
+  </a>
+</section>
+
+{% if puede_gestionar_usuarios_app %}
+<section class="grid-modulos" style="margin-top:1rem;">
+  <a class="card modulo" href="{% url 'app:usuario_list' %}">
+    <h3>Usuarios y roles</h3>
+    <p>Cuentas internas, tipos de acceso y perfiles.</p>
+  </a>
+  <a class="card modulo" href="{% url 'app:usuario_roles_manual' %}">
+    <h3>Guía de roles</h3>
+    <p>Qué significa cada tipo en el sistema.</p>
+  </a>
+</section>
+{% endif %}
+
+{% if puede_ver_historial_auditoria %}
+<section class="grid-modulos" style="margin-top:1rem;">
+  <a class="card modulo" href="{% url 'app:audit_log_list' %}">
+    <h3>Historial de actividad</h3>
+    <p>Quién creó, editó o eliminó registros (solo administrador).</p>
+  </a>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Otros</h2>
+  <p class="muted">Parámetros de mora y políticas de cálculo.</p>
+  <div class="btn-row">
+    <a href="{% url 'app:parametro_mora_list' %}" class="btn-secondary">Parámetros de mora</a>
+    <a href="{% url 'dashboard' %}" class="btn-secondary">Dashboard</a>
+  </div>
+</section>
+
+<section class="card pbr-card--info" style="margin-top:1.25rem;">
+  <h2>Correo (recibos y avisos)</h2>
+  <p class="muted" style="margin-top:0;margin-bottom:0;">
+    El envío de recibos y avisos por correo lo habilita quien administra el servidor o el hosting.
+    Si un cliente no recibe mensajes, revise que tenga email en su ficha y, si el problema sigue, informe al responsable técnico.
+  </p>
+  {% if request.user.is_superuser %}
+  <details class="pbr-tech-details">
+    <summary>Configuración técnica del servidor (solo referencia)</summary>
+    <div class="pbr-tech-details__body">
+      <p class="muted" style="margin-top:0;">
+        El envío SMTP se define en el archivo <code>.env</code> del proyecto (puede partir de <code>.env.example</code>).
+        Hacen falta al menos <strong>EMAIL_HOST</strong>, <strong>EMAIL_HOST_USER</strong> y <strong>EMAIL_HOST_PASSWORD</strong>.
+        Sin esa configuración, el sistema solo registrará intentos en consola del servidor.
+      </p>
+      <p class="muted" style="margin-bottom:0.5rem;">
+        <strong>Probar SMTP</strong> en la PC donde corre la aplicación (PowerShell o CMD, carpeta del proyecto):
+      </p>
+      <pre class="pbr-code-sample">python manage.py probar_correo su@correo.com</pre>
+      <p class="muted" style="margin-top:0.75rem;margin-bottom:0;font-size:0.9rem;">
+        El comando muestra la configuración detectada y envía un correo de prueba. Si falla: contraseña de aplicación (p. ej. Gmail), puerto 587 con TLS o 465 con SSL, y que el remitente coincida con la cuenta si el proveedor lo exige.
+      </p>
+    </div>
+  </details>
+  {% endif %}
+</section>
+{% endblock %}

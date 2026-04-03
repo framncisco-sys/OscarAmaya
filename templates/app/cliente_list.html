@@ -1,0 +1,44 @@
+{% extends "app/base_app.html" %}
+{% block title %}Clientes | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Clientes</h1>
+    <p class="page-toolbar__meta">Compradores y contacto para contratos y seguimiento.</p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:cliente_create' %}" class="btn-primary btn-sm">Nuevo cliente</a>
+  </div>
+</header>
+<div class="data-panel">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Nombres</th>
+      <th>Apellidos</th>
+      <th>Teléfono</th>
+      <th>Email</th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in items %}
+    <tr>
+      <td>{{ c.nombres }}</td>
+      <td>{{ c.apellidos }}</td>
+      <td>{{ c.telefono|default:"—" }}</td>
+      <td>{{ c.email|default:"—" }}</td>
+      <td><a href="{% url 'app:cliente_update' c.pk %}" class="link-action">Editar</a></td>
+      <td><a href="{% url 'app:cliente_reporte_pdf' c.pk %}" class="link-action">Reporte PDF</a></td>
+      <td><a href="{% url 'app:cliente_delete' c.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="muted">No hay clientes.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "app/pagination.html" %}
+{% endblock %}

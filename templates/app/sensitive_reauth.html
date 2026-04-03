@@ -1,0 +1,24 @@
+{% extends "app/base_app.html" %}
+{% block title %}Confirmar acceso | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<h1 class="page-title">Confirmar acceso</h1>
+<p class="muted" style="max-width:36rem;line-height:1.5;">
+  Para editar o eliminar datos debe ingresar su contraseña de usuario.
+  Los administradores del sistema (<strong>superusuarios</strong>) no pasan por este paso.
+  Tras confirmar, podrá trabajar durante unos minutos sin volver a escribirla.
+</p>
+<form method="post" class="form-stack" style="max-width:min(100%,400px);margin-top:1.25rem;">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next }}">
+  <div class="field">
+    <label class="field__label" for="id_password">Contraseña</label>
+    <div class="field__control">
+      <input type="password" name="password" id="id_password" required autocomplete="current-password" class="form-control" style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border-radius:10px;border:1px solid var(--pbr-border);">
+    </div>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn-primary">Continuar</button>
+    <a href="{% url 'app:index' %}" class="btn-secondary">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

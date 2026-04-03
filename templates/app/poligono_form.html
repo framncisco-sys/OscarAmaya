@@ -1,0 +1,27 @@
+{% extends "app/object_form.html" %}
+{% load static %}
+
+{% block before_form %}
+{% if object.plano_vista_url %}
+  {% if object.plano_vista_es_pdf %}
+  <div class="card" style="margin-bottom:1rem;">
+    <p class="field__label" style="margin-bottom:0.5rem;">Plano (PDF)</p>
+    <p><a href="{{ object.plano_vista_url }}" target="_blank" rel="noopener" class="btn-secondary btn-sm">Abrir PDF del plano</a></p>
+    <p class="muted" style="margin:0;font-size:0.8125rem;">El recorte con el ratón solo aplica a imágenes. Suba el plano maestro como imagen en el proyecto o use los porcentajes manualmente.</p>
+  </div>
+  {% endif %}
+{% endif %}
+{% endblock %}
+
+{% block form_extras %}
+{{ proyecto_planos_map|json_script:"proyecto-plano-map" }}
+<div id="plano-crop-config"
+  data-plano-url="{% if object.plano_vista_url %}{{ object.plano_vista_url }}{% endif %}"
+  data-is-pdf="{% if object.plano_vista_es_pdf %}1{% else %}0{% endif %}"
+  data-izq="{{ object.recorte_izq_pct|default_if_none:'' }}"
+  data-sup="{{ object.recorte_sup_pct|default_if_none:'' }}"
+  data-ancho="{{ object.recorte_ancho_pct|default_if_none:'' }}"
+  data-alto="{{ object.recorte_alto_pct|default_if_none:'' }}"
+></div>
+<script src="{% static 'js/poligono_crop.js' %}" defer></script>
+{% endblock %}

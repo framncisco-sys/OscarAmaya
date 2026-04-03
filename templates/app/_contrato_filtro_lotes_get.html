@@ -1,0 +1,37 @@
+{# GET separado del formulario POST del contrato (evita <form> anidados, que rompen el select de lotes). #}
+<div class="card cliente-docs-card" style="margin-bottom:1rem;">
+  <h2 class="field__label" style="margin-top:0;">Filtrar lista de lotes</h2>
+  <form method="get" action="{{ request.path }}" class="contrato-filtro-get">
+    <div class="contrato-filtros-inmueble__row">
+      <div class="field">
+        <label class="field__label" for="filtro-get-proyecto">Proyecto</label>
+        <div class="field__control">
+          <select name="proyecto" id="filtro-get-proyecto" autocomplete="off">
+            <option value="">Todos los proyectos</option>
+            {% for p in proyectos_filtro %}
+              <option value="{{ p.pk }}"{% if filtro_get_proyecto == p.pk|stringformat:"s" %} selected{% endif %}>{{ p.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field__label" for="filtro-get-poligono">Polígono</label>
+        <div class="field__control">
+          <select name="poligono" id="filtro-get-poligono" autocomplete="off">
+            <option value="">Todos los polígonos</option>
+            {% for pol in poligonos_filtro %}
+              <option value="{{ pol.pk }}"{% if filtro_get_poligono == pol.pk|stringformat:"s" %} selected{% endif %}>{{ pol.proyecto.nombre }} — {{ pol.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="field" style="align-self:flex-end;">
+        <div class="btn-row" style="margin-top:0;">
+          <button type="submit" class="btn-secondary">Aplicar filtro</button>
+          <a href="{{ request.path }}" class="btn-secondary">Ver todos</a>
+        </div>
+      </div>
+    </div>
+    <p class="field__help muted">Elija proyecto y/o polígono, pulse «Aplicar filtro» y luego escoja el lote abajo. Los lotes sin polígono asignado siguen apareciendo al filtrar por proyecto o por un polígono de ese mismo proyecto.</p>
+  </form>
+</div>

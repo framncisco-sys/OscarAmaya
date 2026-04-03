@@ -1,0 +1,26 @@
+{% extends "app/object_form.html" %}
+{% block form_extras %}
+{% if historial_precios %}
+<section class="card" style="margin-top:1rem;">
+  <h2 class="page-title" style="font-size:1rem;">Historial de precio de lista</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th class="right">Anterior</th>
+        <th class="right">Nuevo</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for h in historial_precios %}
+      <tr>
+        <td>{{ h.creado_en|date:"Y-m-d H:i" }}</td>
+        <td class="right">${{ h.precio_anterior }}</td>
+        <td class="right">${{ h.precio_nuevo }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}

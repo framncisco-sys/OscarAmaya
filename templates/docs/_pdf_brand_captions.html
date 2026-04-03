@@ -1,0 +1,22 @@
+{# Proyecto (izq.) + inmobiliaria (der.) — recibo y promesa #}
+<table class="pdf-brand-captions{% if brand_variant %} {{ brand_variant }}{% endif %}">
+  <tr>
+    <td class="pdf-brand-cell pdf-brand-cell--proyecto">
+      <p class="pdf-brand-kicker">Proyecto</p>
+      <p class="pdf-brand-name">{{ proyecto.nombre|title }}</p>
+      {% if proyecto.direccion or proyecto.municipio or proyecto.departamento %}
+      <p class="pdf-brand-meta">
+        {% if proyecto.direccion %}{{ proyecto.direccion }}{% endif %}
+        {% if proyecto.municipio %}{% if proyecto.direccion %} · {% endif %}{{ proyecto.municipio|title }}{% endif %}
+        {% if proyecto.departamento %}{% if proyecto.direccion or proyecto.municipio %} · {% endif %}Dpto. {{ proyecto.departamento|title }}{% endif %}
+      </p>
+      {% endif %}
+    </td>
+    <td class="pdf-brand-cell pdf-brand-cell--inmobiliaria">
+      <p class="pdf-brand-kicker">Inmobiliaria</p>
+      <p class="pdf-brand-name">{{ razon_social }}</p>
+      {% if emisor_nit %}<p class="pdf-brand-meta"><strong>NIT</strong> {{ emisor_nit }}</p>{% endif %}
+      {% if pie_inmobiliaria %}<p class="pdf-brand-meta">{{ pie_inmobiliaria }}</p>{% endif %}
+    </td>
+  </tr>
+</table>

@@ -1,0 +1,12 @@
+{% extends "app/object_form.html" %}
+{% block form_before_actions %}
+{% include "app/_contrato_cuotas_formset.html" %}
+{% endblock %}
+{% block after_page_title %}
+{% if object.pk %}
+<p class="page-lead">
+  <a href="{% url 'app:contrato_estado_cuenta' object.pk %}" class="btn-primary btn-sm">Plan de cuotas y estado de cuenta</a>
+  <span class="muted"> — Cuotas pagadas y por pagar, vencimientos y fechas de pago detalladas.</span>
+</p>
+{% endif %}
+{% endblock %}

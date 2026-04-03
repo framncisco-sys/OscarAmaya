@@ -1,0 +1,115 @@
+{% extends "docs/_base_pdf.html" %}
+{% block pdf_body_class %} class="pdf-reporte-cliente"{% endblock %}
+{% block pdf_extra_styles %}
+    body.pdf-reporte-cliente { font-size: 11px; line-height: 1.45; color: #1e293b; }
+    body.pdf-reporte-cliente .pdf-header { margin-bottom: 10px; padding-bottom: 8px; }
+    .rc-title { font-size: 18px; font-weight: 800; color: #003366; margin: 0 0 4px; }
+    .rc-sub { font-size: 10px; color: #64748b; margin: 0 0 14px; }
+    .rc-h2 {
+      font-size: 11px;
+      font-weight: 800;
+      color: #003366;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin: 16px 0 8px;
+      padding-bottom: 4px;
+      border-bottom: 2px solid #cbd5e1;
+    }
+    .rc-dl { width: 100%; border-collapse: collapse; margin: 0 0 6px; }
+    .rc-dl td { padding: 6px 10px; vertical-align: top; border-bottom: 1px solid #e2e8f0; }
+    .rc-dl td.rc-lbl {
+      width: 32%;
+      font-weight: 700;
+      color: #475569;
+      background: #f8fafc;
+    }
+    .rc-dl td.rc-val { color: #0f172a; }
+    .rc-table { width: 100%; border-collapse: collapse; margin: 0; font-size: 10px; }
+    .rc-table th {
+      text-align: left;
+      padding: 6px 8px;
+      background: #003366;
+      color: #fff;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .rc-table td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+    .rc-muted { color: #94a3b8; font-style: italic; }
+    .rc-pie { margin-top: 18px; font-size: 9px; color: #94a3b8; text-align: center; }
+{% endblock %}
+
+{% block content %}
+<h1 class="rc-title">Reporte de cliente</h1>
+<p class="rc-sub">
+  {{ razon_social }} · Generado {{ emitido_en|date:"d/m/Y H:i" }}
+</p>
+
+<p class="rc-h2">Datos generales</p>
+<table class="rc-dl">
+  <tr><td class="rc-lbl">Nombres</td><td class="rc-val">{{ cliente.nombres|default:"—" }}</td></tr>
+  <tr><td class="rc-lbl">Apellidos</td><td class="rc-val">{{ cliente.apellidos|default:"—" }}</td></tr>
+  <tr><td class="rc-lbl">Correo electrónico</td><td class="rc-val">{{ cliente.email|default:"—" }}</td></tr>
+  <tr><td class="rc-lbl">Teléfono</td><td class="rc-val">{{ cliente.telefono|default:"—" }}</td></tr>
+  <tr><td class="rc-lbl">DUI</td><td class="rc-val">{{ cliente.dui|default:"—" }}</td></tr>
+  <tr><td class="rc-lbl">NIT</td><td class="rc-val">{{ cliente.nit|default:"—" }}</td></tr>
+  <tr><td class="rc-lbl">Pasaporte</td><td class="rc-val">{{ cliente.pasaporte|default:"—" }}</td></tr>
+  <tr><td class="rc-lbl">Dirección</td><td class="rc-val">{% if cliente.direccion %}{{ cliente.direccion|linebreaksbr }}{% else %}—{% endif %}</td></tr>
+  <tr><td class="rc-lbl">Notas</td><td class="rc-val">{% if cliente.notas %}{{ cliente.notas|linebreaksbr }}{% else %}<span class="rc-muted">Sin notas</span>{% endif %}</td></tr>
+  <tr><td class="rc-lbl">Registrado en el sistema</td><td class="rc-val">{{ cliente.creado_en|date:"d/m/Y H:i" }}</td></tr>
+</table>
+
+<p class="rc-h2">Contratos asociados</p>
+{% if contratos %}
+<table class="rc-table">
+  <thead>
+    <tr>
+      <th>N.º</th>
+      <th>Proyecto / lote</th>
+      <th>Firma</th>
+      <th>Estado</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in contratos %}
+    <tr>
+      <td><strong>{{ c.numero }}</strong></td>
+      <td>{{ c.inmueble.proyecto.nombre }} — Lote {{ c.inmueble.codigo }}</td>
+      <td>{{ c.fecha_firma|date:"d/m/Y" }}</td>
+      <td>{{ c.get_estado_display }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="rc-muted">Sin contratos registrados.</p>
+{% endif %}
+
+<p class="rc-h2">Documentos en expediente</p>
+{% if documentos %}
+<table class="rc-table">
+  <thead>
+    <tr>
+      <th>Descripción</th>
+      <th>Archivo</th>
+      <th>Subido</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for d in documentos %}
+    <tr>
+      <td>{{ d.descripcion|default:"—" }}</td>
+      <td>{{ d.nombre_archivo }}</td>
+      <td>{{ d.creado_en|date:"d/m/Y" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="rc-muted">Sin archivos adjuntos en el expediente.</p>
+{% endif %}
+
+<p class="rc-pie">
+  Documento informativo generado desde el sistema de gestión. Ficha interna del cliente #{{ cliente.pk }}.
+</p>
+{% endblock %}

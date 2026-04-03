@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Paredes Bienes Raíces{% endblock %}
+
+{% block content %}
+<div class="app-wrap">
+  <h1 class="page-title">Dashboard</h1>
+  <p class="page-lead">Indicadores rápidos. La gestión diaria está en <a href="{% url 'app:index' %}">Gestión</a>.</p>
+
+  <section class="grid-kpis" aria-label="Indicadores">
+    <article class="card kpi">
+      <h3>Proyectos</h3>
+      <p>{{ total_proyectos }}</p>
+    </article>
+    <article class="card kpi">
+      <h3>Inmuebles</h3>
+      <p>{{ total_inmuebles }}</p>
+    </article>
+    <article class="card kpi">
+      <h3>Clientes</h3>
+      <p>{{ total_clientes }}</p>
+    </article>
+    {% if puede_gestionar_vendedores_app %}
+    <article class="card kpi">
+      <h3>Vendedores</h3>
+      <p>{{ total_vendedores }}</p>
+    </article>
+    {% endif %}
+    <article class="card kpi">
+      <h3>Contratos</h3>
+      <p>{{ total_contratos }}</p>
+    </article>
+  </section>
+
+  {% if reservas_vencidas_ct or reservas_por_vencer %}
+  <section class="card" style="border-left:3px solid var(--pbr-accent);">
+    <h2>Reservas</h2>
+    {% if reservas_vencidas_ct %}
+    <p class="alert" role="alert" style="margin-top:0;">
+      Hay <strong>{{ reservas_vencidas_ct }}</strong> reserva(s) con fecha vencida.
+      Ejecute <code>python manage.py expirar_reservas</code> o libere manualmente en Inmuebles.
+    </p>
+    {% endif %}
+    {% if reservas_por_vencer %}
+    <p class="muted" style="margin:0 0 0.5rem;">Próximos 7 días (fecha límite):</p>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Proyecto</th>
+          <th>Cliente</th>
+          <th>Vence</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for i in reservas_por_vencer %}
+        <tr>
+          <td>{{ i.codigo }}</td>
+          <td>{{ i.proyecto.nombre }}</td>
+          <td>{% if i.cliente_reserva %}{{ i.cliente_reserva }}{% else %}—{% endif %}</td>
+          <td>{{ i.reserva_hasta }}</td>
+          <td><a href="{% url 'app:inmueble_update' i.pk %}">Editar</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="grid-modulos" aria-label="Accesos">
+    <a class="card modulo" href="{% url 'app:proyecto_list' %}">
+      <h3>Proyectos</h3>
+      <p>Ver y editar proyectos.</p>
+    </a>
+    <a class="card modulo" href="{% url 'app:poligono_list' %}">
+      <h3>Polígonos</h3>
+      <p>Etapas y lotes.</p>
+    </a>
+    <a class="card modulo" href="{% url 'app:inmueble_list' %}">
+      <h3>Inmuebles</h3>
+      <p>Inventario.</p>
+    </a>
+    <a class="card modulo" href="{% url 'app:cliente_list' %}">
+      <h3>Clientes</h3>
+      <p>Base de compradores.</p>
+    </a>
+    {% if puede_gestionar_vendedores_app %}
+    <a class="card modulo" href="{% url 'app:vendedor_list' %}">
+      <h3>Vendedores</h3>
+      <p>Asesores, comisiones y catálogo de ventas.</p>
+    </a>
+    {% endif %}
+    <a class="card modulo" href="{% url 'app:contrato_list' %}">
+      <h3>Contratos</h3>
+      <p>Ventas y condiciones.</p>
+    </a>
+    <a class="card modulo" href="{% url 'app:pago_list' %}">
+      <h3>Pagos</h3>
+      <p>Cobros y cuotas.</p>
+    </a>
+  </section>
+
+  <section class="card">
+    <h2>Últimos inmuebles</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Proyecto</th>
+          <th>Tipo</th>
+          <th>Estado</th>
+          <th>Precio</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for i in ultimos_inmuebles %}
+        <tr>
+          <td><a href="{% url 'app:inmueble_update' i.pk %}">{{ i.codigo }}</a></td>
+          <td>{{ i.proyecto.nombre }}</td>
+          <td>{{ i.get_tipo_display }}</td>
+          <td>{{ i.get_estado_display }}</td>
+          <td>${{ i.precio_lista }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="muted">No hay inmuebles aún.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Mapa de calor (por polígono)</h2>
+    <p class="muted" style="margin-top:-6px;">Más vendidos y reservados (MVP sin mapa). Para mapa real, luego se agrega geometría.</p>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Proyecto</th>
+          <th>Polígono</th>
+          <th class="right">Total</th>
+          <th class="right">Vendidos</th>
+          <th class="right">Reservados</th>
+          <th class="right">Disponibles</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in poligono_stats %}
+        <tr>
+          <td>{{ p.proyecto.nombre }}</td>
+          <td>{{ p.nombre }}</td>
+          <td class="right">{{ p.total_lotes }}</td>
+          <td class="right">{{ p.vendidos }}</td>
+          <td class="right">{{ p.reservados }}</td>
+          <td class="right">{{ p.disponibles }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="muted">No hay polígonos.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}
