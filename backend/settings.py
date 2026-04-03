@@ -348,6 +348,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Media (PDFs emitidos)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+# Con DEBUG=False, /media/ no se sirve salvo que active esto (enlace HTTPS en WhatsApp vía PUBLIC_BASE_URL).
+# Los PDF quedan accesibles sin login por URL; use solo si acepta ese riesgo o proteja con otro mecanismo.
+DJANGO_SERVE_MEDIA_PUBLIC = env.bool("DJANGO_SERVE_MEDIA_PUBLIC", default=False)
 
 # Correo (recibos, recordatorios). Toda la configuración sale del entorno / .env — ver .env.example
 # - Si define EMAIL_HOST y no fuerza otro EMAIL_BACKEND, se usa SMTP.

@@ -41,13 +41,12 @@ def _html_estado_correo_recibo(notif: ReciboNotificacionInfo) -> str:
 def _html_whatsapp_enlace_manual() -> str:
     return (
         '<p class="alert-recibo__meta">'
-        "<strong>Abrir WhatsApp</strong> usa un enlace <code>wa.me</code>: solo abre el chat con <strong>texto</strong>. "
-        "WhatsApp <strong>no adjunta el PDF</strong> por ese mecanismo (limitación de la plataforma). "
-        "Si configuró <code>PUBLIC_BASE_URL</code> con una URL <strong>HTTPS pública</strong> del sitio, el mensaje puede "
-        "incluir un enlace para que el cliente descargue el PDF. "
-        "Para enviar el PDF como documento de forma automática, active "
-        "<code>WHATSAPP_CLOUD_ENABLED</code> + <code>RECIBO_ENVIAR_WHATSAPP_META</code> (Meta) o Twilio "
-        "(<code>RECIBO_ENVIAR_WHATSAPP_TWILIO</code>).</p>"
+        "<strong>Abrir WhatsApp</strong> usa <code>wa.me</code>: solo abre el chat con texto; "
+        "<strong>no adjunta el PDF</strong> (así funciona WhatsApp). "
+        "Para que el mensaje incluya un enlace de descarga HTTPS al PDF: "
+        "<code>PUBLIC_BASE_URL=https://su-app.ondigitalocean.app</code> y, en producción, "
+        "<code>DJANGO_SERVE_MEDIA_PUBLIC=1</code> (sirve <code>/media/</code> sin login; evalúe privacidad). "
+        "Alternativa: API Meta/Twilio para enviar el PDF como documento.</p>"
     )
 
 

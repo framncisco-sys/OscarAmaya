@@ -77,6 +77,9 @@ La red y el host suelen estar bien; el servidor rechaza la clave que recibe.
 Recibos: correo con PDF y WhatsApp
 --------------------------------------------------------------------------------
 
+IMPORTANTE: el archivo ".env" en su PC NO se sube a Git ni a DigitalOcean.
+  Copie manualmente las mismas variables al Web Service → Environment.
+
 CORREO
   Sin variables SMTP, Django usa "consola": el PDF no llega al cliente (solo log).
   En el Web Service añada, según su proveedor (Gmail, Office365, hosting, etc.):
@@ -98,10 +101,11 @@ WHATSAPP
     - Twilio: RECIBO_ENVIAR_WHATSAPP_TWILIO=1 y credenciales; PUBLIC_BASE_URL en HTTPS
       para la URL del PDF si aplica.
 
-  Para que el TEXTO de wa.me incluya un enlace de descarga al PDF, defina
-  PUBLIC_BASE_URL=https://su-app.ondigitalocean.app
-  (y que /media/... sea accesible sin login si usa solo enlace; en la app actual
-  la descarga de documentos suele requerir sesión: evalúe Meta/Twilio para el cliente).
+  Enlace al PDF dentro del mensaje de wa.me (recomendado si no usa Meta/Twilio):
+    PUBLIC_BASE_URL=https://su-app.ondigitalocean.app
+    DJANGO_SERVE_MEDIA_PUBLIC=1
+  Sin la segunda variable, en producción (DEBUG=False) la ruta /media/... da 404
+  aunque PUBLIC_BASE_URL esté bien. Implica PDF bajo /media/ accesibles sin login.
 
 --------------------------------------------------------------------------------
 Después de guardar y desplegar

@@ -9,6 +9,7 @@ from django.conf.urls.static import static
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
+from django.views.static import serve
 
 from core.forms import LoginForm
 from core.views import (
@@ -48,6 +49,16 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+elif getattr(settings, "DJANGO_SERVE_MEDIA_PUBLIC", False):
+    _media_prefix = (getattr(settings, "MEDIA_URL", "/media/") or "/media/").strip("/")
+    if _media_prefix:
+        urlpatterns += [
+            re_path(
+                rf"^{_media_prefix}/(?P<path>.*)$",
+                serve,
+                {"document_root": settings.MEDIA_ROOT},
+            ),
+        ]
 
 if settings.DEBUG:
     print(
