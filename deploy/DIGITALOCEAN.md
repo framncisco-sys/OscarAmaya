@@ -45,6 +45,33 @@ POSTGRES_SSLMODE=require
 
 Ya está soportado en `backend/settings.py` vía variable de entorno.
 
+## Validación local (antes de desplegar)
+
+El login falla en App Platform cuando Django sigue usando **host `localhost`** para PostgreSQL: en el contenedor **no** hay servidor PostgreSQL local; hace falta la misma configuración que en su `.env` de desarrollo, pero definida en el **Web Service** del panel.
+
+1. **Comando recomendado** (exige BD remota como en DigitalOcean):
+
+   ```bash
+   python manage.py validate_digitalocean --as-app-platform
+   ```
+
+   Si responde `[OK]`, la configuración cargada por Django no apunta a localhost. Si responde `[FALLO]`, añada `DATABASE_URL` o `POSTGRES_*` al Web Service antes de desplegar.
+
+2. **Probar conexión real a PostgreSQL** (opcional):
+
+   ```bash
+   python manage.py validate_digitalocean --as-app-platform --try-connect
+   ```
+
+3. **Check de Django** (error `pbr.E001` solo si existe la variable de entorno `PORT`, como Gunicorn en producción):
+
+   ```powershell
+   $env:PORT="8080"
+   python manage.py check --deploy
+   ```
+
+   Con BD en localhost y `PORT` definido, el check falla con un mensaje que describe el mismo problema que en la nube.
+
 ## App Platform (recomendado para pruebas)
 
 1. **Create → Apps → GitHub** y elija el repositorio de este proyecto.
@@ -114,6 +141,8 @@ Hay un ejemplo incompleto en `deploy/digitalocean-app-spec.example.yaml` solo co
 - `runtime.txt` — versión de Python (3.12.x).
 - `requirements.txt` — incluye `gunicorn` y `whitenoise`.
 - `STATIC_ROOT` + WhiteNoise en `backend/settings.py` cuando `DEBUG=False` **o** cuando existe la variable `PORT` (Gunicorn en App Platform), para servir CSS/JS/imágenes sin depender solo de nginx.
+- `core/checks.py` — comprobación `pbr.E001` con `manage.py check --deploy` y `PORT` definido.
+- `python manage.py validate_digitalocean` — validación manual antes de desplegar.
 - `.gitignore` — carpeta `staticfiles/` generada por `collectstatic`.
 
 ## PDF (WeasyPrint)
