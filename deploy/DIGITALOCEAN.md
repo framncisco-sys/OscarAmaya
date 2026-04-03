@@ -18,7 +18,8 @@ Guía para probar la aplicación Django en **DigitalOcean**. Hay dos caminos hab
 | `DJANGO_ALLOWED_HOSTS` | Dominios o IPs separados por coma, sin espacios. Incluya el hostname de App Platform, ej. `tu-app.ondigitalocean.app` o `.ondigitalocean.app` para todos los subdominios. |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | URLs completas con `https://`, separadas por coma. Ej. `https://tu-app.ondigitalocean.app` |
 | `DATABASE_URL` | Opcional: DigitalOcean suele inyectarla al vincular PostgreSQL; si está definida, **prevalece** sobre `POSTGRES_*`. |
-| `POSTGRES_*` | Si no usa `DATABASE_URL`: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT` (en bases administradas el puerto suele ser **25060** y hace falta **SSL**; vea nota más abajo). |
+| `PGHOST` / `PG*` | Si el entorno define `PGHOST` (estilo libpq), el proyecto puede usar `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGPORT` sin duplicar `POSTGRES_*`. |
+| `POSTGRES_*` | Si no hay `DATABASE_URL` ni `PGHOST`: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT` (en bases administradas el puerto suele ser **25060** y hace falta **SSL**; vea nota más abajo). |
 | `PUBLIC_BASE_URL` | URL pública `https://...` (recibos y enlaces). |
 
 Copie `.env.example` a `.env` y complételo. En DigitalOcean use la pestaña **Environment** del componente o los **Secrets**.

@@ -63,15 +63,24 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = env.bool("DJANGO_USE_X_FORWARDED_HOST", default=True)
 
 # Orígenes confiables para CSRF con HTTPS (ej. https://tu-app.ondigitalocean.app)
-CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
+_csrf_origins = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
+_pbu_csrf = env.str("PUBLIC_BASE_URL", default="").strip().rstrip("/")
+if _pbu_csrf.startswith("http") and _pbu_csrf not in _csrf_origins:
+    CSRF_TRUSTED_ORIGINS = list(_csrf_origins) + [_pbu_csrf]
+else:
+    CSRF_TRUSTED_ORIGINS = _csrf_origins
 
 if not DEBUG:
     SESSION_COOKIE_SECURE = env.bool("DJANGO_SESSION_COOKIE_SECURE", default=True)
     CSRF_COOKIE_SECURE = env.bool("DJANGO_CSRF_COOKIE_SECURE", default=True)
     SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=False)
 
-# WhiteNoise: estáticos en producción tras collectstatic (DigitalOcean, etc.)
-DJANGO_USE_WHITENOISE = env.bool("DJANGO_USE_WHITENOISE", default=not DEBUG)
+# WhiteNoise: Gunicorn (App Platform) no sirve estáticos como runserver. Con DEBUG=True
+# en el panel muchos equipos olvidan DJANGO_USE_WHITENOISE=1; si existe PORT (DO/Heroku), activar.
+DJANGO_USE_WHITENOISE = env.bool(
+    "DJANGO_USE_WHITENOISE",
+    default=(not DEBUG or bool(os.environ.get("PORT"))),
+)
 
 
 # Application definition
@@ -177,6 +186,8 @@ def _database_from_url() -> dict | None:
         opts["sslmode"] = q["sslmode"][0]
     elif u.hostname and "digitalocean" in u.hostname:
         opts["sslmode"] = "require"
+    if _postgres_sslmode and "sslmode" not in opts:
+        opts["sslmode"] = _postgres_sslmode
     return {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": unquote_plus(dbname),
@@ -188,9 +199,33 @@ def _database_from_url() -> dict | None:
     }
 
 
+def _database_from_pg_env() -> dict | None:
+    """Variables estilo libpq (PGHOST, PGDATABASE, …) que algunos entornos inyectan."""
+    host = (os.environ.get("PGHOST") or "").strip()
+    if not host:
+        return None
+    opts: dict = {"connect_timeout": 10}
+    if _postgres_sslmode:
+        opts["sslmode"] = _postgres_sslmode
+    elif "digitalocean" in host:
+        opts["sslmode"] = "require"
+    return {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": (os.environ.get("PGDATABASE") or env.str("POSTGRES_DB", default="paredes_bienes")).strip(),
+        "USER": (os.environ.get("PGUSER") or "").strip(),
+        "PASSWORD": (os.environ.get("PGPASSWORD") or "").strip(),
+        "HOST": host,
+        "PORT": str((os.environ.get("PGPORT") or "5432")).strip(),
+        "OPTIONS": opts,
+    }
+
+
 _db_url = _database_from_url()
+_db_pg = _database_from_pg_env()
 if _db_url:
     DATABASES = {"default": _db_url}
+elif _db_pg:
+    DATABASES = {"default": _db_pg}
 else:
     DATABASES = {
         "default": {
@@ -239,7 +274,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "/static/"
 
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
