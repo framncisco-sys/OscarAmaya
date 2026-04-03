@@ -8,3 +8,4 @@ weasyprint>=62,<70
 # Respaldo HTML→PDF sin GTK/GLib (p. ej. Windows donde WeasyPrint no carga libgobject)
 xhtml2pdf>=0.2.15,<0.3
 num2words>=0.5,<1
+pillow>=11,<13

@@ -143,7 +143,7 @@ a.button:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 72px;
+  min-height: 88px;
   gap: 0.75rem 1rem;
   flex-wrap: wrap;
 }
@@ -293,8 +293,8 @@ a.button:hover {
   display: block;
   height: auto;
   width: auto;
-  max-height: 68px;
-  max-width: min(480px, 92vw);
+  max-height: 84px;
+  max-width: min(580px, 92vw);
   flex-shrink: 0;
   object-fit: contain;
   object-position: left center;
@@ -335,9 +335,9 @@ a.button:hover {
 .login-card__logo {
   display: inline-block;
   height: auto;
-  max-height: 140px;
+  max-height: 168px;
   width: auto;
-  max-width: min(100%, 440px);
+  max-width: min(100%, 520px);
   object-fit: contain;
 }
 
@@ -756,8 +756,8 @@ a.button:hover {
 .app-body--login .brand__img {
   display: block;
   height: auto;
-  max-height: 72px;
-  max-width: min(520px, 92vw);
+  max-height: 90px;
+  max-width: min(580px, 92vw);
   width: auto;
   flex-shrink: 0;
   object-fit: contain;
@@ -765,7 +765,7 @@ a.button:hover {
 }
 
 .app-body--login .app-header .app-wrap.app-header__inner {
-  min-height: 76px;
+  min-height: 88px;
 }
 
 .app-body--login .brand__wordmark {
@@ -2003,13 +2003,13 @@ html[data-pbr-reduced-motion="1"] .status-badge--online::after {
   }
 
   .brand__img {
-    max-height: 60px;
-    max-width: min(420px, 94vw);
+    max-height: 72px;
+    max-width: min(520px, 94vw);
   }
 
   .app-body--login .brand__img {
-    max-height: 64px;
-    max-width: min(480px, 94vw);
+    max-height: 80px;
+    max-width: min(540px, 94vw);
   }
 
   .page-title {
@@ -2195,8 +2195,8 @@ html[data-pbr-view="tablet"] .app-nav {
 }
 
 html[data-pbr-view="tv"] .brand__img {
-  max-height: 80px;
-  max-width: min(560px, 45vw);
+  max-height: 96px;
+  max-width: min(640px, 45vw);
 }
 
 html[data-pbr-view="tv"] .app-session__name {
