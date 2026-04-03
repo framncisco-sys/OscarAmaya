@@ -426,7 +426,7 @@ else:
 RECIBO_ENVIAR_EMAIL = env.bool("RECIBO_ENVIAR_EMAIL", default=True)
 RECIBO_EMAIL_ASUNTO = env.str(
     "RECIBO_EMAIL_ASUNTO",
-    default="Su recibo de pago — Paredes Bienes Raíces",
+    default="Constancia de pago registrada — Paredes Bienes Raíces (PDF adjunto)",
 )
 # Prefijo telefónico para armar enlaces wa.me (El Salvador = 503)
 RECIBO_WHATSAPP_PAIS = env.str("RECIBO_WHATSAPP_PAIS", default="503")

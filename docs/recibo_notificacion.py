@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 
     from .models import DocumentoEmitido
 
+from .recibo_text import format_monto_sv
+
 logger = logging.getLogger(__name__)
 
 
@@ -156,6 +158,9 @@ def enviar_recibo_por_email(doc: "DocumentoEmitido", pago: "Pago") -> bool:
             pass
 
     wa_url = construir_url_whatsapp_recibo(cliente, doc, pago)
+
+    nombre_completo = f"{cliente.nombres} {cliente.apellidos}".strip()
+    empresa = (getattr(settings, "PBR_PROMESA_RAZON_SOCIAL_VENDEDOR", "") or "").strip() or "Paredes Bienes Raíces"
     body = render_to_string(
         "docs/email_recibo_ingreso.txt",
         {
@@ -163,7 +168,11 @@ def enviar_recibo_por_email(doc: "DocumentoEmitido", pago: "Pago") -> bool:
             "doc": doc,
             "pago": pago,
             "contrato": pago.contrato,
+            "inmueble": pago.contrato.inmueble,
             "whatsapp_url": wa_url,
+            "nombre_cliente_completo": nombre_completo,
+            "monto_fmt": format_monto_sv(pago.monto),
+            "empresa_nombre": empresa,
         },
     ).strip()
 

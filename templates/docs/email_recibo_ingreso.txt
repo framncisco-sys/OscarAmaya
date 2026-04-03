@@ -1,12 +1,39 @@
-Estimado/a {{ cliente.nombres }},
+Estimado(a) {{ nombre_cliente_completo }},
 
-Adjuntamos el recibo PDF {{ doc.numero }} por el pago de ${{ pago.monto }} registrado el {{ pago.fecha }} (contrato {{ contrato.numero }}).
+Por medio del presente, {{ empresa_nombre }} le informa que hemos registrado correctamente un pago asociado a su contrato de adquisición. Adjunto a este correo encontrará el documento PDF correspondiente a su constancia de pago (recibo de ingreso), el cual puede conservar para sus archivos y fines que estime convenientes.
 
-Si tiene alguna consulta, responda a este correo o contáctenos.
+────────────────────────────────────────
+DETALLE DEL DOCUMENTO
+────────────────────────────────────────
+• Número de recibo:     {{ doc.numero }}
+• Fecha del pago:       {{ pago.fecha|date:"d/m/Y" }}
+• Concepto:             {{ pago.get_concepto_display }}
+• Monto registrado:     {{ monto_fmt }} USD
+{% if pago.referencia %}• Referencia / nota:    {{ pago.referencia }}{% endif %}
+{% if pago.concepto == "CUOTA" and pago.cuotas_incluidas > 1 %}• Cuotas cubiertas:     {{ pago.cuotas_incluidas }} (según programación del contrato){% endif %}
+
+────────────────────────────────────────
+CONTRATO E INMUEBLE
+────────────────────────────────────────
+• Número de contrato:   {{ contrato.numero }}
+• Inmueble (referencia): {{ inmueble.codigo }}{% if inmueble.proyecto %} — {{ inmueble.proyecto.nombre }}{% endif %}
+
+El archivo adjunto reproduce la información consignada en nuestro sistema al momento de la emisión. Si observara alguna discrepancia, le rogamos comunicarse a la brevedad con nuestro equipo para su revisión.
 
 {% if whatsapp_url %}
-También puede escribirnos por WhatsApp: {{ whatsapp_url }}
-{% endif %}
+────────────────────────────────────────
+CONTACTO ADICIONAL
+────────────────────────────────────────
+También puede escribirnos por WhatsApp utilizando el siguiente enlace (se abrirá un mensaje predefinido en su dispositivo):
+{{ whatsapp_url }}
 
-Saludos cordiales,
-Paredes Bienes Raíces
+{% endif %}
+Quedamos atentos a cualquier consulta relacionada con su contrato o con este comprobante.
+
+Atentamente,
+
+{{ empresa_nombre }}
+Gestión inmobiliaria y cartera
+
+---
+Este mensaje y el documento adjunto tienen carácter informativo. No responda a este correo si la dirección de envío es automática; para respuestas directas utilice los canales oficiales indicados por su asesor o en nuestras oficinas.
