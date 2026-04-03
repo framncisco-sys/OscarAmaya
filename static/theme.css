@@ -289,9 +289,9 @@ a.button:hover {
 
 .brand__img {
   display: block;
-  height: 40px;
+  height: 44px;
   width: auto;
-  max-width: min(260px, 52vw);
+  max-width: min(320px, 78vw);
 }
 
 .brand__wordmark {
@@ -329,7 +329,7 @@ a.button:hover {
 .login-card__logo {
   display: inline-block;
   height: auto;
-  max-height: 64px;
+  max-height: 88px;
   width: auto;
   max-width: 100%;
 }
@@ -748,8 +748,8 @@ a.button:hover {
 /* Misma marca gráfica que en el resto del sitio (no sustituir por texto en login) */
 .app-body--login .brand__img {
   display: block;
-  height: 44px;
-  max-width: min(300px, 62vw);
+  height: 48px;
+  max-width: min(320px, 72vw);
 }
 
 .app-body--login .brand__wordmark {

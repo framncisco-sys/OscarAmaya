@@ -16,9 +16,8 @@
   </div>
   <header class="app-header">
     <div class="app-wrap app-header__inner">
-      <a class="brand brand--logo" href="{% url 'home' %}">
-        <img src="{% static 'logo_paredes.png' %}" alt="Paredes Bienes Raíces" class="brand__img" decoding="async">
-        <span class="brand__wordmark">Paredes <span class="brand__wordmark-sub">Bienes Raíces</span></span>
+      <a class="brand brand--logo" href="{% url 'home' %}" aria-label="Paredes Desarrollos Inmobiliarios — inicio">
+        <img src="{% static 'logo_paredes.png' %}" alt="Paredes Desarrollos Inmobiliarios" class="brand__img" decoding="async">
       </a>
       <div class="app-header__right">
         {% if request.user.is_authenticated %}
