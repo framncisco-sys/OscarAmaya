@@ -268,6 +268,12 @@ class Inmueble(models.Model):
         blank=True,
         help_text="Coordenadas del lote para el mapa interactivo (formato JSON).",
     )
+    # Polígono en WGS84 (lon/lat) para mapa Leaflet sobre teselas OSM/Google — no mezclar con geometria_json (0–100).
+    geometria_catastral_geojson = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="GeoJSON Polygon en EPSG:4326 (ej. dibujado sobre OpenStreetMap). Opcional; ver también geometria_json sobre el plano.",
+    )
 
     cliente_reserva = models.ForeignKey(
         "Cliente",

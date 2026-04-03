@@ -1,0 +1,87 @@
+{% extends "app/base_app.html" %}
+{% load static %}
+{% block title %}Mapa catastral | Paredes Bienes Raíces{% endblock %}
+
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Mapa catastral</h1>
+    <p class="page-toolbar__meta">
+      Lotes sobre mapa real (WGS84). Colores: azul contado, naranja reservado, blanco disponible.
+      Puede dibujar el polígono aquí o pegar GeoJSON en el inmueble (admin o edición de inmueble).
+    </p>
+  </div>
+</header>
+
+<div class="card">
+  <div class="mapa-toolbar">
+    <div class="field">
+      <label class="field__label" for="catastral-proyecto">Proyecto</label>
+      <div class="field__control">
+        <select id="catastral-proyecto">
+          <option value="">Seleccione proyecto</option>
+          {% for p in proyectos %}
+            <option value="{{ p.pk }}">{{ p.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label class="field__label" for="catastral-poligono">Polígono</label>
+      <div class="field__control">
+        <select id="catastral-poligono">
+          <option value="">Todos</option>
+          {% for pol in poligonos %}
+            <option value="{{ pol.pk }}" data-proyecto-id="{{ pol.proyecto_id }}">{{ pol.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label class="field__label" for="catastral-lote">Lote a editar</label>
+      <div class="field__control">
+        <select id="catastral-lote">
+          <option value="">Seleccione lote</option>
+        </select>
+      </div>
+    </div>
+    <div class="mapa-actions">
+      <button type="button" id="catastral-reload" class="btn-secondary">Recargar</button>
+      <button type="button" id="catastral-save" class="btn-primary">Guardar polígono WGS84</button>
+    </div>
+  </div>
+
+  <div class="mapa-catastral-leyenda" aria-label="Leyenda de estatus">
+    <span class="mapa-catastral-leyenda__item"><span class="swatch swatch--contado"></span> Contado (vendido)</span>
+    <span class="mapa-catastral-leyenda__item"><span class="swatch swatch--reservado"></span> Reservado</span>
+    <span class="mapa-catastral-leyenda__item"><span class="swatch swatch--disponible"></span> Disponible</span>
+    <span class="mapa-catastral-leyenda__item"><span class="swatch swatch--bloqueado"></span> Bloqueado</span>
+  </div>
+
+  <div id="mapa-catastral" class="mapa-catastral-canvas" role="region" aria-label="Mapa de lotes"></div>
+  <p class="field__help muted">
+    Coordenadas en grados (lon/lat). Confirme acceso con contraseña antes de guardar. El estado del lote se edita en el formulario de inmueble o en el admin.
+  </p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+{% if google_maps_api_key %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}"></script>
+<script src="https://unpkg.com/leaflet.gridlayer.googlemutant@0.14.0/dist/Leaflet.GoogleMutant.js"></script>
+{% endif %}
+<script>
+  window.mapaCatastralConfig = {
+    apiCatastralBase: "{% url 'app:api_mapa_catastral' 0 %}",
+    apiGuardarBase: "{% url 'app:api_mapa_catastral_guardar' 0 %}",
+    csrfToken: "{{ csrf_token }}",
+    googleMapsEnabled: {% if google_maps_api_key %}true{% else %}false{% endif %},
+  };
+</script>
+<script src="{% static 'js/mapa_catastral.js' %}"></script>
+{% endblock %}

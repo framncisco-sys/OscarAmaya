@@ -9,6 +9,7 @@
       <a href="{% url 'app:poligono_list' %}"{% if u == 'poligono_list' or u == 'poligono_create' or u == 'poligono_update' %} class="is-active" aria-current="page"{% endif %}>Polígonos</a>
       <a href="{% url 'app:inmueble_list' %}"{% if u == 'inmueble_list' or u == 'inmueble_create' or u == 'inmueble_update' %} class="is-active" aria-current="page"{% endif %}>Inmuebles</a>
       <a href="{% url 'app:mapa_editor' %}"{% if u == 'mapa_editor' or u == 'api_mapa_proyecto' or u == 'api_mapa_guardar_lote' %} class="is-active" aria-current="page"{% endif %}>Mapa interactivo</a>
+      <a href="{% url 'app:mapa_catastral' %}"{% if u == 'mapa_catastral' or u == 'api_mapa_catastral' or u == 'api_mapa_catastral_guardar' %} class="is-active" aria-current="page"{% endif %}>Mapa catastral</a>
       <a href="{% url 'app:cliente_list' %}"{% if u == 'cliente_list' or u == 'cliente_create' or u == 'cliente_update' or u == 'cliente_documento_delete' %} class="is-active" aria-current="page"{% endif %}>Clientes</a>
       {% if puede_gestionar_vendedores_app %}
       <a href="{% url 'app:vendedor_list' %}"{% if u == 'vendedor_list' or u == 'vendedor_create' or u == 'vendedor_update' or u == 'vendedor_delete' %} class="is-active" aria-current="page"{% endif %}>Vendedores</a>

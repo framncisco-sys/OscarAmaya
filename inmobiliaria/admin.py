@@ -62,6 +62,60 @@ class InmuebleAdmin(admin.ModelAdmin):
     search_fields = ("codigo", "notas")
     raw_id_fields = ("inmueble_padre",)
     inlines = [InmuebleImagenInline]
+    fieldsets = (
+        (
+            "Identificación",
+            {
+                "fields": (
+                    "proyecto",
+                    "poligono",
+                    "inmueble_padre",
+                    "tipo",
+                    "estado",
+                    "codigo",
+                ),
+            },
+        ),
+        (
+            "Precio y dimensiones",
+            {
+                "fields": (
+                    "precio_lista",
+                    "area_varas_cuadradas",
+                    "area_m2",
+                    "frente_m",
+                    "fondo_m",
+                ),
+            },
+        ),
+        (
+            "Detalle",
+            {
+                "fields": (
+                    "topografia",
+                    "servicios_basicos",
+                    "latitud",
+                    "longitud",
+                    "tour_virtual_url",
+                    "notas",
+                ),
+            },
+        ),
+        (
+            "Mapas",
+            {
+                "fields": ("geometria_json", "geometria_catastral_geojson"),
+                "description": (
+                    "geometria_json: polígono en coordenadas relativas 0–100 sobre el plano. "
+                    "geometria_catastral_geojson: GeoJSON Polygon en WGS84 (lon/lat) para el mapa catastral Leaflet."
+                ),
+            },
+        ),
+        (
+            "Reserva",
+            {"fields": ("cliente_reserva", "reserva_hasta")},
+        ),
+    )
 
 
 class ClienteDocumentoInline(admin.TabularInline):

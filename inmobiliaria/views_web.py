@@ -1,6 +1,7 @@
 """Vistas web minimalistas (azul / blanco / gris) — gestión sin depender del admin."""
 
 import csv
+import html
 import json
 from decimal import Decimal
 from urllib.parse import urlencode
@@ -994,4 +995,236 @@ def api_mapa_guardar_lote(request: HttpRequest, inmueble_id: int) -> JsonRespons
 
     inmueble.geometria_json = geom
     inmueble.save(update_fields=["geometria_json"])
+    return JsonResponse({"ok": True})
+
+
+def _mapa_catastral_style_por_estado(estado: str) -> str:
+    """Clave de estilo para el front (coincide con leyenda: contado / reservado / disponible)."""
+    if estado == Inmueble.Estado.VENDIDO:
+        return "contado"
+    if estado == Inmueble.Estado.RESERVADO:
+        return "reservado"
+    if estado == Inmueble.Estado.BLOQUEADO:
+        return "bloqueado"
+    return "disponible"
+
+
+def _contrato_visible_para_inmueble(inmueble: Inmueble) -> Contrato | None:
+    return (
+        Contrato.objects.filter(inmueble=inmueble)
+        .exclude(estado=Contrato.Estado.CANCELADO)
+        .select_related("cliente")
+        .order_by("-fecha_firma")
+        .first()
+    )
+
+
+def _popup_html_mapa_catastral(
+    inmueble: Inmueble, contrato: Contrato | None = None
+) -> str:
+    if contrato is None:
+        contrato = _contrato_visible_para_inmueble(inmueble)
+    pol = inmueble.poligono.nombre if inmueble.poligono else "—"
+    estado_txt = inmueble.get_estado_display()
+    venta = {
+        "contado": "Contado",
+        "reservado": "Reservado",
+        "disponible": "Disponible",
+        "bloqueado": "Bloqueado",
+    }.get(_mapa_catastral_style_por_estado(inmueble.estado), estado_txt)
+
+    cliente = None
+    if inmueble.estado == Inmueble.Estado.RESERVADO and inmueble.cliente_reserva_id:
+        cliente = inmueble.cliente_reserva
+    elif contrato:
+        cliente = contrato.cliente
+
+    lineas = [
+        f"<strong>Lote {html.escape(inmueble.codigo)}</strong> · {html.escape(pol)}",
+        f"<span class='muted'>Estatus comercial:</span> {html.escape(estado_txt)}",
+        f"<span class='muted'>Leyenda plano:</span> {html.escape(venta)}",
+    ]
+
+    if cliente:
+        nombre = f"{cliente.nombres} {cliente.apellidos}".strip()
+        lineas.append(f"<span class='muted'>Cliente:</span> {html.escape(nombre)}")
+        if cliente.telefono:
+            lineas.append(f"<span class='muted'>Tel.:</span> {html.escape(cliente.telefono)}")
+        if cliente.email:
+            lineas.append(f"<span class='muted'>Correo:</span> {html.escape(cliente.email)}")
+    else:
+        lineas.append("<span class='muted'>Sin cliente asociado en este estado.</span>")
+
+    if inmueble.estado == Inmueble.Estado.RESERVADO and inmueble.reserva_hasta:
+        lineas.append(
+            f"<span class='muted'>Reserva hasta:</span> {html.escape(str(inmueble.reserva_hasta))}"
+        )
+
+    if contrato:
+        lineas.append(
+            f"<span class='muted'>Contrato:</span> {html.escape(contrato.numero)} "
+            f"({html.escape(contrato.get_estado_display())})"
+        )
+        lineas.append(
+            f"<span class='muted'>Etapa lotificación:</span> {html.escape(contrato.get_etapa_comercial_display())}"
+        )
+        lineas.append(
+            f"<span class='muted'>Modalidad:</span> {html.escape(contrato.get_modalidad_financiamiento_display())}"
+        )
+
+    edit_url = reverse("app:inmueble_update", kwargs={"pk": inmueble.pk})
+    lineas.append(
+        f"<p class='mapa-catastral-popup__actions'><a href='{html.escape(edit_url)}'>Editar inmueble</a></p>"
+    )
+
+    return "<div class='mapa-catastral-popup'>" + "<br>".join(lineas) + "</div>"
+
+
+class MapaCatastralView(AppLoginRequiredMixin, TemplateView):
+    """Mapa Leaflet sobre teselas (OSM / Google opcional) con lotes en WGS84."""
+
+    template_name = "app/mapa_catastral.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["proyectos"] = Proyecto.objects.order_by("nombre")
+        ctx["poligonos"] = Poligono.objects.select_related("proyecto").order_by(
+            "proyecto__nombre", "orden", "nombre"
+        )
+        ctx["google_maps_api_key"] = getattr(settings, "GOOGLE_MAPS_API_KEY", "") or ""
+        return ctx
+
+
+@login_required
+def api_mapa_catastral(request: HttpRequest, proyecto_id: int) -> JsonResponse:
+    """GeoJSON FeatureCollection con datos para colorear y popup."""
+    proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
+    lotes = (
+        Inmueble.objects.select_related("poligono", "cliente_reserva")
+        .filter(proyecto_id=proyecto_id, tipo=Inmueble.Tipo.LOTE)
+        .order_by("poligono__orden", "codigo")
+    )
+    poligono_id = request.GET.get("poligono_id")
+    if poligono_id:
+        lotes = lotes.filter(poligono_id=poligono_id)
+
+    # Precarga contratos por inmueble (uno relevante por lote).
+    inmueble_ids = [i.pk for i in lotes]
+    contratos_por_inmueble: dict[int, Contrato] = {}
+    if inmueble_ids:
+        contratos = (
+            Contrato.objects.filter(inmueble_id__in=inmueble_ids)
+            .exclude(estado=Contrato.Estado.CANCELADO)
+            .select_related("cliente")
+            .order_by("inmueble_id", "-fecha_firma")
+        )
+        for c in contratos:
+            if c.inmueble_id not in contratos_por_inmueble:
+                contratos_por_inmueble[c.inmueble_id] = c
+
+    features = []
+    lista_lotes = []
+    for lote in lotes:
+        lista_lotes.append(
+            {
+                "id": lote.pk,
+                "codigo": lote.codigo,
+                "estado": lote.estado,
+                "poligono_id": lote.poligono_id,
+                "poligono_nombre": lote.poligono.nombre if lote.poligono else "",
+                "tiene_geometria_catastral": bool(lote.geometria_catastral_geojson),
+            }
+        )
+        geom = lote.geometria_catastral_geojson
+        if not geom or not isinstance(geom, dict) or geom.get("type") != "Polygon":
+            continue
+
+        style_key = _mapa_catastral_style_por_estado(lote.estado)
+        c = contratos_por_inmueble.get(lote.pk)
+
+        features.append(
+            {
+                "type": "Feature",
+                "id": lote.pk,
+                "properties": {
+                    "inmueble_id": lote.pk,
+                    "codigo": lote.codigo,
+                    "estado": lote.estado,
+                    "estado_display": lote.get_estado_display(),
+                    "mapa_style": style_key,
+                    "venta_leyenda": {
+                        "contado": "Contado",
+                        "reservado": "Reservado",
+                        "disponible": "Disponible",
+                        "bloqueado": "Bloqueado",
+                    }.get(style_key, lote.get_estado_display()),
+                    "poligono_id": lote.poligono_id,
+                    "poligono_nombre": lote.poligono.nombre if lote.poligono else "",
+                    "popup_html": _popup_html_mapa_catastral(lote, c),
+                },
+                "geometry": geom,
+            }
+        )
+
+    return JsonResponse(
+        {
+            "type": "FeatureCollection",
+            "proyecto_id": proyecto.pk,
+            "proyecto_nombre": proyecto.nombre,
+            "features": features,
+            "lotes": lista_lotes,
+        }
+    )
+
+
+def _validar_polygon_wgs84(geom: dict) -> str | None:
+    """Devuelve mensaje de error o None si es válido."""
+    if geom.get("type") != "Polygon":
+        return "La geometría debe ser Polygon."
+    coords = geom.get("coordinates")
+    if not isinstance(coords, list) or not coords or not isinstance(coords[0], list):
+        return "Coordenadas inválidas."
+    ring = coords[0]
+    for point in ring:
+        if not isinstance(point, list) or len(point) < 2:
+            return "Punto inválido."
+        try:
+            lng = float(point[0])
+            lat = float(point[1])
+        except (TypeError, ValueError):
+            return "Punto inválido."
+        if lng < -180 or lng > 180 or lat < -90 or lat > 90:
+            return "Las coordenadas deben estar en WGS84 (longitud −180…180, latitud −90…90)."
+    return None
+
+
+@login_required
+@require_POST
+def api_mapa_catastral_guardar(request: HttpRequest, inmueble_id: int) -> JsonResponse:
+    if not check_sensitive_write(request):
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": (
+                    "Debe confirmar acceso con contraseña (use «Confirmar acceso» en la app) "
+                    "antes de guardar el mapa catastral."
+                ),
+            },
+            status=403,
+        )
+    inmueble = get_object_or_404(Inmueble, pk=inmueble_id, tipo=Inmueble.Tipo.LOTE)
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"ok": False, "error": "JSON inválido."}, status=400)
+
+    geom = payload.get("geometry")
+    if not isinstance(geom, dict):
+        return JsonResponse({"ok": False, "error": "Falta geometry."}, status=400)
+    err = _validar_polygon_wgs84(geom)
+    if err:
+        return JsonResponse({"ok": False, "error": err}, status=400)
+
+    inmueble.geometria_catastral_geojson = geom
+    inmueble.save(update_fields=["geometria_catastral_geojson"])
     return JsonResponse({"ok": True})

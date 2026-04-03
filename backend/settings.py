@@ -459,6 +459,9 @@ PBR_EMPRESA_NIT = env.str("PBR_EMPRESA_NIT", default="")
 # Tras confirmar contraseña en /app/, cuántos segundos puede editar/eliminar sin volver a pedirla (no superusuarios).
 PBR_SENSITIVE_REAUTH_TTL = env.int("PBR_SENSITIVE_REAUTH_TTL", default=900)
 
+# Mapa catastral (Leaflet): capa Google opcional; si está vacío solo se usa OpenStreetMap.
+GOOGLE_MAPS_API_KEY = env.str("GOOGLE_MAPS_API_KEY", default="").strip()
+
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/login/'
