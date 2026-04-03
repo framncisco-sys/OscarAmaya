@@ -1800,12 +1800,78 @@ a.btn-secondary:active {
 .mapa-catastral-popup {
   font-size: 0.9rem;
   line-height: 1.45;
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.leaflet-popup.mapa-catastral-popup-wrap .leaflet-popup-content {
+  margin: 12px 14px;
+  min-width: min(100%, 300px);
+}
+
+.mapa-catastral-popup__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 0.15rem;
+  color: var(--pbr-text, inherit);
+}
+
+.mapa-catastral-popup__meta {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.mapa-catastral-popup__head {
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--pbr-border-light);
+}
+
+.mapa-catastral-popup__estado {
+  margin: 0.4rem 0 0;
+  font-size: 0.88rem;
+}
+
+.mapa-catastral-popup__section {
+  margin-top: 0.65rem;
+}
+
+.mapa-catastral-popup__h4 {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pbr-text-muted);
+}
+
+.mapa-catastral-popup__dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 42%) 1fr;
+  column-gap: 0.65rem;
+  row-gap: 0.35rem;
+  font-size: 0.85rem;
+  align-items: start;
+}
+
+.mapa-catastral-popup__dl dt {
+  margin: 0;
+  color: var(--pbr-text-muted);
+  font-weight: 500;
+}
+
+.mapa-catastral-popup__dl dd {
+  margin: 0;
+  word-break: break-word;
 }
 
 .mapa-catastral-popup__actions {
-  margin: 0.5rem 0 0;
-  padding-top: 0.35rem;
+  margin: 0.65rem 0 0;
+  padding-top: 0.45rem;
   border-top: 1px solid var(--pbr-border-light);
+  font-size: 0.88rem;
 }
 
 /* ========== Vista adaptable: teléfono / tablet / PC / TV ==========

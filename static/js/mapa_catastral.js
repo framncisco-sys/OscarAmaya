@@ -284,7 +284,7 @@
       },
       onEachFeature: function (feature, layer) {
         var html = (feature.properties && feature.properties.popup_html) || "";
-        layer.bindPopup(html, { maxWidth: 320 });
+        layer.bindPopup(html, { maxWidth: 420, className: "mapa-catastral-popup-wrap" });
         layer.on("click", function () {
           var id = feature.id != null ? String(feature.id) : "";
           if (!id) return;

@@ -17,6 +17,7 @@ from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonRes
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.formats import date_format
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, ListView, TemplateView, UpdateView
 
@@ -1013,10 +1014,30 @@ def _contrato_visible_para_inmueble(inmueble: Inmueble) -> Contrato | None:
     return (
         Contrato.objects.filter(inmueble=inmueble)
         .exclude(estado=Contrato.Estado.CANCELADO)
-        .select_related("cliente")
+        .select_related("cliente", "vendedor_perfil")
         .order_by("-fecha_firma")
         .first()
     )
+
+
+def _fmt_money_sv(value: Decimal | None) -> str:
+    if value is None:
+        return "—"
+    q = value.quantize(Decimal("0.01"))
+    return f"${q:,.2f}"
+
+
+def _fmt_fecha_corta(d) -> str:
+    if d is None:
+        return "—"
+    return date_format(d, format="SHORT_DATE_FORMAT")
+
+
+def _truncate_txt(s: str, n: int = 240) -> str:
+    t = (s or "").strip()
+    if len(t) <= n:
+        return t
+    return t[: n - 1] + "…"
 
 
 def _popup_html_mapa_catastral(
@@ -1025,59 +1046,187 @@ def _popup_html_mapa_catastral(
     if contrato is None:
         contrato = _contrato_visible_para_inmueble(inmueble)
     pol = inmueble.poligono.nombre if inmueble.poligono else "—"
+    proyecto_nombre = inmueble.proyecto.nombre if inmueble.proyecto else "—"
     estado_txt = inmueble.get_estado_display()
-    venta = {
-        "contado": "Contado",
+    leyenda = {
+        "contado": "Contado (vendido)",
         "reservado": "Reservado",
         "disponible": "Disponible",
         "bloqueado": "Bloqueado",
     }.get(_mapa_catastral_style_por_estado(inmueble.estado), estado_txt)
 
-    cliente = None
+    cliente_reserva = None
     if inmueble.estado == Inmueble.Estado.RESERVADO and inmueble.cliente_reserva_id:
-        cliente = inmueble.cliente_reserva
-    elif contrato:
-        cliente = contrato.cliente
+        cliente_reserva = inmueble.cliente_reserva
 
-    lineas = [
-        f"<strong>Lote {html.escape(inmueble.codigo)}</strong> · {html.escape(pol)}",
-        f"<span class='muted'>Estatus comercial:</span> {html.escape(estado_txt)}",
-        f"<span class='muted'>Leyenda plano:</span> {html.escape(venta)}",
-    ]
+    def dl_row(label: str, value: str) -> str:
+        return f"<dt>{html.escape(label)}</dt><dd>{html.escape(value)}</dd>"
 
-    if cliente:
-        nombre = f"{cliente.nombres} {cliente.apellidos}".strip()
-        lineas.append(f"<span class='muted'>Cliente:</span> {html.escape(nombre)}")
-        if cliente.telefono:
-            lineas.append(f"<span class='muted'>Tel.:</span> {html.escape(cliente.telefono)}")
-        if cliente.email:
-            lineas.append(f"<span class='muted'>Correo:</span> {html.escape(cliente.email)}")
+    bloques: list[str] = []
+
+    # 1) Cabecera + estado (lo primero que pide ver)
+    head = (
+        f'<div class="mapa-catastral-popup__head">'
+        f'<p class="mapa-catastral-popup__title">Lote {html.escape(inmueble.codigo)}</p>'
+        f'<p class="mapa-catastral-popup__meta muted">{html.escape(proyecto_nombre)} · {html.escape(pol)}</p>'
+        f'<p class="mapa-catastral-popup__estado"><strong>Estado:</strong> '
+        f'<span class="mapa-catastral-popup__estado-val">{html.escape(estado_txt)}</span>'
+        f' · <span class="muted">Plano:</span> {html.escape(leyenda)}</p>'
+        f"</div>"
+    )
+    bloques.append(head)
+
+    # 2) Persona según caso: reserva vs venta vs disponible
+    bloques.append('<section class="mapa-catastral-popup__section">')
+    bloques.append('<h4 class="mapa-catastral-popup__h4">Quién / compra</h4>')
+    bloques.append('<dl class="mapa-catastral-popup__dl">')
+
+    if inmueble.estado == Inmueble.Estado.RESERVADO:
+        if cliente_reserva:
+            nombre = f"{cliente_reserva.nombres} {cliente_reserva.apellidos}".strip()
+            bloques.append(dl_row("Apartado / reservado a", nombre))
+            bloques.append(dl_row("Teléfono", cliente_reserva.telefono or "—"))
+            bloques.append(dl_row("Correo", cliente_reserva.email or "—"))
+            bloques.append(
+                dl_row("Reserva válida hasta", _fmt_fecha_corta(inmueble.reserva_hasta))
+            )
+            bloques.append(
+                dl_row(
+                    "Precio de lista (referencia)",
+                    _fmt_money_sv(inmueble.precio_lista),
+                )
+            )
+        else:
+            bloques.append(
+                "<dt>Apartado</dt><dd>Sin cliente de reserva registrado.</dd>"
+            )
+    elif inmueble.estado == Inmueble.Estado.VENDIDO and contrato:
+        cli = contrato.cliente
+        nombre = f"{cli.nombres} {cli.apellidos}".strip()
+        bloques.append(dl_row("Vendido / comprador", nombre))
+        bloques.append(dl_row("Teléfono", cli.telefono or "—"))
+        bloques.append(dl_row("Correo", cli.email or "—"))
+        bloques.append(
+            dl_row(
+                "Fecha de firma (inicio operación)",
+                _fmt_fecha_corta(contrato.fecha_firma),
+            )
+        )
+        bloques.append(dl_row("Precio acordado (contrato)", _fmt_money_sv(contrato.precio_final)))
+        if contrato.precio_lista_referencia is not None:
+            bloques.append(
+                dl_row(
+                    "Precio lista (referencia al firmar)",
+                    _fmt_money_sv(contrato.precio_lista_referencia),
+                )
+            )
+        if contrato.descuento_implicito_vs_referencia is not None:
+            bloques.append(
+                dl_row(
+                    "Diferencia ref. − precio final",
+                    _fmt_money_sv(contrato.descuento_implicito_vs_referencia),
+                )
+            )
+    elif inmueble.estado == Inmueble.Estado.VENDIDO and not contrato:
+        bloques.append(
+            "<dt>Comprador</dt><dd>Estado vendido sin contrato activo en el sistema; revise el módulo de contratos.</dd>"
+        )
+    elif contrato and inmueble.estado != Inmueble.Estado.DISPONIBLE:
+        cli = contrato.cliente
+        nombre = f"{cli.nombres} {cli.apellidos}".strip()
+        bloques.append(dl_row("Cliente (contrato)", nombre))
+        bloques.append(dl_row("Teléfono", cli.telefono or "—"))
     else:
-        lineas.append("<span class='muted'>Sin cliente asociado en este estado.</span>")
-
-    if inmueble.estado == Inmueble.Estado.RESERVADO and inmueble.reserva_hasta:
-        lineas.append(
-            f"<span class='muted'>Reserva hasta:</span> {html.escape(str(inmueble.reserva_hasta))}"
+        bloques.append(
+            "<dt>Cliente</dt><dd>No aplica (lote disponible u otro estado sin contrato).</dd>"
         )
 
+    bloques.append("</dl></section>")
+
+    # 3) Contrato y condiciones (si existe)
     if contrato:
-        lineas.append(
-            f"<span class='muted'>Contrato:</span> {html.escape(contrato.numero)} "
-            f"({html.escape(contrato.get_estado_display())})"
+        bloques.append('<section class="mapa-catastral-popup__section">')
+        bloques.append('<h4 class="mapa-catastral-popup__h4">Contrato y condiciones</h4>')
+        bloques.append('<dl class="mapa-catastral-popup__dl">')
+        bloques.append(dl_row("Número de contrato", contrato.numero))
+        bloques.append(dl_row("Estado del contrato", contrato.get_estado_display()))
+        bloques.append(
+            dl_row("Etapa en lotificación", contrato.get_etapa_comercial_display())
         )
-        lineas.append(
-            f"<span class='muted'>Etapa lotificación:</span> {html.escape(contrato.get_etapa_comercial_display())}"
+        bloques.append(
+            dl_row("Modalidad de pago", contrato.get_modalidad_financiamiento_display())
         )
-        lineas.append(
-            f"<span class='muted'>Modalidad:</span> {html.escape(contrato.get_modalidad_financiamiento_display())}"
+        if contrato.plan_anos is not None:
+            bloques.append(
+                dl_row(
+                    "Plazo de financiamiento",
+                    str(contrato.get_plan_anos_display()),
+                )
+            )
+        if contrato.cuota_mensual_estimada is not None:
+            bloques.append(
+                dl_row(
+                    "Cuota mensual estimada",
+                    _fmt_money_sv(contrato.cuota_mensual_estimada),
+                )
+            )
+        if contrato.tasa_interes_anual is not None:
+            bloques.append(
+                dl_row(
+                    "Tasa anual negociada (%)",
+                    f"{contrato.tasa_interes_anual:.4f}",
+                )
+            )
+        vendedor_txt = "—"
+        if contrato.vendedor_perfil_id:
+            vendedor_txt = str(contrato.vendedor_perfil)
+        elif contrato.vendedor_nombre:
+            vendedor_txt = contrato.vendedor_nombre
+        bloques.append(dl_row("Vendedor", vendedor_txt))
+        bloques.append("</dl></section>")
+
+    # 4) Datos del lote (inventario)
+    bloques.append('<section class="mapa-catastral-popup__section">')
+    bloques.append('<h4 class="mapa-catastral-popup__h4">Datos del lote</h4>')
+    bloques.append('<dl class="mapa-catastral-popup__dl">')
+    bloques.append(dl_row("Precio de lista", _fmt_money_sv(inmueble.precio_lista)))
+    if inmueble.area_m2 is not None:
+        bloques.append(dl_row("Área (m²)", f"{inmueble.area_m2:,.4f}".rstrip("0").rstrip(".")))
+    if inmueble.area_varas_cuadradas is not None:
+        bloques.append(
+            dl_row("Área (v²)", f"{inmueble.area_varas_cuadradas:,.4f}".rstrip("0").rstrip("."))
         )
+    if inmueble.frente_m is not None:
+        bloques.append(dl_row("Frente (m)", str(inmueble.frente_m)))
+    if inmueble.fondo_m is not None:
+        bloques.append(dl_row("Fondo (m)", str(inmueble.fondo_m)))
+    if inmueble.latitud is not None and inmueble.longitud is not None:
+        bloques.append(
+            dl_row(
+                "Coord. punto (WGS84)",
+                f"{inmueble.latitud}, {inmueble.longitud}",
+            )
+        )
+    if inmueble.topografia:
+        bloques.append(dl_row("Topografía", _truncate_txt(inmueble.topografia, 120)))
+    if inmueble.servicios_basicos:
+        bloques.append(
+            dl_row("Servicios", _truncate_txt(inmueble.servicios_basicos, 160))
+        )
+    if inmueble.notas:
+        bloques.append(dl_row("Notas", _truncate_txt(inmueble.notas)))
+    bloques.append("</dl></section>")
 
     edit_url = reverse("app:inmueble_update", kwargs={"pk": inmueble.pk})
-    lineas.append(
-        f"<p class='mapa-catastral-popup__actions'><a href='{html.escape(edit_url)}'>Editar inmueble</a></p>"
+    acciones = [f'<a href="{html.escape(edit_url)}">Editar inmueble</a>']
+    if contrato:
+        contrato_url = reverse("app:contrato_update", kwargs={"pk": contrato.pk})
+        acciones.append(f'<a href="{html.escape(contrato_url)}">Ver contrato</a>')
+    bloques.append(
+        f'<p class="mapa-catastral-popup__actions">{" · ".join(acciones)}</p>'
     )
 
-    return "<div class='mapa-catastral-popup'>" + "<br>".join(lineas) + "</div>"
+    return f'<div class="mapa-catastral-popup">{"".join(bloques)}</div>'
 
 
 class MapaCatastralView(AppLoginRequiredMixin, TemplateView):
@@ -1100,7 +1249,7 @@ def api_mapa_catastral(request: HttpRequest, proyecto_id: int) -> JsonResponse:
     """GeoJSON FeatureCollection con datos para colorear y popup."""
     proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
     lotes = (
-        Inmueble.objects.select_related("poligono", "cliente_reserva")
+        Inmueble.objects.select_related("poligono", "cliente_reserva", "proyecto")
         .filter(proyecto_id=proyecto_id, tipo=Inmueble.Tipo.LOTE)
         .order_by("poligono__orden", "codigo")
     )
@@ -1115,7 +1264,7 @@ def api_mapa_catastral(request: HttpRequest, proyecto_id: int) -> JsonResponse:
         contratos = (
             Contrato.objects.filter(inmueble_id__in=inmueble_ids)
             .exclude(estado=Contrato.Estado.CANCELADO)
-            .select_related("cliente")
+            .select_related("cliente", "vendedor_perfil")
             .order_by("inmueble_id", "-fecha_firma")
         )
         for c in contratos:
