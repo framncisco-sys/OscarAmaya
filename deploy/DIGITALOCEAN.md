@@ -1,5 +1,7 @@
 # Despliegue en DigitalOcean (Paredes Bienes Raíces)
 
+Plantilla lista para pegar variables en el panel: **`deploy/COPIAR_A_DIGITALOCEAN.txt`**.
+
 Guía para probar la aplicación Django en **DigitalOcean**. Hay dos caminos habituales: **App Platform** (menos mantenimiento) o **Droplet** (VPS con más control).
 
 ## Requisitos previos

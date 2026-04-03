@@ -1,0 +1,73 @@
+================================================================================
+  DIGITALOCEAN APP PLATFORM — Variables para el WEB SERVICE (PostgreSQL)
+================================================================================
+
+No puedo darte contraseñas reales: salen SOLO de tu cuenta en DigitalOcean.
+Ruta: Menú "Databases" → elige tu clúster PostgreSQL → pestaña "Connection details"
+       (o "Connection parameters").
+
+Copia host, puerto, usuario, contraseña y nombre de base. Suele ser:
+  - Usuario: doadmin
+  - Base: defaultdb  (o la que creaste)
+  - Puerto: 25060 u otro (NO 5432 en bases administradas)
+  - Host: algo como db-postgresql-xxxxx-do-user-xxxxx-0.db.ondigitalocean.com
+  - SSL: obligatorio → sslmode=require
+
+En la APP: Apps → tu aplicación → Settings → Components → [Web Service] → Edit
+→ Environment Variables → añade las variables abajo (Scope: Run time).
+
+--------------------------------------------------------------------------------
+OPCIÓN A — Una sola variable (recomendada): DATABASE_URL
+--------------------------------------------------------------------------------
+
+Formato (sustituye los valores entre < > por los del panel, sin espacios extra):
+
+  DATABASE_URL=postgresql://<USUARIO>:<CONTRASEÑA>@<HOST>:<PUERTO>/<NOMBRE_BD>?sslmode=require
+
+Ejemplo de forma (NO es real, solo estructura):
+
+  DATABASE_URL=postgresql://doadmin:miClaveSecreta@db-postgresql-nyc3-12345-do-user-99-0.db.ondigitalocean.com:25060/defaultdb?sslmode=require
+
+Si la contraseña tiene caracteres especiales (@ # : etc.), en el panel de DO suele
+darte la URI ya codificada; úsala tal cual o codifica la contraseña en la URL.
+
+--------------------------------------------------------------------------------
+OPCIÓN B — Variables separadas (mismo efecto que OPCIÓN A)
+--------------------------------------------------------------------------------
+
+  POSTGRES_DB=defaultdb
+  POSTGRES_USER=doadmin
+  POSTGRES_PASSWORD=<PEGAR_CONTRASEÑA_DEL_PANEL>
+  POSTGRES_HOST=<PEGAR_HOST_DEL_PANEL>
+  POSTGRES_PORT=25060
+  POSTGRES_SSLMODE=require
+
+(Ajusta POSTGRES_DB si tu base tiene otro nombre.)
+
+--------------------------------------------------------------------------------
+Otras variables útiles para la misma app (Web Service)
+--------------------------------------------------------------------------------
+
+  DEBUG=False
+  SECRET_KEY=<generar cadena larga aleatoria>
+  DJANGO_CSRF_TRUSTED_ORIGINS=https://plankton-app-pik7q.ondigitalocean.app
+  PUBLIC_BASE_URL=https://plankton-app-pik7q.ondigitalocean.app
+
+(Sustituye la URL si tu app tiene otro nombre en *.ondigitalocean.app)
+
+--------------------------------------------------------------------------------
+Después de guardar y desplegar
+--------------------------------------------------------------------------------
+
+En la consola del Web Service (Console):
+
+  python manage.py migrate --noinput
+  python manage.py createsuperuser
+
+En el clúster PostgreSQL: "Trusted sources" debe permitir conexiones desde App Platform.
+
+Validación en tu PC (con .env ya configurado):
+
+  python manage.py validate_digitalocean --as-app-platform --try-connect
+
+================================================================================
