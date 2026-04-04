@@ -1,5 +1,18 @@
 # Referencia breve para DigitalOcean App Platform (revise la documentación oficial
 # porque el esquema puede variar). Ajuste repo, region y todas las variables.
+#
+# ERROR común: column inmobiliaria_pago.formato_aceptacion_id does not exist
+# Causa: el código nuevo está desplegado pero NO se ejecutó migrate en PostgreSQL.
+# Solución:
+#   1) Run Command del componente web DEBE incluir migrate antes de gunicorn, p. ej.:
+#        bash scripts/run_web.sh
+#      (o: python manage.py migrate --noinput && gunicorn ...)
+#   2) Una vez: en la consola de la app (o job): python manage.py migrate --noinput
+#   3) Confirme que el commit incluye inmobiliaria/migrations/0023_pago_formato_aceptacion.py
+#
+# Opcional en App Spec YAML: añada un job kind: PRE_DEPLOY que ejecute solo
+#   python manage.py migrate --noinput
+# para migrar antes de levantar instancias web (ver documentación de jobs).
 
 name: paredes-bienes-raices
 region: nyc
@@ -12,8 +25,8 @@ services:
       deploy_on_push: true
     # Instala dependencias y deja estáticos listos para WhiteNoise
     build_command: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    # OBLIGATORIO incluir migrate: si el run_command es solo gunicorn, fallará al guardar (columnas nuevas sin migrar).
-    run_command: python manage.py migrate --noinput && gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120
+    # OBLIGATORIO incluir migrate (o usar scripts/run_web.sh del repo).
+    run_command: bash scripts/run_web.sh
     http_port: 8080
     instance_count: 1
     instance_size_slug: basic-xxs

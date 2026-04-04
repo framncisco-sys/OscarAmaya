@@ -1,2 +1,4 @@
+# release: fase Heroku-style (si su PaaS la ejecuta).
 release: python manage.py migrate --noinput
-web: python manage.py migrate --noinput && gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120 --access-logfile - --error-logfile -
+# Web: mismo flujo vía script (copiable como Run Command en DigitalOcean).
+web: bash scripts/run_web.sh
