@@ -22,6 +22,16 @@
       <p>{{ total_vendedores }}</p>
     </article>
     {% endif %}
+    {% if dashboard_mis_contratos %}
+    <article class="card kpi">
+      <h3>Mis contratos</h3>
+      <p>{{ dashboard_mis_contratos.count }}</p>
+    </article>
+    <article class="card kpi">
+      <h3>Comisión estimada (USD)</h3>
+      <p>${{ dashboard_mis_contratos.comision_total|floatformat:2 }}</p>
+    </article>
+    {% endif %}
   </section>
 
   {% if reservas_vencidas_ct or reservas_por_vencer %}
@@ -73,6 +83,10 @@
     <a class="card modulo" href="{% url 'app:inmueble_list' %}">
       <h3>Inmuebles</h3>
       <p>Inventario.</p>
+    </a>
+    <a class="card modulo" href="{% url 'app:contrato_list' %}">
+      <h3>{% if contratos_restriccion_vendedor %}Mis contratos{% else %}Contratos{% endif %}</h3>
+      <p>{% if contratos_restriccion_vendedor %}Ventas y comisiones asignadas a usted.{% else %}Operaciones y documentos por venta.{% endif %}</p>
     </a>
     {% if puede_gestionar_vendedores_app %}
     <a class="card modulo" href="{% url 'app:vendedor_list' %}">

@@ -12,7 +12,12 @@ from django.urls import reverse
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from inmobiliaria.models import Inmueble, Poligono, Proyecto, Vendedor
+from inmobiliaria.contratos_acceso import (
+    aplica_restriccion_contratos_por_vendedor,
+    filtrar_contratos_queryset_por_vendedor,
+    totales_comision_contratos,
+)
+from inmobiliaria.models import Contrato, Inmueble, Poligono, Proyecto, Vendedor
 
 from usuarios.roles import puede_gestionar_vendedores
 
@@ -110,6 +115,19 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     }
     if puede_gestionar_vendedores(request.user):
         context["total_vendedores"] = Vendedor.objects.count()
+    if aplica_restriccion_contratos_por_vendedor(request.user):
+        resumen_qs = filtrar_contratos_queryset_por_vendedor(
+            Contrato.objects.only(
+                "id", "comision_monto", "comision_porcentaje", "precio_final"
+            ),
+            request.user,
+        )
+        total_com, con_m, n_ct = totales_comision_contratos(resumen_qs)
+        context["dashboard_mis_contratos"] = {
+            "count": n_ct,
+            "comision_total": total_com,
+            "con_comision": con_m,
+        }
     return render(request, "core/dashboard.html", context)
 
 

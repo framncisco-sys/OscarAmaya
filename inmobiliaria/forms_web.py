@@ -623,8 +623,9 @@ class PagoForm(forms.ModelForm):
             "cuotas_incluidas",
         ]
 
-    def __init__(self, *args, ocultar_contrato=False, **kwargs):
+    def __init__(self, *args, ocultar_contrato=False, user=None, **kwargs):
         self.ocultar_contrato = bool(ocultar_contrato)
+        self._pago_user = user
         super().__init__(*args, **kwargs)
 
         ci = self.fields.get("cuotas_incluidas")
@@ -690,9 +691,14 @@ class PagoForm(forms.ModelForm):
                     "Contrato al que aplica el pago. Con «Cuota de financiamiento», use la tabla del calendario para marcar cuotas."
                 )
             )
-            ct.queryset = Contrato.objects.select_related("cliente", "inmueble").order_by(
+            from inmobiliaria.contratos_acceso import filtrar_contratos_queryset_por_vendedor
+
+            ct_base = Contrato.objects.select_related("cliente", "inmueble").order_by(
                 "-fecha_firma", "numero"
             )
+            if self._pago_user is not None:
+                ct_base = filtrar_contratos_queryset_por_vendedor(ct_base, self._pago_user)
+            ct.queryset = ct_base
             pks = list(ct.queryset.values_list("pk", flat=True))
             catalog: dict[str, dict[str, str]] = {}
             if pks:

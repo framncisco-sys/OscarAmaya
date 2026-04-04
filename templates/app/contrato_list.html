@@ -3,13 +3,33 @@
 {% block app_content %}
 <header class="page-toolbar">
   <div class="page-toolbar__intro">
-    <h1 class="page-title">Contratos</h1>
-    <p class="page-toolbar__meta">Ventas, condiciones y documentación asociada.</p>
+    <h1 class="page-title">{% if contratos_modo_solo_vendedor %}Mis contratos{% else %}Contratos{% endif %}</h1>
+    <p class="page-toolbar__meta">
+      {% if contratos_modo_solo_vendedor %}
+        Contratos donde figura como vendedor (catálogo o usuario en el contrato). Comisiones según precio y % o monto en cada contrato.
+      {% else %}
+        Ventas, condiciones y documentación asociada.
+      {% endif %}
+    </p>
   </div>
   <div class="page-toolbar__actions">
     <a href="{% url 'app:contrato_create' %}" class="btn-primary btn-sm">Nuevo contrato</a>
   </div>
 </header>
+{% if contratos_modo_solo_vendedor %}
+<section class="card pbr-card--info" style="margin-bottom:1rem;">
+  <h2 class="page-title" style="font-size:1.05rem;margin:0 0 0.5rem;">Resumen</h2>
+  <p class="muted" style="margin:0;">
+    <strong>{{ contratos_resumen_total }}</strong> contrato(s) en su vista.
+    {% if contratos_resumen_comision_con_monto %}
+      Comisión estimada acumulada (donde hay % o monto definido): <strong>${{ contratos_resumen_comision_suma|floatformat:2 }}</strong>
+      en <strong>{{ contratos_resumen_comision_con_monto }}</strong> contrato(s).
+    {% else %}
+      Aún no hay comisión calculable (defina porcentaje o monto fijo en cada contrato).
+    {% endif %}
+  </p>
+</section>
+{% endif %}
 <div class="data-panel">
 <table class="table">
   <thead>

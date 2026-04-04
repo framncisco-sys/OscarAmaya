@@ -48,6 +48,15 @@ from django.views.generic import (
 
 from usuarios.roles import puede_gestionar_vendedores
 
+from inmobiliaria.contratos_acceso import (
+    aplica_restriccion_contratos_por_vendedor,
+    filtrar_contratos_queryset_por_vendedor,
+    filtrar_pagos_queryset_por_vendedor,
+    totales_comision_contratos,
+    usuario_ve_todos_los_contratos,
+    vendedor_catalogo_activo_vinculado,
+)
+
 from core.sensitive_access import (
     SensitiveDeleteMixin,
     SensitiveEditMixin,
@@ -816,13 +825,33 @@ class ContratoListView(AppLoginRequiredMixin, ListView):
     template_name = "app/contrato_list.html"
     context_object_name = "items"
     paginate_by = 25
-    queryset = Contrato.objects.select_related(
-        "cliente",
-        "inmueble",
-        "inmueble__proyecto",
-        "vendedor",
-        "vendedor_perfil",
-    )
+
+    def get_queryset(self):
+        qs = Contrato.objects.select_related(
+            "cliente",
+            "inmueble",
+            "inmueble__proyecto",
+            "vendedor",
+            "vendedor_perfil",
+        )
+        return filtrar_contratos_queryset_por_vendedor(qs, self.request.user)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        user = self.request.user
+        ctx["contratos_modo_solo_vendedor"] = aplica_restriccion_contratos_por_vendedor(user)
+        ctx["contratos_ve_todos"] = usuario_ve_todos_los_contratos(user)
+        vc = vendedor_catalogo_activo_vinculado(user)
+        ctx["vendedor_catalogo_ctx"] = vc
+        if ctx["contratos_modo_solo_vendedor"]:
+            resumen_qs = self.get_queryset().only(
+                "id", "comision_monto", "comision_porcentaje", "precio_final"
+            )
+            total, con_m, n = totales_comision_contratos(resumen_qs)
+            ctx["contratos_resumen_total"] = n
+            ctx["contratos_resumen_comision_suma"] = total
+            ctx["contratos_resumen_comision_con_monto"] = con_m
+        return ctx
 
 
 class ContratoCreateView(AppLoginRequiredMixin, CreateView):
@@ -857,14 +886,17 @@ class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Updat
     form_class = forms.ContratoForm
     template_name = "app/contrato_form.html"
     success_url = reverse_lazy("app:contrato_list")
-    queryset = Contrato.objects.select_related(
-        "inmueble",
-        "inmueble__proyecto",
-        "inmueble__poligono",
-        "vendedor_perfil",
-        "vendedor",
-        "cliente",
-    )
+
+    def get_queryset(self):
+        qs = Contrato.objects.select_related(
+            "inmueble",
+            "inmueble__proyecto",
+            "inmueble__poligono",
+            "vendedor_perfil",
+            "vendedor",
+            "cliente",
+        )
+        return filtrar_contratos_queryset_por_vendedor(qs, self.request.user)
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -1369,8 +1401,9 @@ def formato_aceptacion_promesa_descargar(request: HttpRequest, pk: int) -> HttpR
 
 @login_required
 def contrato_estado_cuenta(request: HttpRequest, pk: int) -> HttpResponse:
+    base = Contrato.objects.select_related("cliente", "inmueble", "inmueble__proyecto")
     contrato = get_object_or_404(
-        Contrato.objects.select_related("cliente", "inmueble", "inmueble__proyecto"),
+        filtrar_contratos_queryset_por_vendedor(base, request.user),
         pk=pk,
     )
     pagos = contrato.pagos.all().order_by("-fecha", "-id")
@@ -1443,12 +1476,10 @@ def contrato_estado_cuenta(request: HttpRequest, pk: int) -> HttpResponse:
 
 
 @login_required
-def export_pagos_csv(_request: HttpRequest) -> HttpResponse:
-    rows = (
-        Pago.objects.select_related("contrato", "contrato__cliente")
-        .order_by("-fecha", "-id")
-        .iterator(chunk_size=500)
-    )
+def export_pagos_csv(request: HttpRequest) -> HttpResponse:
+    qs = Pago.objects.select_related("contrato", "contrato__cliente").order_by("-fecha", "-id")
+    qs = filtrar_pagos_queryset_por_vendedor(qs, request.user)
+    rows = qs.iterator(chunk_size=500)
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="pagos_pbr.csv"'
     response.write("\ufeff")
@@ -1483,10 +1514,10 @@ class PagoListView(AppLoginRequiredMixin, ListView):
     template_name = "app/pago_list.html"
     context_object_name = "items"
     paginate_by = 40
-    queryset = Pago.objects.select_related("contrato", "contrato__cliente")
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = Pago.objects.select_related("contrato", "contrato__cliente")
+        qs = filtrar_pagos_queryset_por_vendedor(qs, self.request.user)
         cid = (self.request.GET.get("contrato") or "").strip()
         if cid.isdigit():
             qs = qs.filter(contrato_id=int(cid))
@@ -1510,6 +1541,7 @@ class PagoCreateView(AppLoginRequiredMixin, CreateView):
     def get_form_kwargs(self):
         kw = super().get_form_kwargs()
         kw["ocultar_contrato"] = True
+        kw["user"] = self.request.user
         return kw
 
     def get_initial(self):
@@ -1543,6 +1575,15 @@ class PagoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
     form_class = forms.PagoForm
     template_name = "app/pago_form.html"
     success_url = reverse_lazy("app:pago_list")
+
+    def get_queryset(self):
+        qs = Pago.objects.select_related("contrato")
+        return filtrar_pagos_queryset_por_vendedor(qs, self.request.user)
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["user"] = self.request.user
+        return kw
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -1645,6 +1686,9 @@ class ContratoDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, DeleteView
     template_name = "app/confirm_delete.html"
     success_url = reverse_lazy("app:contrato_list")
 
+    def get_queryset(self):
+        return filtrar_contratos_queryset_por_vendedor(Contrato.objects.all(), self.request.user)
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["delete_title"] = "Eliminar contrato"
@@ -1656,6 +1700,9 @@ class PagoDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, DeleteView):
     model = Pago
     template_name = "app/confirm_delete.html"
     success_url = reverse_lazy("app:pago_list")
+
+    def get_queryset(self):
+        return filtrar_pagos_queryset_por_vendedor(Pago.objects.all(), self.request.user)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)

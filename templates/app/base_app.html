@@ -8,6 +8,7 @@
       <a href="{% url 'app:proyecto_list' %}"{% if u == 'proyecto_list' or u == 'proyecto_create' or u == 'proyecto_update' %} class="is-active" aria-current="page"{% endif %}>Proyectos</a>
       <a href="{% url 'app:poligono_list' %}"{% if u == 'poligono_list' or u == 'poligono_create' or u == 'poligono_update' %} class="is-active" aria-current="page"{% endif %}>Polígonos</a>
       <a href="{% url 'app:inmueble_list' %}"{% if u == 'inmueble_list' or u == 'inmueble_create' or u == 'inmueble_update' %} class="is-active" aria-current="page"{% endif %}>Inmuebles</a>
+      <a href="{% url 'app:contrato_list' %}"{% if u == 'contrato_list' or u == 'contrato_create' or u == 'contrato_update' or u == 'contrato_delete' or u == 'contrato_estado_cuenta' %} class="is-active" aria-current="page"{% endif %}>{% if contratos_restriccion_vendedor %}Mis contratos{% else %}Contratos{% endif %}</a>
       <a href="{% url 'app:mapa_editor' %}"{% if u == 'mapa_editor' or u == 'api_mapa_proyecto' or u == 'api_mapa_guardar_lote' %} class="is-active" aria-current="page"{% endif %}>Mapa interactivo</a>
       <a href="{% url 'app:mapa_catastral' %}"{% if u == 'mapa_catastral' or u == 'api_mapa_catastral' or u == 'api_mapa_catastral_guardar' %} class="is-active" aria-current="page"{% endif %}>Mapa catastral</a>
       {% if puede_gestionar_vendedores_app %}

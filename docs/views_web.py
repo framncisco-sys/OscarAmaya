@@ -5,15 +5,22 @@ from io import BytesIO
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
+from inmobiliaria.contratos_acceso import (
+    aplica_restriccion_contratos_por_vendedor,
+    filtrar_contratos_queryset_por_vendedor,
+    usuario_puede_ver_contrato,
+    vendedor_catalogo_activo_vinculado,
+)
 from inmobiliaria.models import Contrato, Pago
 
-from .models import DocumentoEmitido
+from .models import DocumentoEmitido, DocumentoTipo
 from .recibo_notificacion import ReciboNotificacionInfo, construir_url_whatsapp_recibo
 from .services import (
     emitir_promesa_venta,
@@ -23,6 +30,14 @@ from .services import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _contrato_desde_documento(doc: DocumentoEmitido) -> Contrato | None:
+    if doc.contrato_id:
+        return doc.contrato
+    if doc.pago_id:
+        return doc.pago.contrato
+    return None
 
 
 def _documento_emitido_queryset_para_descarga():
@@ -138,14 +153,15 @@ def _alerta_html_recibo_emitido(
 
 @login_required
 def emitir_recibo_comision(request: HttpRequest, contrato_id: int) -> HttpResponse:
+    base = Contrato.objects.select_related(
+        "vendedor_perfil",
+        "vendedor",
+        "cliente",
+        "inmueble",
+        "inmueble__proyecto",
+    )
     contrato = get_object_or_404(
-        Contrato.objects.select_related(
-            "vendedor_perfil",
-            "vendedor",
-            "cliente",
-            "inmueble",
-            "inmueble__proyecto",
-        ),
+        filtrar_contratos_queryset_por_vendedor(base, request.user),
         pk=contrato_id,
     )
     try:
@@ -167,14 +183,22 @@ def emitir_recibo_comision(request: HttpRequest, contrato_id: int) -> HttpRespon
 
 @login_required
 def emitir_promesa(request: HttpRequest, contrato_id: int) -> HttpResponse:
-    contrato = get_object_or_404(Contrato, pk=contrato_id)
+    contrato = get_object_or_404(
+        filtrar_contratos_queryset_por_vendedor(Contrato.objects.all(), request.user),
+        pk=contrato_id,
+    )
     doc = emitir_promesa_venta(contrato=contrato, emitido_por=request.user)
     return redirect("app:doc_download", doc_id=doc.id)
 
 
 @login_required
 def emitir_recibo(request: HttpRequest, pago_id: int) -> HttpResponse:
-    pago = get_object_or_404(Pago, pk=pago_id)
+    pago = get_object_or_404(
+        Pago.objects.select_related("contrato"),
+        pk=pago_id,
+    )
+    if not usuario_puede_ver_contrato(request.user, pago.contrato):
+        raise Http404("Pago no disponible")
     doc, notif = emitir_recibo_ingreso(pago=pago, emitido_por=request.user)
     wa = construir_url_whatsapp_recibo(pago.contrato.cliente, doc, pago)
     url_pdf = reverse("app:doc_download", args=[doc.id])
@@ -193,6 +217,18 @@ def emitir_recibo(request: HttpRequest, pago_id: int) -> HttpResponse:
 @login_required
 def doc_download(request: HttpRequest, doc_id: int) -> HttpResponse:
     doc = get_object_or_404(_documento_emitido_queryset_para_descarga(), pk=doc_id)
+    c_perm = _contrato_desde_documento(doc)
+    if c_perm is not None and not usuario_puede_ver_contrato(request.user, c_perm):
+        raise Http404("Documento no disponible")
+    if (
+        c_perm is None
+        and doc.tipo == DocumentoTipo.RECIBO_COMISION_VENDEDOR
+        and doc.vendedor_id
+        and aplica_restriccion_contratos_por_vendedor(request.user)
+    ):
+        vc = vendedor_catalogo_activo_vinculado(request.user)
+        if vc is None or doc.vendedor_id != vc.pk:
+            raise Http404("Documento no disponible")
     if not doc.pdf_file or not doc.pdf_file.name:
         raise Http404("Documento sin PDF")
     safe_name = f"{doc.numero.replace('/', '-')}.pdf"
@@ -232,10 +268,17 @@ def doc_download(request: HttpRequest, doc_id: int) -> HttpResponse:
 
 @login_required
 def docs_list(request: HttpRequest) -> HttpResponse:
-    items = (
-        DocumentoEmitido.objects.select_related("contrato", "pago", "vendedor")
-        .order_by("-id")[:200]
-    )
+    items = DocumentoEmitido.objects.select_related(
+        "contrato", "pago", "pago__contrato", "vendedor"
+    ).order_by("-id")
+    if aplica_restriccion_contratos_por_vendedor(request.user):
+        vc = vendedor_catalogo_activo_vinculado(request.user)
+        allowed = filtrar_contratos_queryset_por_vendedor(Contrato.objects.all(), request.user)
+        q_vis = Q(contrato__in=allowed) | Q(pago__contrato__in=allowed)
+        if vc is not None:
+            q_vis |= Q(vendedor_id=vc.pk, tipo=DocumentoTipo.RECIBO_COMISION_VENDEDOR)
+        items = items.filter(q_vis).distinct()
+    items = items[:200]
     from django.shortcuts import render
 
     return render(request, "app/docs_list.html", {"items": items})

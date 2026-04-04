@@ -22,6 +22,10 @@
     <h3>Inmuebles</h3>
     <p>Inventario de lotes y viviendas.</p>
   </a>
+  <a class="card modulo" href="{% url 'app:contrato_list' %}">
+    <h3>{% if contratos_restriccion_vendedor %}Mis contratos{% else %}Contratos{% endif %}</h3>
+    <p>{% if contratos_restriccion_vendedor %}Sus ventas, inmueble, comisión y recibo PDF.{% else %}Ventas, cuotas, promesas y recibo de comisión por contrato.{% endif %}</p>
+  </a>
   {% if puede_gestionar_vendedores_app %}
   <a class="card modulo" href="{% url 'app:vendedor_list' %}">
     <h3>Vendedores</h3>
