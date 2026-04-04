@@ -3,16 +3,10 @@
 {% block app_content %}
 <header class="page-toolbar">
   <div class="page-toolbar__intro">
-    <h1 class="page-title">Formato de aceptación</h1>
+    <h1 class="page-title">Formatos de aceptación guardados</h1>
     <p class="page-toolbar__meta">
-      Documento de ingreso completo en esta pantalla: datos del impreso, referencias, crédito y tres firmas para PDF.
+      Listado de documentos ya registrados. Para crear uno nuevo, use <strong>Formato de aceptación</strong> en el menú lateral.
     </p>
-    <p class="page-toolbar__meta muted" style="margin-top:0.5rem;">
-      <a href="{% url 'app:formato_aceptacion_nuevo' %}" class="btn-primary btn-sm">Abrir formulario nuevo</a>
-    </p>
-  </div>
-  <div class="page-toolbar__actions">
-    <a href="{% url 'app:formato_aceptacion_nuevo' %}" class="btn-primary">Nuevo formato</a>
   </div>
 </header>
 
@@ -63,7 +57,6 @@
     <tr>
       <td colspan="5" class="muted">
         Todavía no hay formatos guardados.
-        Pulse <strong>Nuevo formato</strong> o <a href="{% url 'app:formato_aceptacion_nuevo' %}">abrir el formulario nuevo</a>.
       </td>
     </tr>
     {% endfor %}

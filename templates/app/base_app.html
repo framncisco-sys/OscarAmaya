@@ -13,7 +13,7 @@
       {% if puede_gestionar_vendedores_app %}
       <a href="{% url 'app:vendedor_list' %}"{% if u == 'vendedor_list' or u == 'vendedor_create' or u == 'vendedor_update' or u == 'vendedor_delete' %} class="is-active" aria-current="page"{% endif %}>Vendedores</a>
       {% endif %}
-      <a href="{% url 'app:formato_aceptacion_list' %}"{% if u == 'formato_aceptacion_list' or u == 'formato_aceptacion_nuevo' or u == 'formato_aceptacion_edit' or u == 'formato_aceptacion_pdf' %} class="is-active" aria-current="page"{% endif %}>Formato de aceptación</a>
+      <a href="{% url 'app:formato_aceptacion' %}"{% if u == 'formato_aceptacion' or u == 'formato_aceptacion_nuevo' or u == 'formato_aceptacion_list' or u == 'formato_aceptacion_edit' or u == 'formato_aceptacion_pdf' %} class="is-active" aria-current="page"{% endif %}>Formato de aceptación</a>
       <a href="{% url 'app:pago_list' %}"{% if u == 'pago_list' or u == 'pago_create' or u == 'pago_update' or u == 'export_pagos_csv' %} class="is-active" aria-current="page"{% endif %}>Pagos</a>
       <a href="{% url 'app:parametro_mora_list' %}"{% if u == 'parametro_mora_list' or u == 'parametro_mora_create' or u == 'parametro_mora_update' %} class="is-active" aria-current="page"{% endif %}>Parámetros mora</a>
       <a href="{% url 'app:docs_list' %}"{% if u == 'docs_list' or u == 'doc_download' or u == 'emitir_promesa' or u == 'emitir_recibo' or u == 'emitir_recibo_comision' %} class="is-active" aria-current="page"{% endif %}>Documentos</a>

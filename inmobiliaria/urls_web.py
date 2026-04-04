@@ -1,6 +1,7 @@
 """Rutas de la interfaz web minimalista bajo /app/."""
 
 from django.urls import include, path
+from django.views.generic import RedirectView
 
 from . import views_web as views
 
@@ -51,14 +52,22 @@ urlpatterns = [
         name="contrato_estado_cuenta",
     ),
     path(
-        "formato-aceptacion/",
+        "formato-aceptacion/lista/",
         views.FormatoAceptacionListView.as_view(),
         name="formato_aceptacion_list",
     ),
     path(
         "formato-aceptacion/nuevo/",
-        views.FormatoAceptacionCreateStandaloneView.as_view(),
+        RedirectView.as_view(
+            pattern_name="app:formato_aceptacion",
+            permanent=False,
+        ),
         name="formato_aceptacion_nuevo",
+    ),
+    path(
+        "formato-aceptacion/",
+        views.FormatoAceptacionCreateStandaloneView.as_view(),
+        name="formato_aceptacion",
     ),
     path(
         "formato-aceptacion/<int:pk>/editar/",
