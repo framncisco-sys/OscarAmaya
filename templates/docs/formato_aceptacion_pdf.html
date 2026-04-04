@@ -122,26 +122,33 @@
     <td class="fa-lbl">Área v²</td><td class="fa-val">{{ formato.area_v2_txt|default:"—" }}</td>
   </tr>
   <tr>
+    <td class="fa-lbl">Valor inmueble</td><td class="fa-val" colspan="3">{% if formato.valor_inmueble %}${{ formato.valor_inmueble|floatformat:2 }}{% else %}—{% endif %}</td>
+  </tr>
+  <tr>
     <td class="fa-lbl">Prima 1 $</td><td class="fa-val">{% if formato.prima_1 %}${{ formato.prima_1|floatformat:2 }}{% else %}—{% endif %}</td>
-    <td class="fa-lbl">Valor inmueble</td><td class="fa-val">{% if formato.valor_inmueble %}${{ formato.valor_inmueble|floatformat:2 }}{% else %}—{% endif %}</td>
+    <td class="fa-lbl">Fecha prima 1</td><td class="fa-val">{% if formato.prima_1_fecha %}{{ formato.prima_1_fecha|date:"d/m/Y" }}{% else %}—{% endif %}</td>
   </tr>
   <tr>
     <td class="fa-lbl">Prima 2 $</td><td class="fa-val">{% if formato.prima_2 %}${{ formato.prima_2|floatformat:2 }}{% else %}—{% endif %}</td>
+    <td class="fa-lbl">Fecha prima 2</td><td class="fa-val">{% if formato.prima_2_fecha %}{{ formato.prima_2_fecha|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+  </tr>
+  <tr>
     <td class="fa-lbl">Valor financiamiento</td><td class="fa-val">{% if formato.valor_financiamiento %}${{ formato.valor_financiamiento|floatformat:2 }}{% else %}—{% endif %}</td>
-  </tr>
-  <tr>
     <td class="fa-lbl">Letra mensual</td><td class="fa-val">{% if formato.letra_mensual %}${{ formato.letra_mensual|floatformat:2 }}{% else %}—{% endif %}</td>
-    <td class="fa-lbl">Plazo</td><td class="fa-val">{{ formato.plazo_txt|default:"—" }}</td>
   </tr>
   <tr>
+    <td class="fa-lbl">Plazo</td><td class="fa-val">{{ formato.plazo_txt|default:"—" }}</td>
     <td class="fa-lbl">No. cuota</td><td class="fa-val">{{ formato.num_cuota_txt|default:"—" }}</td>
-    <td class="fa-lbl">Interés</td><td class="fa-val">{{ formato.interes_txt|default:"—" }}</td>
+  </tr>
+  <tr>
+    <td class="fa-lbl">Interés</td><td class="fa-val" colspan="3">{{ formato.interes_txt|default:"—" }}</td>
   </tr>
   <tr>
     <td class="fa-lbl">Fecha primera cuota</td><td class="fa-val">{% if formato.fecha_primera_cuota %}{{ formato.fecha_primera_cuota|date:"d/m/Y" }}{% else %}—{% endif %}</td>
     <td class="fa-lbl">Fecha pago mensual</td><td class="fa-val">{{ formato.fecha_pago_mensual|default:"—" }}</td>
   </tr>
   <tr><td class="fa-lbl">Lugar de pago</td><td class="fa-val" colspan="3">{{ formato.lugar_pago|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Observaciones</td><td class="fa-val" colspan="3">{{ formato.observaciones_financiamiento|default:"—"|linebreaksbr }}</td></tr>
 </table>
 
 <p class="fa-sect">Beneficiarios</p>

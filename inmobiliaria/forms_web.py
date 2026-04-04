@@ -1235,6 +1235,26 @@ def elaborado_por_sugerido_formato(contrato: Contrato | None, user) -> str:
     return ""
 
 
+def _aplicar_pistas_observaciones_financiamiento(instance: FormatoAceptacion) -> None:
+    """
+    Completa plazo o interés solo si el campo correspondiente está vacío y el texto lo sugiere.
+    Alineado con las mismas pistas que `formato_aceptacion_credito.js`.
+    """
+    obs = (instance.observaciones_financiamiento or "").lower()
+    if not obs.strip():
+        return
+    if re.search(r"\b(sin\s*inter[eé]s|sin\s*interes|cero\s*inter[eé]s|0\s*%)\b", obs):
+        if not (instance.interes_txt or "").strip():
+            instance.interes_txt = "0"
+    m_plazo = re.search(r"\b(\d{1,2})\s*(?:años?|anos?)\b", obs)
+    if not m_plazo:
+        m_plazo = re.search(r"\bplazo\s*[:\s]*(\d{1,2})\b", obs)
+    if m_plazo:
+        y = int(m_plazo.group(1))
+        if 0 <= y <= 50 and not (instance.plazo_txt or "").strip():
+            instance.plazo_txt = str(y)
+
+
 def _aplicar_elaborado_por_desde_vendedor(instance: FormatoAceptacion, user) -> None:
     """Al guardar: prioriza vendedor del contrato; si no hay contrato, rellena si está vacío."""
     if instance.contrato_id:
@@ -1269,6 +1289,9 @@ class FormatoAceptacionForm(forms.ModelForm):
             "direccion_notificacion": forms.Textarea(attrs={"rows": 2}),
             "direccion_trabajo": forms.Textarea(attrs={"rows": 2}),
             "direccion_terreno": forms.Textarea(attrs={"rows": 2}),
+            "observaciones_financiamiento": forms.Textarea(
+                attrs={"rows": 3, "class": "input", "placeholder": "Ej. sin interés, plazo 15 años, condición especial…"}
+            ),
             "dui_numero": forms.TextInput(
                 attrs={
                     "class": "input",
@@ -1397,6 +1420,8 @@ class FormatoAceptacionForm(forms.ModelForm):
             "dui_exp_fecha": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "fecha_primera_cuota": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "fecha_pago_mensual": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "prima_1_fecha": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "prima_2_fecha": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "elaborado_por": forms.TextInput(
                 attrs={
                     "class": "input",
@@ -1420,6 +1445,8 @@ class FormatoAceptacionForm(forms.ModelForm):
             "dui_exp_fecha",
             "fecha_primera_cuota",
             "fecha_pago_mensual",
+            "prima_1_fecha",
+            "prima_2_fecha",
         ):
             fd = self.fields.get(fname)
             if fd:
@@ -1509,6 +1536,12 @@ class FormatoAceptacionForm(forms.ModelForm):
 
         instance = super().save(commit=False)
         _aplicar_elaborado_por_desde_vendedor(instance, getattr(self, "_formato_user", None))
+        _aplicar_pistas_observaciones_financiamiento(instance)
+        plazo_sync = (instance.plazo_txt or "").strip()
+        if plazo_sync.isdigit():
+            y = int(plazo_sync)
+            if 0 <= y <= 50:
+                instance.num_cuota_txt = str(y * 12)
 
         def _apply_firma_desde_canvas(attr: str, canvas_key: str) -> None:
             raw = (self.cleaned_data.get(canvas_key) or "").strip()

@@ -65,6 +65,7 @@
     var plazo = document.getElementById("id_plazo_txt");
     var numCuota = document.getElementById("id_num_cuota_txt");
     var interes = document.getElementById("id_interes_txt");
+    var obsFin = document.getElementById("id_observaciones_financiamiento");
 
     var mapOk = !!(selPol && selLote && hidLote && hidPol);
 
@@ -249,6 +250,29 @@
     if (interes) {
       interes.addEventListener("input", recalcLetra);
       interes.addEventListener("change", recalcLetra);
+    }
+
+    function aplicarTextoObservacionesFinanciamiento() {
+      if (!obsFin) return;
+      var t = String(obsFin.value || "").toLowerCase();
+      if (!t.trim()) return;
+      if (/\b(sin\s*inter[eé]s|sin\s*interes|cero\s*inter[eé]s|0\s*%)\b/.test(t)) {
+        if (interes && !String(interes.value || "").trim()) {
+          interes.value = "0";
+        }
+      }
+      var m = t.match(/\b(\d{1,2})\s*(?:años?|anos?)\b/);
+      if (!m) m = t.match(/\bplazo\s*[:\s]*(\d{1,2})\b/);
+      if (m && plazo && !String(plazo.value || "").trim()) {
+        var y = parseInt(m[1], 10);
+        if (y >= 0 && y <= 50) plazo.value = String(y);
+      }
+      recalcLetra();
+    }
+
+    if (obsFin) {
+      obsFin.addEventListener("input", aplicarTextoObservacionesFinanciamiento);
+      obsFin.addEventListener("blur", aplicarTextoObservacionesFinanciamiento);
     }
 
     recalcFin();

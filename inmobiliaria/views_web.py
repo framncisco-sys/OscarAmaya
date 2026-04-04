@@ -400,11 +400,14 @@ def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list
             "title": "Datos del crédito",
             "rows": [
                 [G("area_m2_txt"), G("area_v2_txt")],
-                [G("prima_1"), G("valor_inmueble")],
-                [G("prima_2"), G("valor_financiamiento"), G("letra_mensual")],
+                [G("valor_inmueble")],
+                [G("prima_1"), G("prima_1_fecha")],
+                [G("prima_2"), G("prima_2_fecha")],
+                [G("valor_financiamiento"), G("letra_mensual")],
                 [G("plazo_txt"), G("num_cuota_txt"), G("interes_txt")],
                 [G("fecha_primera_cuota"), G("fecha_pago_mensual")],
                 [G("lugar_pago")],
+                [G("observaciones_financiamiento")],
             ],
         },
         {

@@ -862,11 +862,13 @@ class FormatoAceptacion(models.Model):
     poligono_txt = models.CharField("Polígono", max_length=120, blank=True)
     area_m2_txt = models.CharField("Área m²", max_length=40, blank=True)
     area_v2_txt = models.CharField("Área v²", max_length=40, blank=True)
-    prima_1 = models.DecimalField("Prima 1 $", max_digits=14, decimal_places=2, null=True, blank=True)
     valor_inmueble = models.DecimalField(
         "Valor del inmueble", max_digits=14, decimal_places=2, null=True, blank=True
     )
+    prima_1 = models.DecimalField("Prima 1 $", max_digits=14, decimal_places=2, null=True, blank=True)
+    prima_1_fecha = models.DateField("Fecha prima 1", null=True, blank=True)
     prima_2 = models.DecimalField("Prima 2 $", max_digits=14, decimal_places=2, null=True, blank=True)
+    prima_2_fecha = models.DateField("Fecha prima 2", null=True, blank=True)
     valor_financiamiento = models.DecimalField(
         "Valor del financiamiento", max_digits=14, decimal_places=2, null=True, blank=True
     )
@@ -879,6 +881,11 @@ class FormatoAceptacion(models.Model):
     fecha_primera_cuota = models.DateField("Fecha pago primera cuota", null=True, blank=True)
     fecha_pago_mensual = models.CharField("Fecha de pago mensual", max_length=80, blank=True)
     lugar_pago = models.CharField("Lugar de pago", max_length=200, blank=True)
+    observaciones_financiamiento = models.TextField(
+        "Observaciones (financiamiento)",
+        blank=True,
+        help_text="Detalles especiales. Frases como «sin interés», «0 %» o «10 años» pueden completar plazo o interés si esos campos están vacíos al guardar.",
+    )
 
     ben_nombre_1 = models.CharField("Beneficiario 1 — nombre", max_length=200, blank=True)
     ben_parentesco_1 = models.CharField("Beneficiario 1 — parentesco", max_length=80, blank=True)
