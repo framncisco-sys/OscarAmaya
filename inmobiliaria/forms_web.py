@@ -253,6 +253,15 @@ class ClienteForm(forms.ModelForm):
         model = Cliente
         fields = "__all__"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        tf = self.fields.get("telefono")
+        if tf:
+            tf.widget.attrs.setdefault("maxlength", "40")
+            tf.widget.attrs.setdefault("placeholder", "+503 7012 3456 (hasta 40 caracteres)")
+            tf.widget.attrs.setdefault("inputmode", "tel")
+            tf.widget.attrs.setdefault("autocomplete", "tel")
+
     def clean_telefono(self):
         v = self.cleaned_data.get("telefono")
         if not v or not str(v).strip():
@@ -285,6 +294,12 @@ class VendedorForm(forms.ModelForm):
         self.fields["porcentaje_comision_default"].widget.attrs.setdefault("step", "0.01")
         self.fields["porcentaje_comision_default"].widget.attrs.setdefault("min", "0")
         self.fields["porcentaje_comision_default"].widget.attrs.setdefault("max", "100")
+        vt = self.fields.get("telefono")
+        if vt:
+            vt.widget.attrs.setdefault("maxlength", "40")
+            vt.widget.attrs.setdefault("placeholder", "+503 7012 3456 (hasta 40 caracteres)")
+            vt.widget.attrs.setdefault("inputmode", "tel")
+            vt.widget.attrs.setdefault("autocomplete", "tel")
 
     def clean_telefono(self):
         v = self.cleaned_data.get("telefono")
@@ -1223,8 +1238,8 @@ class FormatoAceptacionForm(forms.ModelForm):
             "telefono_domicilio": forms.TextInput(
                 attrs={
                     "class": "input",
-                    "placeholder": "70123456 o +503 7012 3456",
-                    "maxlength": 22,
+                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
                     "title": "Móvil El Salvador: 8 dígitos o con prefijo 503 (área país).",
@@ -1233,8 +1248,8 @@ class FormatoAceptacionForm(forms.ModelForm):
             "telefono_notificacion": forms.TextInput(
                 attrs={
                     "class": "input",
-                    "placeholder": "70123456 o +503 7012 3456",
-                    "maxlength": 22,
+                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
                     "title": "Móvil El Salvador: 8 dígitos o con prefijo 503 (área país).",
@@ -1243,8 +1258,8 @@ class FormatoAceptacionForm(forms.ModelForm):
             "telefono_trabajo": forms.TextInput(
                 attrs={
                     "class": "input",
-                    "placeholder": "70123456 o +503 7012 3456",
-                    "maxlength": 22,
+                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
                     "title": "Móvil El Salvador: 8 dígitos o con prefijo 503 (área país).",
@@ -1253,8 +1268,8 @@ class FormatoAceptacionForm(forms.ModelForm):
             "ref_com_tel_1": forms.TextInput(
                 attrs={
                     "class": "input",
-                    "placeholder": "70123456 o +503 7012 3456",
-                    "maxlength": 22,
+                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
                 }
@@ -1262,8 +1277,8 @@ class FormatoAceptacionForm(forms.ModelForm):
             "ref_com_tel_2": forms.TextInput(
                 attrs={
                     "class": "input",
-                    "placeholder": "70123456 o +503 7012 3456",
-                    "maxlength": 22,
+                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
                 }
@@ -1271,8 +1286,8 @@ class FormatoAceptacionForm(forms.ModelForm):
             "ref_com_tel_3": forms.TextInput(
                 attrs={
                     "class": "input",
-                    "placeholder": "70123456 o +503 7012 3456",
-                    "maxlength": 22,
+                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
                 }
@@ -1280,8 +1295,8 @@ class FormatoAceptacionForm(forms.ModelForm):
             "ref_per_tel_1": forms.TextInput(
                 attrs={
                     "class": "input",
-                    "placeholder": "70123456 o +503 7012 3456",
-                    "maxlength": 22,
+                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
                 }
@@ -1289,8 +1304,8 @@ class FormatoAceptacionForm(forms.ModelForm):
             "ref_per_tel_2": forms.TextInput(
                 attrs={
                     "class": "input",
-                    "placeholder": "70123456 o +503 7012 3456",
-                    "maxlength": 22,
+                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
                 }
@@ -1298,8 +1313,8 @@ class FormatoAceptacionForm(forms.ModelForm):
             "ref_per_tel_3": forms.TextInput(
                 attrs={
                     "class": "input",
-                    "placeholder": "70123456 o +503 7012 3456",
-                    "maxlength": 22,
+                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
                 }
