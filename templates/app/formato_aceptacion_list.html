@@ -10,6 +10,18 @@
   </div>
 </header>
 
+{% if not formato_credito_extra_lista_ok %}
+<p class="alert" role="alert" style="margin:0 0 1rem;">
+  La base de datos aún no incluye las columnas de fechas de prima y observaciones del crédito.
+  En el servidor ejecute <code>python manage.py migrate --noinput</code> y vuelva a cargar esta página.
+</p>
+{% endif %}
+{% if formato_promesa_lista_ok %}{% else %}
+<p class="alert" role="alert" style="margin:0 0 1rem;">
+  Falta migración para «promesa escaneada». Ejecute <code>python manage.py migrate --noinput</code> en el servidor.
+</p>
+{% endif %}
+
 <div class="data-panel">
 <table class="table">
   <thead>

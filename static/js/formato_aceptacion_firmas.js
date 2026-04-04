@@ -126,7 +126,10 @@
       if (!inputName) return;
       var input = form.querySelector('[name="' + inputName + '"]');
       if (!input) return;
-      if (!canvasIsBlank(canvas)) {
+      if (canvasIsBlank(canvas)) {
+        /* Vacío: no reenviar data URL antigua; el servidor conserva la firma ya guardada. */
+        input.value = "";
+      } else {
         input.value = canvas.toDataURL("image/png");
       }
     });

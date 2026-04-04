@@ -76,6 +76,11 @@ from .cuotas_calendario import (
 )
 from docs.services import generar_pdf_desde_plantilla
 
+from .formato_aceptacion_db import (
+    formato_aceptacion_credito_extra_columns_ready,
+    formato_aceptacion_defer_missing_columns,
+    formato_aceptacion_promesa_column_ready as _formato_aceptacion_promesa_column_ready,
+)
 from .models import (
     Cliente,
     ClienteDocumento,
@@ -93,24 +98,6 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 
-def _formato_aceptacion_promesa_column_ready() -> bool:
-    """
-    True si existe la columna promesa_venta_escaneada (migración 0024 aplicada).
-    Si no, varias vistas usan .defer() para que el listado y la edición no rompan el SELECT.
-    """
-    table = FormatoAceptacion._meta.db_table
-    col = "promesa_venta_escaneada"
-    try:
-        with connection.cursor() as cursor:
-            desc = connection.introspection.get_table_description(cursor, table)
-        names = {getattr(row, "name", "") or "" for row in desc}
-        names_l = {n.lower() for n in names}
-        return col.lower() in names_l
-    except Exception:
-        # Si falla introspección, asumir columna presente: el listado ya usa defer y el botón debe verse.
-        return True
-
-
 def _formato_aceptacion_qs_contrato_pdf():
     qs = FormatoAceptacion.objects.select_related(
         "contrato",
@@ -118,16 +105,11 @@ def _formato_aceptacion_qs_contrato_pdf():
         "contrato__inmueble",
         "contrato__inmueble__proyecto",
     )
-    if not _formato_aceptacion_promesa_column_ready():
-        qs = qs.defer("promesa_venta_escaneada")
-    return qs
+    return formato_aceptacion_defer_missing_columns(qs)
 
 
 def _formato_aceptacion_qs_pk():
-    qs = FormatoAceptacion.objects.all()
-    if not _formato_aceptacion_promesa_column_ready():
-        qs = qs.defer("promesa_venta_escaneada")
-    return qs
+    return formato_aceptacion_defer_missing_columns(FormatoAceptacion.objects.all())
 
 
 # Editar/eliminar formato de aceptación: credenciales de superusuario (sesión temporal).
@@ -278,6 +260,7 @@ def _generar_pdf_formato_aceptacion_bytes(formato: FormatoAceptacion) -> bytes:
             "firma_aceptante_src": uri_a,
             "firma_vendedor_src": uri_v,
             "firma_autorizado_src": uri_z,
+            "formato_pdf_credito_extra_bd": formato_aceptacion_credito_extra_columns_ready(),
         }
         return generar_pdf_desde_plantilla(
             template_name="docs/formato_aceptacion_pdf.html",
@@ -356,72 +339,88 @@ def _catalogo_inmuebles_formato_aceptacion() -> dict:
 
 
 def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list[dict]:
-    """Agrupa campos del formato impreso para el template (sin campos ocultos de lienzo)."""
-    G = form.__getitem__
+    """Agrupa campos del formato impreso (omite filas vacías si el formulario no incluye un campo)."""
+
+    def G(name: str):
+        if name not in form.fields:
+            return None
+        return form.__getitem__(name)
+
+    def row(*cells):
+        r = [c for c in cells if c is not None]
+        return r if r else None
+
+    def rows_compact(*row_defs):
+        return [r for r in row_defs if r]
+
     return [
         {
             "title": "Datos personales",
-            "rows": [
-                [G("nombre_cliente")],
-                [G("lugar_nacimiento"), G("fecha_nacimiento")],
-                [G("dui_numero"), G("dui_exp_lugar"), G("dui_exp_fecha"), G("nit_numero")],
-                [G("direccion_domicilio"), G("telefono_domicilio")],
-                [G("direccion_notificacion"), G("telefono_notificacion")],
-                [G("trabaja_lo_propio"), G("nombre_empresa_trabajo")],
-                [G("direccion_trabajo"), G("telefono_trabajo")],
-                [G("cargo"), G("sueldo")],
-                [G("num_familia_grupo"), G("num_personas_trabajan"), G("num_personas_estudian")],
-            ],
+            "rows": rows_compact(
+                row(G("nombre_cliente")),
+                row(G("lugar_nacimiento"), G("fecha_nacimiento")),
+                row(G("dui_numero"), G("dui_exp_lugar"), G("dui_exp_fecha"), G("nit_numero")),
+                row(G("direccion_domicilio"), G("telefono_domicilio")),
+                row(G("direccion_notificacion"), G("telefono_notificacion")),
+                row(G("trabaja_lo_propio"), G("nombre_empresa_trabajo")),
+                row(G("direccion_trabajo"), G("telefono_trabajo")),
+                row(G("cargo"), G("sueldo")),
+                row(
+                    G("num_familia_grupo"),
+                    G("num_personas_trabajan"),
+                    G("num_personas_estudian"),
+                ),
+            ),
         },
         {
             "title": "Referencias comerciales",
-            "rows": [
-                [G("ref_com_nombre_1"), G("ref_com_tel_1"), G("ref_com_obs_1")],
-                [G("ref_com_nombre_2"), G("ref_com_tel_2"), G("ref_com_obs_2")],
-                [G("ref_com_nombre_3"), G("ref_com_tel_3"), G("ref_com_obs_3")],
-            ],
+            "rows": rows_compact(
+                row(G("ref_com_nombre_1"), G("ref_com_tel_1"), G("ref_com_obs_1")),
+                row(G("ref_com_nombre_2"), G("ref_com_tel_2"), G("ref_com_obs_2")),
+                row(G("ref_com_nombre_3"), G("ref_com_tel_3"), G("ref_com_obs_3")),
+            ),
         },
         {
             "title": "Referencias personales",
-            "rows": [
-                [G("ref_per_nombre_1"), G("ref_per_tel_1"), G("ref_per_obs_1")],
-                [G("ref_per_nombre_2"), G("ref_per_tel_2"), G("ref_per_obs_2")],
-                [G("ref_per_nombre_3"), G("ref_per_tel_3"), G("ref_per_obs_3")],
-            ],
+            "rows": rows_compact(
+                row(G("ref_per_nombre_1"), G("ref_per_tel_1"), G("ref_per_obs_1")),
+                row(G("ref_per_nombre_2"), G("ref_per_tel_2"), G("ref_per_obs_2")),
+                row(G("ref_per_nombre_3"), G("ref_per_tel_3"), G("ref_per_obs_3")),
+            ),
         },
         {
             "title": "Datos del terreno",
-            "rows": [
-                [G("nombre_proyecto")],
-                [G("direccion_terreno")],
-            ],
+            "rows": rows_compact(
+                row(G("nombre_proyecto")),
+                row(G("direccion_terreno")),
+            ),
         },
         {
             "title": "Datos del crédito",
-            "rows": [
-                [G("area_m2_txt"), G("area_v2_txt")],
-                [G("valor_inmueble")],
-                [G("prima_1"), G("prima_1_fecha")],
-                [G("prima_2"), G("prima_2_fecha")],
-                [G("valor_financiamiento"), G("letra_mensual")],
-                [G("plazo_txt"), G("num_cuota_txt"), G("interes_txt")],
-                [G("fecha_primera_cuota"), G("fecha_pago_mensual")],
-                [G("lugar_pago")],
-                [G("observaciones_financiamiento")],
-            ],
+            "rows": rows_compact(
+                row(G("area_m2_txt"), G("area_v2_txt")),
+                row(G("valor_inmueble")),
+                row(G("prima_1"), G("prima_1_fecha")),
+                row(G("prima_2"), G("prima_2_fecha")),
+                row(G("valor_financiamiento"), G("letra_mensual")),
+                row(G("plazo_txt"), G("num_cuota_txt"), G("interes_txt")),
+                row(G("fecha_primera_cuota"), G("fecha_pago_mensual")),
+                row(G("lugar_pago")),
+                row(G("observaciones_financiamiento")),
+            ),
         },
         {
             "title": "Beneficiarios",
-            "rows": [
-                [G("ben_nombre_1"), G("ben_parentesco_1"), G("ben_porcentaje_1")],
-                [G("ben_nombre_2"), G("ben_parentesco_2"), G("ben_porcentaje_2")],
-            ],
+            "rows": rows_compact(
+                row(G("ben_nombre_1"), G("ben_parentesco_1"), G("ben_porcentaje_1")),
+                row(G("ben_nombre_2"), G("ben_parentesco_2"), G("ben_porcentaje_2")),
+            ),
         },
         {
             "title": "Elaborado por y cierre",
-            "rows": [
-                [G("elaborado_por"), G("lugar_y_fecha")],
-            ],
+            "rows": rows_compact(
+                row(G("elaborado_por"), G("lugar_y_fecha")),
+            ),
         },
     ]
 
@@ -1150,21 +1149,17 @@ class FormatoAceptacionListView(AppLoginRequiredMixin, ListView):
     paginate_by = 30
 
     def get_queryset(self):
-        # defer: si en producción aún no corrió migrate 0024, el listado no falla al no
-        # pedir la columna promesa_venta_escaneada en el SELECT.
-        return (
-            FormatoAceptacion.objects.order_by("-numero_formulario", "-id")
-            .select_related(
-                "contrato",
-                "contrato__inmueble",
-                "contrato__inmueble__proyecto",
-            )
-            .defer("promesa_venta_escaneada")
+        qs = FormatoAceptacion.objects.order_by("-numero_formulario", "-id").select_related(
+            "contrato",
+            "contrato__inmueble",
+            "contrato__inmueble__proyecto",
         )
+        return formato_aceptacion_defer_missing_columns(qs)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["formato_promesa_lista_ok"] = _formato_aceptacion_promesa_column_ready()
+        ctx["formato_credito_extra_lista_ok"] = formato_aceptacion_credito_extra_columns_ready()
         return ctx
 
 
@@ -1188,9 +1183,9 @@ class FormatoAceptacionUpdateView(
         prev_firmas = False
         if pk:
             try:
-                q = FormatoAceptacion.objects.filter(pk=pk)
-                if not _formato_aceptacion_promesa_column_ready():
-                    q = q.defer("promesa_venta_escaneada")
+                q = formato_aceptacion_defer_missing_columns(
+                    FormatoAceptacion.objects.filter(pk=pk)
+                )
                 prev_firmas = q.get().firmas_completas
             except FormatoAceptacion.DoesNotExist:
                 prev_firmas = False
@@ -1252,9 +1247,7 @@ class FormatoAceptacionDeleteView(
     success_url = reverse_lazy("app:formato_aceptacion_list")
 
     def get_queryset(self):
-        qs = FormatoAceptacion.objects.all()
-        if not _formato_aceptacion_promesa_column_ready():
-            qs = qs.defer("promesa_venta_escaneada")
+        qs = formato_aceptacion_defer_missing_columns(FormatoAceptacion.objects.all())
         return qs
 
     def post(self, request, *args, **kwargs):
@@ -1349,7 +1342,7 @@ def formato_aceptacion_promesa_subir(request: HttpRequest, pk: int) -> HttpRespo
             "En el servidor ejecute: python manage.py migrate --noinput",
         )
         return HttpResponseRedirect(redir)
-    formato = get_object_or_404(FormatoAceptacion, pk=pk)
+    formato = get_object_or_404(_formato_aceptacion_qs_pk(), pk=pk)
     form = forms.FormatoAceptacionPromesaForm(request.POST, request.FILES)
     if not form.is_valid():
         messages.error(request, "Revise el archivo (PDF, JPG o PNG).")
@@ -1360,9 +1353,9 @@ def formato_aceptacion_promesa_subir(request: HttpRequest, pk: int) -> HttpRespo
         from docs.formato_aceptacion_notificacion import notificar_promesa_escaneada_tras_subir
 
         # select_related para correo/tel del cliente al notificar (evita instancia sin contrato cargado)
-        formato = FormatoAceptacion.objects.select_related("contrato", "contrato__cliente").get(
-            pk=formato.pk
-        )
+        formato = formato_aceptacion_defer_missing_columns(
+            FormatoAceptacion.objects.select_related("contrato", "contrato__cliente")
+        ).get(pk=formato.pk)
         notificar_promesa_escaneada_tras_subir(request, formato)
     except Exception:
         logger.exception("Notificación promesa escaneada formato pk=%s", pk)
@@ -1382,7 +1375,7 @@ def formato_aceptacion_promesa_descargar(request: HttpRequest, pk: int) -> HttpR
         return HttpResponseRedirect(gate)
     if not _formato_aceptacion_promesa_column_ready():
         raise Http404()
-    formato = get_object_or_404(FormatoAceptacion, pk=pk)
+    formato = get_object_or_404(_formato_aceptacion_qs_pk(), pk=pk)
     field = formato.promesa_venta_escaneada
     if not field or not field.name:
         raise Http404()

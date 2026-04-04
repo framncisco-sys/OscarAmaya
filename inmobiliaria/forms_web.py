@@ -17,6 +17,10 @@ from django.urls import reverse
 from .phone_sv import normalizar_guardado_telefono_sv
 from .validators import validar_dui_sv, validar_nit_sv
 
+from .formato_aceptacion_db import (
+    FORMATO_CREDITO_EXTRA_FIELDS,
+    formato_aceptacion_credito_extra_columns_ready,
+)
 from .models import (
     Cliente,
     Contrato,
@@ -1515,6 +1519,10 @@ class FormatoAceptacionForm(forms.ModelForm):
                 if sug:
                     self.initial.setdefault("elaborado_por", sug)
 
+        if not formato_aceptacion_credito_extra_columns_ready():
+            for fname in FORMATO_CREDITO_EXTRA_FIELDS:
+                self.fields.pop(fname, None)
+
     def clean(self):
         cleaned = super().clean()
         plazo_raw = (cleaned.get("plazo_txt") or "").strip()
@@ -1536,7 +1544,8 @@ class FormatoAceptacionForm(forms.ModelForm):
 
         instance = super().save(commit=False)
         _aplicar_elaborado_por_desde_vendedor(instance, getattr(self, "_formato_user", None))
-        _aplicar_pistas_observaciones_financiamiento(instance)
+        if formato_aceptacion_credito_extra_columns_ready():
+            _aplicar_pistas_observaciones_financiamiento(instance)
         plazo_sync = (instance.plazo_txt or "").strip()
         if plazo_sync.isdigit():
             y = int(plazo_sync)
