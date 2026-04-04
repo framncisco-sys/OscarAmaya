@@ -21,7 +21,14 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.formats import date_format
 from django.views.decorators.http import require_POST
-from django.views.generic import CreateView, DeleteView, ListView, TemplateView, UpdateView
+from django.views.generic import (
+    CreateView,
+    DeleteView,
+    FormView,
+    ListView,
+    TemplateView,
+    UpdateView,
+)
 
 from usuarios.roles import puede_gestionar_vendedores
 
@@ -68,6 +75,14 @@ def _firma_a_data_uri(field_file) -> str | None:
             pass
     mime = mimetypes.guess_type(field_file.name)[0] or "image/png"
     return f"data:{mime};base64,{base64.b64encode(raw).decode('ascii')}"
+
+
+def _formato_aceptacion_direccion_impreso() -> str:
+    return getattr(
+        settings,
+        "PBR_FORMATO_ACEPTACION_DIRECCION",
+        "16 Calle Ote. Pol. C-1 #24. Col. El Molino. San Miguel. Tel. 7547-0186",
+    )
 
 
 def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list[dict]:
@@ -130,7 +145,7 @@ def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list
             ],
         },
         {
-            "title": "Cierre",
+            "title": "Elaborado por y cierre",
             "rows": [
                 [G("elaborado_por"), G("lugar_y_fecha")],
             ],
@@ -714,6 +729,26 @@ class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Updat
         )
 
 
+class FormatoAceptacionNuevoElegirContratoView(AppLoginRequiredMixin, FormView):
+    """Flujo independiente del módulo: elegir contrato y pasar al formulario de ingreso."""
+
+    template_name = "app/formato_aceptacion_elegir_contrato.html"
+    form_class = forms.FormatoAceptacionElegirContratoForm
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["hay_contratos_libres"] = (
+            Contrato.objects.filter(formato_aceptacion__isnull=True).exists()
+        )
+        return ctx
+
+    def form_valid(self, form):
+        c = form.cleaned_data["contrato"]
+        return HttpResponseRedirect(
+            reverse("app:formato_aceptacion_create", kwargs={"contrato_pk": c.pk})
+        )
+
+
 class FormatoAceptacionListView(AppLoginRequiredMixin, ListView):
     """Módulo aparte: todos los formatos de aceptación y acceso rápido a edición/PDF."""
 
@@ -772,10 +807,11 @@ class FormatoAceptacionCreateView(AppLoginRequiredMixin, CreateView):
         ctx = super().get_context_data(**kwargs)
         assert self.contrato is not None
         ctx["form_title"] = "Formato de aceptación (nuevo)"
-        ctx["cancel_url"] = reverse("app:contrato_update", kwargs={"pk": self.contrato.pk})
+        ctx["cancel_url"] = reverse("app:formato_aceptacion_list")
         ctx["form_multipart"] = True
         ctx["contrato_ref"] = self.contrato
         ctx["firmas_completas"] = False
+        ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
         return ctx
@@ -805,15 +841,14 @@ class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
             f"Formato de aceptación Nº {self.object.numero_formulario:04d} — "
             f"contrato {self.object.contrato.numero}"
         )
-        ctx["cancel_url"] = reverse(
-            "app:contrato_update", kwargs={"pk": self.object.contrato_id}
-        )
+        ctx["cancel_url"] = reverse("app:formato_aceptacion_list")
         ctx["form_multipart"] = True
         ctx["formato_pdf_url"] = reverse(
             "app:formato_aceptacion_pdf", kwargs={"pk": self.object.pk}
         )
         ctx["contrato_ref"] = self.object.contrato
         ctx["firmas_completas"] = self.object.firmas_completas
+        ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
         return ctx
@@ -848,11 +883,7 @@ def formato_aceptacion_pdf(request: HttpRequest, pk: int) -> HttpResponse:
             "PBR_PROMESA_RAZON_SOCIAL_VENDEDOR",
             "PAREDES BIENES RAÍCES",
         ),
-        "direccion_empresa": getattr(
-            settings,
-            "PBR_FORMATO_ACEPTACION_DIRECCION",
-            "16 Calle Ote. Pol. C-1 #24. Col. El Molino. San Miguel. Tel. 7547-0186",
-        ),
+        "direccion_empresa": _formato_aceptacion_direccion_impreso(),
         "pie_inmobiliaria": "Formato de aceptación — documento interno",
         "firma_aceptante_datauri": _firma_a_data_uri(formato.firma_aceptante),
         "firma_vendedor_datauri": _firma_a_data_uri(formato.firma_vendedor),

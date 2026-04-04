@@ -868,19 +868,6 @@ class FormatoAceptacionForm(forms.ModelForm):
         fd = self.fields.get("fecha_primera_cuota")
         if fd:
             fd.input_formats = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"]
-        _sec = (
-            ("nombre_cliente", "DATOS PERSONALES"),
-            ("ref_com_nombre_1", "REFERENCIAS COMERCIALES"),
-            ("ref_per_nombre_1", "REFERENCIAS PERSONALES"),
-            ("nombre_proyecto", "DATOS DEL TERRENO"),
-            ("num_lote", "DATOS DEL CRÉDITO"),
-            ("ben_nombre_1", "BENEFICIARIOS"),
-            ("elaborado_por", "CIERRE Y FIRMAS"),
-        )
-        for fname, title in _sec:
-            f = self.fields.get(fname)
-            if f and not (f.help_text or "").strip():
-                f.help_text = f"<strong>{title}</strong>"
 
     def save(self, commit=True):
         import base64
@@ -914,3 +901,22 @@ class FormatoAceptacionForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class FormatoAceptacionElegirContratoForm(forms.Form):
+    """Paso previo independiente: elegir contrato que aún no tenga formato de aceptación."""
+
+    contrato = forms.ModelChoiceField(
+        queryset=Contrato.objects.none(),
+        label="Contrato",
+        empty_label="— Seleccione contrato —",
+        required=True,
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["contrato"].queryset = (
+            Contrato.objects.filter(formato_aceptacion__isnull=True)
+            .select_related("cliente", "inmueble", "inmueble__proyecto")
+            .order_by("-fecha_firma", "-id")
+        )

@@ -3,32 +3,111 @@
 {% block title %}{{ form_title }} | Paredes Bienes Raíces{% endblock %}
 {% block app_content %}
 <style>
+  .formato-papel {
+    max-width: 920px;
+    margin: 0 auto 2rem;
+    padding: 1.25rem 1.35rem 1.5rem;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  }
+  .formato-papel__head {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  @media (min-width: 640px) {
+    .formato-papel__head {
+      grid-template-columns: auto 1fr auto;
+      align-items: start;
+    }
+  }
+  .formato-papel__brand {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  .formato-papel__logo {
+    height: 56px;
+    width: auto;
+    object-fit: contain;
+  }
+  .formato-papel__empresa {
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: #003366;
+    margin: 0 0 0.2rem;
+  }
+  .formato-papel__addr {
+    font-size: 0.8rem;
+    line-height: 1.35;
+    margin: 0;
+    max-width: 22rem;
+  }
+  .formato-papel__title-block {
+    text-align: center;
+    justify-self: center;
+    align-self: center;
+  }
+  .formato-papel__doc-title {
+    margin: 0;
+    padding: 0.45rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #003366;
+    border: 2px solid #003366;
+    display: inline-block;
+  }
+  .formato-papel__serie {
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #b91c1c;
+  }
   .formato-acept-intro { margin-bottom: 1rem; }
   .formato-section-title {
-    font-size: 0.8rem;
-    letter-spacing: 0.08em;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: #5c6b7a;
-    margin: 1.5rem 0 0.75rem;
-    padding-bottom: 0.35rem;
-    border-bottom: 1px solid #e4eaf2;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 1.35rem 0 0.65rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 2px solid #003366;
   }
   .formato-acept-row {
     display: grid;
-    gap: 1rem;
-    margin-bottom: 0.75rem;
+    gap: 0.85rem;
+    margin-bottom: 0.65rem;
   }
   @media (min-width: 640px) {
     .formato-acept-row.cols-2 { grid-template-columns: repeat(2, 1fr); }
     .formato-acept-row.cols-3 { grid-template-columns: repeat(3, 1fr); }
     .formato-acept-row.cols-4 { grid-template-columns: repeat(4, 1fr); }
   }
-  .formato-firma-block { margin-bottom: 1.25rem; }
+  .formato-papel .field__label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #475569;
+  }
+  .formato-firma-block {
+    margin-bottom: 1.25rem;
+    padding: 0.75rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+  }
   .formato-firma-canvas {
     width: 100%;
     max-width: 560px;
     height: 160px;
-    border: 1px solid #cfd9e6;
+    border: 1px solid #94a3b8;
     border-radius: 6px;
     cursor: crosshair;
     touch-action: none;
@@ -43,115 +122,117 @@
     border: 1px solid #e4eaf2;
     border-radius: 4px;
     padding: 4px;
-    background: #fafbfd;
+    background: #fff;
   }
   .formato-firma-actions { margin-top: 0.35rem; }
 </style>
 
-<h1 class="page-title">{{ form_title }}</h1>
-{% if contrato_ref %}
-<p class="muted page-lead">Contrato <strong>{{ contrato_ref.numero }}</strong> — {{ contrato_ref.cliente }}</p>
-{% endif %}
+<h1 class="page-title" style="max-width: 920px; margin-left: auto; margin-right: auto;">{{ form_title }}</h1>
+<p class="muted page-lead" style="max-width: 920px; margin-left: auto; margin-right: auto;">
+  <a href="{% url 'app:formato_aceptacion_list' %}" class="link-action">← Listado de formatos</a>
+  {% if contrato_ref %}
+  <span class="muted"> · Contrato <strong>{{ contrato_ref.numero }}</strong> — {{ contrato_ref.cliente }}</span>
+  {% endif %}
+</p>
 
-<div class="formato-acept-intro">
+<div class="formato-acept-intro" style="max-width: 920px; margin-left: auto; margin-right: auto;">
   {% if formato_pdf_url %}
     {% if firmas_completas %}
       <p class="page-lead">
         <a href="{{ formato_pdf_url }}" class="btn-primary btn-sm" target="_blank" rel="noopener">Descargar PDF</a>
-        <span class="muted"> — Las firmas guardadas se incluyen en el documento.</span>
+        <span class="muted"> — Incluye las firmas guardadas.</span>
       </p>
     {% else %}
       <p class="page-lead muted">
-        Complete y guarde las <strong>tres firmas</strong> en los lienzos de abajo para habilitar la descarga del PDF.
+        Guarde las <strong>tres firmas</strong> en los lienzos para habilitar el PDF.
       </p>
     {% endif %}
   {% endif %}
 </div>
 
-<form id="formato-aceptacion-form" method="post" class="form-stack" enctype="multipart/form-data">
+<form id="formato-aceptacion-form" method="post" class="form-stack" enctype="multipart/form-data" style="max-width: 920px; margin: 0 auto;">
   {% csrf_token %}
   {% if form.non_field_errors %}
     <div class="alert" role="alert">{{ form.non_field_errors }}</div>
   {% endif %}
 
-  {% for sec in formato_sections %}
-    <h2 class="formato-section-title">{{ sec.title }}</h2>
-    {% for row in sec.rows %}
-      <div class="formato-acept-row cols-{{ row|length }}">
-        {% for field in row %}
-          <div class="field">
-            <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-            <div class="field__control">{{ field }}</div>
-            {% if field.help_text %}
-              <div class="field__help muted">{{ field.help_text|safe }}</div>
-            {% endif %}
-            {% if field.errors %}
-              <div class="field__error" role="alert">{{ field.errors }}</div>
-            {% endif %}
-          </div>
-        {% endfor %}
+  <article class="formato-papel">
+    <header class="formato-papel__head">
+      <div class="formato-papel__brand">
+        <img src="{% static 'logo_paredes_desarrollos.png' %}" alt="" class="formato-papel__logo" width="120" height="56" />
+        <div>
+          <p class="formato-papel__empresa">PAREDES BIENES RAÍCES</p>
+          <p class="muted formato-papel__addr">{{ formato_encabezado_direccion }}</p>
+        </div>
       </div>
+      <div class="formato-papel__title-block">
+        <h1 class="formato-papel__doc-title">Formato de aceptación</h1>
+        {% if object.pk %}
+        <p class="formato-papel__serie">No. {{ object.numero_formulario|stringformat:"04d" }}</p>
+        {% else %}
+        <p class="formato-papel__serie muted" style="color:#64748b;font-weight:600;">Nº se asigna al guardar</p>
+        {% endif %}
+      </div>
+    </header>
+
+    {% for sec in formato_sections %}
+      <h2 class="formato-section-title">{{ sec.title }}</h2>
+      {% for row in sec.rows %}
+        <div class="formato-acept-row cols-{{ row|length }}">
+          {% for field in row %}
+            <div class="field">
+              <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              <div class="field__control">{{ field }}</div>
+              {% if field.errors %}
+                <div class="field__error" role="alert">{{ field.errors }}</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endfor %}
     {% endfor %}
-  {% endfor %}
 
-  <h2 class="formato-section-title">Firmas</h2>
-  <p class="muted" style="margin: 0 0 1rem;">
-    Dibuje en cada recuadro. Pulse <strong>Guardar</strong> para almacenar las firmas antes de generar el PDF.
-  </p>
+    <h2 class="formato-section-title">Firmas</h2>
+    <p class="muted" style="margin: 0 0 1rem; font-size: 0.88rem;">
+      Firma aceptante (cliente), vendedor y autorizado — igual que en el impreso. Guarde antes del PDF.
+    </p>
 
-  <div class="formato-firma-block">
-    <span class="field__label">Firma aceptante (cliente)</span>
-    {% if object.firma_aceptante %}
-      <p class="muted" style="margin: 0.25rem 0; font-size: 0.85rem;">Firma guardada (vuelva a dibujar para reemplazar):</p>
-      <img class="formato-firma-prev" src="{{ object.firma_aceptante.url }}" alt="" width="200" height="80" loading="lazy" />
-    {% endif %}
-    <canvas
-      class="formato-firma-canvas"
-      width="560"
-      height="180"
-      data-input-name="firma_aceptante_canvas"
-      aria-label="Lienzo firma aceptante"
-    ></canvas>
-    <div class="formato-firma-actions">
-      <button type="button" class="btn-secondary btn-sm formato-firma-clear">Borrar lienzo</button>
+    <div class="formato-firma-block">
+      <span class="field__label">Firma aceptante</span>
+      {% if object.pk and object.firma_aceptante %}
+        <p class="muted" style="margin: 0.25rem 0; font-size: 0.85rem;">Firma guardada (dibuje de nuevo para reemplazar):</p>
+        <img class="formato-firma-prev" src="{{ object.firma_aceptante.url }}" alt="" width="200" height="80" loading="lazy" />
+      {% endif %}
+      <canvas class="formato-firma-canvas" width="560" height="180" data-input-name="firma_aceptante_canvas" aria-label="Firma aceptante"></canvas>
+      <div class="formato-firma-actions">
+        <button type="button" class="btn-secondary btn-sm formato-firma-clear">Borrar lienzo</button>
+      </div>
     </div>
-  </div>
 
-  <div class="formato-firma-block">
-    <span class="field__label">Firma vendedor</span>
-    {% if object.firma_vendedor %}
-      <p class="muted" style="margin: 0.25rem 0; font-size: 0.85rem;">Firma guardada (vuelva a dibujar para reemplazar):</p>
-      <img class="formato-firma-prev" src="{{ object.firma_vendedor.url }}" alt="" width="200" height="80" loading="lazy" />
-    {% endif %}
-    <canvas
-      class="formato-firma-canvas"
-      width="560"
-      height="180"
-      data-input-name="firma_vendedor_canvas"
-      aria-label="Lienzo firma vendedor"
-    ></canvas>
-    <div class="formato-firma-actions">
-      <button type="button" class="btn-secondary btn-sm formato-firma-clear">Borrar lienzo</button>
+    <div class="formato-firma-block">
+      <span class="field__label">Firma vendedor</span>
+      {% if object.pk and object.firma_vendedor %}
+        <p class="muted" style="margin: 0.25rem 0; font-size: 0.85rem;">Firma guardada (dibuje de nuevo para reemplazar):</p>
+        <img class="formato-firma-prev" src="{{ object.firma_vendedor.url }}" alt="" width="200" height="80" loading="lazy" />
+      {% endif %}
+      <canvas class="formato-firma-canvas" width="560" height="180" data-input-name="firma_vendedor_canvas" aria-label="Firma vendedor"></canvas>
+      <div class="formato-firma-actions">
+        <button type="button" class="btn-secondary btn-sm formato-firma-clear">Borrar lienzo</button>
+      </div>
     </div>
-  </div>
 
-  <div class="formato-firma-block">
-    <span class="field__label">Firma autorizado</span>
-    {% if object.firma_autorizado %}
-      <p class="muted" style="margin: 0.25rem 0; font-size: 0.85rem;">Firma guardada (vuelva a dibujar para reemplazar):</p>
-      <img class="formato-firma-prev" src="{{ object.firma_autorizado.url }}" alt="" width="200" height="80" loading="lazy" />
-    {% endif %}
-    <canvas
-      class="formato-firma-canvas"
-      width="560"
-      height="180"
-      data-input-name="firma_autorizado_canvas"
-      aria-label="Lienzo firma autorizado"
-    ></canvas>
-    <div class="formato-firma-actions">
-      <button type="button" class="btn-secondary btn-sm formato-firma-clear">Borrar lienzo</button>
+    <div class="formato-firma-block">
+      <span class="field__label">Firma autorizado</span>
+      {% if object.pk and object.firma_autorizado %}
+        <p class="muted" style="margin: 0.25rem 0; font-size: 0.85rem;">Firma guardada (dibuje de nuevo para reemplazar):</p>
+        <img class="formato-firma-prev" src="{{ object.firma_autorizado.url }}" alt="" width="200" height="80" loading="lazy" />
+      {% endif %}
+      <canvas class="formato-firma-canvas" width="560" height="180" data-input-name="firma_autorizado_canvas" aria-label="Firma autorizado"></canvas>
+      <div class="formato-firma-actions">
+        <button type="button" class="btn-secondary btn-sm formato-firma-clear">Borrar lienzo</button>
+      </div>
     </div>
-  </div>
+  </article>
 
   {{ form.firma_aceptante_canvas }}
   {{ form.firma_vendedor_canvas }}
@@ -159,7 +240,7 @@
 
   <div class="form-actions">
     <button type="submit" class="btn-primary">Guardar</button>
-    <a href="{{ cancel_url }}" class="btn-secondary">Volver al contrato</a>
+    <a href="{{ cancel_url }}" class="btn-secondary">Volver al listado</a>
   </div>
 </form>
 
