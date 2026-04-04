@@ -984,9 +984,16 @@ class ParametroMora(models.Model):
         max_digits=8,
         decimal_places=6,
         default=Decimal("0"),
-        help_text="Porcentaje diario sobre saldo vencido (ej. 0.05 = 0.05% diario).",
+        help_text="Porcentaje diario sobre saldo vencido (ej. 0.05 = 0.05% diario). "
+        "El saldo vencido se entiende respecto a la fecha de vencimiento de cada cuota del contrato; "
+        "ese vencimiento debe coincidir con el calendario generado desde el formato de aceptación "
+        "(mismo día de cada mes hasta la última cuota).",
     )
-    dias_gracia = models.PositiveSmallIntegerField(default=0)
+    dias_gracia = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Días naturales después del vencimiento de la cuota (día acordado en formato de "
+        "aceptación / calendario de cuotas) antes de aplicar mora según esta tasa.",
+    )
     activo = models.BooleanField(default=True)
 
     class Meta:

@@ -1054,6 +1054,9 @@ class GenerarCuotasCalendarioForm(forms.Form):
         label="Fecha de vencimiento de la 1.ª cuota",
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         input_formats=["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"],
+        help_text="Si el contrato tiene formato de aceptación vinculado con «Fecha pago primera cuota» "
+        "o «Fecha de pago mensual», aquí se sugiere esa fecha. Las cuotas siguientes vencen el "
+        "mismo día de cada mes hasta completar el plazo.",
     )
     num_cuotas = forms.IntegerField(
         label="Cantidad de cuotas (meses)",

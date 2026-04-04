@@ -1,0 +1,11 @@
+{% extends "app/object_form.html" %}
+{% block after_page_title %}
+<p class="muted page-lead" style="max-width: 40rem;">
+  El <strong>día de vencimiento</strong> de cada cuota mensual debe coincidir con lo acordado en el
+  <strong>formato de aceptación</strong> vinculado al contrato (campos «Fecha pago primera cuota» y
+  «Fecha de pago mensual»). Al generar cuotas en el contrato, el sistema sugiere esa primera fecha;
+  el resto cae el <strong>mismo día de cada mes</strong> hasta la última cuota.
+  Aquí solo configura la <strong>tasa diaria</strong> y los <strong>días de gracia</strong> respecto
+  a esas fechas de vencimiento.
+</p>
+{% endblock %}

@@ -60,7 +60,11 @@ from core.sensitive_access import (
 )
 
 from . import forms_web as forms
-from .cuotas_calendario import construir_cuotas_programadas, monto_uniforme_por_cuota
+from .cuotas_calendario import (
+    construir_cuotas_programadas,
+    fecha_primera_cuota_desde_formato_contrato,
+    monto_uniforme_por_cuota,
+)
 from docs.services import generar_pdf_desde_plantilla
 
 from .models import (
@@ -861,7 +865,10 @@ class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Updat
                 )
             if cm is not None:
                 gen_initial["monto_cuota"] = cm
-            if getattr(self.object, "fecha_firma", None):
+            fd_fmt = fecha_primera_cuota_desde_formato_contrato(self.object)
+            if fd_fmt:
+                gen_initial["fecha_primera"] = fd_fmt
+            elif getattr(self.object, "fecha_firma", None):
                 gen_initial.setdefault("fecha_primera", self.object.fecha_firma)
             ctx["generar_cuotas_form"] = forms.GenerarCuotasCalendarioForm(
                 prefix="gen",
@@ -1471,7 +1478,7 @@ class ParametroMoraListView(AppLoginRequiredMixin, ListView):
 class ParametroMoraCreateView(AppLoginRequiredMixin, CreateView):
     model = ParametroMora
     form_class = forms.ParametroMoraForm
-    template_name = "app/object_form.html"
+    template_name = "app/parametro_mora_form.html"
     success_url = reverse_lazy("app:parametro_mora_list")
 
     def get_context_data(self, **kwargs):
@@ -1484,7 +1491,7 @@ class ParametroMoraCreateView(AppLoginRequiredMixin, CreateView):
 class ParametroMoraUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
     model = ParametroMora
     form_class = forms.ParametroMoraForm
-    template_name = "app/object_form.html"
+    template_name = "app/parametro_mora_form.html"
     success_url = reverse_lazy("app:parametro_mora_list")
 
     def get_context_data(self, **kwargs):
