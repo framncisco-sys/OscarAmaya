@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 
     from .models import DocumentoEmitido
 
+from inmobiliaria.phone_sv import digitos_telefono_e164_sv
+
 from .recibo_text import format_monto_sv
 
 logger = logging.getLogger(__name__)
@@ -91,22 +93,7 @@ def url_pdf_enlace_absoluto(doc: "DocumentoEmitido") -> str | None:
 
 
 def _telefono_a_whatsapp(telefono: str) -> str | None:
-    if not telefono or not str(telefono).strip():
-        return None
-    digits = "".join(c for c in str(telefono) if c.isdigit())
-    if not digits:
-        return None
-    pais = getattr(settings, "RECIBO_WHATSAPP_PAIS", "503")
-    if digits.startswith(pais) and len(digits) >= 10:
-        return digits
-    # El Salvador: móvil 8 dígitos sin prefijo
-    if len(digits) == 8:
-        return f"{pais}{digits}"
-    if len(digits) == 9 and digits.startswith("0"):
-        return f"{pais}{digits[1:]}"
-    if len(digits) >= 10:
-        return digits
-    return None
+    return digitos_telefono_e164_sv(telefono)
 
 
 def construir_url_whatsapp_recibo(cliente, doc: "DocumentoEmitido", pago: "Pago") -> str | None:
