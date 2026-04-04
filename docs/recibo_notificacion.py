@@ -127,7 +127,10 @@ def construir_url_whatsapp_recibo(cliente, doc: "DocumentoEmitido", pago: "Pago"
             "Si no, puede solicitarlo en oficina."
         )
     partes.append("")
-    partes.append("— Paredes Bienes Raíces")
+    empresa_wa = (getattr(settings, "RECIBO_NOTIFICACION_EMPRESA_NOMBRE", "") or "").strip()
+    if not empresa_wa:
+        empresa_wa = "Paredes Desarrollos Inmobiliarios"
+    partes.append(f"— {empresa_wa}")
     texto = "\n".join(partes)
     return f"https://wa.me/{tel}?text={urllib.parse.quote(texto)}"
 
@@ -161,7 +164,9 @@ def enviar_recibo_por_email(doc: "DocumentoEmitido", pago: "Pago") -> bool:
     wa_url = construir_url_whatsapp_recibo(cliente, doc, pago)
 
     nombre_completo = f"{cliente.nombres} {cliente.apellidos}".strip()
-    empresa = (getattr(settings, "PBR_PROMESA_RAZON_SOCIAL_VENDEDOR", "") or "").strip() or "Paredes Bienes Raíces"
+    empresa = (getattr(settings, "RECIBO_NOTIFICACION_EMPRESA_NOMBRE", "") or "").strip()
+    if not empresa:
+        empresa = "Paredes Desarrollos Inmobiliarios"
     body = render_to_string(
         "docs/email_recibo_ingreso.txt",
         {
@@ -179,7 +184,11 @@ def enviar_recibo_por_email(doc: "DocumentoEmitido", pago: "Pago") -> bool:
 
     nombre_archivo = f"recibo_{doc.numero.replace('/', '-')}.pdf"
     msg = EmailMessage(
-        subject=getattr(settings, "RECIBO_EMAIL_ASUNTO", "Su recibo de pago — Paredes Bienes Raíces"),
+        subject=getattr(
+            settings,
+            "RECIBO_EMAIL_ASUNTO",
+            "Constancia de pago registrada — Paredes Desarrollos Inmobiliarios (PDF adjunto)",
+        ),
         body=body,
         from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None) or "noreply@localhost",
         to=[destino],
@@ -221,9 +230,12 @@ def _enviar_whatsapp_twilio(doc: "DocumentoEmitido", pago: "Pago", media_url: st
         import urllib.request
         import base64
 
+        em = (getattr(settings, "RECIBO_NOTIFICACION_EMPRESA_NOMBRE", "") or "").strip()
+        if not em:
+            em = "Paredes Desarrollos Inmobiliarios"
         body = (
             f"Recibo {doc.numero} por ${pago.monto} — Contrato {pago.contrato.numero}. "
-            f"Paredes Bienes Raíces."
+            f"{em}."
         )
         data = {"From": from_wa, "To": to_wa, "Body": body}
         if media_url:
@@ -275,9 +287,10 @@ def _enviar_whatsapp_meta_cloud(
         from core.whatsapp_cloud import enviar_recibo_whatsapp_cloud
 
         nombre = f"recibo_{doc.numero.replace('/', '-')}.pdf"
-        cap = (
-            f"Recibo {doc.numero} — ${pago.monto} — Contrato {pago.contrato.numero} — Paredes Bienes Raíces"
-        )
+        em = (getattr(settings, "RECIBO_NOTIFICACION_EMPRESA_NOMBRE", "") or "").strip()
+        if not em:
+            em = "Paredes Desarrollos Inmobiliarios"
+        cap = f"Recibo {doc.numero} — ${pago.monto} — Contrato {pago.contrato.numero} — {em}"
         r = enviar_recibo_whatsapp_cloud(
             to_digits=to,
             filename=nombre,

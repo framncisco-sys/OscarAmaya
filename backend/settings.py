@@ -457,7 +457,7 @@ def _resolver_default_from_email() -> str:
     if raw and raw != placeholder:
         return raw
     if EMAIL_HOST_USER:
-        nombre = env.str("DEFAULT_FROM_EMAIL_NAME", default="Paredes Bienes Raíces").strip()
+        nombre = env.str("DEFAULT_FROM_EMAIL_NAME", default="Paredes Desarrollos Inmobiliarios").strip()
         return f"{nombre} <{EMAIL_HOST_USER}>"
     return raw or placeholder
 
@@ -482,9 +482,14 @@ else:
     ADMINS = []
     MANAGERS = []
 RECIBO_ENVIAR_EMAIL = env.bool("RECIBO_ENVIAR_EMAIL", default=True)
+# Nombre comercial en cuerpo/asunto de recibos y pies de mensaje WhatsApp (wa.me, Twilio, Meta).
+RECIBO_NOTIFICACION_EMPRESA_NOMBRE = env.str(
+    "RECIBO_NOTIFICACION_EMPRESA_NOMBRE",
+    default="Paredes Desarrollos Inmobiliarios",
+)
 RECIBO_EMAIL_ASUNTO = env.str(
     "RECIBO_EMAIL_ASUNTO",
-    default="Constancia de pago registrada — Paredes Bienes Raíces (PDF adjunto)",
+    default="Constancia de pago registrada — Paredes Desarrollos Inmobiliarios (PDF adjunto)",
 )
 # Prefijo telefónico para armar enlaces wa.me (El Salvador = 503)
 RECIBO_WHATSAPP_PAIS = env.str("RECIBO_WHATSAPP_PAIS", default="503")
