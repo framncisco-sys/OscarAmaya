@@ -38,6 +38,20 @@ Eso indica que el **Web Service** no tiene `DATABASE_URL` ni `POSTGRES_HOST` rem
 
 Comprobación rápida (JSON): `https://su-app.ondigitalocean.app/ping/?db=1` con `DEBUG=True` o con la variable `PBR_ALLOW_DB_PING=1` (sin exponer contraseñas).
 
+### Formato de aceptación: listado vacío o `verificar_formatos_aceptacion` muestra 0
+
+1. **Despliegue la última versión del código** y en la **consola del mismo Web Service** (no en su PC con otro `.env`) ejecute:
+
+   ```bash
+   python manage.py verificar_formatos_aceptacion
+   ```
+
+   El comando muestra el **HOST** de Postgres, las migraciones aplicadas en esa BD y si existe la tabla/columnas necesarias.
+
+2. En los **logs de arranque** del Web Service busque la línea `PBR DB default host=... name=...`. El **HOST debe ser idéntico** al del paso 1. Si difiere (p. ej. `67329` vs `71777`), la consola y la web están usando **clusters distintos**: unifique `DATABASE_URL` / `POSTGRES_*` en el componente web.
+
+3. Ejecute `python manage.py migrate --noinput` en esa misma consola si el comando anterior indica migraciones o columnas faltantes.
+
 ### PostgreSQL administrado (SSL)
 
 En DigitalOcean PostgreSQL suele hacer falta:
@@ -85,11 +99,13 @@ El login falla en App Platform cuando Django sigue usando **host `localhost`** p
    pip install -r requirements.txt && python manage.py collectstatic --noinput
    ```
 
-4. **Run command** (o deje que use el `Procfile`):
+4. **Run command** — debe **incluir migraciones** antes de Gunicorn (si no, fallan guardados o quedan tablas/columnas viejas):
 
    ```bash
-   gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120
+   python manage.py migrate --noinput && gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120
    ```
+
+   O deje el **`Procfile`** del repo (ya trae `migrate` + `gunicorn`). No use solo `gunicorn ...` a menos que ejecute `migrate` en un job *Release* previo.
 
 5. **Base de datos (obligatorio):** en el contenedor **no** hay PostgreSQL en `localhost`. Debe:
    - **Recomendado:** añadir el recurso **Database** y en el **Web Service** → **Environment** definir `DATABASE_URL` con el valor **enlazado** del asistente (p. ej. `${db.DATABASE_URL}`). El valor **no** debe quedar como texto literal sin resolver.

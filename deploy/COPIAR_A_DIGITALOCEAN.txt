@@ -16,6 +16,11 @@ Copia host, puerto, usuario, contraseña y nombre de base. Suele ser:
 En la APP: Apps → tu aplicación → Settings → Components → [Web Service] → Edit
 → Environment Variables → añade las variables abajo (Scope: Run time).
 
+IMPORTANTE: La consola "Console" de App Platform debe ser del MISMO Web Service que
+ejecuta Gunicorn, para que DATABASE_URL sea la misma que ve el navegador al guardar.
+Si compara con su PC, el HOST del Postgres puede ser otro clúster (números distintos
+en el hostname) y verá 0 filas aunque la web "guarde" en otro sitio.
+
 --------------------------------------------------------------------------------
 OPCIÓN A — Una sola variable (recomendada): DATABASE_URL
 --------------------------------------------------------------------------------
