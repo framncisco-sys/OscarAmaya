@@ -16,20 +16,12 @@
       <h3>Inmuebles</h3>
       <p>{{ total_inmuebles }}</p>
     </article>
-    <article class="card kpi">
-      <h3>Clientes</h3>
-      <p>{{ total_clientes }}</p>
-    </article>
     {% if puede_gestionar_vendedores_app %}
     <article class="card kpi">
       <h3>Vendedores</h3>
       <p>{{ total_vendedores }}</p>
     </article>
     {% endif %}
-    <article class="card kpi">
-      <h3>Contratos</h3>
-      <p>{{ total_contratos }}</p>
-    </article>
   </section>
 
   {% if reservas_vencidas_ct or reservas_por_vencer %}
@@ -82,20 +74,12 @@
       <h3>Inmuebles</h3>
       <p>Inventario.</p>
     </a>
-    <a class="card modulo" href="{% url 'app:cliente_list' %}">
-      <h3>Clientes</h3>
-      <p>Base de compradores.</p>
-    </a>
     {% if puede_gestionar_vendedores_app %}
     <a class="card modulo" href="{% url 'app:vendedor_list' %}">
       <h3>Vendedores</h3>
       <p>Asesores, comisiones y catálogo de ventas.</p>
     </a>
     {% endif %}
-    <a class="card modulo" href="{% url 'app:contrato_list' %}">
-      <h3>Contratos</h3>
-      <p>Ventas y condiciones.</p>
-    </a>
     <a class="card modulo" href="{% url 'app:pago_list' %}">
       <h3>Pagos</h3>
       <p>Cobros y cuotas.</p>

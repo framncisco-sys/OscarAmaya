@@ -5,18 +5,14 @@
   <div class="page-toolbar__intro">
     <h1 class="page-title">Formato de aceptación</h1>
     <p class="page-toolbar__meta">
-      <strong>No necesita ir a Contratos.</strong> Cree el documento aquí mismo: datos del impreso, referencias, crédito y tres firmas.
-      El vínculo con un contrato es <strong>opcional</strong> (se elige dentro del formulario).
+      Documento de ingreso completo en esta pantalla: datos del impreso, referencias, crédito y tres firmas para PDF.
     </p>
     <p class="page-toolbar__meta muted" style="margin-top:0.5rem;">
       <a href="{% url 'app:formato_aceptacion_nuevo' %}" class="btn-primary btn-sm">Abrir formulario nuevo</a>
-      <span style="margin:0 0.35rem;">·</span>
-      <a href="{% url 'app:contrato_list' %}" class="link-action">Ir a contratos</a> (solo si quiere atajo con datos ya cargados).
     </p>
   </div>
   <div class="page-toolbar__actions">
     <a href="{% url 'app:formato_aceptacion_nuevo' %}" class="btn-primary">Nuevo formato</a>
-    <a href="{% url 'app:contrato_list' %}" class="btn-secondary btn-sm">Contratos</a>
   </div>
 </header>
 
@@ -25,8 +21,7 @@
   <thead>
     <tr>
       <th>Nº formulario</th>
-      <th>Contrato</th>
-      <th>Cliente</th>
+      <th>Nombre</th>
       <th>Inmueble / proyecto</th>
       <th>Firmas</th>
       <th></th>
@@ -36,7 +31,6 @@
     {% for f in items %}
     <tr>
       <td><strong>{{ f.numero_formulario|stringformat:"04d" }}</strong></td>
-      <td>{% if f.contrato %}{{ f.contrato.numero }}{% else %}<span class="muted">—</span>{% endif %}</td>
       <td>{{ f.nombre_cliente }}</td>
       <td class="muted">
         {% if f.contrato %}
@@ -62,18 +56,14 @@
           {% if f.firmas_completas %}
           <a href="{% url 'app:formato_aceptacion_pdf' f.pk %}" class="link-action" target="_blank" rel="noopener">PDF</a>
           {% endif %}
-          {% if f.contrato_id %}
-          <a href="{% url 'app:contrato_update' f.contrato_id %}" class="link-action">Contrato</a>
-          {% endif %}
         </div>
       </td>
     </tr>
     {% empty %}
     <tr>
-      <td colspan="6" class="muted">
+      <td colspan="5" class="muted">
         Todavía no hay formatos guardados.
-        Pulse <strong>Nuevo formato</strong> o <a href="{% url 'app:formato_aceptacion_nuevo' %}">abrir el formulario nuevo</a>
-        — no hace falta crear un contrato antes.
+        Pulse <strong>Nuevo formato</strong> o <a href="{% url 'app:formato_aceptacion_nuevo' %}">abrir el formulario nuevo</a>.
       </td>
     </tr>
     {% endfor %}

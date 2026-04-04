@@ -130,9 +130,6 @@
 <h1 class="page-title" style="max-width: 920px; margin-left: auto; margin-right: auto;">{{ form_title }}</h1>
 <p class="muted page-lead" style="max-width: 920px; margin-left: auto; margin-right: auto;">
   <a href="{% url 'app:formato_aceptacion_list' %}" class="link-action">← Listado de formatos</a>
-  {% if contrato_ref %}
-  <span class="muted"> · Contrato <strong>{{ contrato_ref.numero }}</strong> — {{ contrato_ref.cliente }}</span>
-  {% endif %}
 </p>
 
 <div class="formato-acept-intro" style="max-width: 920px; margin-left: auto; margin-right: auto;">

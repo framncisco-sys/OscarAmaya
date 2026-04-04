@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from inmobiliaria.models import Cliente, Contrato, Inmueble, Poligono, Proyecto, Vendedor
+from inmobiliaria.models import Inmueble, Poligono, Proyecto, Vendedor
 
 from usuarios.roles import puede_gestionar_vendedores
 
@@ -103,8 +103,6 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     context = {
         "total_proyectos": Proyecto.objects.count(),
         "total_inmuebles": Inmueble.objects.count(),
-        "total_clientes": Cliente.objects.count(),
-        "total_contratos": Contrato.objects.count(),
         "ultimos_inmuebles": Inmueble.objects.select_related("proyecto").order_by("-id")[:8],
         "poligono_stats": poligonos,
         "reservas_por_vencer": reservas_por_vencer,

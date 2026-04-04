@@ -61,11 +61,6 @@ urlpatterns = [
         name="formato_aceptacion_nuevo",
     ),
     path(
-        "contratos/<int:contrato_pk>/formato-aceptacion/nuevo/",
-        views.FormatoAceptacionCreateView.as_view(),
-        name="formato_aceptacion_create",
-    ),
-    path(
         "formato-aceptacion/<int:pk>/editar/",
         views.FormatoAceptacionUpdateView.as_view(),
         name="formato_aceptacion_edit",

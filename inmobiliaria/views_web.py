@@ -104,10 +104,6 @@ def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list
     G = form.__getitem__
     return [
         {
-            "title": "Vinculación opcional",
-            "rows": [[G("contrato")]],
-        },
-        {
             "title": "Datos personales",
             "rows": [
                 [G("nombre_cliente")],
@@ -529,7 +525,7 @@ class ContratoListView(AppLoginRequiredMixin, ListView):
         "inmueble__proyecto",
         "vendedor",
         "vendedor_perfil",
-    ).prefetch_related("formatos_aceptacion")
+    )
 
 
 class ContratoCreateView(AppLoginRequiredMixin, CreateView):
@@ -571,7 +567,7 @@ class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Updat
         "vendedor_perfil",
         "vendedor",
         "cliente",
-    ).prefetch_related("formatos_aceptacion")
+    )
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -787,60 +783,6 @@ class FormatoAceptacionListView(AppLoginRequiredMixin, ListView):
     )
 
 
-class FormatoAceptacionCreateView(AppLoginRequiredMixin, CreateView):
-    model = FormatoAceptacion
-    form_class = forms.FormatoAceptacionForm
-    template_name = "app/formato_aceptacion_form.html"
-    contrato: Contrato | None = None
-
-    def dispatch(self, request, *args, **kwargs):
-        self.contrato = get_object_or_404(
-            Contrato.objects.select_related(
-                "cliente",
-                "inmueble",
-                "inmueble__proyecto",
-                "inmueble__poligono",
-            ),
-            pk=kwargs["contrato_pk"],
-        )
-        existente = FormatoAceptacion.objects.filter(contrato_id=self.contrato.pk).first()
-        if existente:
-            return HttpResponseRedirect(
-                reverse("app:formato_aceptacion_edit", kwargs={"pk": existente.pk})
-            )
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_initial(self):
-        initial = super().get_initial()
-        assert self.contrato is not None
-        initial.update(forms.initial_formato_aceptacion_desde_contrato(self.contrato))
-        return initial
-
-    def form_valid(self, form):
-        assert self.contrato is not None
-        if form.cleaned_data.get("contrato") is None:
-            form.instance.contrato = self.contrato
-        form.instance.creado_por = self.request.user
-        messages.success(self.request, "Formato de aceptación guardado.")
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        return reverse("app:formato_aceptacion_edit", kwargs={"pk": self.object.pk})
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        assert self.contrato is not None
-        ctx["form_title"] = "Formato de aceptación (nuevo)"
-        ctx["cancel_url"] = reverse("app:formato_aceptacion_list")
-        ctx["form_multipart"] = True
-        ctx["contrato_ref"] = self.contrato
-        ctx["firmas_completas"] = False
-        ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
-        form = ctx.get("form") or self.get_form()
-        ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
-        return ctx
-
-
 class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
     model = FormatoAceptacion
     form_class = forms.FormatoAceptacionForm
@@ -861,22 +803,14 @@ class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        if self.object.contrato_id:
-            ctx["form_title"] = (
-                f"Formato de aceptación Nº {self.object.numero_formulario:04d} — "
-                f"contrato {self.object.contrato.numero}"
-            )
-        else:
-            ctx["form_title"] = (
-                f"Formato de aceptación Nº {self.object.numero_formulario:04d} — "
-                "sin contrato vinculado"
-            )
+        ctx["form_title"] = (
+            f"Formato de aceptación Nº {self.object.numero_formulario:04d}"
+        )
         ctx["cancel_url"] = reverse("app:formato_aceptacion_list")
         ctx["form_multipart"] = True
         ctx["formato_pdf_url"] = reverse(
             "app:formato_aceptacion_pdf", kwargs={"pk": self.object.pk}
         )
-        ctx["contrato_ref"] = self.object.contrato
         ctx["firmas_completas"] = self.object.firmas_completas
         ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
         form = ctx.get("form") or self.get_form()

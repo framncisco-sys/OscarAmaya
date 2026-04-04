@@ -8,20 +8,5 @@
   <a href="{% url 'app:contrato_estado_cuenta' object.pk %}" class="btn-primary btn-sm">Plan de cuotas y estado de cuenta</a>
   <span class="muted"> — Cuotas pagadas y por pagar, vencimientos y fechas de pago detalladas.</span>
 </p>
-<p class="page-lead">
-  {% with fmt=object.formatos_aceptacion.first %}
-  {% if fmt %}
-  <a href="{% url 'app:formato_aceptacion_edit' fmt.pk %}" class="btn-primary btn-sm">Formato de aceptación (ingreso)</a>
-  <a href="{% url 'app:formato_aceptacion_pdf' fmt.pk %}" class="btn-secondary btn-sm" style="margin-left:0.35rem;">PDF</a>
-  {% else %}
-  <a href="{% url 'app:formato_aceptacion_create' object.pk %}" class="btn-primary btn-sm">Formato de aceptación (ingreso)</a>
-  {% endif %}
-  {% endwith %}
-  <span class="muted"> — Mismo formato en papel: datos personales, referencias, crédito y tres firmas.</span>
-</p>
-{% else %}
-<p class="page-lead muted">
-  Guarde el contrato una vez para habilitar el <strong>Formato de aceptación (ingreso)</strong> aquí y en la lista de contratos.
-</p>
 {% endif %}
 {% endblock %}

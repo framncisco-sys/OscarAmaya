@@ -22,23 +22,15 @@
     <h3>Inmuebles</h3>
     <p>Inventario de lotes y viviendas.</p>
   </a>
-  <a class="card modulo" href="{% url 'app:cliente_list' %}">
-    <h3>Clientes</h3>
-    <p>Compradores y contacto.</p>
-  </a>
   {% if puede_gestionar_vendedores_app %}
   <a class="card modulo" href="{% url 'app:vendedor_list' %}">
     <h3>Vendedores</h3>
     <p>Asesores, comisión sugerida y recibos por venta.</p>
   </a>
   {% endif %}
-  <a class="card modulo" href="{% url 'app:contrato_list' %}">
-    <h3>Contratos</h3>
-    <p>Ventas y condiciones.</p>
-  </a>
   <a class="card modulo" href="{% url 'app:formato_aceptacion_list' %}">
     <h3>Formato de aceptación</h3>
-    <p>Formulario propio: alta sin contrato obligatorio, vínculo opcional y PDF con firmas.</p>
+    <p>Formulario de ingreso y PDF con firmas, desde este módulo.</p>
   </a>
   <a class="card modulo" href="{% url 'app:pago_list' %}">
     <h3>Pagos</h3>

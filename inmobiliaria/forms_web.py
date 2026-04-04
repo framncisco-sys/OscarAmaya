@@ -771,65 +771,9 @@ class ParametroMoraForm(forms.ModelForm):
         fields = "__all__"
 
 
-def initial_formato_aceptacion_desde_contrato(contrato: Contrato) -> dict:
-    """Valores sugeridos para el formulario a partir del contrato, cliente e inmueble."""
-    cl = contrato.cliente
-    inv = contrato.inmueble
-    pr = inv.proyecto
-    pol = inv.poligono
-    primas = list(
-        contrato.pagos.filter(concepto=Pago.Concepto.PRIMA).order_by("fecha", "id")[:2]
-    )
-    p1 = primas[0].monto if len(primas) > 0 else None
-    p2 = primas[1].monto if len(primas) > 1 else None
-    cuota1 = contrato.cuotas_programadas.order_by("numero").first()
-    n_cuotas = contrato.cuotas_programadas.count()
-    precio = contrato.precio_final
-    fin = None
-    if precio is not None:
-        fin = precio
-        if p1 is not None:
-            fin = fin - p1
-        if p2 is not None:
-            fin = fin - p2
-        if fin < Decimal("0"):
-            fin = Decimal("0")
-        fin = fin.quantize(Decimal("0.01"))
-    interes = ""
-    if contrato.tasa_interes_anual is not None:
-        interes = f"{contrato.tasa_interes_anual.normalize()} % anual"
-    plazo = ""
-    if contrato.plan_anos:
-        plazo = f"{contrato.get_plan_anos_display()}"
-    return {
-        "nombre_cliente": f"{cl.nombres} {cl.apellidos}".strip(),
-        "dui_numero": (cl.dui or "").strip(),
-        "nit_numero": (cl.nit or "").strip(),
-        "direccion_domicilio": (cl.direccion or "").strip(),
-        "telefono_domicilio": (cl.telefono or "").strip(),
-        "nombre_proyecto": pr.nombre,
-        "direccion_terreno": (pr.direccion or "").strip(),
-        "num_lote": inv.codigo,
-        "poligono_txt": pol.nombre if pol else "",
-        "area_m2_txt": str(inv.area_m2) if inv.area_m2 is not None else "",
-        "area_v2_txt": str(inv.area_varas_cuadradas)
-        if inv.area_varas_cuadradas is not None
-        else "",
-        "valor_inmueble": precio,
-        "prima_1": p1,
-        "prima_2": p2,
-        "valor_financiamiento": fin,
-        "letra_mensual": contrato.cuota_mensual_estimada,
-        "plazo_txt": plazo,
-        "num_cuota_txt": str(n_cuotas) if n_cuotas else "",
-        "interes_txt": interes,
-        "fecha_primera_cuota": cuota1.vence_en if cuota1 else None,
-        "contrato": contrato.pk,
-    }
-
-
 _FORMATO_ACEPTACION_EXCLUDE = (
     "id",
+    "contrato",
     "numero_formulario",
     "creado_por",
     "creado_en",
@@ -856,7 +800,6 @@ class FormatoAceptacionForm(forms.ModelForm):
         model = FormatoAceptacion
         fields = _FORMATO_ACEPTACION_FIELDS
         widgets = {
-            "contrato": forms.Select(attrs={"class": "input-contrato-opcional"}),
             "direccion_domicilio": forms.Textarea(attrs={"rows": 2}),
             "direccion_notificacion": forms.Textarea(attrs={"rows": 2}),
             "direccion_trabajo": forms.Textarea(attrs={"rows": 2}),
@@ -869,17 +812,6 @@ class FormatoAceptacionForm(forms.ModelForm):
         fd = self.fields.get("fecha_primera_cuota")
         if fd:
             fd.input_formats = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"]
-        cf = self.fields.get("contrato")
-        if cf is not None:
-            cf.required = False
-            cf.empty_label = "— Sin vincular a contrato —"
-            cf.queryset = Contrato.objects.select_related(
-                "cliente", "inmueble", "inmueble__proyecto"
-            ).order_by("-fecha_firma", "-id")
-            cf.help_text = (
-                "Opcional. Si lo deja vacío, el formato queda solo en este módulo, "
-                "sin amarrar a un contrato del sistema."
-            )
 
     def save(self, commit=True):
         import base64

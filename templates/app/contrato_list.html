@@ -40,13 +40,6 @@
         <div class="action-cluster">
           <a href="{% url 'app:contrato_update' c.pk %}" class="link-action">Editar</a>
           <a href="{% url 'app:contrato_estado_cuenta' c.pk %}" class="link-action">Cuotas</a>
-          {% with fmt=c.formatos_aceptacion.first %}
-          {% if fmt %}
-          <a href="{% url 'app:formato_aceptacion_edit' fmt.pk %}" class="link-action">Formato aceptación</a>
-          {% else %}
-          <a href="{% url 'app:formato_aceptacion_create' c.pk %}" class="link-action">Formato aceptación</a>
-          {% endif %}
-          {% endwith %}
           <a href="{% url 'app:emitir_promesa' c.pk %}" class="link-action">Promesa PDF</a>
           <a href="{% url 'app:emitir_recibo_comision' c.pk %}" class="link-action">Recibo comisión</a>
           <a href="{% url 'app:contrato_delete' c.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a>
