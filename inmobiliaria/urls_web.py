@@ -57,6 +57,11 @@ urlpatterns = [
         name="formato_aceptacion_list",
     ),
     path(
+        "formato-aceptacion/elevar-superusuario/",
+        views.formato_superuser_gate,
+        name="formato_superuser_gate",
+    ),
+    path(
         "formato-aceptacion/nuevo/",
         RedirectView.as_view(
             pattern_name="app:formato_aceptacion",

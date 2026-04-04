@@ -47,7 +47,7 @@
       <td>
         <div class="action-cluster">
           <a href="{% url 'app:formato_aceptacion_edit' f.pk %}" class="link-action"
-            title="Abrir edición: si no es superusuario, puede pedirse confirmar acceso con contraseña (menú lateral o al guardar).">Editar</a>
+            title="Si no inició sesión como superusuario, se pedirá usuario y contraseña de superusuario antes de editar o eliminar.">Editar</a>
           {% if f.firmas_completas %}
           <a href="{% url 'app:formato_aceptacion_pdf' f.pk %}" class="link-action" target="_blank" rel="noopener">PDF</a>
           {% endif %}

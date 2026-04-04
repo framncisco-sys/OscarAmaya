@@ -1,0 +1,33 @@
+{% extends "app/base_app.html" %}
+{% block title %}Verificación superusuario — Formato de aceptación{% endblock %}
+{% block app_content %}
+<h1 class="page-title">Credenciales de superusuario</h1>
+<p class="muted page-lead" style="max-width: 36rem;">
+  Para <strong>editar</strong> o <strong>eliminar</strong> formatos de aceptación debe ingresar el
+  <strong>usuario y contraseña de una cuenta superusuario</strong> de Django. Si usted ya inició sesión
+  como superusuario, no verá esta pantalla.
+  Tras validar, podrá trabajar unos minutos sin repetir este paso.
+</p>
+<form method="post" class="form-stack" style="max-width: min(100%, 420px);">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next }}" />
+  <div class="field">
+    <label class="field__label" for="id_superuser_username">Usuario superusuario</label>
+    <div class="field__control">
+      <input type="text" name="superuser_username" id="id_superuser_username" class="input" autocomplete="username" required
+        style="width:100%;max-width:400px;box-sizing:border-box;">
+    </div>
+  </div>
+  <div class="field">
+    <label class="field__label" for="id_superuser_password">Contraseña</label>
+    <div class="field__control">
+      <input type="password" name="superuser_password" id="id_superuser_password" class="input" autocomplete="current-password" required
+        style="width:100%;max-width:400px;box-sizing:border-box;">
+    </div>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn-primary">Continuar</button>
+    <a href="{% url 'app:formato_aceptacion_list' %}" class="btn-secondary">Volver al listado</a>
+  </div>
+</form>
+{% endblock %}

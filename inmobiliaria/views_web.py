@@ -7,6 +7,7 @@ import logging
 import mimetypes
 import os
 import tempfile
+import time
 from collections import defaultdict
 from decimal import Decimal
 from pathlib import Path
@@ -17,10 +18,11 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.contrib import messages
 from django.forms import ValidationError
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import ProtectedError, Sum
 from django.http import (
     FileResponse,
     Http404,
@@ -54,6 +56,7 @@ from core.sensitive_access import (
     grant,
     safe_next_url,
     skips_sensitive_reauth,
+    ttl_seconds,
 )
 
 from . import forms_web as forms
@@ -75,6 +78,29 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Editar/eliminar formato de aceptación: credenciales de superusuario (sesión temporal).
+PBR_SESSION_FORMATO_SUPER_GATE = "PBR_FORMATO_SUPERUSER_GATE_UNTIL"
+
+
+def _formato_superuser_gate_session_valid(request: HttpRequest) -> bool:
+    until = request.session.get(PBR_SESSION_FORMATO_SUPER_GATE)
+    if until is None:
+        return False
+    try:
+        return float(until) > time.time()
+    except (TypeError, ValueError):
+        return False
+
+
+def _verify_superuser_credentials(username: str, password: str) -> bool:
+    User = get_user_model()
+    u = User.objects.filter(
+        username__iexact=(username or "").strip(),
+        is_superuser=True,
+        is_active=True,
+    ).first()
+    return bool(u and u.check_password(password))
 
 
 def _firma_preview_flags(formato: FormatoAceptacion | None) -> dict[str, bool]:
@@ -304,6 +330,24 @@ class AppLoginRequiredMixin(LoginRequiredMixin):
     login_url = reverse_lazy("login")
 
 
+class FormatoSuperuserGateMixin:
+    """
+    Editar o eliminar formato de aceptación: exige validar usuario + contraseña de un superusuario,
+    salvo que quien navega ya sea superusuario. Tras validar, aplica el mismo TTL que la reauth sensible.
+    """
+
+    def dispatch(self, request: HttpRequest, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return super().dispatch(request, *args, **kwargs)
+        if request.user.is_superuser:
+            return super().dispatch(request, *args, **kwargs)
+        if _formato_superuser_gate_session_valid(request):
+            return super().dispatch(request, *args, **kwargs)
+        nxt = request.get_full_path()
+        gate = f"{reverse('app:formato_superuser_gate')}?{urlencode({'next': nxt})}"
+        return HttpResponseRedirect(gate)
+
+
 @login_required
 def sensitive_reauth(request: HttpRequest) -> HttpResponse:
     """Pantalla para confirmar contraseña y abrir ventana de edición (no superusuarios)."""
@@ -318,6 +362,38 @@ def sensitive_reauth(request: HttpRequest) -> HttpResponse:
             return HttpResponseRedirect(next_url)
         messages.error(request, "Contraseña incorrecta.")
     return render(request, "app/sensitive_reauth.html", {"next": next_url})
+
+
+@login_required
+def formato_superuser_gate(request: HttpRequest) -> HttpResponse:
+    """Pantalla para ingresar usuario y contraseña de superusuario antes de editar/eliminar formatos."""
+    next_url = safe_next_url(
+        request, request.POST.get("next") or request.GET.get("next")
+    )
+    if request.user.is_superuser:
+        return HttpResponseRedirect(next_url)
+    if _formato_superuser_gate_session_valid(request):
+        return HttpResponseRedirect(next_url)
+    if request.method == "POST":
+        su_user = (request.POST.get("superuser_username") or "").strip()
+        su_pass = (request.POST.get("superuser_password") or "").strip()
+        if _verify_superuser_credentials(su_user, su_pass):
+            request.session[PBR_SESSION_FORMATO_SUPER_GATE] = time.time() + ttl_seconds()
+            request.session.modified = True
+            messages.success(
+                request,
+                "Superusuario verificado. Puede editar o eliminar formatos de aceptación durante unos minutos.",
+            )
+            return HttpResponseRedirect(next_url)
+        messages.error(
+            request,
+            "Usuario o contraseña de superusuario incorrectos.",
+        )
+    return render(
+        request,
+        "app/formato_superuser_gate.html",
+        {"next": next_url},
+    )
 
 
 class AppIndexView(AppLoginRequiredMixin, TemplateView):
@@ -912,7 +988,9 @@ class FormatoAceptacionListView(AppLoginRequiredMixin, ListView):
         )
 
 
-class FormatoAceptacionUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
+class FormatoAceptacionUpdateView(
+    AppLoginRequiredMixin, FormatoSuperuserGateMixin, UpdateView
+):
     model = FormatoAceptacion
     form_class = forms.FormatoAceptacionForm
     template_name = "app/formato_aceptacion_form.html"
@@ -954,10 +1032,25 @@ class FormatoAceptacionUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, Upd
         return ctx
 
 
-class FormatoAceptacionDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, DeleteView):
+class FormatoAceptacionDeleteView(
+    AppLoginRequiredMixin, FormatoSuperuserGateMixin, DeleteView
+):
     model = FormatoAceptacion
     template_name = "app/confirm_delete.html"
     success_url = reverse_lazy("app:formato_aceptacion_list")
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        try:
+            self.object.delete()
+        except ProtectedError:
+            messages.error(
+                request,
+                "No se puede eliminar: existen registros vinculados.",
+            )
+            return HttpResponseRedirect(self.get_success_url())
+        messages.success(request, "Registro eliminado.")
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
