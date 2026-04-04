@@ -2,6 +2,7 @@
 
 import binascii
 import json
+import re
 from datetime import date
 from decimal import Decimal
 
@@ -788,6 +789,51 @@ _FORMATO_ACEPTACION_FIELDS = [
     if f.name not in _FORMATO_ACEPTACION_EXCLUDE
 ]
 
+_ANOS_PLAZO_CHOICES = [("", "— Años —")] + [(str(i), str(i)) for i in range(0, 51)]
+_INTERES_PCT_CHOICES = [("", "— % —")] + [(str(i), f"{i} %") for i in range(0, 51)]
+
+
+def _formato_plazo_guardado_a_anos_select(val) -> str:
+    """Alinea valores viejos (meses o texto) al select 0–50 años."""
+    if val is None or str(val).strip() == "":
+        return ""
+    s = str(val).strip()
+    if s.isdigit():
+        n = int(s)
+        if 0 <= n <= 50:
+            return str(n)
+        if n > 50 and n % 12 == 0:
+            y = n // 12
+            if 0 <= y <= 50:
+                return str(y)
+        return ""
+    m = re.search(r"(\d+)", s)
+    if not m:
+        return ""
+    n = int(m.group(1))
+    low = s.lower()
+    if "mes" in low or (n > 50 and n % 12 == 0):
+        y = n // 12
+        if 0 <= y <= 50:
+            return str(y)
+    if 0 <= n <= 50:
+        return str(n)
+    return ""
+
+
+def _formato_interes_guardado_a_select(val) -> str:
+    if val is None or str(val).strip() == "":
+        return ""
+    s = str(val).strip()
+    if s.isdigit():
+        n = int(s)
+        return str(n) if 0 <= n <= 50 else ""
+    m = re.search(r"(\d+)", s)
+    if not m:
+        return ""
+    n = int(m.group(1))
+    return str(n) if 0 <= n <= 50 else ""
+
 
 class FormatoAceptacionForm(forms.ModelForm):
     """Las firmas se capturan con lienzo (PNG en base64) vía campos ocultos *_canvas."""
@@ -816,6 +862,47 @@ class FormatoAceptacionForm(forms.ModelForm):
             fd = self.fields.get(fname)
             if fd:
                 fd.input_formats = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"]
+
+        plazo_f = self.fields.get("plazo_txt")
+        if plazo_f:
+            plazo_f.widget = forms.Select(
+                choices=_ANOS_PLAZO_CHOICES,
+                attrs={"class": "input"},
+            )
+            plazo_f.required = False
+
+        inter_f = self.fields.get("interes_txt")
+        if inter_f:
+            inter_f.widget = forms.Select(
+                choices=_INTERES_PCT_CHOICES,
+                attrs={"class": "input"},
+            )
+            inter_f.required = False
+
+        ncuota_f = self.fields.get("num_cuota_txt")
+        if ncuota_f:
+            ncuota_f.widget = forms.TextInput(
+                attrs={
+                    "readonly": True,
+                    "class": "input",
+                    "autocomplete": "off",
+                },
+            )
+            ncuota_f.required = False
+
+        if self.instance and getattr(self.instance, "pk", None):
+            pa = _formato_plazo_guardado_a_anos_select(self.instance.plazo_txt)
+            if pa != "":
+                self.initial["plazo_txt"] = pa
+            inn = _formato_interes_guardado_a_select(self.instance.interes_txt)
+            if inn != "":
+                self.initial["interes_txt"] = inn
+            if pa != "":
+                try:
+                    y = int(pa)
+                    self.initial["num_cuota_txt"] = str(y * 12)
+                except ValueError:
+                    pass
 
     def save(self, commit=True):
         import base64

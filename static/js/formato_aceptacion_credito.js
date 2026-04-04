@@ -28,23 +28,13 @@
     el.value = n.toFixed(2);
   }
 
-  function parsePlazoMeses(s) {
-    var m = String(s || "").match(/\d+/);
-    return m ? parseInt(m[0], 10) : 0;
-  }
-
-  function parseInteresAnual(s) {
-    var t = String(s || "").replace(",", ".");
-    var m = t.match(/[\d.]+/);
-    return m ? parseFloat(m[0]) : 0;
-  }
-
   function pmtCuota(principal, annualPct, months) {
     var P = principal;
     var n = months;
     if (!n || n < 1 || !isFinite(P) || P <= 0) return null;
-    var i = parseInteresAnual(String(annualPct));
-    if (!i || i <= 0) return P / n;
+    var i = typeof annualPct === "number" ? annualPct : parseFloat(String(annualPct));
+    if (!isFinite(i)) i = 0;
+    if (i <= 0) return P / n;
     var r = i / 100 / 12;
     var pow = Math.pow(1 + r, n);
     if (!isFinite(pow) || pow === 1) return P / n;
@@ -157,8 +147,13 @@
     function recalcLetra() {
       if (!letra || !plazo || !interes) return;
       var principal = parseMoney(valorFin);
-      var n = parsePlazoMeses(plazo.value);
-      var cuota = pmtCuota(principal, interes.value, n);
+      var years = parseInt(String(plazo.value || ""), 10);
+      if (!isFinite(years) || years < 0) years = 0;
+      var n = years * 12;
+      if (numCuota) numCuota.value = n > 0 ? String(n) : "";
+      var interVal = parseFloat(String(interes.value || ""));
+      if (!isFinite(interVal) || interVal < 0) interVal = 0;
+      var cuota = pmtCuota(principal, interVal, n);
       if (cuota === null) {
         letra.value = "";
         return;
@@ -216,15 +211,8 @@
       valorFin.addEventListener("input", recalcLetra);
       valorFin.addEventListener("change", recalcLetra);
     }
-    if (plazo && numCuota) {
-      plazo.addEventListener("input", function () {
-        numCuota.value = plazo.value;
-        recalcLetra();
-      });
-      plazo.addEventListener("change", function () {
-        numCuota.value = plazo.value;
-        recalcLetra();
-      });
+    if (plazo) {
+      plazo.addEventListener("change", recalcLetra);
     }
     if (interes) {
       interes.addEventListener("input", recalcLetra);
