@@ -910,6 +910,15 @@ class FormatoAceptacion(models.Model):
     def __str__(self) -> str:
         return f"Formato #{self.numero_formulario} — {self.contrato.numero}"
 
+    @property
+    def firmas_completas(self) -> bool:
+        """True si las tres firmas están guardadas (requisito para PDF)."""
+        for attr in ("firma_aceptante", "firma_vendedor", "firma_autorizado"):
+            f = getattr(self, attr)
+            if not f or not f.name:
+                return False
+        return True
+
     def save(self, *args, **kwargs):
         if self.pk is None:
             from django.db.models import Max

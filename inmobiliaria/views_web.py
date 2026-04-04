@@ -70,14 +70,6 @@ def _firma_a_data_uri(field_file) -> str | None:
     return f"data:{mime};base64,{base64.b64encode(raw).decode('ascii')}"
 
 
-def _formato_firmas_completas(formato: FormatoAceptacion) -> bool:
-    for attr in ("firma_aceptante", "firma_vendedor", "firma_autorizado"):
-        f = getattr(formato, attr)
-        if not f or not f.name:
-            return False
-    return True
-
-
 def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list[dict]:
     """Agrupa campos del formato impreso para el template (sin campos ocultos de lienzo)."""
     G = form.__getitem__
@@ -722,6 +714,21 @@ class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Updat
         )
 
 
+class FormatoAceptacionListView(AppLoginRequiredMixin, ListView):
+    """Módulo aparte: todos los formatos de aceptación y acceso rápido a edición/PDF."""
+
+    model = FormatoAceptacion
+    template_name = "app/formato_aceptacion_list.html"
+    context_object_name = "items"
+    paginate_by = 30
+    queryset = FormatoAceptacion.objects.select_related(
+        "contrato",
+        "contrato__cliente",
+        "contrato__inmueble",
+        "contrato__inmueble__proyecto",
+    )
+
+
 class FormatoAceptacionCreateView(AppLoginRequiredMixin, CreateView):
     model = FormatoAceptacion
     form_class = forms.FormatoAceptacionForm
@@ -806,7 +813,7 @@ class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
             "app:formato_aceptacion_pdf", kwargs={"pk": self.object.pk}
         )
         ctx["contrato_ref"] = self.object.contrato
-        ctx["firmas_completas"] = _formato_firmas_completas(self.object)
+        ctx["firmas_completas"] = self.object.firmas_completas
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
         return ctx
@@ -823,7 +830,7 @@ def formato_aceptacion_pdf(request: HttpRequest, pk: int) -> HttpResponse:
         ),
         pk=pk,
     )
-    if not _formato_firmas_completas(formato):
+    if not formato.firmas_completas:
         messages.error(
             request,
             "Guarde el formulario con las tres firmas dibujadas (aceptante, vendedor y autorizado) "

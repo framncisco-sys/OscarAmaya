@@ -1,0 +1,59 @@
+{% extends "app/base_app.html" %}
+{% block title %}Formato de aceptación | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Formato de aceptación</h1>
+    <p class="page-toolbar__meta">
+      Módulo aparte: revise y edite los formatos capturados. Para <strong>crear</strong> uno nuevo, use la acción en el contrato correspondiente o abra el contrato y elija «Formato de aceptación (ingreso)».
+    </p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:contrato_list' %}" class="btn-secondary btn-sm">Ir a contratos</a>
+  </div>
+</header>
+
+<div class="data-panel">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Nº formulario</th>
+      <th>Contrato</th>
+      <th>Cliente</th>
+      <th>Inmueble</th>
+      <th>Firmas</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in items %}
+    <tr>
+      <td><strong>{{ f.numero_formulario|stringformat:"04d" }}</strong></td>
+      <td>{{ f.contrato.numero }}</td>
+      <td>{{ f.nombre_cliente }}</td>
+      <td class="muted">{{ f.contrato.inmueble.codigo }} — {{ f.contrato.inmueble.proyecto.nombre }}</td>
+      <td>
+        {% if f.firmas_completas %}
+        <span class="badge badge--disponible">Listo PDF</span>
+        {% else %}
+        <span class="badge badge--reservado">Pendiente</span>
+        {% endif %}
+      </td>
+      <td>
+        <div class="action-cluster">
+          <a href="{% url 'app:formato_aceptacion_edit' f.pk %}" class="link-action">Editar</a>
+          {% if f.firmas_completas %}
+          <a href="{% url 'app:formato_aceptacion_pdf' f.pk %}" class="link-action" target="_blank" rel="noopener">PDF</a>
+          {% endif %}
+          <a href="{% url 'app:contrato_update' f.contrato_id %}" class="link-action">Contrato</a>
+        </div>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="muted">Aún no hay formatos. Cree uno desde un contrato guardado.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "app/pagination.html" %}
+{% endblock %}
