@@ -75,6 +75,11 @@ urlpatterns = [
         name="formato_aceptacion_edit",
     ),
     path(
+        "formato-aceptacion/<int:pk>/firma/<slug:tipo>/",
+        views.formato_firma_preview,
+        name="formato_firma_preview",
+    ),
+    path(
         "formato-aceptacion/<int:pk>.pdf",
         views.formato_aceptacion_pdf,
         name="formato_aceptacion_pdf",

@@ -250,9 +250,9 @@
 
     <div class="formato-firma-block">
       <span class="field__label">Firma aceptante</span>
-      {% if object.pk and object.firma_aceptante %}
+      {% if object.pk and firma_preview.aceptante %}
         <p class="muted" style="margin: 0.25rem 0; font-size: 0.85rem;">Firma guardada (dibuje de nuevo para reemplazar):</p>
-        <img class="formato-firma-prev" src="{{ object.firma_aceptante.url }}" alt="" width="200" height="80" loading="lazy" />
+        <img class="formato-firma-prev" src="{% url 'app:formato_firma_preview' object.pk 'aceptante' %}" alt="" width="200" height="80" loading="lazy" />
       {% endif %}
       <canvas class="formato-firma-canvas" width="560" height="180" data-input-name="firma_aceptante_canvas" aria-label="Firma aceptante"></canvas>
       <div class="formato-firma-actions">
@@ -262,9 +262,9 @@
 
     <div class="formato-firma-block">
       <span class="field__label">Firma vendedor</span>
-      {% if object.pk and object.firma_vendedor %}
+      {% if object.pk and firma_preview.vendedor %}
         <p class="muted" style="margin: 0.25rem 0; font-size: 0.85rem;">Firma guardada (dibuje de nuevo para reemplazar):</p>
-        <img class="formato-firma-prev" src="{{ object.firma_vendedor.url }}" alt="" width="200" height="80" loading="lazy" />
+        <img class="formato-firma-prev" src="{% url 'app:formato_firma_preview' object.pk 'vendedor' %}" alt="" width="200" height="80" loading="lazy" />
       {% endif %}
       <canvas class="formato-firma-canvas" width="560" height="180" data-input-name="firma_vendedor_canvas" aria-label="Firma vendedor"></canvas>
       <div class="formato-firma-actions">
@@ -274,9 +274,9 @@
 
     <div class="formato-firma-block">
       <span class="field__label">Firma autorizado</span>
-      {% if object.pk and object.firma_autorizado %}
+      {% if object.pk and firma_preview.autorizado %}
         <p class="muted" style="margin: 0.25rem 0; font-size: 0.85rem;">Firma guardada (dibuje de nuevo para reemplazar):</p>
-        <img class="formato-firma-prev" src="{{ object.firma_autorizado.url }}" alt="" width="200" height="80" loading="lazy" />
+        <img class="formato-firma-prev" src="{% url 'app:formato_firma_preview' object.pk 'autorizado' %}" alt="" width="200" height="80" loading="lazy" />
       {% endif %}
       <canvas class="formato-firma-canvas" width="560" height="180" data-input-name="firma_autorizado_canvas" aria-label="Firma autorizado"></canvas>
       <div class="formato-firma-actions">

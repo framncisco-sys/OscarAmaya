@@ -61,6 +61,8 @@ Eso **no** es un fallo del formulario ni del PDF: el registro en PostgreSQL guar
 3. Abra de nuevo el formato en la web y **vuelva a dibujar las tres firmas** y pulse Guardar (los registros viejos no recuperan archivos borrados).
 4. En los **logs de arranque** busque: con S3 verá `PBR media: S3/Spaces`; sin S3 verá una advertencia `PBR media: FileSystemStorage` sobre disco efímero.
 
+La **vista previa** de firmas en el formulario usa una URL bajo `/app/.../firma/.../` (con sesión), no `/media/...` público: así se evita el icono roto en producción cuando el archivo **sí** existe en storage. Si el archivo no existe (redeploy sin S3), no se muestra la miniatura y sigue el aviso de almacenamiento.
+
 ### PostgreSQL administrado (SSL)
 
 En DigitalOcean PostgreSQL suele hacer falta:

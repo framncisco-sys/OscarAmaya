@@ -4,6 +4,7 @@ import csv
 import html
 import json
 import logging
+import mimetypes
 import os
 import tempfile
 from collections import defaultdict
@@ -20,7 +21,14 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import transaction
 from django.db.models import Sum
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import (
+    FileResponse,
+    Http404,
+    HttpRequest,
+    HttpResponse,
+    HttpResponseRedirect,
+    JsonResponse,
+)
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -67,6 +75,22 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _firma_preview_flags(formato: FormatoAceptacion | None) -> dict[str, bool]:
+    """True solo si hay archivo legible en storage (evita <img> roto en producción)."""
+    empty = {"aceptante": False, "vendedor": False, "autorizado": False}
+    if not formato or not getattr(formato, "pk", None):
+        return empty
+    out: dict[str, bool] = {}
+    for key, attr in (
+        ("aceptante", "firma_aceptante"),
+        ("vendedor", "firma_vendedor"),
+        ("autorizado", "firma_autorizado"),
+    ):
+        ff = getattr(formato, attr, None)
+        out[key] = bool(ff and ff.name and default_storage.exists(ff.name))
+    return out
 
 
 def _formato_firmas_ausentes_en_storage(formato: FormatoAceptacion) -> list[str]:
@@ -859,6 +883,7 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
         ctx["form_multipart"] = True
         ctx["firmas_completas"] = False
         ctx["firmas_storage_perdidas"] = []
+        ctx["firma_preview"] = _firma_preview_flags(getattr(self, "object", None))
         ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
         ctx["proyectos_formato"] = _proyectos_para_formato_aceptacion()
         ctx["formato_catalogo_inmuebles"] = _catalogo_inmuebles_formato_aceptacion()
@@ -920,6 +945,7 @@ class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
         ctx["firmas_storage_perdidas"] = _formato_firmas_ausentes_en_storage(
             self.object
         )
+        ctx["firma_preview"] = _firma_preview_flags(self.object)
         ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
         ctx["proyectos_formato"] = _proyectos_para_formato_aceptacion()
         ctx["formato_catalogo_inmuebles"] = _catalogo_inmuebles_formato_aceptacion()
@@ -990,6 +1016,36 @@ def formato_aceptacion_pdf(request: HttpRequest, pk: int) -> HttpResponse:
     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
     resp["Content-Disposition"] = f'attachment; filename="{filename}"'
     return resp
+
+
+_FORMATO_FIRMA_PREVIEW_ROLES = {
+    "aceptante": "firma_aceptante",
+    "vendedor": "firma_vendedor",
+    "autorizado": "firma_autorizado",
+}
+
+
+@login_required
+@never_cache
+def formato_firma_preview(request: HttpRequest, pk: int, tipo: str) -> HttpResponse:
+    """
+    Sirve la imagen de firma bajo /app/ con sesión iniciada.
+    En producción (DEBUG=False) /media/ no es público por defecto: usar .url en <img> rompe la vista previa.
+    """
+    if tipo not in _FORMATO_FIRMA_PREVIEW_ROLES:
+        raise Http404()
+    formato = get_object_or_404(FormatoAceptacion, pk=pk)
+    field = getattr(formato, _FORMATO_FIRMA_PREVIEW_ROLES[tipo])
+    if not field or not field.name:
+        raise Http404()
+    if not default_storage.exists(field.name):
+        raise Http404()
+    try:
+        fh = field.open("rb")
+    except OSError:
+        raise Http404()
+    content_type = mimetypes.guess_type(field.name)[0] or "image/png"
+    return FileResponse(fh, content_type=content_type)
 
 
 @login_required
