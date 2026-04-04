@@ -798,11 +798,11 @@ class FormatoAceptacion(models.Model):
     )
 
     nombre_cliente = models.CharField("Nombre del cliente", max_length=200)
-    lugar_fecha_nacimiento = models.CharField(
-        "Lugar y fecha de nacimiento", max_length=200, blank=True
-    )
+    lugar_nacimiento = models.CharField("Lugar de nacimiento", max_length=200, blank=True)
+    fecha_nacimiento = models.DateField("Fecha de nacimiento", null=True, blank=True)
     dui_numero = models.CharField("No. DUI", max_length=30, blank=True)
-    dui_exp_lugar_fecha = models.CharField("Lugar / fecha exp. DUI", max_length=120, blank=True)
+    dui_exp_lugar = models.CharField("Lugar de exp. DUI", max_length=120, blank=True)
+    dui_exp_fecha = models.DateField("Fecha de exp. DUI", null=True, blank=True)
     nit_numero = models.CharField("NIT", max_length=30, blank=True)
     direccion_domicilio = models.TextField("Dirección de domicilio", blank=True)
     telefono_domicilio = models.CharField("Teléfono (domicilio)", max_length=40, blank=True)

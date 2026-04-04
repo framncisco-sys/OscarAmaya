@@ -61,12 +61,18 @@
 <p class="fa-sect">Datos personales</p>
 <table class="fa-grid">
   <tr><td class="fa-lbl">Nombre del cliente</td><td class="fa-val" colspan="3">{{ formato.nombre_cliente }}</td></tr>
-  <tr><td class="fa-lbl">Lugar y fecha de nacimiento</td><td class="fa-val" colspan="3">{{ formato.lugar_fecha_nacimiento|default:"—" }}</td></tr>
+  <tr>
+    <td class="fa-lbl">Lugar de nacimiento</td><td class="fa-val">{{ formato.lugar_nacimiento|default:"—" }}</td>
+    <td class="fa-lbl">Fecha de nacimiento</td><td class="fa-val">{% if formato.fecha_nacimiento %}{{ formato.fecha_nacimiento|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+  </tr>
   <tr>
     <td class="fa-lbl">DUI</td><td class="fa-val">{{ formato.dui_numero|default:"—" }}</td>
-    <td class="fa-lbl">Lugar / fecha exp.</td><td class="fa-val">{{ formato.dui_exp_lugar_fecha|default:"—" }}</td>
+    <td class="fa-lbl">Lugar exp. DUI</td><td class="fa-val">{{ formato.dui_exp_lugar|default:"—" }}</td>
   </tr>
-  <tr><td class="fa-lbl">NIT</td><td class="fa-val" colspan="3">{{ formato.nit_numero|default:"—" }}</td></tr>
+  <tr>
+    <td class="fa-lbl">Fecha exp. DUI</td><td class="fa-val">{% if formato.dui_exp_fecha %}{{ formato.dui_exp_fecha|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+    <td class="fa-lbl">NIT</td><td class="fa-val">{{ formato.nit_numero|default:"—" }}</td>
+  </tr>
   <tr><td class="fa-lbl">Dirección domicilio</td><td class="fa-val" colspan="2">{{ formato.direccion_domicilio|default:"—"|linebreaksbr }}</td><td class="fa-val"><strong>Tel.</strong> {{ formato.telefono_domicilio|default:"—" }}</td></tr>
   <tr><td class="fa-lbl">Dirección notificación</td><td class="fa-val" colspan="2">{{ formato.direccion_notificacion|default:"—"|linebreaksbr }}</td><td class="fa-val"><strong>Tel.</strong> {{ formato.telefono_notificacion|default:"—" }}</td></tr>
   <tr><td class="fa-lbl">Trabaja en lo propio</td><td class="fa-val" colspan="3">{{ formato.trabaja_lo_propio|default:"—" }}</td></tr>

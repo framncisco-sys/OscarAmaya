@@ -158,8 +158,8 @@ def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list
             "title": "Datos personales",
             "rows": [
                 [G("nombre_cliente")],
-                [G("lugar_fecha_nacimiento")],
-                [G("dui_numero"), G("dui_exp_lugar_fecha"), G("nit_numero")],
+                [G("lugar_nacimiento"), G("fecha_nacimiento")],
+                [G("dui_numero"), G("dui_exp_lugar"), G("dui_exp_fecha"), G("nit_numero")],
                 [G("direccion_domicilio"), G("telefono_domicilio")],
                 [G("direccion_notificacion"), G("telefono_notificacion")],
                 [G("trabaja_lo_propio"), G("nombre_empresa_trabajo")],
