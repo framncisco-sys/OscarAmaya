@@ -5,6 +5,7 @@ from .models import (
     ClienteDocumento,
     Contrato,
     CuotaProgramada,
+    FormatoAceptacion,
     HistorialPrecioInmueble,
     Inmueble,
     InmuebleImagen,
@@ -180,6 +181,15 @@ class PagoAdmin(admin.ModelAdmin):
     list_display = ("fecha", "contrato", "concepto", "cuotas_incluidas", "monto")
     list_filter = ("concepto", "fecha")
     search_fields = ("referencia", "contrato__numero")
+
+
+@admin.register(FormatoAceptacion)
+class FormatoAceptacionAdmin(admin.ModelAdmin):
+    list_display = ("numero_formulario", "contrato", "nombre_cliente", "creado_en")
+    list_filter = ("creado_en",)
+    search_fields = ("nombre_cliente", "contrato__numero")
+    raw_id_fields = ("contrato", "creado_por")
+    readonly_fields = ("numero_formulario", "creado_en", "actualizado_en")
 
 
 @admin.register(ParametroMora)

@@ -14,6 +14,7 @@ from .models import (
     Cliente,
     Contrato,
     CuotaProgramada,
+    FormatoAceptacion,
     Inmueble,
     Pago,
     ParametroMora,
@@ -767,3 +768,113 @@ class ParametroMoraForm(forms.ModelForm):
     class Meta:
         model = ParametroMora
         fields = "__all__"
+
+
+def initial_formato_aceptacion_desde_contrato(contrato: Contrato) -> dict:
+    """Valores sugeridos para el formulario a partir del contrato, cliente e inmueble."""
+    cl = contrato.cliente
+    inv = contrato.inmueble
+    pr = inv.proyecto
+    pol = inv.poligono
+    primas = list(
+        contrato.pagos.filter(concepto=Pago.Concepto.PRIMA).order_by("fecha", "id")[:2]
+    )
+    p1 = primas[0].monto if len(primas) > 0 else None
+    p2 = primas[1].monto if len(primas) > 1 else None
+    cuota1 = contrato.cuotas_programadas.order_by("numero").first()
+    n_cuotas = contrato.cuotas_programadas.count()
+    precio = contrato.precio_final
+    fin = None
+    if precio is not None:
+        fin = precio
+        if p1 is not None:
+            fin = fin - p1
+        if p2 is not None:
+            fin = fin - p2
+        if fin < Decimal("0"):
+            fin = Decimal("0")
+        fin = fin.quantize(Decimal("0.01"))
+    interes = ""
+    if contrato.tasa_interes_anual is not None:
+        interes = f"{contrato.tasa_interes_anual.normalize()} % anual"
+    plazo = ""
+    if contrato.plan_anos:
+        plazo = f"{contrato.get_plan_anos_display()}"
+    return {
+        "nombre_cliente": f"{cl.nombres} {cl.apellidos}".strip(),
+        "dui_numero": (cl.dui or "").strip(),
+        "nit_numero": (cl.nit or "").strip(),
+        "direccion_domicilio": (cl.direccion or "").strip(),
+        "telefono_domicilio": (cl.telefono or "").strip(),
+        "nombre_proyecto": pr.nombre,
+        "direccion_terreno": (pr.direccion or "").strip(),
+        "num_lote": inv.codigo,
+        "poligono_txt": pol.nombre if pol else "",
+        "area_m2_txt": str(inv.area_m2) if inv.area_m2 is not None else "",
+        "area_v2_txt": str(inv.area_varas_cuadradas)
+        if inv.area_varas_cuadradas is not None
+        else "",
+        "valor_inmueble": precio,
+        "prima_1": p1,
+        "prima_2": p2,
+        "valor_financiamiento": fin,
+        "letra_mensual": contrato.cuota_mensual_estimada,
+        "plazo_txt": plazo,
+        "num_cuota_txt": str(n_cuotas) if n_cuotas else "",
+        "interes_txt": interes,
+        "fecha_primera_cuota": cuota1.vence_en if cuota1 else None,
+    }
+
+
+_FORMATO_ACEPTACION_FIELDS = [
+    f.name
+    for f in FormatoAceptacion._meta.fields
+    if f.name
+    not in (
+        "id",
+        "contrato",
+        "numero_formulario",
+        "creado_por",
+        "creado_en",
+        "actualizado_en",
+    )
+]
+
+# Las firmas se capturan con lienzo (canvas) y se envían en POST; no usan FileInput del ModelForm.
+_FORMATO_ACEPTACION_FORM_FIELDS = [
+    n
+    for n in _FORMATO_ACEPTACION_FIELDS
+    if n not in ("firma_aceptante", "firma_vendedor", "firma_autorizado")
+]
+
+
+class FormatoAceptacionForm(forms.ModelForm):
+    class Meta:
+        model = FormatoAceptacion
+        fields = _FORMATO_ACEPTACION_FORM_FIELDS
+        widgets = {
+            "direccion_domicilio": forms.Textarea(attrs={"rows": 2}),
+            "direccion_notificacion": forms.Textarea(attrs={"rows": 2}),
+            "direccion_trabajo": forms.Textarea(attrs={"rows": 2}),
+            "direccion_terreno": forms.Textarea(attrs={"rows": 2}),
+            "fecha_primera_cuota": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        fd = self.fields.get("fecha_primera_cuota")
+        if fd:
+            fd.input_formats = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"]
+        _sec = (
+            ("nombre_cliente", "DATOS PERSONALES"),
+            ("ref_com_nombre_1", "REFERENCIAS COMERCIALES"),
+            ("ref_per_nombre_1", "REFERENCIAS PERSONALES"),
+            ("nombre_proyecto", "DATOS DEL TERRENO"),
+            ("num_lote", "DATOS DEL CRÉDITO"),
+            ("ben_nombre_1", "BENEFICIARIOS"),
+            ("elaborado_por", "CIERRE Y FIRMAS"),
+        )
+        for fname, title in _sec:
+            f = self.fields.get(fname)
+            if f and not (f.help_text or "").strip():
+                f.help_text = f"<strong>{title}</strong>"

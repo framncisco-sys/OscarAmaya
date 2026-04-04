@@ -1,12 +1,17 @@
 """Vistas web minimalistas (azul / blanco / gris) — gestión sin depender del admin."""
 
+import base64
+import binascii
 import csv
 import html
 import json
+import mimetypes
+import re
 from decimal import Decimal
 from urllib.parse import urlencode
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.contrib import messages
 from django.forms import ValidationError
 from django.contrib.auth.decorators import login_required
@@ -42,6 +47,7 @@ from .models import (
     ClienteDocumento,
     Contrato,
     CuotaProgramada,
+    FormatoAceptacion,
     Inmueble,
     Pago,
     ParametroMora,
@@ -49,6 +55,69 @@ from .models import (
     Proyecto,
     Vendedor,
 )
+
+
+_MAX_FIRMA_CANVAS_BYTES = 2 * 1024 * 1024
+
+
+def _firma_desde_data_uri_canvas(data: str) -> ContentFile | None:
+    """Decodifica data URL PNG/JPEG del lienzo de firma; None si es inválida o demasiado grande."""
+    if not data or not isinstance(data, str):
+        return None
+    data = data.strip()
+    m = re.match(
+        r"^data:image/(png|jpeg|jpg);base64,([A-Za-z0-9+/=\r\n]+)$",
+        data,
+        re.IGNORECASE,
+    )
+    if not m:
+        return None
+    b64 = re.sub(r"\s+", "", m.group(2))
+    try:
+        raw = base64.b64decode(b64, validate=True)
+    except (ValueError, binascii.Error):
+        return None
+    if len(raw) > _MAX_FIRMA_CANVAS_BYTES or len(raw) < 32:
+        return None
+    ext = "png" if m.group(1).lower() == "png" else "jpg"
+    return ContentFile(raw, name=f"firma.{ext}")
+
+
+def _adjuntar_firmas_formato_desde_post(request: HttpRequest, formato: FormatoAceptacion) -> None:
+    """Persiste imágenes enviadas por los lienzos (solo si vienen datos nuevos en POST)."""
+    pairs = (
+        ("sig_canvas_firma_aceptante", "firma_aceptante"),
+        ("sig_canvas_firma_vendedor", "firma_vendedor"),
+        ("sig_canvas_firma_autorizado", "firma_autorizado"),
+    )
+    update_fields: list[str] = []
+    for post_key, attr in pairs:
+        raw = (request.POST.get(post_key) or "").strip()
+        if not raw:
+            continue
+        cf = _firma_desde_data_uri_canvas(raw)
+        if cf is None:
+            continue
+        setattr(formato, attr, cf)
+        update_fields.append(attr)
+    if update_fields:
+        formato.save(update_fields=update_fields)
+
+
+def _firma_a_data_uri(field_file) -> str | None:
+    if not field_file or not field_file.name:
+        return None
+    try:
+        raw = field_file.open("rb").read()
+    except OSError:
+        return None
+    finally:
+        try:
+            field_file.close()
+        except Exception:
+            pass
+    mime = mimetypes.guess_type(field_file.name)[0] or "image/png"
+    return f"data:{mime};base64,{base64.b64encode(raw).decode('ascii')}"
 
 
 def _mapa_planos_proyectos():
@@ -447,6 +516,7 @@ class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Updat
         "vendedor_perfil",
         "vendedor",
         "cliente",
+        "formato_aceptacion",
     )
 
     def get_form_kwargs(self):
@@ -619,6 +689,145 @@ class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Updat
         return self.render_to_response(
             self.get_context_data(form=form, cuotas_formset=formset)
         )
+
+
+class FormatoAceptacionCreateView(AppLoginRequiredMixin, CreateView):
+    model = FormatoAceptacion
+    form_class = forms.FormatoAceptacionForm
+    template_name = "app/formato_aceptacion_form.html"
+    contrato: Contrato | None = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.contrato = get_object_or_404(
+            Contrato.objects.select_related(
+                "cliente",
+                "inmueble",
+                "inmueble__proyecto",
+                "inmueble__poligono",
+            ),
+            pk=kwargs["contrato_pk"],
+        )
+        existente = FormatoAceptacion.objects.filter(contrato=self.contrato).first()
+        if existente:
+            return HttpResponseRedirect(
+                reverse("app:formato_aceptacion_edit", kwargs={"pk": existente.pk})
+            )
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_initial(self):
+        initial = super().get_initial()
+        assert self.contrato is not None
+        initial.update(forms.initial_formato_aceptacion_desde_contrato(self.contrato))
+        return initial
+
+    def form_valid(self, form):
+        assert self.contrato is not None
+        form.instance.contrato = self.contrato
+        form.instance.creado_por = self.request.user
+        messages.success(self.request, "Formato de aceptación guardado.")
+        self.object = form.save()
+        _adjuntar_firmas_formato_desde_post(self.request, self.object)
+        return HttpResponseRedirect(self.get_success_url())
+
+    def get_success_url(self):
+        return reverse("app:formato_aceptacion_edit", kwargs={"pk": self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        assert self.contrato is not None
+        ctx["form_title"] = "Formato de aceptación (nuevo)"
+        ctx["cancel_url"] = reverse("app:contrato_update", kwargs={"pk": self.contrato.pk})
+        ctx["contrato_ref"] = self.contrato
+        ctx["firmas_completas"] = False
+        ctx["formato_instance"] = None
+        return ctx
+
+
+class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
+    model = FormatoAceptacion
+    form_class = forms.FormatoAceptacionForm
+    template_name = "app/formato_aceptacion_form.html"
+    queryset = FormatoAceptacion.objects.select_related(
+        "contrato",
+        "contrato__cliente",
+        "contrato__inmueble",
+        "contrato__inmueble__proyecto",
+    )
+
+    def form_valid(self, form):
+        messages.success(self.request, "Cambios guardados.")
+        self.object = form.save()
+        _adjuntar_firmas_formato_desde_post(self.request, self.object)
+        return HttpResponseRedirect(self.get_success_url())
+
+    def get_success_url(self):
+        return reverse("app:formato_aceptacion_edit", kwargs={"pk": self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form_title"] = (
+            f"Formato de aceptación Nº {self.object.numero_formulario:04d} — "
+            f"contrato {self.object.contrato.numero}"
+        )
+        ctx["cancel_url"] = reverse(
+            "app:contrato_update", kwargs={"pk": self.object.contrato_id}
+        )
+        ctx["formato_pdf_url"] = reverse(
+            "app:formato_aceptacion_pdf", kwargs={"pk": self.object.pk}
+        )
+        ctx["contrato_ref"] = self.object.contrato
+        ctx["firmas_completas"] = bool(
+            self.object.firma_aceptante
+            and self.object.firma_vendedor
+            and self.object.firma_autorizado
+        )
+        ctx["formato_instance"] = self.object
+        return ctx
+
+
+@login_required
+def formato_aceptacion_pdf(request: HttpRequest, pk: int) -> HttpResponse:
+    formato = get_object_or_404(
+        FormatoAceptacion.objects.select_related(
+            "contrato",
+            "contrato__cliente",
+            "contrato__inmueble",
+            "contrato__inmueble__proyecto",
+        ),
+        pk=pk,
+    )
+    if not (
+        formato.firma_aceptante
+        and formato.firma_vendedor
+        and formato.firma_autorizado
+    ):
+        messages.error(
+            request,
+            "Debe guardar el formato con las tres firmas trazadas (aceptante, vendedor y autorizado) "
+            "antes de generar el PDF. Pulse «Guardar» en el formulario después de firmar en cada recuadro.",
+        )
+        return HttpResponseRedirect(
+            reverse("app:formato_aceptacion_edit", kwargs={"pk": formato.pk})
+        )
+    ctx = {
+        "formato": formato,
+        "direccion_empresa": getattr(
+            settings,
+            "PBR_FORMATO_ACEPTACION_DIRECCION",
+            "16 Calle Ote. Pol. C-1 #24. Col. El Molino. San Miguel. Tel. 7547-0186",
+        ),
+        "firma_aceptante_datauri": _firma_a_data_uri(formato.firma_aceptante),
+        "firma_vendedor_datauri": _firma_a_data_uri(formato.firma_vendedor),
+        "firma_autorizado_datauri": _firma_a_data_uri(formato.firma_autorizado),
+    }
+    pdf_bytes = generar_pdf_desde_plantilla(
+        template_name="docs/formato_aceptacion_pdf.html",
+        context=ctx,
+    )
+    filename = f"formato_aceptacion_{formato.numero_formulario:04d}.pdf"
+    resp = HttpResponse(pdf_bytes, content_type="application/pdf")
+    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
 
 
 @login_required

@@ -1,0 +1,175 @@
+{% extends "docs/_base_pdf.html" %}
+{% block pdf_body_class %} class="pdf-formato-aceptacion"{% endblock %}
+{% block pdf_extra_styles %}
+    body.pdf-formato-aceptacion { font-size: 10px; line-height: 1.35; color: #0f172a; }
+    .fa-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+    .fa-title {
+      font-size: 15px; font-weight: 800; color: #003366; text-transform: uppercase;
+      letter-spacing: 0.04em; border: 1px solid #003366; padding: 6px 12px; display: inline-block;
+    }
+    .fa-serial { font-size: 13px; font-weight: 800; color: #b91c1c; }
+    .fa-addr { font-size: 9.5px; color: #475569; margin: 4px 0 12px; }
+    .fa-h2 {
+      font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+      color: #003366; margin: 12px 0 4px; padding-bottom: 2px; border-bottom: 1px solid #cbd5e1;
+    }
+    .fa-dl { width: 100%; border-collapse: collapse; margin: 0 0 6px; }
+    .fa-dl td { padding: 4px 6px; vertical-align: top; border-bottom: 1px solid #e2e8f0; }
+    .fa-dl td.fa-lbl { width: 28%; font-weight: 700; color: #475569; background: #f8fafc; }
+    .fa-dl td.fa-val { color: #0f172a; }
+    .fa-table { width: 100%; border-collapse: collapse; margin: 0 0 8px; font-size: 9px; }
+    .fa-table th {
+      text-align: left; padding: 4px 6px; background: #003366; color: #fff; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 0.03em;
+    }
+    .fa-table td { padding: 4px 6px; border: 1px solid #e2e8f0; vertical-align: top; }
+    .fa-legal { font-size: 8.5px; color: #334155; margin: 10px 0; text-align: justify; }
+    .fa-firmas { width: 100%; border-collapse: collapse; margin-top: 14px; }
+    .fa-firmas td { width: 33.33%; vertical-align: bottom; text-align: center; padding: 6px; }
+    .fa-firmas .fa-sig-img { max-width: 100%; max-height: 72px; object-fit: contain; }
+    .fa-firmas .fa-sig-line { border-top: 1px solid #0f172a; margin-top: 4px; padding-top: 4px; font-size: 8px; font-weight: 700; }
+    .fa-muted { color: #94a3b8; }
+{% endblock %}
+
+{% block content %}
+<div class="fa-head">
+  <div>
+    <div class="fa-title">Formato de aceptación</div>
+    <p class="fa-addr">{{ direccion_empresa }}</p>
+  </div>
+  <div class="fa-serial">Nº {{ formato.numero_formulario|stringformat:"04d" }}</div>
+</div>
+
+<p class="fa-h2">Datos personales</p>
+<table class="fa-dl">
+  <tr><td class="fa-lbl">Nombre del cliente</td><td class="fa-val">{{ formato.nombre_cliente|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Lugar y fecha de nacimiento</td><td class="fa-val">{{ formato.lugar_fecha_nacimiento|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">No. DUI</td><td class="fa-val">{{ formato.dui_numero|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Lugar / fecha exp. DUI</td><td class="fa-val">{{ formato.dui_exp_lugar_fecha|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">NIT</td><td class="fa-val">{{ formato.nit_numero|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Dirección de domicilio</td><td class="fa-val">{% if formato.direccion_domicilio %}{{ formato.direccion_domicilio|linebreaksbr }}{% else %}—{% endif %}</td></tr>
+  <tr><td class="fa-lbl">Teléfono (domicilio)</td><td class="fa-val">{{ formato.telefono_domicilio|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Dirección para notificación</td><td class="fa-val">{% if formato.direccion_notificacion %}{{ formato.direccion_notificacion|linebreaksbr }}{% else %}—{% endif %}</td></tr>
+  <tr><td class="fa-lbl">Teléfono (notificación)</td><td class="fa-val">{{ formato.telefono_notificacion|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Trabaja en lo propio</td><td class="fa-val">{{ formato.trabaja_lo_propio|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Empresa donde trabaja</td><td class="fa-val">{{ formato.nombre_empresa_trabajo|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Dirección / trabajo</td><td class="fa-val">{% if formato.direccion_trabajo %}{{ formato.direccion_trabajo|linebreaksbr }}{% else %}—{% endif %}</td></tr>
+  <tr><td class="fa-lbl">Teléfono (trabajo)</td><td class="fa-val">{{ formato.telefono_trabajo|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Cargo</td><td class="fa-val">{{ formato.cargo|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Sueldo</td><td class="fa-val">{% if formato.sueldo != None %}${{ formato.sueldo|floatformat:2 }}{% else %}—{% endif %}</td></tr>
+  <tr><td class="fa-lbl">No. personas grupo familiar</td><td class="fa-val">{{ formato.num_familia_grupo|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">No. personas que trabajan</td><td class="fa-val">{{ formato.num_personas_trabajan|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">No. personas que estudian</td><td class="fa-val">{{ formato.num_personas_estudian|default:"—" }}</td></tr>
+</table>
+
+<p class="fa-h2">Referencias comerciales</p>
+<table class="fa-table">
+  <thead><tr><th>Empresa</th><th>Teléfono</th><th>Observación</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>{{ formato.ref_com_nombre_1|default:"—" }}</td>
+      <td>{{ formato.ref_com_tel_1|default:"—" }}</td>
+      <td>{{ formato.ref_com_obs_1|default:"—" }}</td>
+    </tr>
+    <tr>
+      <td>{{ formato.ref_com_nombre_2|default:"—" }}</td>
+      <td>{{ formato.ref_com_tel_2|default:"—" }}</td>
+      <td>{{ formato.ref_com_obs_2|default:"—" }}</td>
+    </tr>
+    <tr>
+      <td>{{ formato.ref_com_nombre_3|default:"—" }}</td>
+      <td>{{ formato.ref_com_tel_3|default:"—" }}</td>
+      <td>{{ formato.ref_com_obs_3|default:"—" }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="fa-h2">Referencias personales</p>
+<table class="fa-table">
+  <thead><tr><th>Nombre</th><th>Teléfono</th><th>Observación</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>{{ formato.ref_per_nombre_1|default:"—" }}</td>
+      <td>{{ formato.ref_per_tel_1|default:"—" }}</td>
+      <td>{{ formato.ref_per_obs_1|default:"—" }}</td>
+    </tr>
+    <tr>
+      <td>{{ formato.ref_per_nombre_2|default:"—" }}</td>
+      <td>{{ formato.ref_per_tel_2|default:"—" }}</td>
+      <td>{{ formato.ref_per_obs_2|default:"—" }}</td>
+    </tr>
+    <tr>
+      <td>{{ formato.ref_per_nombre_3|default:"—" }}</td>
+      <td>{{ formato.ref_per_tel_3|default:"—" }}</td>
+      <td>{{ formato.ref_per_obs_3|default:"—" }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="fa-h2">Datos del terreno</p>
+<table class="fa-dl">
+  <tr><td class="fa-lbl">Nombre del proyecto</td><td class="fa-val">{{ formato.nombre_proyecto|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Dirección</td><td class="fa-val">{% if formato.direccion_terreno %}{{ formato.direccion_terreno|linebreaksbr }}{% else %}—{% endif %}</td></tr>
+</table>
+
+<p class="fa-h2">Datos del crédito</p>
+<table class="fa-dl">
+  <tr><td class="fa-lbl">No. de lote</td><td class="fa-val">{{ formato.num_lote|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Polígono</td><td class="fa-val">{{ formato.poligono_txt|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Área m²</td><td class="fa-val">{{ formato.area_m2_txt|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Área v²</td><td class="fa-val">{{ formato.area_v2_txt|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Prima 1</td><td class="fa-val">{% if formato.prima_1 != None %}${{ formato.prima_1|floatformat:2 }}{% else %}—{% endif %}</td></tr>
+  <tr><td class="fa-lbl">Valor del inmueble</td><td class="fa-val">{% if formato.valor_inmueble != None %}${{ formato.valor_inmueble|floatformat:2 }}{% else %}—{% endif %}</td></tr>
+  <tr><td class="fa-lbl">Prima 2</td><td class="fa-val">{% if formato.prima_2 != None %}${{ formato.prima_2|floatformat:2 }}{% else %}—{% endif %}</td></tr>
+  <tr><td class="fa-lbl">Valor del financiamiento</td><td class="fa-val">{% if formato.valor_financiamiento != None %}${{ formato.valor_financiamiento|floatformat:2 }}{% else %}—{% endif %}</td></tr>
+  <tr><td class="fa-lbl">Letra mensual</td><td class="fa-val">{% if formato.letra_mensual != None %}${{ formato.letra_mensual|floatformat:2 }}{% else %}—{% endif %}</td></tr>
+  <tr><td class="fa-lbl">Plazo</td><td class="fa-val">{{ formato.plazo_txt|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">No. cuota</td><td class="fa-val">{{ formato.num_cuota_txt|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Interés</td><td class="fa-val">{{ formato.interes_txt|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Fecha pago primera cuota</td><td class="fa-val">{% if formato.fecha_primera_cuota %}{{ formato.fecha_primera_cuota|date:"d/m/Y" }}{% else %}—{% endif %}</td></tr>
+  <tr><td class="fa-lbl">Fecha de pago mensual</td><td class="fa-val">{{ formato.fecha_pago_mensual|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Lugar de pago</td><td class="fa-val">{{ formato.lugar_pago|default:"—" }}</td></tr>
+</table>
+
+<p class="fa-h2">Beneficiarios</p>
+<table class="fa-table">
+  <thead><tr><th>Nombre</th><th>Parentesco</th></tr></thead>
+  <tbody>
+    <tr><td>{{ formato.ben_nombre_1|default:"—" }}</td><td>{{ formato.ben_parentesco_1|default:"—" }}</td></tr>
+    <tr><td>{{ formato.ben_nombre_2|default:"—" }}</td><td>{{ formato.ben_parentesco_2|default:"—" }}</td></tr>
+  </tbody>
+</table>
+
+<p class="fa-h2">Elaboración</p>
+<table class="fa-dl">
+  <tr><td class="fa-lbl">Elaborado por</td><td class="fa-val">{{ formato.elaborado_por|default:"—" }}</td></tr>
+  <tr><td class="fa-lbl">Lugar y fecha</td><td class="fa-val">{{ formato.lugar_y_fecha|default:"—" }}</td></tr>
+</table>
+
+<p class="fa-legal">
+  <strong>Nota:</strong> Una vez pagada la primera cuota, el capital puede amortizarse para reducir intereses, según las políticas acordadas con la empresa.
+</p>
+<p class="fa-legal">
+  <strong>Declaraciones del comprador:</strong>
+  (a) Las sumas entregadas no son reembolsables salvo acuerdo expreso por escrito.
+  (b) El uso del bien es residencial salvo autorización de la empresa.
+  (c) Las cuotas pagadas fuera de plazo pueden generar recargos; se indica referencia a mora del 5 % u otra tasa según contrato y política vigente.
+</p>
+
+<table class="fa-firmas">
+  <tr>
+    <td>
+      {% if firma_aceptante_datauri %}<img src="{{ firma_aceptante_datauri }}" alt="" class="fa-sig-img">{% else %}<span class="fa-muted">—</span>{% endif %}
+      <div class="fa-sig-line">Firma aceptante</div>
+    </td>
+    <td>
+      {% if firma_vendedor_datauri %}<img src="{{ firma_vendedor_datauri }}" alt="" class="fa-sig-img">{% else %}<span class="fa-muted">—</span>{% endif %}
+      <div class="fa-sig-line">Firma vendedor</div>
+    </td>
+    <td>
+      {% if firma_autorizado_datauri %}<img src="{{ firma_autorizado_datauri }}" alt="" class="fa-sig-img">{% else %}<span class="fa-muted">—</span>{% endif %}
+      <div class="fa-sig-line">Firma autorizado</div>
+    </td>
+  </tr>
+</table>
+{% endblock %}

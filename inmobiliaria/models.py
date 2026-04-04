@@ -776,6 +776,149 @@ class RecordatorioPago(models.Model):
         return f"{self.cuota_id} {self.canal} {self.programado_para}"
 
 
+class FormatoAceptacion(models.Model):
+    """
+    Formato de aceptación (documento cliente / crédito) con datos del impreso corporativo
+    y archivos de firma para el PDF.
+    """
+
+    contrato = models.OneToOneField(
+        Contrato,
+        on_delete=models.CASCADE,
+        related_name="formato_aceptacion",
+    )
+    numero_formulario = models.PositiveIntegerField(
+        "Nº formulario",
+        unique=True,
+        editable=False,
+        db_index=True,
+    )
+
+    nombre_cliente = models.CharField("Nombre del cliente", max_length=200)
+    lugar_fecha_nacimiento = models.CharField(
+        "Lugar y fecha de nacimiento", max_length=200, blank=True
+    )
+    dui_numero = models.CharField("No. DUI", max_length=30, blank=True)
+    dui_exp_lugar_fecha = models.CharField("Lugar / fecha exp. DUI", max_length=120, blank=True)
+    nit_numero = models.CharField("NIT", max_length=30, blank=True)
+    direccion_domicilio = models.TextField("Dirección de domicilio", blank=True)
+    telefono_domicilio = models.CharField("Teléfono (domicilio)", max_length=40, blank=True)
+    direccion_notificacion = models.TextField("Dirección para notificación", blank=True)
+    telefono_notificacion = models.CharField("Teléfono (notificación)", max_length=40, blank=True)
+    trabaja_lo_propio = models.CharField("Trabaja en lo propio", max_length=200, blank=True)
+    nombre_empresa_trabajo = models.CharField(
+        "Nombre de la empresa donde trabaja", max_length=200, blank=True
+    )
+    direccion_trabajo = models.TextField("Dirección / trabajo", blank=True)
+    telefono_trabajo = models.CharField("Teléfono (trabajo)", max_length=40, blank=True)
+    cargo = models.CharField("Cargo que desempeña", max_length=120, blank=True)
+    sueldo = models.DecimalField("Sueldo $", max_digits=14, decimal_places=2, null=True, blank=True)
+    num_familia_grupo = models.PositiveSmallIntegerField(
+        "No. personas del grupo familiar", null=True, blank=True
+    )
+    num_personas_trabajan = models.PositiveSmallIntegerField(
+        "No. personas que trabajan", null=True, blank=True
+    )
+    num_personas_estudian = models.PositiveSmallIntegerField(
+        "No. personas que estudian", null=True, blank=True
+    )
+
+    ref_com_nombre_1 = models.CharField("Ref. comercial — empresa 1", max_length=200, blank=True)
+    ref_com_tel_1 = models.CharField("Ref. comercial — tel. 1", max_length=40, blank=True)
+    ref_com_obs_1 = models.CharField("Ref. comercial — observación 1", max_length=200, blank=True)
+    ref_com_nombre_2 = models.CharField("Ref. comercial — empresa 2", max_length=200, blank=True)
+    ref_com_tel_2 = models.CharField("Ref. comercial — tel. 2", max_length=40, blank=True)
+    ref_com_obs_2 = models.CharField("Ref. comercial — observación 2", max_length=200, blank=True)
+    ref_com_nombre_3 = models.CharField("Ref. comercial — empresa 3", max_length=200, blank=True)
+    ref_com_tel_3 = models.CharField("Ref. comercial — tel. 3", max_length=40, blank=True)
+    ref_com_obs_3 = models.CharField("Ref. comercial — observación 3", max_length=200, blank=True)
+
+    ref_per_nombre_1 = models.CharField("Ref. personal — nombre 1", max_length=200, blank=True)
+    ref_per_tel_1 = models.CharField("Ref. personal — tel. 1", max_length=40, blank=True)
+    ref_per_obs_1 = models.CharField("Ref. personal — observación 1", max_length=200, blank=True)
+    ref_per_nombre_2 = models.CharField("Ref. personal — nombre 2", max_length=200, blank=True)
+    ref_per_tel_2 = models.CharField("Ref. personal — tel. 2", max_length=40, blank=True)
+    ref_per_obs_2 = models.CharField("Ref. personal — observación 2", max_length=200, blank=True)
+    ref_per_nombre_3 = models.CharField("Ref. personal — nombre 3", max_length=200, blank=True)
+    ref_per_tel_3 = models.CharField("Ref. personal — tel. 3", max_length=40, blank=True)
+    ref_per_obs_3 = models.CharField("Ref. personal — observación 3", max_length=200, blank=True)
+
+    nombre_proyecto = models.CharField("Nombre del proyecto", max_length=200, blank=True)
+    direccion_terreno = models.TextField("Dirección (terreno)", blank=True)
+
+    num_lote = models.CharField("No. de lote", max_length=80, blank=True)
+    poligono_txt = models.CharField("Polígono", max_length=120, blank=True)
+    area_m2_txt = models.CharField("Área m²", max_length=40, blank=True)
+    area_v2_txt = models.CharField("Área v²", max_length=40, blank=True)
+    prima_1 = models.DecimalField("Prima 1 $", max_digits=14, decimal_places=2, null=True, blank=True)
+    valor_inmueble = models.DecimalField(
+        "Valor del inmueble", max_digits=14, decimal_places=2, null=True, blank=True
+    )
+    prima_2 = models.DecimalField("Prima 2 $", max_digits=14, decimal_places=2, null=True, blank=True)
+    valor_financiamiento = models.DecimalField(
+        "Valor del financiamiento", max_digits=14, decimal_places=2, null=True, blank=True
+    )
+    letra_mensual = models.DecimalField(
+        "Letra mensual", max_digits=14, decimal_places=2, null=True, blank=True
+    )
+    plazo_txt = models.CharField("Plazo", max_length=80, blank=True)
+    num_cuota_txt = models.CharField("No. cuota", max_length=40, blank=True)
+    interes_txt = models.CharField("Interés", max_length=80, blank=True)
+    fecha_primera_cuota = models.DateField("Fecha pago primera cuota", null=True, blank=True)
+    fecha_pago_mensual = models.CharField("Fecha de pago mensual", max_length=80, blank=True)
+    lugar_pago = models.CharField("Lugar de pago", max_length=200, blank=True)
+
+    ben_nombre_1 = models.CharField("Beneficiario 1 — nombre", max_length=200, blank=True)
+    ben_parentesco_1 = models.CharField("Beneficiario 1 — parentesco", max_length=80, blank=True)
+    ben_nombre_2 = models.CharField("Beneficiario 2 — nombre", max_length=200, blank=True)
+    ben_parentesco_2 = models.CharField("Beneficiario 2 — parentesco", max_length=80, blank=True)
+
+    elaborado_por = models.CharField("Elaborado por", max_length=120, blank=True)
+    lugar_y_fecha = models.CharField("Lugar y fecha", max_length=200, blank=True)
+
+    firma_aceptante = models.ImageField(
+        "Firma aceptante (cliente)",
+        upload_to="formatos_aceptacion/firmas/%Y/%m/",
+        blank=True,
+    )
+    firma_vendedor = models.ImageField(
+        "Firma vendedor",
+        upload_to="formatos_aceptacion/firmas/%Y/%m/",
+        blank=True,
+    )
+    firma_autorizado = models.ImageField(
+        "Firma autorizado",
+        upload_to="formatos_aceptacion/firmas/%Y/%m/",
+        blank=True,
+    )
+
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="formatos_aceptacion_creados",
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-numero_formulario"]
+        verbose_name = "Formato de aceptación"
+        verbose_name_plural = "Formatos de aceptación"
+
+    def __str__(self) -> str:
+        return f"Formato #{self.numero_formulario} — {self.contrato.numero}"
+
+    def save(self, *args, **kwargs):
+        if self.pk is None:
+            from django.db.models import Max
+
+            agg = FormatoAceptacion.objects.aggregate(m=Max("numero_formulario"))
+            self.numero_formulario = (agg["m"] or 0) + 1
+        super().save(*args, **kwargs)
+
+
 class ParametroMora(models.Model):
     """Parámetros para cálculo de mora (ajustar según política interna y asesoría legal)."""
 

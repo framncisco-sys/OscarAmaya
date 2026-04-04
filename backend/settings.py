@@ -513,6 +513,11 @@ PBR_PROMESA_RAZON_SOCIAL_VENDEDOR = env.str(
 )
 # Recibo / constancia de pago (PDF): NIT del emisor cuando deba figurar (opcional).
 PBR_EMPRESA_NIT = env.str("PBR_EMPRESA_NIT", default="")
+# Dirección en el encabezado del PDF «Formato de aceptación» (texto legal / contacto).
+PBR_FORMATO_ACEPTACION_DIRECCION = env.str(
+    "PBR_FORMATO_ACEPTACION_DIRECCION",
+    default="16 Calle Ote. Pol. C-1 #24. Col. El Molino. San Miguel. Tel. 7547-0186",
+)
 
 # Tras confirmar contraseña en /app/, cuántos segundos puede editar/eliminar sin volver a pedirla (no superusuarios).
 PBR_SENSITIVE_REAUTH_TTL = env.int("PBR_SENSITIVE_REAUTH_TTL", default=900)

@@ -50,6 +50,21 @@ urlpatterns = [
         views.contrato_estado_cuenta,
         name="contrato_estado_cuenta",
     ),
+    path(
+        "contratos/<int:contrato_pk>/formato-aceptacion/nuevo/",
+        views.FormatoAceptacionCreateView.as_view(),
+        name="formato_aceptacion_create",
+    ),
+    path(
+        "formato-aceptacion/<int:pk>/editar/",
+        views.FormatoAceptacionUpdateView.as_view(),
+        name="formato_aceptacion_edit",
+    ),
+    path(
+        "formato-aceptacion/<int:pk>.pdf",
+        views.formato_aceptacion_pdf,
+        name="formato_aceptacion_pdf",
+    ),
     path("reportes/pagos.csv", views.export_pagos_csv, name="export_pagos_csv"),
     path("pagos/", views.PagoListView.as_view(), name="pago_list"),
     path("pagos/nuevo/", views.PagoCreateView.as_view(), name="pago_create"),
