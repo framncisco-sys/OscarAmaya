@@ -21,7 +21,9 @@ from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonRes
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.decorators import method_decorator
 from django.utils.formats import date_format
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.views.generic import (
     CreateView,
@@ -801,8 +803,9 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.creado_por = self.request.user
+        response = super().form_valid(form)
         messages.success(self.request, "Formato de aceptación guardado.")
-        return super().form_valid(form)
+        return response
 
     def get_success_url(self):
         return reverse("app:formato_aceptacion_edit", kwargs={"pk": self.object.pk})
@@ -821,6 +824,7 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
         return ctx
 
 
+@method_decorator(never_cache, name="dispatch")
 class FormatoAceptacionListView(AppLoginRequiredMixin, ListView):
     """Módulo aparte: todos los formatos de aceptación y acceso rápido a edición/PDF."""
 
@@ -828,12 +832,16 @@ class FormatoAceptacionListView(AppLoginRequiredMixin, ListView):
     template_name = "app/formato_aceptacion_list.html"
     context_object_name = "items"
     paginate_by = 30
-    queryset = FormatoAceptacion.objects.select_related(
-        "contrato",
-        "contrato__cliente",
-        "contrato__inmueble",
-        "contrato__inmueble__proyecto",
-    )
+
+    def get_queryset(self):
+        return (
+            FormatoAceptacion.objects.order_by("-numero_formulario", "-id")
+            .select_related(
+                "contrato",
+                "contrato__inmueble",
+                "contrato__inmueble__proyecto",
+            )
+        )
 
 
 class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
@@ -848,8 +856,9 @@ class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
     )
 
     def form_valid(self, form):
+        response = super().form_valid(form)
         messages.success(self.request, "Cambios guardados.")
-        return super().form_valid(form)
+        return response
 
     def get_success_url(self):
         return reverse("app:formato_aceptacion_edit", kwargs={"pk": self.object.pk})
