@@ -12,6 +12,8 @@ from django.core.exceptions import ValidationError
 from django.db.models import Count, Prefetch, Q
 from django.forms import BaseInlineFormSet, inlineformset_factory
 
+from .validators import validar_dui_sv, validar_nit_sv
+
 from .models import (
     Cliente,
     Contrato,
@@ -850,6 +852,107 @@ class FormatoAceptacionForm(forms.ModelForm):
             "direccion_notificacion": forms.Textarea(attrs={"rows": 2}),
             "direccion_trabajo": forms.Textarea(attrs={"rows": 2}),
             "direccion_terreno": forms.Textarea(attrs={"rows": 2}),
+            "dui_numero": forms.TextInput(
+                attrs={
+                    "class": "input",
+                    "placeholder": "00000000-0",
+                    "maxlength": 10,
+                    "inputmode": "numeric",
+                    "autocomplete": "off",
+                    "title": "DUI: 8 dígitos, guion, dígito de verificación",
+                }
+            ),
+            "nit_numero": forms.TextInput(
+                attrs={
+                    "class": "input",
+                    "placeholder": "0000-000000-000-0",
+                    "maxlength": 17,
+                    "inputmode": "numeric",
+                    "autocomplete": "off",
+                    "title": "NIT: 14 dígitos con formato habitual en El Salvador",
+                }
+            ),
+            "telefono_domicilio": forms.TextInput(
+                attrs={
+                    "class": "input",
+                    "placeholder": "0000-0000",
+                    "maxlength": 9,
+                    "inputmode": "numeric",
+                    "autocomplete": "tel",
+                }
+            ),
+            "telefono_notificacion": forms.TextInput(
+                attrs={
+                    "class": "input",
+                    "placeholder": "0000-0000",
+                    "maxlength": 9,
+                    "inputmode": "numeric",
+                    "autocomplete": "tel",
+                }
+            ),
+            "telefono_trabajo": forms.TextInput(
+                attrs={
+                    "class": "input",
+                    "placeholder": "0000-0000",
+                    "maxlength": 9,
+                    "inputmode": "numeric",
+                    "autocomplete": "tel",
+                }
+            ),
+            "ref_com_tel_1": forms.TextInput(
+                attrs={
+                    "class": "input",
+                    "placeholder": "0000-0000",
+                    "maxlength": 9,
+                    "inputmode": "numeric",
+                    "autocomplete": "tel",
+                }
+            ),
+            "ref_com_tel_2": forms.TextInput(
+                attrs={
+                    "class": "input",
+                    "placeholder": "0000-0000",
+                    "maxlength": 9,
+                    "inputmode": "numeric",
+                    "autocomplete": "tel",
+                }
+            ),
+            "ref_com_tel_3": forms.TextInput(
+                attrs={
+                    "class": "input",
+                    "placeholder": "0000-0000",
+                    "maxlength": 9,
+                    "inputmode": "numeric",
+                    "autocomplete": "tel",
+                }
+            ),
+            "ref_per_tel_1": forms.TextInput(
+                attrs={
+                    "class": "input",
+                    "placeholder": "0000-0000",
+                    "maxlength": 9,
+                    "inputmode": "numeric",
+                    "autocomplete": "tel",
+                }
+            ),
+            "ref_per_tel_2": forms.TextInput(
+                attrs={
+                    "class": "input",
+                    "placeholder": "0000-0000",
+                    "maxlength": 9,
+                    "inputmode": "numeric",
+                    "autocomplete": "tel",
+                }
+            ),
+            "ref_per_tel_3": forms.TextInput(
+                attrs={
+                    "class": "input",
+                    "placeholder": "0000-0000",
+                    "maxlength": 9,
+                    "inputmode": "numeric",
+                    "autocomplete": "tel",
+                }
+            ),
             "num_lote": forms.HiddenInput(),
             "poligono_txt": forms.HiddenInput(),
             "fecha_nacimiento": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
@@ -860,6 +963,12 @@ class FormatoAceptacionForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        dui_f = self.fields.get("dui_numero")
+        if dui_f:
+            dui_f.validators.append(validar_dui_sv)
+        nit_f = self.fields.get("nit_numero")
+        if nit_f:
+            nit_f.validators.append(validar_nit_sv)
         for fname in (
             "fecha_nacimiento",
             "dui_exp_fecha",
