@@ -555,7 +555,7 @@ a.button:hover {
   align-items: center;
 }
 
-/* Subir promesa PDF desde el listado de formatos (input oculto + etiqueta tipo botón) */
+/* Subir promesa PDF desde el listado (mismo aspecto que Editar/PDF) */
 .formato-list-promesa-form {
   position: relative;
   display: inline-flex;
@@ -563,22 +563,18 @@ a.button:hover {
   margin: 0;
   padding: 0;
 }
-.formato-list-promesa-input {
+/* No usar display:none: .click() desde el botón debe funcionar en todos los navegadores */
+.formato-list-promesa-file {
   position: absolute;
-  left: 0;
-  top: 0;
-  width: 0.01px;
-  height: 0.01px;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
   opacity: 0;
   overflow: hidden;
-  z-index: -1;
 }
-.formato-list-promesa-btn {
+button.link-action.formato-list-promesa-trigger {
   cursor: pointer;
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
+  font: inherit;
 }
 
 .link-action {

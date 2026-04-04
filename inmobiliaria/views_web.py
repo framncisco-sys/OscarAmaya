@@ -93,11 +93,13 @@ def _formato_aceptacion_promesa_column_ready() -> bool:
     col = "promesa_venta_escaneada"
     try:
         with connection.cursor() as cursor:
-            qn = connection.ops.quote_name
-            cursor.execute(f"SELECT {qn(col)} FROM {qn(table)} WHERE 0=1")
-        return True
+            desc = connection.introspection.get_table_description(cursor, table)
+        names = {getattr(row, "name", "") or "" for row in desc}
+        names_l = {n.lower() for n in names}
+        return col.lower() in names_l
     except Exception:
-        return False
+        # Si falla introspección, asumir columna presente: el listado ya usa defer y el botón debe verse.
+        return True
 
 
 def _formato_aceptacion_qs_contrato_pdf():

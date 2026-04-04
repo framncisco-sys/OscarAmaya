@@ -56,16 +56,17 @@
           <a href="{% url 'app:formato_aceptacion_promesa_descargar' f.pk %}" class="link-action" target="_blank" rel="noopener"
             title="Promesa de venta guardada (PDF)">Descargar promesa</a>
           {% endif %}
+          {% endif %}
           <form method="post" action="{% url 'app:formato_aceptacion_promesa_subir' f.pk %}" enctype="multipart/form-data" class="formato-list-promesa-form">
             {% csrf_token %}
             <input type="hidden" name="promesa_origen" value="lista">
-            <input type="file" name="promesa_venta_escaneada" id="promesa-pdf-{{ f.pk }}" class="formato-list-promesa-input"
+            <input type="file" name="promesa_venta_escaneada" id="promesa-pdf-{{ f.pk }}" class="formato-list-promesa-file"
               accept=".pdf,application/pdf"
               aria-label="Elegir PDF de promesa de venta para {{ f.nombre_cliente }}"
               onchange="if (this.files.length) this.form.submit();">
-            <label for="promesa-pdf-{{ f.pk }}" class="btn-secondary btn-sm formato-list-promesa-btn" title="Subir PDF de promesa de venta — {{ f.nombre_cliente }}">Subir promesa PDF</label>
+            <button type="button" class="link-action formato-list-promesa-trigger" title="Subir PDF de promesa de venta — {{ f.nombre_cliente }}"
+              onclick="document.getElementById('promesa-pdf-{{ f.pk }}').click();">Subir promesa PDF</button>
           </form>
-          {% endif %}
           <a href="{% url 'app:formato_aceptacion_delete' f.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a>
         </div>
       </td>
