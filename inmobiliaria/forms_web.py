@@ -904,6 +904,15 @@ class FormatoAceptacionForm(forms.ModelForm):
                 except ValueError:
                     pass
 
+    def clean(self):
+        cleaned = super().clean()
+        plazo_raw = (cleaned.get("plazo_txt") or "").strip()
+        if plazo_raw.isdigit():
+            y = int(plazo_raw)
+            if 0 <= y <= 50:
+                cleaned["num_cuota_txt"] = str(y * 12)
+        return cleaned
+
     def save(self, commit=True):
         import base64
         import uuid
