@@ -68,12 +68,7 @@
     }
     box.style.display = "block";
     setSpan("pago-fmt-num", opt.getAttribute("data-formato-numero"));
-    setSpan("pago-fmt-nombre", opt.getAttribute("data-formato-nombre"));
     var lett = opt.getAttribute("data-formato-letra-mensual") || "";
-    setSpan("pago-fmt-letra", lett ? "$" + lett : "—");
-    setSpan("pago-fmt-plazo", opt.getAttribute("data-formato-plazo"));
-    setSpan("pago-fmt-ncuotas", opt.getAttribute("data-formato-num-cuotas"));
-    setSpan("pago-fmt-interes", opt.getAttribute("data-formato-interes"));
     var url = opt.getAttribute("data-formato-edit-url") || "";
     if (link) {
       if (url) {
@@ -119,6 +114,19 @@
     if (elCli) elCli.textContent = cliente || "—";
     if (elCnum) elCnum.textContent = cnum || "—";
 
+    var fpl = opt.getAttribute("data-formato-plazo") || "";
+    var fnc = opt.getAttribute("data-formato-num-cuotas") || "";
+    var fin = opt.getAttribute("data-formato-interes") || "";
+    var elFmtFin = document.getElementById("pago-hint-fmt-fin");
+    if (elFmtFin) {
+      var parts = [fpl, fnc, fin].filter(function (p) {
+        return p && String(p).trim();
+      });
+      elFmtFin.textContent = parts.length
+        ? parts.join(" · ")
+        : "— (sin formato vinculado)";
+    }
+
     var nTotal = parseInt10(opt.getAttribute("data-n-cuotas-total"));
     var nPag = parseInt10(opt.getAttribute("data-n-cuotas-pagadas"));
     var elCnt = document.getElementById("pago-hint-cuotas-contador");
@@ -137,9 +145,20 @@
     }
 
     var cm = opt.getAttribute("data-cuota-mensual") || "";
+    var cmFuente = opt.getAttribute("data-cuota-mensual-fuente") || "";
     var elCuota = document.getElementById("pago-hint-cuota");
     if (elCuota) {
-      elCuota.textContent = cm ? "$" + cm : "No definida / sin financiamiento";
+      if (cm) {
+        var suf =
+          cmFuente === "formato"
+            ? " (formato de aceptación)"
+            : cmFuente === "contrato"
+              ? " (estimada del contrato; sin letra en formato)"
+              : "";
+        elCuota.textContent = "$" + cm + suf;
+      } else {
+        elCuota.textContent = "— (defina letra en el formato o cuota en el contrato)";
+      }
     }
 
     var pv = opt.getAttribute("data-prox-vence") || "";

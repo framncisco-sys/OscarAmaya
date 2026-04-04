@@ -245,6 +245,9 @@ class ContratoPagoSelect(forms.Select):
             c = self.catalog.get(key, {})
             option.setdefault("attrs", {})
             option["attrs"]["data-cuota-mensual"] = c.get("cuota_mensual", "")
+            option["attrs"]["data-cuota-mensual-fuente"] = c.get(
+                "cuota_mensual_fuente", ""
+            )
             option["attrs"]["data-prox-vence"] = c.get("prox_vence", "")
             option["attrs"]["data-prox-monto"] = c.get("prox_monto", "")
             option["attrs"]["data-prox-numero"] = c.get("prox_numero", "")
@@ -559,9 +562,9 @@ class PagoForm(forms.ModelForm):
         if ct:
             ct.label = "Contrato"
             ct.help_text = (
-                "Contrato al que aplica este pago. Al elegirlo se muestra el cliente, el formato de aceptación "
-                "si está vinculado, cuántas cuotas del calendario van pagadas y la siguiente pendiente. "
-                "Elija concepto «Cuota de financiamiento» para sugerir automáticamente el monto según ese calendario."
+                "Contrato al que aplica este pago. La referencia prioriza el formato de aceptación vinculado "
+                "(nombre del cliente, letra mensual, plazo y cuotas del formato); el calendario de cuotas del sistema "
+                "sigue siendo el que liquida al guardar como «Cuota de financiamiento»."
             )
             ct.queryset = Contrato.objects.select_related("cliente", "inmueble").order_by(
                 "-fecha_firma", "numero"
@@ -631,10 +634,22 @@ class PagoForm(forms.ModelForm):
                         fmt_plazo = (fmt.plazo_txt or "").strip()
                         fmt_nc = (fmt.num_cuota_txt or "").strip()
                         fmt_int = (fmt.interes_txt or "").strip()
+                    cliente_display = str(c.cliente)
+                    if fmt is not None and fmt_nom:
+                        cliente_display = fmt_nom
+                    cuota_ref = ""
+                    cuota_fuente = ""
+                    if fmt_letra:
+                        cuota_ref = fmt_letra
+                        cuota_fuente = "formato"
+                    elif cm is not None:
+                        cuota_ref = str(cm.quantize(Decimal("0.01")))
+                        cuota_fuente = "contrato"
                     catalog[str(c.pk)] = {
-                        "cliente": str(c.cliente),
+                        "cliente": cliente_display,
                         "contrato_numero": c.numero,
-                        "cuota_mensual": "" if cm is None else f"{cm.quantize(Decimal('0.01'))}",
+                        "cuota_mensual": cuota_ref,
+                        "cuota_mensual_fuente": cuota_fuente,
                         "prox_vence": first.vence_en.isoformat() if first else "",
                         "prox_monto": ""
                         if not first
