@@ -5,11 +5,17 @@
   <div class="page-toolbar__intro">
     <h1 class="page-title">Formato de aceptación</h1>
     <p class="page-toolbar__meta">
-      Formulario completo aparte del resto del sistema: puede crear formatos sin contrato o vincular uno opcionalmente. Firmas y PDF desde aquí.
+      <strong>No necesita ir a Contratos.</strong> Cree el documento aquí mismo: datos del impreso, referencias, crédito y tres firmas.
+      El vínculo con un contrato es <strong>opcional</strong> (se elige dentro del formulario).
+    </p>
+    <p class="page-toolbar__meta muted" style="margin-top:0.5rem;">
+      <a href="{% url 'app:formato_aceptacion_nuevo' %}" class="btn-primary btn-sm">Abrir formulario nuevo</a>
+      <span style="margin:0 0.35rem;">·</span>
+      <a href="{% url 'app:contrato_list' %}" class="link-action">Ir a contratos</a> (solo si quiere atajo con datos ya cargados).
     </p>
   </div>
   <div class="page-toolbar__actions">
-    <a href="{% url 'app:formato_aceptacion_nuevo' %}" class="btn-primary btn-sm">Nuevo formato</a>
+    <a href="{% url 'app:formato_aceptacion_nuevo' %}" class="btn-primary">Nuevo formato</a>
     <a href="{% url 'app:contrato_list' %}" class="btn-secondary btn-sm">Contratos</a>
   </div>
 </header>
@@ -21,7 +27,7 @@
       <th>Nº formulario</th>
       <th>Contrato</th>
       <th>Cliente</th>
-      <th>Inmueble</th>
+      <th>Inmueble / proyecto</th>
       <th>Firmas</th>
       <th></th>
     </tr>
@@ -32,7 +38,17 @@
       <td><strong>{{ f.numero_formulario|stringformat:"04d" }}</strong></td>
       <td>{% if f.contrato %}{{ f.contrato.numero }}{% else %}<span class="muted">—</span>{% endif %}</td>
       <td>{{ f.nombre_cliente }}</td>
-      <td class="muted">{{ f.contrato.inmueble.codigo }} — {{ f.contrato.inmueble.proyecto.nombre }}</td>
+      <td class="muted">
+        {% if f.contrato %}
+          {{ f.contrato.inmueble.codigo }} — {{ f.contrato.inmueble.proyecto.nombre }}
+        {% else %}
+          {% if f.num_lote or f.nombre_proyecto %}
+            {{ f.num_lote|default:"—" }}{% if f.nombre_proyecto %} — {{ f.nombre_proyecto }}{% endif %}
+          {% else %}
+            —
+          {% endif %}
+        {% endif %}
+      </td>
       <td>
         {% if f.firmas_completas %}
         <span class="badge badge--disponible">Listo PDF</span>
@@ -53,7 +69,13 @@
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="6" class="muted">Aún no hay formatos. Use <strong>Nuevo formato</strong> arriba.</td></tr>
+    <tr>
+      <td colspan="6" class="muted">
+        Todavía no hay formatos guardados.
+        Pulse <strong>Nuevo formato</strong> o <a href="{% url 'app:formato_aceptacion_nuevo' %}">abrir el formulario nuevo</a>
+        — no hace falta crear un contrato antes.
+      </td>
+    </tr>
     {% endfor %}
   </tbody>
 </table>
