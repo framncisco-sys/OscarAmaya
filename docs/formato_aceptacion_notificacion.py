@@ -91,16 +91,22 @@ def construir_url_whatsapp_formato_pdf(
     return f"https://wa.me/{tel}?text={urllib.parse.quote(texto)}"
 
 
-def enviar_formato_pdf_por_email(formato: "FormatoAceptacion", pdf_bytes: bytes) -> bool:
+def enviar_formato_pdf_por_email(
+    formato: "FormatoAceptacion", pdf_bytes: bytes
+) -> tuple[bool, str | None]:
+    """
+    Intenta enviar el PDF por correo.
+    Retorna (éxito, mensaje de error breve para mostrar al usuario si falló el envío SMTP).
+    """
     if not getattr(settings, "FORMATO_ACEPTACION_ENVIAR_EMAIL", True):
-        return False
+        return False, None
     destino = _email_destino_formato(formato)
     if not destino:
         logger.warning(
             "Formato Nº %s: sin correo del cliente (vincule contrato con email); no se envía PDF por correo.",
             formato.numero_formulario,
         )
-        return False
+        return False, None
     wa_url = construir_url_whatsapp_formato_pdf(formato, None)
     body = render_to_string(
         "docs/email_formato_aceptacion_pdf.txt",
@@ -131,10 +137,13 @@ def enviar_formato_pdf_por_email(formato: "FormatoAceptacion", pdf_bytes: bytes)
             formato.numero_formulario,
             destino,
         )
-        return True
+        return True, None
     except Exception as e:
         logger.exception("Formato Nº %s: fallo al enviar correo: %s", formato.numero_formulario, e)
-        return False
+        err = (str(e) or type(e).__name__).strip()
+        if len(err) > 380:
+            err = err[:377] + "…"
+        return False, err
 
 
 def _archivo_promesa_bytes_y_tipo(
@@ -252,11 +261,20 @@ def _enviar_promesa_whatsapp_twilio(formato: "FormatoAceptacion", media_url: str
 
 
 def _whatsapp_meta_activo_formato() -> bool:
-    return bool(
-        getattr(settings, "WHATSAPP_CLOUD_ENABLED", False)
-        and getattr(settings, "RECIBO_ENVIAR_WHATSAPP_META", False)
-        and getattr(settings, "FORMATO_ACEPTACION_ENVIAR_WHATSAPP_META", True)
-    )
+    """
+    WhatsApp Cloud para formato de aceptación: independiente de RECIBO_ENVIAR_WHATSAPP_META.
+    Basta WHATSAPP_CLOUD_ENABLED, credenciales válidas y FORMATO_ACEPTACION_ENVIAR_WHATSAPP_META.
+    """
+    if not getattr(settings, "WHATSAPP_CLOUD_ENABLED", False):
+        return False
+    if not getattr(settings, "FORMATO_ACEPTACION_ENVIAR_WHATSAPP_META", True):
+        return False
+    try:
+        from core.whatsapp_cloud import is_configured
+
+        return is_configured()
+    except Exception:
+        return False
 
 
 def notificar_formato_pdf_tras_guardado(
@@ -288,10 +306,11 @@ def notificar_formato_pdf_tras_guardado(
         )
         return
 
-    correo_ok = enviar_formato_pdf_por_email(formato, pdf_bytes)
+    correo_ok, correo_err = enviar_formato_pdf_por_email(formato, pdf_bytes)
     to = digitos_telefono_e164_sv(_telefono_destino_formato(formato))
     wa_ok = False
     wa_adjunto = False
+    wa_detalle: str | None = None
     if _whatsapp_meta_activo_formato() and to:
         try:
             from core.whatsapp_cloud import enviar_recibo_whatsapp_cloud
@@ -311,9 +330,12 @@ def notificar_formato_pdf_tras_guardado(
             wa_ok = bool(r.ok)
             wa_adjunto = bool(r.adjunto_pdf)
             if not r.ok:
-                logger.warning("Formato Nº %s WhatsApp: %s", formato.numero_formulario, r.detalle)
+                wa_detalle = (r.detalle or "").strip() or "Meta rechazó el envío (revise logs)."
+                logger.warning("Formato Nº %s WhatsApp: %s", formato.numero_formulario, wa_detalle)
         except Exception as e:
             logger.exception("Formato Nº %s: WhatsApp Meta: %s", formato.numero_formulario, e)
+            err = (str(e) or type(e).__name__).strip()
+            wa_detalle = err[:400] if err else "Error al llamar a la API de WhatsApp."
 
     partes: list[str] = []
     if correo_ok:
@@ -334,10 +356,30 @@ def notificar_formato_pdf_tras_guardado(
                 "PDF del formato listo; no se envió al cliente (sin correo ni teléfono registrados en contrato o formato).",
             )
         elif not correo_ok and not wa_ok:
-            messages.info(
-                request,
-                "PDF del formato generado; el envío automático no se completó (revise SMTP y WhatsApp Meta).",
+            hints: list[str] = []
+            if correo_err:
+                hints.append(f"Correo: {correo_err}")
+            elif _email_destino_formato(formato) and getattr(
+                settings, "FORMATO_ACEPTACION_ENVIAR_EMAIL", True
+            ):
+                hints.append(
+                    "Correo: revise SMTP (EMAIL_HOST, puerto, TLS) y credenciales de la cuenta remitente."
+                )
+            if wa_detalle:
+                hints.append(f"WhatsApp (Meta): {wa_detalle}")
+            elif to and getattr(settings, "WHATSAPP_CLOUD_ENABLED", False):
+                if not _whatsapp_meta_activo_formato():
+                    hints.append(
+                        "WhatsApp: complete WHATSAPP_CLOUD_ACCESS_TOKEN y WHATSAPP_CLOUD_PHONE_NUMBER_ID "
+                        "o desactive WHATSAPP_CLOUD_ENABLED si no usará Meta."
+                    )
+            msg_txt = (
+                "PDF del formato generado; el envío automático no se completó. "
+                "Revise SMTP y WhatsApp Cloud (Meta)."
             )
+            if hints:
+                msg_txt += " " + " · ".join(hints)
+            messages.warning(request, msg_txt)
 
 
 def notificar_promesa_escaneada_tras_subir(
