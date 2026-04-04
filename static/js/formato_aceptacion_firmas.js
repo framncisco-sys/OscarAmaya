@@ -1,137 +1,111 @@
 /**
- * Lienzos de firma para Formato de aceptación: trazo, limpiar y volcar PNG en inputs ocultos al enviar.
+ * Lienzos de firma para formato de aceptación: rellena campos ocultos con PNG en data URL al enviar.
  */
 (function () {
-  "use strict";
-
-  function getPos(canvas, e) {
-    var r = canvas.getBoundingClientRect();
-    var clientX = e.clientX;
-    var clientY = e.clientY;
-    if (e.touches && e.touches[0]) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
+  function canvasIsBlank(canvas) {
+    var ctx = canvas.getContext("2d");
+    var data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    for (var i = 3; i < data.length; i += 4) {
+      if (data[i] !== 0) return false;
     }
-    var scaleX = canvas.width / r.width;
-    var scaleY = canvas.height / r.height;
-    return {
-      x: (clientX - r.left) * scaleX,
-      y: (clientY - r.top) * scaleY,
-    };
+    return true;
   }
 
-  function initPad(canvas, hiddenInput, clearBtn, existingUrl) {
+  function bindCanvas(canvas) {
+    var form = canvas.closest("form");
+    if (!form) return;
+    var inputName = canvas.getAttribute("data-input-name");
+    if (!inputName) return;
+    var input = form.querySelector('[name="' + inputName + '"]');
+    if (!input) return;
+
     var ctx = canvas.getContext("2d");
-    var w = canvas.width;
-    var h = canvas.height;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, w, h);
-    ctx.strokeStyle = "#0f172a";
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-
     var drawing = false;
-    var dirty = false;
+    var last = null;
 
-    function drawStart(e) {
-      drawing = true;
-      var p = getPos(canvas, e);
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      dirty = true;
+    function pos(ev) {
+      var rect = canvas.getBoundingClientRect();
+      var scaleX = canvas.width / rect.width;
+      var scaleY = canvas.height / rect.height;
+      var clientX = ev.clientX;
+      var clientY = ev.clientY;
+      if (ev.touches && ev.touches[0]) {
+        clientX = ev.touches[0].clientX;
+        clientY = ev.touches[0].clientY;
+      }
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY,
+      };
     }
 
-    function drawMove(e) {
+    function start(ev) {
+      ev.preventDefault();
+      drawing = true;
+      last = pos(ev);
+    }
+
+    function move(ev) {
       if (!drawing) return;
-      var p = getPos(canvas, e);
+      ev.preventDefault();
+      var p = pos(ev);
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
       ctx.lineTo(p.x, p.y);
       ctx.stroke();
+      last = p;
     }
 
-    function drawEnd() {
+    function end(ev) {
+      if (ev) ev.preventDefault();
       drawing = false;
+      last = null;
     }
 
-    canvas.addEventListener("mousedown", drawStart);
-    canvas.addEventListener("mousemove", drawMove);
-    window.addEventListener("mouseup", drawEnd);
+    canvas.addEventListener("mousedown", start);
+    canvas.addEventListener("mousemove", move);
+    canvas.addEventListener("mouseup", end);
+    canvas.addEventListener("mouseleave", end);
+    canvas.addEventListener("touchstart", start, { passive: false });
+    canvas.addEventListener("touchmove", move, { passive: false });
+    canvas.addEventListener("touchend", end);
+    canvas.addEventListener("touchcancel", end);
 
-    canvas.addEventListener(
-      "touchstart",
-      function (e) {
-        e.preventDefault();
-        drawStart(e);
-      },
-      { passive: false }
-    );
-    canvas.addEventListener(
-      "touchmove",
-      function (e) {
-        e.preventDefault();
-        drawMove(e);
-      },
-      { passive: false }
-    );
-    canvas.addEventListener("touchend", drawEnd);
-    canvas.addEventListener("touchcancel", drawEnd);
-
-    if (existingUrl) {
-      var img = new Image();
-      img.onload = function () {
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, w, h);
-        ctx.drawImage(img, 0, 0, w, h);
-        dirty = false;
-      };
-      img.onerror = function () {};
-      img.src = existingUrl;
+    var wrap = canvas.closest(".formato-firma-block");
+    if (wrap) {
+      var clearBtn = wrap.querySelector(".formato-firma-clear");
+      if (clearBtn) {
+        clearBtn.addEventListener("click", function () {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          input.value = "";
+        });
+      }
     }
-
-    if (clearBtn) {
-      clearBtn.addEventListener("click", function () {
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, w, h);
-        dirty = false;
-        hiddenInput.value = "";
-      });
-    }
-
-    return {
-      commit: function () {
-        if (dirty) {
-          hiddenInput.value = canvas.toDataURL("image/png");
-        }
-      },
-    };
   }
 
-  function boot() {
-    var form = document.querySelector("form.js-formato-aceptacion-form");
-    if (!form) return;
-
-    var pads = [];
-    var nodes = form.querySelectorAll("[data-sig-canvas]");
-    for (var i = 0; i < nodes.length; i++) {
-      var wrap = nodes[i];
-      var canvas = wrap.querySelector("canvas");
-      var hidden = wrap.querySelector('input[type="hidden"]');
-      var clearBtn = wrap.querySelector("[data-sig-clear]");
-      if (!canvas || !hidden) continue;
-      var url = (wrap.getAttribute("data-existing-url") || "").trim();
-      pads.push(initPad(canvas, hidden, clearBtn, url || null));
-    }
-
-    form.addEventListener("submit", function () {
-      for (var j = 0; j < pads.length; j++) {
-        pads[j].commit();
+  function onSubmit(form) {
+    form.querySelectorAll(".formato-firma-canvas").forEach(function (canvas) {
+      var inputName = canvas.getAttribute("data-input-name");
+      if (!inputName) return;
+      var input = form.querySelector('[name="' + inputName + '"]');
+      if (!input) return;
+      if (!canvasIsBlank(canvas)) {
+        input.value = canvas.toDataURL("image/png");
       }
     });
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
-  } else {
-    boot();
-  }
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".formato-firma-canvas").forEach(bindCanvas);
+    var form = document.getElementById("formato-aceptacion-form");
+    if (form) {
+      form.addEventListener("submit", function () {
+        onSubmit(form);
+      });
+    }
+  });
 })();

@@ -1,17 +1,14 @@
 """Vistas web minimalistas (azul / blanco / gris) — gestión sin depender del admin."""
 
 import base64
-import binascii
 import csv
 import html
 import json
 import mimetypes
-import re
 from decimal import Decimal
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.core.files.base import ContentFile
 from django.contrib import messages
 from django.forms import ValidationError
 from django.contrib.auth.decorators import login_required
@@ -57,53 +54,6 @@ from .models import (
 )
 
 
-_MAX_FIRMA_CANVAS_BYTES = 2 * 1024 * 1024
-
-
-def _firma_desde_data_uri_canvas(data: str) -> ContentFile | None:
-    """Decodifica data URL PNG/JPEG del lienzo de firma; None si es inválida o demasiado grande."""
-    if not data or not isinstance(data, str):
-        return None
-    data = data.strip()
-    m = re.match(
-        r"^data:image/(png|jpeg|jpg);base64,([A-Za-z0-9+/=\r\n]+)$",
-        data,
-        re.IGNORECASE,
-    )
-    if not m:
-        return None
-    b64 = re.sub(r"\s+", "", m.group(2))
-    try:
-        raw = base64.b64decode(b64, validate=True)
-    except (ValueError, binascii.Error):
-        return None
-    if len(raw) > _MAX_FIRMA_CANVAS_BYTES or len(raw) < 32:
-        return None
-    ext = "png" if m.group(1).lower() == "png" else "jpg"
-    return ContentFile(raw, name=f"firma.{ext}")
-
-
-def _adjuntar_firmas_formato_desde_post(request: HttpRequest, formato: FormatoAceptacion) -> None:
-    """Persiste imágenes enviadas por los lienzos (solo si vienen datos nuevos en POST)."""
-    pairs = (
-        ("sig_canvas_firma_aceptante", "firma_aceptante"),
-        ("sig_canvas_firma_vendedor", "firma_vendedor"),
-        ("sig_canvas_firma_autorizado", "firma_autorizado"),
-    )
-    update_fields: list[str] = []
-    for post_key, attr in pairs:
-        raw = (request.POST.get(post_key) or "").strip()
-        if not raw:
-            continue
-        cf = _firma_desde_data_uri_canvas(raw)
-        if cf is None:
-            continue
-        setattr(formato, attr, cf)
-        update_fields.append(attr)
-    if update_fields:
-        formato.save(update_fields=update_fields)
-
-
 def _firma_a_data_uri(field_file) -> str | None:
     if not field_file or not field_file.name:
         return None
@@ -118,6 +68,82 @@ def _firma_a_data_uri(field_file) -> str | None:
             pass
     mime = mimetypes.guess_type(field_file.name)[0] or "image/png"
     return f"data:{mime};base64,{base64.b64encode(raw).decode('ascii')}"
+
+
+def _formato_firmas_completas(formato: FormatoAceptacion) -> bool:
+    for attr in ("firma_aceptante", "firma_vendedor", "firma_autorizado"):
+        f = getattr(formato, attr)
+        if not f or not f.name:
+            return False
+    return True
+
+
+def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list[dict]:
+    """Agrupa campos del formato impreso para el template (sin campos ocultos de lienzo)."""
+    G = form.__getitem__
+    return [
+        {
+            "title": "Datos personales",
+            "rows": [
+                [G("nombre_cliente")],
+                [G("lugar_fecha_nacimiento")],
+                [G("dui_numero"), G("dui_exp_lugar_fecha"), G("nit_numero")],
+                [G("direccion_domicilio"), G("telefono_domicilio")],
+                [G("direccion_notificacion"), G("telefono_notificacion")],
+                [G("trabaja_lo_propio"), G("nombre_empresa_trabajo")],
+                [G("direccion_trabajo"), G("telefono_trabajo")],
+                [G("cargo"), G("sueldo")],
+                [G("num_familia_grupo"), G("num_personas_trabajan"), G("num_personas_estudian")],
+            ],
+        },
+        {
+            "title": "Referencias comerciales",
+            "rows": [
+                [G("ref_com_nombre_1"), G("ref_com_tel_1"), G("ref_com_obs_1")],
+                [G("ref_com_nombre_2"), G("ref_com_tel_2"), G("ref_com_obs_2")],
+                [G("ref_com_nombre_3"), G("ref_com_tel_3"), G("ref_com_obs_3")],
+            ],
+        },
+        {
+            "title": "Referencias personales",
+            "rows": [
+                [G("ref_per_nombre_1"), G("ref_per_tel_1"), G("ref_per_obs_1")],
+                [G("ref_per_nombre_2"), G("ref_per_tel_2"), G("ref_per_obs_2")],
+                [G("ref_per_nombre_3"), G("ref_per_tel_3"), G("ref_per_obs_3")],
+            ],
+        },
+        {
+            "title": "Datos del terreno",
+            "rows": [
+                [G("nombre_proyecto")],
+                [G("direccion_terreno")],
+            ],
+        },
+        {
+            "title": "Datos del crédito",
+            "rows": [
+                [G("num_lote"), G("poligono_txt"), G("area_m2_txt"), G("area_v2_txt")],
+                [G("prima_1"), G("valor_inmueble")],
+                [G("prima_2"), G("valor_financiamiento"), G("letra_mensual")],
+                [G("plazo_txt"), G("num_cuota_txt"), G("interes_txt")],
+                [G("fecha_primera_cuota"), G("fecha_pago_mensual")],
+                [G("lugar_pago")],
+            ],
+        },
+        {
+            "title": "Beneficiarios",
+            "rows": [
+                [G("ben_nombre_1"), G("ben_parentesco_1")],
+                [G("ben_nombre_2"), G("ben_parentesco_2")],
+            ],
+        },
+        {
+            "title": "Cierre",
+            "rows": [
+                [G("elaborado_por"), G("lugar_y_fecha")],
+            ],
+        },
+    ]
 
 
 def _mapa_planos_proyectos():
@@ -725,9 +751,7 @@ class FormatoAceptacionCreateView(AppLoginRequiredMixin, CreateView):
         form.instance.contrato = self.contrato
         form.instance.creado_por = self.request.user
         messages.success(self.request, "Formato de aceptación guardado.")
-        self.object = form.save()
-        _adjuntar_firmas_formato_desde_post(self.request, self.object)
-        return HttpResponseRedirect(self.get_success_url())
+        return super().form_valid(form)
 
     def get_success_url(self):
         return reverse("app:formato_aceptacion_edit", kwargs={"pk": self.object.pk})
@@ -737,9 +761,11 @@ class FormatoAceptacionCreateView(AppLoginRequiredMixin, CreateView):
         assert self.contrato is not None
         ctx["form_title"] = "Formato de aceptación (nuevo)"
         ctx["cancel_url"] = reverse("app:contrato_update", kwargs={"pk": self.contrato.pk})
+        ctx["form_multipart"] = True
         ctx["contrato_ref"] = self.contrato
         ctx["firmas_completas"] = False
-        ctx["formato_instance"] = None
+        form = ctx.get("form") or self.get_form()
+        ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
         return ctx
 
 
@@ -756,9 +782,7 @@ class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
 
     def form_valid(self, form):
         messages.success(self.request, "Cambios guardados.")
-        self.object = form.save()
-        _adjuntar_firmas_formato_desde_post(self.request, self.object)
-        return HttpResponseRedirect(self.get_success_url())
+        return super().form_valid(form)
 
     def get_success_url(self):
         return reverse("app:formato_aceptacion_edit", kwargs={"pk": self.object.pk})
@@ -772,16 +796,14 @@ class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
         ctx["cancel_url"] = reverse(
             "app:contrato_update", kwargs={"pk": self.object.contrato_id}
         )
+        ctx["form_multipart"] = True
         ctx["formato_pdf_url"] = reverse(
             "app:formato_aceptacion_pdf", kwargs={"pk": self.object.pk}
         )
         ctx["contrato_ref"] = self.object.contrato
-        ctx["firmas_completas"] = bool(
-            self.object.firma_aceptante
-            and self.object.firma_vendedor
-            and self.object.firma_autorizado
-        )
-        ctx["formato_instance"] = self.object
+        ctx["firmas_completas"] = _formato_firmas_completas(self.object)
+        form = ctx.get("form") or self.get_form()
+        ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
         return ctx
 
 
@@ -796,26 +818,30 @@ def formato_aceptacion_pdf(request: HttpRequest, pk: int) -> HttpResponse:
         ),
         pk=pk,
     )
-    if not (
-        formato.firma_aceptante
-        and formato.firma_vendedor
-        and formato.firma_autorizado
-    ):
+    if not _formato_firmas_completas(formato):
         messages.error(
             request,
-            "Debe guardar el formato con las tres firmas trazadas (aceptante, vendedor y autorizado) "
-            "antes de generar el PDF. Pulse «Guardar» en el formulario después de firmar en cada recuadro.",
+            "Guarde el formulario con las tres firmas dibujadas (aceptante, vendedor y autorizado) "
+            "antes de generar el PDF.",
         )
         return HttpResponseRedirect(
-            reverse("app:formato_aceptacion_edit", kwargs={"pk": formato.pk})
+            reverse("app:formato_aceptacion_edit", kwargs={"pk": pk})
         )
+    inv = formato.contrato.inmueble
     ctx = {
         "formato": formato,
+        "proyecto": inv.proyecto,
+        "razon_social": getattr(
+            settings,
+            "PBR_PROMESA_RAZON_SOCIAL_VENDEDOR",
+            "PAREDES BIENES RAÍCES",
+        ),
         "direccion_empresa": getattr(
             settings,
             "PBR_FORMATO_ACEPTACION_DIRECCION",
             "16 Calle Ote. Pol. C-1 #24. Col. El Molino. San Miguel. Tel. 7547-0186",
         ),
+        "pie_inmobiliaria": "Formato de aceptación — documento interno",
         "firma_aceptante_datauri": _firma_a_data_uri(formato.firma_aceptante),
         "firma_vendedor_datauri": _firma_a_data_uri(formato.firma_vendedor),
         "firma_autorizado_datauri": _firma_a_data_uri(formato.firma_autorizado),

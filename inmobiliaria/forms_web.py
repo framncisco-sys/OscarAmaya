@@ -1,5 +1,6 @@
 """Formularios para la interfaz web (sin admin)."""
 
+import binascii
 import json
 from datetime import date
 from decimal import Decimal
@@ -826,32 +827,34 @@ def initial_formato_aceptacion_desde_contrato(contrato: Contrato) -> dict:
     }
 
 
+_FORMATO_ACEPTACION_EXCLUDE = (
+    "id",
+    "contrato",
+    "numero_formulario",
+    "creado_por",
+    "creado_en",
+    "actualizado_en",
+    "firma_aceptante",
+    "firma_vendedor",
+    "firma_autorizado",
+)
 _FORMATO_ACEPTACION_FIELDS = [
     f.name
     for f in FormatoAceptacion._meta.fields
-    if f.name
-    not in (
-        "id",
-        "contrato",
-        "numero_formulario",
-        "creado_por",
-        "creado_en",
-        "actualizado_en",
-    )
-]
-
-# Las firmas se capturan con lienzo (canvas) y se envían en POST; no usan FileInput del ModelForm.
-_FORMATO_ACEPTACION_FORM_FIELDS = [
-    n
-    for n in _FORMATO_ACEPTACION_FIELDS
-    if n not in ("firma_aceptante", "firma_vendedor", "firma_autorizado")
+    if f.name not in _FORMATO_ACEPTACION_EXCLUDE
 ]
 
 
 class FormatoAceptacionForm(forms.ModelForm):
+    """Las firmas se capturan con lienzo (PNG en base64) vía campos ocultos *_canvas."""
+
+    firma_aceptante_canvas = forms.CharField(required=False, widget=forms.HiddenInput)
+    firma_vendedor_canvas = forms.CharField(required=False, widget=forms.HiddenInput)
+    firma_autorizado_canvas = forms.CharField(required=False, widget=forms.HiddenInput)
+
     class Meta:
         model = FormatoAceptacion
-        fields = _FORMATO_ACEPTACION_FORM_FIELDS
+        fields = _FORMATO_ACEPTACION_FIELDS
         widgets = {
             "direccion_domicilio": forms.Textarea(attrs={"rows": 2}),
             "direccion_notificacion": forms.Textarea(attrs={"rows": 2}),
@@ -878,3 +881,36 @@ class FormatoAceptacionForm(forms.ModelForm):
             f = self.fields.get(fname)
             if f and not (f.help_text or "").strip():
                 f.help_text = f"<strong>{title}</strong>"
+
+    def save(self, commit=True):
+        import base64
+        import uuid
+
+        from django.core.files.base import ContentFile
+
+        instance = super().save(commit=False)
+
+        def _apply_firma_desde_canvas(attr: str, canvas_key: str) -> None:
+            raw = (self.cleaned_data.get(canvas_key) or "").strip()
+            if not raw:
+                return
+            if raw.startswith("data:image") and "," in raw:
+                _, b64 = raw.split(",", 1)
+            else:
+                b64 = raw
+            try:
+                data = base64.b64decode(b64, validate=False)
+            except (ValueError, TypeError, binascii.Error):
+                return
+            if len(data) < 80:
+                return
+            name = f"{attr}_{uuid.uuid4().hex[:12]}.png"
+            getattr(instance, attr).save(name, ContentFile(data), save=False)
+
+        _apply_firma_desde_canvas("firma_aceptante", "firma_aceptante_canvas")
+        _apply_firma_desde_canvas("firma_vendedor", "firma_vendedor_canvas")
+        _apply_firma_desde_canvas("firma_autorizado", "firma_autorizado_canvas")
+
+        if commit:
+            instance.save()
+        return instance
