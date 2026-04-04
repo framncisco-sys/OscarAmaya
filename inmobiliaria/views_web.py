@@ -99,6 +99,15 @@ def _proyecto_para_pdf_formato(formato: FormatoAceptacion):
     )
 
 
+def _proyectos_para_formato_aceptacion() -> list[dict]:
+    """Catálogo para el selector que rellena nombre y dirección del terreno en el formato."""
+    return list(
+        Proyecto.objects.filter(activo=True)
+        .order_by("nombre")
+        .values("id", "nombre", "direccion")
+    )
+
+
 def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list[dict]:
     """Agrupa campos del formato impreso para el template (sin campos ocultos de lienzo)."""
     G = form.__getitem__
@@ -763,6 +772,7 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
         ctx["form_multipart"] = True
         ctx["firmas_completas"] = False
         ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
+        ctx["proyectos_formato"] = _proyectos_para_formato_aceptacion()
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
         return ctx
@@ -813,6 +823,7 @@ class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
         )
         ctx["firmas_completas"] = self.object.firmas_completas
         ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
+        ctx["proyectos_formato"] = _proyectos_para_formato_aceptacion()
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
         return ctx
