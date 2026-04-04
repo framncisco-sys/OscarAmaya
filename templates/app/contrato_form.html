@@ -10,12 +10,16 @@
 </p>
 <p class="page-lead">
   {% if object.formato_aceptacion %}
-  <a href="{% url 'app:formato_aceptacion_edit' object.formato_aceptacion.pk %}" class="btn-secondary btn-sm">Formato de aceptación</a>
-  <a href="{% url 'app:formato_aceptacion_pdf' object.formato_aceptacion.pk %}" class="link-action btn-sm" style="margin-left:0.5rem;">PDF</a>
+  <a href="{% url 'app:formato_aceptacion_edit' object.formato_aceptacion.pk %}" class="btn-primary btn-sm">Formato de aceptación (ingreso)</a>
+  <a href="{% url 'app:formato_aceptacion_pdf' object.formato_aceptacion.pk %}" class="btn-secondary btn-sm" style="margin-left:0.35rem;">PDF</a>
   {% else %}
-  <a href="{% url 'app:formato_aceptacion_create' object.pk %}" class="btn-secondary btn-sm">Crear formato de aceptación</a>
+  <a href="{% url 'app:formato_aceptacion_create' object.pk %}" class="btn-primary btn-sm">Formato de aceptación (ingreso)</a>
   {% endif %}
-  <span class="muted"> — Hoja contractual con datos del cliente, crédito y firmas (imagen).</span>
+  <span class="muted"> — Mismo formato en papel: datos personales, referencias, crédito y tres firmas.</span>
+</p>
+{% else %}
+<p class="page-lead muted">
+  Guarde el contrato una vez para habilitar el <strong>Formato de aceptación (ingreso)</strong> aquí y en la lista de contratos.
 </p>
 {% endif %}
 {% endblock %}

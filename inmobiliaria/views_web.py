@@ -499,7 +499,12 @@ class ContratoListView(AppLoginRequiredMixin, ListView):
     context_object_name = "items"
     paginate_by = 25
     queryset = Contrato.objects.select_related(
-        "cliente", "inmueble", "inmueble__proyecto", "vendedor", "vendedor_perfil"
+        "cliente",
+        "inmueble",
+        "inmueble__proyecto",
+        "vendedor",
+        "vendedor_perfil",
+        "formato_aceptacion",
     )
 
 
