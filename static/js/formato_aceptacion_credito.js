@@ -41,6 +41,51 @@
     return (P * r * pow) / (pow - 1);
   }
 
+  function parseDateInputValue(s) {
+    var t = String(s || "").trim();
+    if (!t) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+      var p = t.split("-");
+      var y = parseInt(p[0], 10);
+      var mo = parseInt(p[1], 10) - 1;
+      var d = parseInt(p[2], 10);
+      var dt = new Date(y, mo, d);
+      return isFinite(dt.getTime()) ? dt : null;
+    }
+    var m = t.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/);
+    if (m) {
+      var d0 = parseInt(m[1], 10);
+      var m0 = parseInt(m[2], 10) - 1;
+      var y0 = parseInt(m[3], 10);
+      if (y0 < 100) y0 += 2000;
+      var dt2 = new Date(y0, m0, d0);
+      return isFinite(dt2.getTime()) ? dt2 : null;
+    }
+    return null;
+  }
+
+  function addMonthsDate(d, months) {
+    if (!d || !isFinite(d.getTime())) return null;
+    var day = d.getDate();
+    var totalM = d.getMonth() + months;
+    var y = d.getFullYear() + Math.floor(totalM / 12);
+    var nm = ((totalM % 12) + 12) % 12;
+    var last = new Date(y, nm + 1, 0).getDate();
+    return new Date(y, nm, Math.min(day, last));
+  }
+
+  function fmtDMY(d) {
+    if (!d || !isFinite(d.getTime())) return "—";
+    var dd = String(d.getDate()).padStart(2, "0");
+    var mm = String(d.getMonth() + 1).padStart(2, "0");
+    return dd + "/" + mm + "/" + d.getFullYear();
+  }
+
+  function fmtMoney(n) {
+    if (!isFinite(n) || n <= 0) return "—";
+    return "$" + n.toFixed(2);
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     var proyectos = parseJSONScript("formato-proyectos-data") || [];
     var cat = parseJSONScript("formato-catalogo-inmuebles-data") || {};
@@ -66,6 +111,11 @@
     var numCuota = document.getElementById("id_num_cuota_txt");
     var interes = document.getElementById("id_interes_txt");
     var obsFin = document.getElementById("id_observaciones_financiamiento");
+    var fechaPrimera = document.getElementById("id_fecha_primera_cuota");
+    var fechaPagoMensual = document.getElementById("id_fecha_pago_mensual");
+    var prima1Fecha = document.getElementById("id_prima_1_fecha");
+    var prima2Fecha = document.getElementById("id_prima_2_fecha");
+    var tbodyListado = document.getElementById("fmt-listado-cuotas-body");
 
     var mapOk = !!(selPol && selLote && hidLote && hidPol);
 
@@ -275,6 +325,99 @@
       obsFin.addEventListener("blur", aplicarTextoObservacionesFinanciamiento);
     }
 
+    function nCuotasDesdeFormulario() {
+      var raw = numCuota && numCuota.value ? String(numCuota.value).trim() : "";
+      if (raw && /^\d+$/.test(raw)) {
+        var n = parseInt(raw, 10);
+        return n > 0 ? n : null;
+      }
+      if (plazo && plazo.value) {
+        var y = parseInt(String(plazo.value).trim(), 10);
+        if (isFinite(y) && y > 0 && y <= 50) return y * 12;
+      }
+      return null;
+    }
+
+    function letraParaListado(n) {
+      var L = letra && letra.value ? parseFloat(String(letra.value).replace(/,/g, "")) : NaN;
+      if (isFinite(L) && L > 0) return L;
+      var vf = parseMoney(valorFin);
+      if (isFinite(vf) && vf > 0 && n > 0) return Math.round((vf / n) * 100) / 100;
+      return null;
+    }
+
+    function rebuildListadoCuotas() {
+      if (!tbodyListado) return;
+      tbodyListado.innerHTML = "";
+      var linea = 0;
+      function appendRow(concepto, fechaStr, montoStr) {
+        linea += 1;
+        var tr = document.createElement("tr");
+        tr.innerHTML =
+          "<td style=\"padding:0.35rem 0.5rem;border:1px solid #e2e8f0;\">" +
+          linea +
+          "</td><td style=\"padding:0.35rem 0.5rem;border:1px solid #e2e8f0;\">" +
+          concepto +
+          "</td><td style=\"padding:0.35rem 0.5rem;border:1px solid #e2e8f0;\">" +
+          fechaStr +
+          "</td><td style=\"padding:0.35rem 0.5rem;border:1px solid #e2e8f0;text-align:right;\">" +
+          montoStr +
+          "</td>";
+        tbodyListado.appendChild(tr);
+      }
+
+      var p1 = parseMoney(prima1);
+      var p2 = parseMoney(prima2);
+      var f1 = prima1Fecha && prima1Fecha.value ? parseDateInputValue(prima1Fecha.value) : null;
+      var f2 = prima2Fecha && prima2Fecha.value ? parseDateInputValue(prima2Fecha.value) : null;
+      if (p1 > 0 || f1) {
+        appendRow("Prima 1", fmtDMY(f1), p1 > 0 ? fmtMoney(p1) : "—");
+      }
+      if (p2 > 0 || f2) {
+        appendRow("Prima 2", fmtDMY(f2), p2 > 0 ? fmtMoney(p2) : "—");
+      }
+
+      var n = nCuotasDesdeFormulario();
+      var fecha0 =
+        (fechaPrimera && fechaPrimera.value ? parseDateInputValue(fechaPrimera.value) : null) ||
+        (fechaPagoMensual && fechaPagoMensual.value ? parseDateInputValue(fechaPagoMensual.value) : null);
+      if (n && fecha0) {
+        var letraN = letraParaListado(n);
+        var i;
+        for (i = 0; i < n; i += 1) {
+          var vd = addMonthsDate(fecha0, i);
+          appendRow("Cuota " + (i + 1), fmtDMY(vd), letraN !== null ? fmtMoney(letraN) : "—");
+        }
+      }
+
+      if (linea === 0) {
+        var tr0 = document.createElement("tr");
+        tr0.innerHTML =
+          "<td colspan=\"4\" class=\"muted\" style=\"padding:0.45rem 0.5rem;border:1px solid #e2e8f0;font-size:0.82rem;\">" +
+          "Indique primas (monto o fecha), fecha de primera cuota o «Fecha de pago mensual», y plazo o número de cuotas para ver el plan.</td>";
+        tbodyListado.appendChild(tr0);
+      }
+    }
+
+    var listadoWatch = [
+      prima1,
+      prima2,
+      prima1Fecha,
+      prima2Fecha,
+      fechaPrimera,
+      fechaPagoMensual,
+      numCuota,
+      plazo,
+      letra,
+      valorFin,
+    ];
+    listadoWatch.forEach(function (el) {
+      if (!el) return;
+      el.addEventListener("input", rebuildListadoCuotas);
+      el.addEventListener("change", rebuildListadoCuotas);
+    });
+
     recalcFin();
+    rebuildListadoCuotas();
   });
 })();

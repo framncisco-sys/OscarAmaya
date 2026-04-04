@@ -6,6 +6,7 @@ import calendar
 import re
 from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
+from typing import Any
 
 from .models import Contrato, CuotaProgramada, FormatoAceptacion
 
@@ -98,3 +99,65 @@ def construir_cuotas_programadas(
             )
         )
     return out
+
+
+def _n_cuotas_desde_formato(fmt: FormatoAceptacion) -> int | None:
+    raw = (fmt.num_cuota_txt or "").strip()
+    if raw.isdigit():
+        n = int(raw)
+        return n if n > 0 else None
+    plazo = (fmt.plazo_txt or "").strip()
+    if plazo.isdigit():
+        y = int(plazo)
+        if 0 < y <= 50:
+            return y * 12
+    return None
+
+
+def _letra_mensual_listado(fmt: FormatoAceptacion, n_cuotas: int) -> Decimal | None:
+    letra = fmt.letra_mensual
+    if letra is not None and letra > 0:
+        return letra.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    vf = fmt.valor_financiamiento
+    if vf is not None and vf > 0 and n_cuotas > 0:
+        return (vf / Decimal(n_cuotas)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return None
+
+
+def filas_listado_cuotas_formato_aceptacion(fmt: FormatoAceptacion) -> list[dict[str, Any]]:
+    """
+    Filas para «listado de cuotas a pagar»: primas (con fecha) y luego cuotas mensuales
+    (mismo día de cada mes desde fecha primera cuota).
+    """
+    rows: list[dict[str, Any]] = []
+    linea = 0
+
+    def append_row(concepto: str, fecha: date | None, monto: Decimal | None) -> None:
+        nonlocal linea
+        linea += 1
+        rows.append({"linea": linea, "concepto": concepto, "fecha": fecha, "monto": monto})
+
+    p1 = fmt.prima_1
+    if (p1 is not None and p1 > 0) or fmt.prima_1_fecha is not None:
+        m1 = p1 if p1 is not None and p1 > 0 else None
+        append_row("Prima 1", fmt.prima_1_fecha, m1)
+    p2 = fmt.prima_2
+    if (p2 is not None and p2 > 0) or fmt.prima_2_fecha is not None:
+        m2 = p2 if p2 is not None and p2 > 0 else None
+        append_row("Prima 2", fmt.prima_2_fecha, m2)
+
+    n_cuotas = _n_cuotas_desde_formato(fmt)
+    if not n_cuotas:
+        return rows
+
+    fecha0 = fmt.fecha_primera_cuota or _parse_fecha_texto_formato(
+        fmt.fecha_pago_mensual or ""
+    )
+    if not fecha0:
+        return rows
+
+    letra = _letra_mensual_listado(fmt, n_cuotas)
+    for i in range(n_cuotas):
+        append_row(f"Cuota {i + 1}", add_months(fecha0, i), letra)
+
+    return rows

@@ -71,6 +71,7 @@ from core.sensitive_access import (
 from . import forms_web as forms
 from .cuotas_calendario import (
     construir_cuotas_programadas,
+    filas_listado_cuotas_formato_aceptacion,
     fecha_primera_cuota_desde_formato_contrato,
     monto_uniforme_por_cuota,
 )
@@ -261,6 +262,7 @@ def _generar_pdf_formato_aceptacion_bytes(formato: FormatoAceptacion) -> bytes:
             "firma_vendedor_src": uri_v,
             "firma_autorizado_src": uri_z,
             "formato_pdf_credito_extra_bd": formato_aceptacion_credito_extra_columns_ready(),
+            "formato_listado_cuotas": filas_listado_cuotas_formato_aceptacion(formato),
         }
         return generar_pdf_desde_plantilla(
             template_name="docs/formato_aceptacion_pdf.html",

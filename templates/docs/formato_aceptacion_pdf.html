@@ -160,6 +160,26 @@
   {% endif %}
 </table>
 
+<p class="fa-sect">Listado de cuotas a pagar (referencia)</p>
+<table class="fa-grid">
+  <tr>
+    <th style="width:8%;">N.º</th>
+    <th style="width:32%;">Concepto</th>
+    <th style="width:28%;">Fecha vencimiento / pago</th>
+    <th style="width:32%;text-align:right;">Monto</th>
+  </tr>
+  {% for r in formato_listado_cuotas %}
+  <tr>
+    <td class="fa-val">{{ r.linea }}</td>
+    <td class="fa-val">{{ r.concepto }}</td>
+    <td class="fa-val">{% if r.fecha %}{{ r.fecha|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+    <td class="fa-val" style="text-align:right;">{% if r.monto is not None %}${{ r.monto|floatformat:2 }}{% else %}—{% endif %}</td>
+  </tr>
+  {% empty %}
+  <tr><td class="fa-val" colspan="4">Complete primas (monto o fecha), fecha de primera cuota (o «Fecha de pago mensual») y número de cuotas o plazo para armar el calendario.</td></tr>
+  {% endfor %}
+</table>
+
 <p class="fa-sect">Beneficiarios</p>
 <table class="fa-grid">
   <tr><th>Nombre</th><th>Parentesco</th><th>%</th></tr>
