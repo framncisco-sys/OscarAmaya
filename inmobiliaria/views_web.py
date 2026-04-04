@@ -1120,6 +1120,11 @@ class FormatoAceptacionListView(AppLoginRequiredMixin, ListView):
             .defer("promesa_venta_escaneada")
         )
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["formato_promesa_lista_ok"] = _formato_aceptacion_promesa_column_ready()
+        return ctx
+
 
 class FormatoAceptacionUpdateView(
     AppLoginRequiredMixin, FormatoSuperuserGateMixin, UpdateView
@@ -1284,7 +1289,12 @@ def formato_aceptacion_promesa_subir(request: HttpRequest, pk: int) -> HttpRespo
         nxt = request.get_full_path()
         gate = f"{reverse('app:formato_superuser_gate')}?{urlencode({'next': nxt})}"
         return HttpResponseRedirect(gate)
-    redir = reverse("app:formato_aceptacion_edit", kwargs={"pk": pk})
+    use_list = (request.POST.get("promesa_origen") or "").strip() == "lista"
+    redir = (
+        reverse("app:formato_aceptacion_list")
+        if use_list
+        else reverse("app:formato_aceptacion_edit", kwargs={"pk": pk})
+    )
     if not _formato_aceptacion_promesa_column_ready():
         messages.error(
             request,
