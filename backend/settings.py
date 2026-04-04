@@ -503,6 +503,23 @@ WHATSAPP_CLOUD_PHONE_NUMBER_ID = env.str("WHATSAPP_CLOUD_PHONE_NUMBER_ID", defau
 WHATSAPP_CLOUD_API_VERSION = env.str("WHATSAPP_CLOUD_API_VERSION", default="v21.0")
 WHATSAPP_WEBHOOK_VERIFY_TOKEN = env.str("WHATSAPP_WEBHOOK_VERIFY_TOKEN", default="")
 RECIBO_ENVIAR_WHATSAPP_META = env.bool("RECIBO_ENVIAR_WHATSAPP_META", default=False)
+# Formato de aceptación: envío automático al guardar (correo + WhatsApp Meta si aplica)
+FORMATO_ACEPTACION_ENVIAR_AL_GUARDAR = env.bool("FORMATO_ACEPTACION_ENVIAR_AL_GUARDAR", default=True)
+FORMATO_ACEPTACION_NOTIFICAR_CADA_GUARDADO = env.bool(
+    "FORMATO_ACEPTACION_NOTIFICAR_CADA_GUARDADO", default=True
+)
+FORMATO_ACEPTACION_ENVIAR_EMAIL = env.bool("FORMATO_ACEPTACION_ENVIAR_EMAIL", default=True)
+FORMATO_ACEPTACION_ENVIAR_WHATSAPP_META = env.bool(
+    "FORMATO_ACEPTACION_ENVIAR_WHATSAPP_META", default=True
+)
+FORMATO_ACEPTACION_EMAIL_ASUNTO = env.str(
+    "FORMATO_ACEPTACION_EMAIL_ASUNTO",
+    default="Su formato de aceptación (PDF) — Paredes Bienes Raíces",
+)
+FORMATO_ACEPTACION_PROMESA_EMAIL_ASUNTO = env.str(
+    "FORMATO_ACEPTACION_PROMESA_EMAIL_ASUNTO",
+    default="Su promesa de venta escaneada — Paredes Bienes Raíces",
+)
 # Límite aproximado de documentos en WhatsApp Cloud API (PDF); evita subidas inútiles.
 WHATSAPP_MAX_PDF_BYTES = env.int("WHATSAPP_MAX_PDF_BYTES", default=100 * 1024 * 1024)
 

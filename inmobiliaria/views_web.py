@@ -180,6 +180,66 @@ def _formato_aceptacion_direccion_impreso() -> str:
     )
 
 
+def _formato_editar_acceso_permitido(request: HttpRequest) -> bool:
+    """Misma regla que FormatoSuperuserGateMixin (edición del formato)."""
+    u = request.user
+    return bool(getattr(u, "is_superuser", False)) or _formato_superuser_gate_session_valid(
+        request
+    )
+
+
+def _formato_aceptacion_tras_guardado_notificar(
+    request: HttpRequest, formato: FormatoAceptacion, prev_firmas_completas: bool
+) -> None:
+    try:
+        from docs.formato_aceptacion_notificacion import notificar_formato_pdf_tras_guardado
+
+        notificar_formato_pdf_tras_guardado(request, formato, prev_firmas_completas)
+    except Exception:
+        logger.exception("Notificación automática del formato de aceptación tras guardar")
+
+
+def _generar_pdf_formato_aceptacion_bytes(formato: FormatoAceptacion) -> bytes:
+    """Genera el PDF con firmas; limpia PNG temporales. Exige firmas_completas en datos."""
+    tmp_firmas: list[str] = []
+    try:
+        uri_a, p_a = _firma_field_temp_file_uri(formato.firma_aceptante)
+        uri_v, p_v = _firma_field_temp_file_uri(formato.firma_vendedor)
+        uri_z, p_z = _firma_field_temp_file_uri(formato.firma_autorizado)
+        for p in (p_a, p_v, p_z):
+            if p:
+                tmp_firmas.append(p)
+        if not (uri_a and uri_v and uri_z):
+            logger.warning(
+                "PDF formato aceptación pk=%s: no se leyeron los 3 archivos de firma.",
+                formato.pk,
+            )
+        ctx = {
+            "formato": formato,
+            "proyecto": _proyecto_para_pdf_formato(formato),
+            "razon_social": getattr(
+                settings,
+                "PBR_PROMESA_RAZON_SOCIAL_VENDEDOR",
+                "PAREDES BIENES RAÍCES",
+            ),
+            "direccion_empresa": _formato_aceptacion_direccion_impreso(),
+            "pie_inmobiliaria": "Formato de aceptación — documento interno",
+            "firma_aceptante_src": uri_a,
+            "firma_vendedor_src": uri_v,
+            "firma_autorizado_src": uri_z,
+        }
+        return generar_pdf_desde_plantilla(
+            template_name="docs/formato_aceptacion_pdf.html",
+            context=ctx,
+        )
+    finally:
+        for path in tmp_firmas:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
+
 def _proyecto_para_pdf_formato(formato: FormatoAceptacion):
     """Cabecera PDF: proyecto del contrato o nombre libre del formulario."""
     c = formato.contrato
@@ -945,8 +1005,10 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.creado_por = self.request.user
+        prev_firmas = False
         response = super().form_valid(form)
         messages.success(self.request, "Formato de aceptación guardado.")
+        _formato_aceptacion_tras_guardado_notificar(self.request, self.object, prev_firmas)
         return response
 
     def get_success_url(self):
@@ -965,6 +1027,22 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
         ctx["formato_catalogo_inmuebles"] = _catalogo_inmuebles_formato_aceptacion()
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
+        if getattr(self, "object", None) and self.object.pk:
+            ctx["formato_promesa_subir_url"] = reverse(
+                "app:formato_aceptacion_promesa_subir", kwargs={"pk": self.object.pk}
+            )
+            f = self.object.promesa_venta_escaneada
+            ctx["formato_promesa_descargar_url"] = (
+                reverse(
+                    "app:formato_aceptacion_promesa_descargar",
+                    kwargs={"pk": self.object.pk},
+                )
+                if f and f.name
+                else None
+            )
+        else:
+            ctx["formato_promesa_subir_url"] = None
+            ctx["formato_promesa_descargar_url"] = None
         return ctx
 
 
@@ -1002,8 +1080,16 @@ class FormatoAceptacionUpdateView(
     )
 
     def form_valid(self, form):
+        pk = self.object.pk
+        prev_firmas = False
+        if pk:
+            try:
+                prev_firmas = FormatoAceptacion.objects.get(pk=pk).firmas_completas
+            except FormatoAceptacion.DoesNotExist:
+                prev_firmas = False
         response = super().form_valid(form)
         messages.success(self.request, "Cambios guardados.")
+        _formato_aceptacion_tras_guardado_notificar(self.request, self.object, prev_firmas)
         return response
 
     def get_success_url(self):
@@ -1029,6 +1115,18 @@ class FormatoAceptacionUpdateView(
         ctx["formato_catalogo_inmuebles"] = _catalogo_inmuebles_formato_aceptacion()
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
+        ctx["formato_promesa_subir_url"] = reverse(
+            "app:formato_aceptacion_promesa_subir", kwargs={"pk": self.object.pk}
+        )
+        pf = self.object.promesa_venta_escaneada
+        ctx["formato_promesa_descargar_url"] = (
+            reverse(
+                "app:formato_aceptacion_promesa_descargar",
+                kwargs={"pk": self.object.pk},
+            )
+            if pf and pf.name
+            else None
+        )
         return ctx
 
 
@@ -1082,44 +1180,7 @@ def formato_aceptacion_pdf(request: HttpRequest, pk: int) -> HttpResponse:
         return HttpResponseRedirect(
             reverse("app:formato_aceptacion_edit", kwargs={"pk": pk})
         )
-    tmp_firmas: list[str] = []
-    try:
-        uri_a, p_a = _firma_field_temp_file_uri(formato.firma_aceptante)
-        uri_v, p_v = _firma_field_temp_file_uri(formato.firma_vendedor)
-        uri_z, p_z = _firma_field_temp_file_uri(formato.firma_autorizado)
-        for p in (p_a, p_v, p_z):
-            if p:
-                tmp_firmas.append(p)
-        if not (uri_a and uri_v and uri_z):
-            logger.warning(
-                "PDF formato aceptación pk=%s: BD indica firmas completas pero no se leyeron los 3 archivos "
-                "(¿media en disco efímero sin S3 o archivos borrados?).",
-                pk,
-            )
-        ctx = {
-            "formato": formato,
-            "proyecto": _proyecto_para_pdf_formato(formato),
-            "razon_social": getattr(
-                settings,
-                "PBR_PROMESA_RAZON_SOCIAL_VENDEDOR",
-                "PAREDES BIENES RAÍCES",
-            ),
-            "direccion_empresa": _formato_aceptacion_direccion_impreso(),
-            "pie_inmobiliaria": "Formato de aceptación — documento interno",
-            "firma_aceptante_src": uri_a,
-            "firma_vendedor_src": uri_v,
-            "firma_autorizado_src": uri_z,
-        }
-        pdf_bytes = generar_pdf_desde_plantilla(
-            template_name="docs/formato_aceptacion_pdf.html",
-            context=ctx,
-        )
-    finally:
-        for path in tmp_firmas:
-            try:
-                os.unlink(path)
-            except OSError:
-                pass
+    pdf_bytes = _generar_pdf_formato_aceptacion_bytes(formato)
     filename = f"formato_aceptacion_{formato.numero_formulario:04d}.pdf"
     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
     resp["Content-Disposition"] = f'attachment; filename="{filename}"'
@@ -1154,6 +1215,61 @@ def formato_firma_preview(request: HttpRequest, pk: int, tipo: str) -> HttpRespo
         raise Http404()
     content_type = mimetypes.guess_type(field.name)[0] or "image/png"
     return FileResponse(fh, content_type=content_type)
+
+
+@login_required
+@require_POST
+def formato_aceptacion_promesa_subir(request: HttpRequest, pk: int) -> HttpResponse:
+    if not _formato_editar_acceso_permitido(request):
+        nxt = request.get_full_path()
+        gate = f"{reverse('app:formato_superuser_gate')}?{urlencode({'next': nxt})}"
+        return HttpResponseRedirect(gate)
+    formato = get_object_or_404(FormatoAceptacion, pk=pk)
+    form = forms.FormatoAceptacionPromesaForm(request.POST, request.FILES)
+    redir = reverse("app:formato_aceptacion_edit", kwargs={"pk": pk})
+    if not form.is_valid():
+        messages.error(request, "Revise el archivo (PDF, JPG o PNG).")
+        return HttpResponseRedirect(redir)
+    formato.promesa_venta_escaneada = form.cleaned_data["promesa_venta_escaneada"]
+    formato.save()
+    try:
+        from docs.formato_aceptacion_notificacion import notificar_promesa_escaneada_tras_subir
+
+        notificar_promesa_escaneada_tras_subir(request, formato)
+    except Exception:
+        logger.exception("Notificación promesa escaneada formato pk=%s", pk)
+        messages.warning(
+            request,
+            "Archivo guardado; hubo un problema al notificar al cliente.",
+        )
+    return HttpResponseRedirect(redir)
+
+
+@login_required
+@never_cache
+def formato_aceptacion_promesa_descargar(request: HttpRequest, pk: int) -> HttpResponse:
+    if not _formato_editar_acceso_permitido(request):
+        nxt = request.get_full_path()
+        gate = f"{reverse('app:formato_superuser_gate')}?{urlencode({'next': nxt})}"
+        return HttpResponseRedirect(gate)
+    formato = get_object_or_404(FormatoAceptacion, pk=pk)
+    field = formato.promesa_venta_escaneada
+    if not field or not field.name:
+        raise Http404()
+    if not default_storage.exists(field.name):
+        raise Http404()
+    try:
+        fh = field.open("rb")
+    except OSError:
+        raise Http404()
+    ctype = mimetypes.guess_type(field.name)[0] or "application/octet-stream"
+    base = field.name.split("/")[-1] or "promesa_venta"
+    return FileResponse(
+        fh,
+        content_type=ctype,
+        as_attachment=True,
+        filename=base,
+    )
 
 
 @login_required

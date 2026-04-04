@@ -147,6 +147,32 @@
   {% endif %}
 </div>
 
+{% if object.pk and formato_promesa_subir_url %}
+<section class="formato-papel" style="max-width: 920px; margin: 0 auto 1.5rem;">
+  <h2 class="formato-section-title">Promesa de venta escaneada</h2>
+  <p class="muted" style="margin: 0 0 0.75rem; font-size: 0.88rem;">
+    Suba el documento firmado; quedará disponible para descargar desde esta pantalla. Al subirlo se intenta enviar copia al cliente por correo y WhatsApp (si están configurados).
+  </p>
+  {% if formato_promesa_descargar_url %}
+  <p style="margin: 0 0 1rem;">
+    <a href="{{ formato_promesa_descargar_url }}" class="btn-secondary btn-sm">Descargar promesa escaneada</a>
+  </p>
+  {% endif %}
+  <form method="post" action="{{ formato_promesa_subir_url }}" enctype="multipart/form-data" class="form-stack" style="gap: 0.65rem;">
+    {% csrf_token %}
+    <div class="field">
+      <label class="field__label" for="id-promesa-venta-file">Archivo (PDF, JPG o PNG)</label>
+      <div class="field__control">
+        <input id="id-promesa-venta-file" class="input" type="file" name="promesa_venta_escaneada" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/*" required />
+      </div>
+    </div>
+    <div>
+      <button type="submit" class="btn-primary btn-sm">Subir promesa de venta ya escaneada</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
 {% if firmas_storage_perdidas %}
 <div class="alert" role="alert" style="max-width: 920px; margin: 0 auto 1rem; border-color: #b45309; background: #fffbeb; color: #78350f;">
   <strong>Faltan los archivos de firma en el servidor.</strong>

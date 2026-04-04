@@ -919,6 +919,17 @@ class FormatoAceptacion(models.Model):
         upload_to="formatos_aceptacion/firmas/%Y/%m/",
         blank=True,
     )
+    promesa_venta_escaneada = models.FileField(
+        "Promesa de venta escaneada",
+        upload_to="formatos_aceptacion/promesas/%Y/%m/",
+        blank=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["pdf", "png", "jpg", "jpeg"],
+                message="Use PDF, JPG o PNG.",
+            )
+        ],
+    )
 
     creado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,

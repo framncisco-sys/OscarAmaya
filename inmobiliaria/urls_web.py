@@ -94,6 +94,16 @@ urlpatterns = [
         views.formato_aceptacion_pdf,
         name="formato_aceptacion_pdf",
     ),
+    path(
+        "formato-aceptacion/<int:pk>/promesa/subir/",
+        views.formato_aceptacion_promesa_subir,
+        name="formato_aceptacion_promesa_subir",
+    ),
+    path(
+        "formato-aceptacion/<int:pk>/promesa/descargar/",
+        views.formato_aceptacion_promesa_descargar,
+        name="formato_aceptacion_promesa_descargar",
+    ),
     path("reportes/pagos.csv", views.export_pagos_csv, name="export_pagos_csv"),
     path("pagos/", views.PagoListView.as_view(), name="pago_list"),
     path("pagos/nuevo/", views.PagoCreateView.as_view(), name="pago_create"),

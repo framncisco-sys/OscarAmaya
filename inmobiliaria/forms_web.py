@@ -9,6 +9,7 @@ from decimal import Decimal
 from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 from django.db.models import Count, Prefetch, Q
 from django.forms import BaseInlineFormSet, inlineformset_factory
 from django.urls import reverse
@@ -1450,3 +1451,15 @@ class FormatoAceptacionForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class FormatoAceptacionPromesaForm(forms.Form):
+    promesa_venta_escaneada = forms.FileField(
+        label="Archivo escaneado (PDF o imagen)",
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["pdf", "png", "jpg", "jpeg"],
+                message="Use PDF, JPG o PNG.",
+            )
+        ],
+    )

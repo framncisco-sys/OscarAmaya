@@ -2,13 +2,38 @@
  * Lienzos de firma para formato de aceptación: rellena campos ocultos con PNG en data URL al enviar.
  */
 (function () {
+  /**
+   * True si no hay trazo visible: transparente u opaco casi blanco.
+   * Solo comprobar alpha fallaba: un lienzo con fondo blanco opaco (p. ej. tras export)
+   * no era «vacío» y al guardar sin dibujar se pisaban las firmas en el servidor.
+   */
   function canvasIsBlank(canvas) {
     var ctx = canvas.getContext("2d");
     var data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    for (var i = 3; i < data.length; i += 4) {
-      if (data[i] !== 0) return false;
+    for (var i = 0; i < data.length; i += 4) {
+      var r = data[i];
+      var g = data[i + 1];
+      var b = data[i + 2];
+      var a = data[i + 3];
+      if (a < 8) continue;
+      if (r < 245 || g < 245 || b < 245) return false;
     }
     return true;
+  }
+
+  function drawSavedFirmaOntoCanvas(canvas, img) {
+    if (!img || !img.naturalWidth) return;
+    var ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    var iw = img.naturalWidth;
+    var ih = img.naturalHeight;
+    var scale = Math.min(canvas.width / iw, canvas.height / ih);
+    var dw = iw * scale;
+    var dh = ih * scale;
+    var dx = (canvas.width - dw) / 2;
+    var dy = (canvas.height - dh) / 2;
+    ctx.drawImage(img, dx, dy, dw, dh);
   }
 
   function bindCanvas(canvas) {
@@ -83,6 +108,14 @@
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           input.value = "";
         });
+      }
+      var prevImg = wrap.querySelector("img.formato-firma-prev");
+      if (prevImg) {
+        var preload = function () {
+          drawSavedFirmaOntoCanvas(canvas, prevImg);
+        };
+        if (prevImg.complete && prevImg.naturalWidth) preload();
+        else prevImg.addEventListener("load", preload);
       }
     }
   }

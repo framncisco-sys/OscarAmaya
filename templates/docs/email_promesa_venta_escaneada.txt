@@ -1,0 +1,8 @@
+Estimado/a {{ nombre_cliente|default:"cliente" }},
+
+Adjuntamos el archivo de su promesa de venta escaneada, asociada al formato de aceptación Nº {{ numero_fmt }}.
+
+{{ empresa_nombre }}
+
+Saludos cordiales,
+{{ empresa_nombre }}

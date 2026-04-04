@@ -1,0 +1,13 @@
+Estimado/a {{ nombre_cliente|default:"cliente" }},
+
+Adjuntamos el PDF de su formato de aceptación Nº {{ numero_fmt }}.
+
+{{ empresa_nombre }}
+
+{% if whatsapp_url %}
+Si prefiere WhatsApp, puede usar este enlace (mensaje prellenado):
+{{ whatsapp_url }}
+{% endif %}
+
+Saludos cordiales,
+{{ empresa_nombre }}
