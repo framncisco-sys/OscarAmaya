@@ -120,22 +120,25 @@
     var mapOk = !!(selPol && selLote && hidLote && hidPol);
 
     function recalcLetra() {
-      if (!plazo) return;
-      var years = parseInt(String(plazo.value || ""), 10);
-      if (!isFinite(years) || years < 0) years = 0;
-      var n = years * 12;
-      if (numCuota) numCuota.value = n > 0 ? String(n) : "";
+      if (plazo) {
+        var years = parseInt(String(plazo.value || ""), 10);
+        if (!isFinite(years) || years < 0) years = 0;
+        var n = years * 12;
+        if (numCuota) numCuota.value = n > 0 ? String(n) : "";
 
-      if (!letra || !interes) return;
-      var principal = parseMoney(valorFin);
-      var interVal = parseFloat(String(interes.value || ""));
-      if (!isFinite(interVal) || interVal < 0) interVal = 0;
-      var cuota = pmtCuota(principal, interVal, n);
-      if (cuota === null) {
-        letra.value = "";
-        return;
+        if (letra && interes) {
+          var principal = parseMoney(valorFin);
+          var interVal = parseFloat(String(interes.value || ""));
+          if (!isFinite(interVal) || interVal < 0) interVal = 0;
+          var cuota = pmtCuota(principal, interVal, n);
+          if (cuota === null) {
+            letra.value = "";
+          } else {
+            letra.value = cuota.toFixed(2);
+          }
+        }
       }
-      letra.value = cuota.toFixed(2);
+      rebuildListadoCuotas();
     }
 
     function recalcFin() {
