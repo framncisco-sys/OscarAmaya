@@ -12,7 +12,8 @@ services:
       deploy_on_push: true
     # Instala dependencias y deja estáticos listos para WhiteNoise
     build_command: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    run_command: gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120
+    # migrate en runtime: crea tablas nuevas (p. ej. formato de aceptación) antes de levantar Gunicorn
+    run_command: python manage.py migrate --noinput && gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120
     http_port: 8080
     instance_count: 1
     instance_size_slug: basic-xxs

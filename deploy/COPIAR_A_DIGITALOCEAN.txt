@@ -126,6 +126,22 @@ WHATSAPP
   aunque PUBLIC_BASE_URL esté bien. Implica PDF bajo /media/ accesibles sin login.
 
 --------------------------------------------------------------------------------
+ERROR: relation "inmobiliaria_formatoaceptacion" does not exist (u otra tabla)
+--------------------------------------------------------------------------------
+
+La base de datos en DigitalOcean no tiene las migraciones aplicadas.
+
+1) Consola del Web Service → ejecute:
+     python manage.py migrate --noinput
+
+2) Para que no vuelva a pasar: en el componente Web → Settings → Run Command debe
+   ejecutar migrate ANTES de gunicorn, por ejemplo (una sola línea):
+
+     python manage.py migrate --noinput && gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120 --access-logfile - --error-logfile -
+
+   (El Procfile del repo ya usa ese patrón si su plataforma lo respeta al desplegar.)
+
+--------------------------------------------------------------------------------
 Después de guardar y desplegar
 --------------------------------------------------------------------------------
 
