@@ -22,10 +22,20 @@ try:
     from django.conf import settings as django_settings
 
     _d = django_settings.DATABASES["default"]
-    logging.getLogger("pbr.database").info(
+    _log = logging.getLogger("pbr.database")
+    _log.info(
         "PBR DB default host=%s name=%s (debe coincidir con la consola one-off)",
         _d.get("HOST", ""),
         _d.get("NAME", ""),
     )
+    if not django_settings.DEBUG:
+        if getattr(django_settings, "DJANGO_USE_S3_MEDIA", False):
+            _log.info("PBR media: S3/Spaces (persistente entre redeploys).")
+        else:
+            _log.warning(
+                "PBR media: FileSystemStorage — en App Platform el disco del contenedor es "
+                "EFÍMERO; firmas y PDFs en /media se pierden al redeploy. Defina "
+                "DJANGO_USE_S3_MEDIA=1 y credenciales Spaces (ver deploy/COPIAR_A_DIGITALOCEAN.txt)."
+            )
 except Exception:
     pass

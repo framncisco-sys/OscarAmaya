@@ -69,6 +69,23 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 
+def _formato_firmas_ausentes_en_storage(formato: FormatoAceptacion) -> list[str]:
+    """
+    Firmas con ruta en BD pero archivo inexistente en default_storage.
+    Ocurre en App Platform sin S3/volumen: el PDF y las miniaturas fallan.
+    """
+    faltan: list[str] = []
+    for label, attr in (
+        ("aceptante", "firma_aceptante"),
+        ("vendedor", "firma_vendedor"),
+        ("autorizado", "firma_autorizado"),
+    ):
+        ff = getattr(formato, attr, None)
+        if ff and ff.name and not default_storage.exists(ff.name):
+            faltan.append(label)
+    return faltan
+
+
 def _firma_field_bytes(field_file) -> bytes | None:
     """Lee bytes de un ImageField (FieldFile o storage por nombre)."""
     if not field_file or not field_file.name:
@@ -841,6 +858,7 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
         ctx["cancel_url"] = reverse("app:formato_aceptacion_list")
         ctx["form_multipart"] = True
         ctx["firmas_completas"] = False
+        ctx["firmas_storage_perdidas"] = []
         ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
         ctx["proyectos_formato"] = _proyectos_para_formato_aceptacion()
         ctx["formato_catalogo_inmuebles"] = _catalogo_inmuebles_formato_aceptacion()
@@ -899,6 +917,9 @@ class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
             "app:formato_aceptacion_pdf", kwargs={"pk": self.object.pk}
         )
         ctx["firmas_completas"] = self.object.firmas_completas
+        ctx["firmas_storage_perdidas"] = _formato_firmas_ausentes_en_storage(
+            self.object
+        )
         ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
         ctx["proyectos_formato"] = _proyectos_para_formato_aceptacion()
         ctx["formato_catalogo_inmuebles"] = _catalogo_inmuebles_formato_aceptacion()

@@ -65,7 +65,11 @@ Media persistente (PDFs, planos) — DigitalOcean Spaces + django-storages
 --------------------------------------------------------------------------------
 
 Sin esto, cada redeploy borra la carpeta media del contenedor y fallan descargas de PDFs viejos
-(aunque la BD siga apuntando al archivo). Cree un Space, genere una "Spaces access key" y añada:
+(aunque la BD siga apuntando al archivo). Lo mismo afecta las FIRMAS del "Formato de aceptación":
+si `verificar_formatos_aceptacion` muestra "BD tiene ruta pero NO existe en storage", necesita
+Spaces (abajo) y luego volver a firmar en el formulario.
+
+Cree un Space, genere una "Spaces access key" y añada:
 
   DJANGO_USE_S3_MEDIA=1
   AWS_ACCESS_KEY_ID=<key>

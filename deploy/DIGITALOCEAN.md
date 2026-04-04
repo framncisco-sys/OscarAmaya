@@ -23,7 +23,7 @@ Guía para probar la aplicación Django en **DigitalOcean**. Hay dos caminos hab
 | `PGHOST` / `PG*` | Si el entorno define `PGHOST` (estilo libpq), el proyecto puede usar `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGPORT` sin duplicar `POSTGRES_*`. |
 | `POSTGRES_*` | Si no hay `DATABASE_URL` ni `PGHOST`: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT` (en bases administradas el puerto suele ser **25060** y hace falta **SSL**; vea nota más abajo). |
 | `PUBLIC_BASE_URL` | URL pública `https://...` (recibos y enlaces). |
-| `DJANGO_USE_S3_MEDIA` + `AWS_*` | Opcional y **recomendado** en App Platform: guardar PDFs/planos en **Spaces** (S3) para que no se pierdan al redeploy. Vea `.env.example` y `deploy/COPIAR_A_DIGITALOCEAN.txt`. |
+| `DJANGO_USE_S3_MEDIA` + `AWS_*` | **Imprescindible** en App Platform si guarda firmas del formato de aceptación, PDFs en media o planos: sin Spaces, el disco del contenedor se borra al redeploy. Vea `.env.example` y `deploy/COPIAR_A_DIGITALOCEAN.txt`. |
 
 Copie `.env.example` a `.env` y complételo. En DigitalOcean use la pestaña **Environment** del componente o los **Secrets**.
 
@@ -51,6 +51,15 @@ Comprobación rápida (JSON): `https://su-app.ondigitalocean.app/ping/?db=1` con
 2. En los **logs de arranque** del Web Service busque la línea `PBR DB default host=... name=...`. El **HOST debe ser idéntico** al del paso 1. Si difiere (p. ej. `67329` vs `71777`), la consola y la web están usando **clusters distintos**: unifique `DATABASE_URL` / `POSTGRES_*` en el componente web.
 
 3. Ejecute `python manage.py migrate --noinput` en esa misma consola si el comando anterior indica migraciones o columnas faltantes.
+
+### Formato de aceptación: `verificar_formatos_aceptacion` dice «BD tiene ruta pero NO existe en storage»
+
+Eso **no** es un fallo del formulario ni del PDF: el registro en PostgreSQL guarda la ruta del PNG, pero el **archivo ya no está en disco** del contenedor. En **App Platform** el sistema de archivos local (carpeta `media/`) es **efímero**: al redeploy o reinicio desaparecen las imágenes aunque la BD siga apuntando a ellas.
+
+1. **Obligatorio en la nube sin volumen montado:** active almacenamiento **S3-compatible** (DigitalOcean Spaces) con `DJANGO_USE_S3_MEDIA=1` y las variables `AWS_*` descritas en **`deploy/COPIAR_A_DIGITALOCEAN.txt`** y `.env.example`.
+2. **Despliegue** con esas variables y espere a que el Web Service arranque.
+3. Abra de nuevo el formato en la web y **vuelva a dibujar las tres firmas** y pulse Guardar (los registros viejos no recuperan archivos borrados).
+4. En los **logs de arranque** busque: con S3 verá `PBR media: S3/Spaces`; sin S3 verá una advertencia `PBR media: FileSystemStorage` sobre disco efímero.
 
 ### PostgreSQL administrado (SSL)
 

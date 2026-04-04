@@ -147,6 +147,18 @@
   {% endif %}
 </div>
 
+{% if firmas_storage_perdidas %}
+<div class="alert" role="alert" style="max-width: 920px; margin: 0 auto 1rem; border-color: #b45309; background: #fffbeb; color: #78350f;">
+  <strong>Faltan los archivos de firma en el servidor.</strong>
+  La base de datos tiene rutas guardadas, pero los PNG ya no están en el almacenamiento
+  (típico en App Platform sin volumen persistente: cada redeploy borra la carpeta <code>media</code>).
+  <strong>Solución:</strong> configure <code>DJANGO_USE_S3_MEDIA=1</code> y DigitalOcean Spaces
+  (variables en <code>deploy/COPIAR_A_DIGITALOCEAN.txt</code>), despliegue de nuevo y
+  <strong>vuelva a dibujar y guardar las tres firmas</strong>. Puede comprobar el estado con
+  <code>python manage.py verificar_formatos_aceptacion</code> en la consola del Web Service.
+</div>
+{% endif %}
+
 <form id="formato-aceptacion-form" method="post" class="form-stack" enctype="multipart/form-data" style="max-width: 920px; margin: 0 auto;">
   {% csrf_token %}
   {% if form.non_field_errors %}
