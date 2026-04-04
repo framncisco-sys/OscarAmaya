@@ -11,6 +11,9 @@
 {% block after_page_title %}{% endblock %}
 <form method="post" class="form-stack"{% if form_multipart %} enctype="multipart/form-data"{% endif %}{% if form_contrato_autocomplete_off %} autocomplete="off"{% endif %}>
   {% csrf_token %}
+  {% for field in form.hidden_fields %}
+    {{ field }}
+  {% endfor %}
   {% if form.non_field_errors %}
     <div class="alert" role="alert">{{ form.non_field_errors }}</div>
   {% endif %}

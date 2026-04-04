@@ -1293,21 +1293,37 @@ class PagoListView(AppLoginRequiredMixin, ListView):
 class PagoCreateView(AppLoginRequiredMixin, CreateView):
     model = Pago
     form_class = forms.PagoForm
-    template_name = "app/object_form.html"
+    template_name = "app/pago_form.html"
     success_url = reverse_lazy("app:pago_list")
+
+    def get_initial(self):
+        initial = super().get_initial()
+        fid = (self.request.GET.get("formato") or "").strip()
+        if fid.isdigit():
+            initial["formato_aceptacion"] = int(fid)
+        return initial
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["form_title"] = "Nuevo pago"
         ctx["cancel_url"] = reverse_lazy("app:pago_list")
         ctx["pago_contrato_panel"] = True
+        ctx["pago_cuotas_checkboxes"] = True
         return ctx
+
+    def form_valid(self, form):
+        messages.success(
+            self.request,
+            "Pago registrado. El recibo de ingreso se genera automáticamente al guardar; el envío por correo y WhatsApp "
+            "depende de la configuración del servidor (correo SMTP y proveedor de mensajería en variables de entorno).",
+        )
+        return super().form_valid(form)
 
 
 class PagoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
     model = Pago
     form_class = forms.PagoForm
-    template_name = "app/object_form.html"
+    template_name = "app/pago_form.html"
     success_url = reverse_lazy("app:pago_list")
 
     def get_context_data(self, **kwargs):
@@ -1315,6 +1331,7 @@ class PagoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
         ctx["form_title"] = "Editar pago"
         ctx["cancel_url"] = reverse_lazy("app:pago_list")
         ctx["pago_contrato_panel"] = True
+        ctx["pago_cuotas_checkboxes"] = False
         return ctx
 
 

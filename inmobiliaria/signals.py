@@ -45,7 +45,7 @@ def aplicar_pago_a_cuota_programada(sender, instance: Pago, created: bool, **kwa
     if instance.concepto != Pago.Concepto.CUOTA:
         return
 
-    n = max(1, min(int(instance.cuotas_incluidas or 1), 60))
+    n = max(1, min(int(instance.cuotas_incluidas or 1), 200))
 
     def _apply():
         with transaction.atomic():

@@ -264,6 +264,24 @@ class ContratoPagoSelect(forms.Select):
             option["attrs"]["data-formato-plazo"] = c.get("formato_plazo_txt", "")
             option["attrs"]["data-formato-num-cuotas"] = c.get("formato_num_cuota_txt", "")
             option["attrs"]["data-formato-interes"] = c.get("formato_interes_txt", "")
+            option["attrs"]["data-cuotas-todas-json"] = c.get("cuotas_todas_json", "[]")
+        return option
+
+
+class FormatoPagoSelect(forms.Select):
+    """Select de formato de aceptación con data-contrato-id para sincronizar el contrato."""
+
+    def __init__(self, *args, catalog=None, **kwargs):
+        self.catalog = catalog or {}
+        super().__init__(*args, **kwargs)
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        if value not in (None, ""):
+            key = str(value)
+            c = self.catalog.get(key, {})
+            option.setdefault("attrs", {})
+            option["attrs"]["data-contrato-id"] = c.get("contrato_id", "")
         return option
 
 
@@ -485,16 +503,19 @@ class MontoDecimalFormField(forms.DecimalField):
 
 
 class PagoForm(forms.ModelForm):
+    cuotas_seleccionadas = forms.CharField(required=False, widget=forms.HiddenInput())
+
     class Meta:
         model = Pago
         fields = [
+            "formato_aceptacion",
             "contrato",
             "concepto",
-            "cuotas_incluidas",
             "fecha",
             "monto",
             "referencia",
             "notas",
+            "cuotas_incluidas",
         ]
 
     def __init__(self, *args, **kwargs):
@@ -502,14 +523,8 @@ class PagoForm(forms.ModelForm):
 
         ci = self.fields.get("cuotas_incluidas")
         if ci:
-            ci.label = "Cuotas a liquidar con este pago"
-            ci.help_text = (
-                "Solo aplica si el concepto es «Cuota de financiamiento»: 1 liquida la siguiente cuota pendiente; "
-                "2 o 3 suman el monto de las siguientes cuotas en orden de vencimiento. El total debe coincidir con la suma."
-            )
-            ci.widget.attrs.setdefault("min", 1)
-            ci.widget.attrs.setdefault("max", 60)
-            ci.widget.attrs.setdefault("class", "input-cuotas-incluidas")
+            ci.widget = forms.HiddenInput()
+            ci.show_hidden_initial = False
 
         ff = self.fields.get("fecha")
         if ff:
@@ -558,13 +573,30 @@ class PagoForm(forms.ModelForm):
         if r:
             r.help_text = "Opcional: número de transferencia, depósito, cheque u otra referencia bancaria."
 
+        fa = self.fields.get("formato_aceptacion")
+        if fa:
+            fa.required = False
+            fa.label = "Formato de aceptación guardado"
+            fa.help_text = (
+                "Recomendado: elija el formato guardado y se enlazará el contrato correspondiente. "
+                "Los datos de referencia (cliente, letra, plazo) salen del formato; las cuotas a pagar se marcan en la tabla del calendario."
+            )
+            fmt_qs = (
+                FormatoAceptacion.objects.filter(contrato__isnull=False)
+                .select_related("contrato", "contrato__cliente")
+                .order_by("-numero_formulario", "-id")
+            )
+            fa.queryset = fmt_qs
+            formato_catalog = {str(f.pk): {"contrato_id": str(f.contrato_id)} for f in fmt_qs}
+            fa.widget = FormatoPagoSelect(catalog=formato_catalog)
+            fa.widget.choices = fa.choices
+
         ct = self.fields.get("contrato")
         if ct:
             ct.label = "Contrato"
             ct.help_text = (
-                "Contrato al que aplica este pago. La referencia prioriza el formato de aceptación vinculado "
-                "(nombre del cliente, letra mensual, plazo y cuotas del formato); el calendario de cuotas del sistema "
-                "sigue siendo el que liquida al guardar como «Cuota de financiamiento»."
+                "Se puede elegir directamente o derivarse del formato de aceptación. "
+                "Al guardar como «Cuota de financiamiento», el sistema liquida las cuotas marcadas en el calendario (orden de vencimiento)."
             )
             ct.queryset = Contrato.objects.select_related("cliente", "inmueble").order_by(
                 "-fecha_firma", "numero"
@@ -599,7 +631,29 @@ class PagoForm(forms.ModelForm):
                     ).order_by("vence_en", "numero", "id"),
                     to_attr="_cuotas_abiertas_pref",
                 )
-                for c in Contrato.objects.filter(pk__in=pks).prefetch_related(pref):
+                pref_all = Prefetch(
+                    "cuotas_programadas",
+                    queryset=CuotaProgramada.objects.order_by("numero", "id"),
+                    to_attr="_todas_cuotas_pref",
+                )
+                for c in Contrato.objects.filter(pk__in=pks).prefetch_related(pref, pref_all):
+                    todas = getattr(c, "_todas_cuotas_pref", [])
+                    todas_payload = [
+                        {
+                            "id": x.id,
+                            "n": x.numero,
+                            "v": x.vence_en.isoformat(),
+                            "m": str(x.monto.quantize(Decimal("0.01"))),
+                            "e": x.estado,
+                            "abierta": x.pago_id is None
+                            and x.estado
+                            in (
+                                CuotaProgramada.Estado.PENDIENTE,
+                                CuotaProgramada.Estado.VENCIDA,
+                            ),
+                        }
+                        for x in todas
+                    ]
                     cm = c.cuota_mensual_estimada
                     if cm is None:
                         cm = _cuota_mensual_estimada(
@@ -668,6 +722,9 @@ class PagoForm(forms.ModelForm):
                         "formato_plazo_txt": fmt_plazo,
                         "formato_num_cuota_txt": fmt_nc,
                         "formato_interes_txt": fmt_int,
+                        "cuotas_todas_json": json.dumps(
+                            todas_payload, separators=(",", ":")
+                        ),
                     }
             ct.widget = ContratoPagoSelect(catalog=catalog)
             ct.widget.choices = ct.choices
@@ -678,21 +735,27 @@ class PagoForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        formato = cleaned_data.get("formato_aceptacion")
+        if formato and formato.contrato_id:
+            cleaned_data["contrato"] = formato.contrato
+
         concepto = cleaned_data.get("concepto")
         contrato = cleaned_data.get("contrato")
+
         if concepto != Pago.Concepto.CUOTA:
             cleaned_data["cuotas_incluidas"] = 1
+            cleaned_data["cuotas_seleccionadas"] = ""
             return cleaned_data
-        n = int(cleaned_data.get("cuotas_incluidas") or 1)
-        n = max(1, min(n, 60))
+
+        n = max(1, min(int(cleaned_data.get("cuotas_incluidas") or 1), 200))
         cleaned_data["cuotas_incluidas"] = n
+
         if not contrato:
             return cleaned_data
 
         monto = cleaned_data.get("monto")
         monto_q = Decimal(monto).quantize(Decimal("0.01")) if monto is not None else None
 
-        # Edición: si el pago ya liquidó cuotas, el monto debe cuadrar con esas filas (no con «siguientes pendientes»).
         if getattr(self.instance, "pk", None):
             vinculadas = list(
                 CuotaProgramada.objects.filter(pago_id=self.instance.pk).order_by(
@@ -714,7 +777,7 @@ class PagoForm(forms.ModelForm):
                     )
                 return cleaned_data
 
-        pend = list(
+        pend_full = list(
             CuotaProgramada.objects.filter(
                 contrato=contrato,
                 estado__in=[
@@ -722,12 +785,54 @@ class PagoForm(forms.ModelForm):
                     CuotaProgramada.Estado.VENCIDA,
                 ],
                 pago__isnull=True,
-            ).order_by("vence_en", "numero", "id")[:n]
+            ).order_by("vence_en", "numero", "id")
         )
+
+        sel_raw = (cleaned_data.get("cuotas_seleccionadas") or "").strip()
+        ids_pick: list[int] = []
+        if sel_raw:
+            for part in sel_raw.split(","):
+                part = part.strip()
+                if part.isdigit():
+                    ids_pick.append(int(part))
+
+        if not pend_full:
+            raise ValidationError(
+                {
+                    "concepto": (
+                        "Este contrato no tiene cuotas pendientes en el calendario; no puede registrar "
+                        "«Cuota de financiamiento» hasta cargar el plan de cuotas en el contrato."
+                    )
+                }
+            )
+
+        if ids_pick:
+            k = len(ids_pick)
+            expected_ids = [p.pk for p in pend_full[:k]]
+            if len(set(ids_pick)) != len(ids_pick) or set(ids_pick) != set(expected_ids):
+                raise ValidationError(
+                    {
+                        "cuotas_seleccionadas": (
+                            "Marque cuota(s) consecutiva(s) desde la primera pendiente del calendario, sin saltos."
+                        )
+                    }
+                )
+            cleaned_data["cuotas_incluidas"] = k
+            n = k
+        else:
+            raise ValidationError(
+                {
+                    "cuotas_seleccionadas": (
+                        "Indique qué cuota(s) liquida este pago usando las casillas del calendario (desde la primera pendiente)."
+                    )
+                }
+            )
+
+        pend = pend_full[:n]
         if len(pend) < n:
             raise ValidationError(
                 {
-                    "cuotas_incluidas": (
+                    "cuotas_seleccionadas": (
                         f"Solo hay {len(pend)} cuota(s) pendiente(s); no puede liquidar {n} en un solo pago."
                     )
                 }
@@ -745,7 +850,7 @@ class PagoForm(forms.ModelForm):
         return cleaned_data
 
     class Media:
-        js = ("js/pago_contrato_hint.js",)
+        js = ("js/pago_contrato_hint.js", "js/pago_formato_cuotas.js")
 
 
 class GenerarCuotasCalendarioForm(forms.Form):

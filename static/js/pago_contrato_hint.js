@@ -11,6 +11,9 @@
 
   if (!sel || !panel) return;
 
+  var tablaWrap = document.getElementById("pago-cuotas-tabla-wrap");
+  var useTablaCuotas = tablaWrap && tablaWrap.getAttribute("data-enabled") === "1";
+
   var isEdit = /\/pagos\/\d+\/editar\//.test(window.location.pathname);
   var primeraEjecucion = true;
 
@@ -199,7 +202,7 @@
     }
 
     var pend = parsePendientes(opt);
-    var kMax = pend.length > 0 ? Math.min(60, pend.length) : 1;
+    var kMax = pend.length > 0 ? Math.min(200, pend.length) : 1;
     var k = cuotasN ? Math.max(1, Math.min(parseInt10(cuotasN.value) || 1, kMax)) : 1;
     if (cuotasN) {
       cuotasN.value = String(k);
@@ -213,6 +216,14 @@
           ? " Letra en formato de aceptación: <strong>$" + fmtLetra + "</strong>."
           : "");
       aplic.style.color = "#b91c1c";
+      primeraEjecucion = false;
+      return;
+    }
+
+    if (useTablaCuotas) {
+      aplic.innerHTML =
+        "Concepto «Cuota»: use la <strong>tabla de cuotas</strong> debajo para marcar la(s) que liquida este pago (consecutivas desde la primera pendiente). El monto y la fecha se ajustan al grupo marcado.";
+      aplic.style.color = "#0f766e";
       primeraEjecucion = false;
       return;
     }

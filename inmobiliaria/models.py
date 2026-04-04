@@ -678,6 +678,15 @@ class Pago(models.Model):
         on_delete=models.CASCADE,
         related_name="pagos",
     )
+    formato_aceptacion = models.ForeignKey(
+        "FormatoAceptacion",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pagos",
+        verbose_name="Formato de aceptación",
+        help_text="Opcional: formato guardado desde el cual se tomó la referencia de este pago.",
+    )
     fecha = models.DateField()
     concepto = models.CharField(max_length=24, choices=Concepto.choices)
     monto = models.DecimalField(
@@ -689,7 +698,7 @@ class Pago(models.Model):
     notas = models.TextField(blank=True)
     cuotas_incluidas = models.PositiveSmallIntegerField(
         default=1,
-        validators=[MinValueValidator(1), MaxValueValidator(60)],
+        validators=[MinValueValidator(1), MaxValueValidator(200)],
         help_text="Si el concepto es cuota de financiamiento: cuántas cuotas consecutivas (en orden de vencimiento) liquida este pago.",
     )
     creado_en = models.DateTimeField(auto_now_add=True)
