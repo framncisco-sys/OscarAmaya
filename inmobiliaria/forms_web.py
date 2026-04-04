@@ -1260,7 +1260,9 @@ def _aplicar_pistas_observaciones_financiamiento(instance: FormatoAceptacion) ->
 
 
 def _aplicar_elaborado_por_desde_vendedor(instance: FormatoAceptacion, user) -> None:
-    """Al guardar: prioriza vendedor del contrato; si no hay contrato, rellena si está vacío."""
+    """Si «elaborado por» sigue vacío al guardar, sugerir desde contrato o usuario (no pisa el select)."""
+    if (instance.elaborado_por or "").strip():
+        return
     if instance.contrato_id:
         c = (
             Contrato.objects.filter(pk=instance.contrato_id)
@@ -1272,10 +1274,24 @@ def _aplicar_elaborado_por_desde_vendedor(instance: FormatoAceptacion, user) -> 
             if n:
                 instance.elaborado_por = n
                 return
-    if not (instance.elaborado_por or "").strip():
-        s = elaborado_por_sugerido_formato(None, user).strip()
-        if s:
-            instance.elaborado_por = s
+    s = elaborado_por_sugerido_formato(None, user).strip()
+    if s:
+        instance.elaborado_por = s
+
+
+def _choices_elaborado_por_vendedores() -> list[tuple[str, str]]:
+    opts: list[tuple[str, str]] = [("", "— Seleccione vendedor —")]
+    seen_lower: set[str] = set()
+    for v in Vendedor.objects.filter(activo=True).order_by("apellidos", "nombres", "id"):
+        n = v.nombre_completo.strip()
+        if not n:
+            continue
+        k = n.lower()
+        if k in seen_lower:
+            continue
+        seen_lower.add(k)
+        opts.append((n, n))
+    return opts
 
 
 class FormatoAceptacionForm(forms.ModelForm):
@@ -1426,13 +1442,6 @@ class FormatoAceptacionForm(forms.ModelForm):
             "fecha_pago_mensual": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "prima_1_fecha": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "prima_2_fecha": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
-            "elaborado_por": forms.TextInput(
-                attrs={
-                    "class": "input",
-                    "autocomplete": "name",
-                    "placeholder": "Se rellena con el vendedor del contrato o su usuario",
-                }
-            ),
         }
 
     def __init__(self, *args, user=None, **kwargs):
@@ -1499,25 +1508,41 @@ class FormatoAceptacionForm(forms.ModelForm):
 
         ep = self.fields.get("elaborado_por")
         if ep:
-            ep.help_text = (
-                "Con contrato vinculado se usa el vendedor registrado en ese contrato; "
-                "sin contrato, el vendedor del catálogo enlazado a su usuario (Vendedores → usuario interno)."
-            )
             inst = self.instance
-            cur = (getattr(inst, "elaborado_por", None) or "").strip()
-            if not cur:
-                contrato = None
-                if inst is not None and getattr(inst, "contrato_id", None):
-                    contrato = getattr(inst, "contrato", None)
-                    if contrato is None:
-                        contrato = (
-                            Contrato.objects.filter(pk=inst.contrato_id)
-                            .select_related("vendedor_perfil", "vendedor")
-                            .first()
-                        )
-                sug = elaborado_por_sugerido_formato(contrato, user)
-                if sug:
-                    self.initial.setdefault("elaborado_por", sug)
+            choices = list(_choices_elaborado_por_vendedores())
+            cur = ""
+            if self.is_bound:
+                cur = (self.data.get("elaborado_por") or "").strip()
+            else:
+                cur = (getattr(inst, "elaborado_por", None) or "").strip()
+                if not cur:
+                    contrato = None
+                    if inst is not None and getattr(inst, "contrato_id", None):
+                        contrato = getattr(inst, "contrato", None)
+                        if contrato is None:
+                            contrato = (
+                                Contrato.objects.filter(pk=inst.contrato_id)
+                                .select_related("vendedor_perfil", "vendedor")
+                                .first()
+                            )
+                    sug = elaborado_por_sugerido_formato(contrato, user)
+                    if sug:
+                        cur = sug.strip()
+                        self.initial["elaborado_por"] = cur
+            choice_vals = {c[0] for c in choices}
+            if cur and cur not in choice_vals:
+                choices.insert(1, (cur, f"{cur} (guardado)"))
+            lbl = FormatoAceptacion._meta.get_field("elaborado_por").verbose_name
+            self.fields["elaborado_por"] = forms.ChoiceField(
+                label=lbl,
+                required=False,
+                choices=choices,
+                widget=forms.Select(attrs={"class": "input"}),
+                help_text=(
+                    "Catálogo de Vendedores (activos). Al crear el registro se sugiere el del contrato o su usuario; "
+                    "puede elegir otro de la lista."
+                ),
+            )
 
         if not formato_aceptacion_credito_extra_columns_ready():
             for fname in FORMATO_CREDITO_EXTRA_FIELDS:
