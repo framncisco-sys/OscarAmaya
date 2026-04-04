@@ -953,6 +953,24 @@ class FormatoAceptacionForm(forms.ModelForm):
                     "autocomplete": "tel",
                 }
             ),
+            "ben_porcentaje_1": forms.NumberInput(
+                attrs={
+                    "class": "input",
+                    "step": "0.01",
+                    "min": "0",
+                    "max": "100",
+                    "placeholder": "%",
+                }
+            ),
+            "ben_porcentaje_2": forms.NumberInput(
+                attrs={
+                    "class": "input",
+                    "step": "0.01",
+                    "min": "0",
+                    "max": "100",
+                    "placeholder": "%",
+                }
+            ),
             "num_lote": forms.HiddenInput(),
             "poligono_txt": forms.HiddenInput(),
             "fecha_nacimiento": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),

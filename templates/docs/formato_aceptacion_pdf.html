@@ -146,9 +146,17 @@
 
 <p class="fa-sect">Beneficiarios</p>
 <table class="fa-grid">
-  <tr><th>Nombre</th><th>Parentesco</th></tr>
-  <tr><td>{{ formato.ben_nombre_1|default:"—" }}</td><td>{{ formato.ben_parentesco_1|default:"—" }}</td></tr>
-  <tr><td>{{ formato.ben_nombre_2|default:"—" }}</td><td>{{ formato.ben_parentesco_2|default:"—" }}</td></tr>
+  <tr><th>Nombre</th><th>Parentesco</th><th>%</th></tr>
+  <tr>
+    <td>{{ formato.ben_nombre_1|default:"—" }}</td>
+    <td>{{ formato.ben_parentesco_1|default:"—" }}</td>
+    <td>{% if formato.ben_porcentaje_1 is not None %}{{ formato.ben_porcentaje_1|floatformat:2 }} %{% else %}—{% endif %}</td>
+  </tr>
+  <tr>
+    <td>{{ formato.ben_nombre_2|default:"—" }}</td>
+    <td>{{ formato.ben_parentesco_2|default:"—" }}</td>
+    <td>{% if formato.ben_porcentaje_2 is not None %}{{ formato.ben_porcentaje_2|floatformat:2 }} %{% else %}—{% endif %}</td>
+  </tr>
 </table>
 
 <p class="fa-sect">Elaboración</p>

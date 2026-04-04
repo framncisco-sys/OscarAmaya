@@ -873,8 +873,24 @@ class FormatoAceptacion(models.Model):
 
     ben_nombre_1 = models.CharField("Beneficiario 1 — nombre", max_length=200, blank=True)
     ben_parentesco_1 = models.CharField("Beneficiario 1 — parentesco", max_length=80, blank=True)
+    ben_porcentaje_1 = models.DecimalField(
+        "Beneficiario 1 — %",
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+    )
     ben_nombre_2 = models.CharField("Beneficiario 2 — nombre", max_length=200, blank=True)
     ben_parentesco_2 = models.CharField("Beneficiario 2 — parentesco", max_length=80, blank=True)
+    ben_porcentaje_2 = models.DecimalField(
+        "Beneficiario 2 — %",
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+    )
 
     elaborado_por = models.CharField("Elaborado por", max_length=120, blank=True)
     lugar_y_fecha = models.CharField("Lugar y fecha", max_length=200, blank=True)

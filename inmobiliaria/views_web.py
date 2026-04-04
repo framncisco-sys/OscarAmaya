@@ -205,8 +205,8 @@ def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list
         {
             "title": "Beneficiarios",
             "rows": [
-                [G("ben_nombre_1"), G("ben_parentesco_1")],
-                [G("ben_nombre_2"), G("ben_parentesco_2")],
+                [G("ben_nombre_1"), G("ben_parentesco_1"), G("ben_porcentaje_1")],
+                [G("ben_nombre_2"), G("ben_parentesco_2"), G("ben_porcentaje_2")],
             ],
         },
         {
