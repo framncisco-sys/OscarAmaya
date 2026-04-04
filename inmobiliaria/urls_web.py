@@ -75,6 +75,11 @@ urlpatterns = [
         name="formato_aceptacion_edit",
     ),
     path(
+        "formato-aceptacion/<int:pk>/eliminar/",
+        views.FormatoAceptacionDeleteView.as_view(),
+        name="formato_aceptacion_delete",
+    ),
+    path(
         "formato-aceptacion/<int:pk>/firma/<slug:tipo>/",
         views.formato_firma_preview,
         name="formato_firma_preview",

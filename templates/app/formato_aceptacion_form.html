@@ -289,6 +289,17 @@
   {{ form.firma_vendedor_canvas }}
   {{ form.firma_autorizado_canvas }}
 
+  {% if sensitive_password_required %}
+  <div class="field" style="max-width: 920px; margin-left: auto; margin-right: auto;">
+    <label class="field__label" for="id_sensitive_password">Confirmar contraseña</label>
+    <div class="field__control">
+      <input type="password" name="sensitive_password" id="id_sensitive_password" autocomplete="current-password" required
+        class="input" style="width:100%;max-width:min(100%,400px);box-sizing:border-box;">
+    </div>
+    <p class="field__help muted">Su sesión de edición expiró. Ingrese su contraseña para guardar. No aplica a superusuarios ni a perfiles con acceso de gerencia que salten esta confirmación.</p>
+  </div>
+  {% endif %}
+
   <div class="form-actions">
     <button type="submit" class="btn-primary">Guardar</button>
     <a href="{{ cancel_url }}" class="btn-secondary">Volver al listado</a>

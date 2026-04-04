@@ -46,10 +46,12 @@
       </td>
       <td>
         <div class="action-cluster">
-          <a href="{% url 'app:formato_aceptacion_edit' f.pk %}" class="link-action">Editar</a>
+          <a href="{% url 'app:formato_aceptacion_edit' f.pk %}" class="link-action"
+            title="Abrir edición: si no es superusuario, puede pedirse confirmar acceso con contraseña (menú lateral o al guardar).">Editar</a>
           {% if f.firmas_completas %}
           <a href="{% url 'app:formato_aceptacion_pdf' f.pk %}" class="link-action" target="_blank" rel="noopener">PDF</a>
           {% endif %}
+          <a href="{% url 'app:formato_aceptacion_delete' f.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a>
         </div>
       </td>
     </tr>

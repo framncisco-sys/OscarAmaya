@@ -912,7 +912,7 @@ class FormatoAceptacionListView(AppLoginRequiredMixin, ListView):
         )
 
 
-class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
+class FormatoAceptacionUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
     model = FormatoAceptacion
     form_class = forms.FormatoAceptacionForm
     template_name = "app/formato_aceptacion_form.html"
@@ -951,6 +951,21 @@ class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
         ctx["formato_catalogo_inmuebles"] = _catalogo_inmuebles_formato_aceptacion()
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
+        return ctx
+
+
+class FormatoAceptacionDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, DeleteView):
+    model = FormatoAceptacion
+    template_name = "app/confirm_delete.html"
+    success_url = reverse_lazy("app:formato_aceptacion_list")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["delete_title"] = "Eliminar formato de aceptación"
+        ctx["delete_blurb"] = (
+            "Quitará este formato y sus datos. Los archivos de firma en almacenamiento pueden quedar huérfanos; "
+            "revise su bucket o carpeta media si aplica."
+        )
         return ctx
 
 
