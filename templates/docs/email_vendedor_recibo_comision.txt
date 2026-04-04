@@ -1,0 +1,24 @@
+Estimado(a) asesor(a) {{ vendedor_nombre }},
+
+Adjunto encontrará el PDF de su recibo de comisión emitido en el sistema.
+
+────────────────────────────────────────
+DETALLE
+────────────────────────────────────────
+• Número de documento:  {{ doc.numero }}
+• Contrato:              {{ contrato.numero }}
+• Cliente:               {{ cliente }}
+• Inmueble:              {{ inmueble.codigo }}{% if inmueble.proyecto %} — {{ inmueble.proyecto.nombre }}{% endif %}
+• Comisión (referencia): {{ monto_fmt }} USD
+
+{% if pdf_url %}
+Descarga directa (HTTPS):
+{{ pdf_url }}
+
+{% endif %}
+Atentamente,
+
+{{ empresa_nombre }}
+
+---
+Mensaje automático. El PDF también está adjunto a este correo.

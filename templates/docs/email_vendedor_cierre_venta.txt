@@ -1,0 +1,20 @@
+Estimado(a) asesor(a) {{ vendedor_nombre }},
+
+{{ empresa_nombre }} le informa que el contrato indicado abajo fue registrado en etapa «Cierre / venta» en el sistema de gestión.
+
+────────────────────────────────────────
+DETALLE
+────────────────────────────────────────
+• Contrato:              {{ contrato.numero }}
+• Cliente:               {{ cliente }}
+• Inmueble:              {{ inmueble.codigo }}{% if inmueble.proyecto %} — {{ inmueble.proyecto.nombre }}{% endif %}
+• Precio acordado:       {{ monto_fmt }} USD
+
+Puede generar o revisar el recibo de comisión desde el módulo de contratos cuando corresponda.
+
+Atentamente,
+
+{{ empresa_nombre }}
+
+---
+Mensaje automático. Si no desea recibir estos avisos, indíquelo a administración o actualice los correos en el catálogo de vendedores.

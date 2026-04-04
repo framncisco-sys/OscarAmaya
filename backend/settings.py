@@ -491,6 +491,19 @@ RECIBO_EMAIL_ASUNTO = env.str(
     "RECIBO_EMAIL_ASUNTO",
     default="Constancia de pago registrada — Paredes Desarrollos Inmobiliarios (PDF adjunto)",
 )
+# Vendedor: correo al pasar etapa comercial a «Cierre / venta» y al generar recibo de comisión (PDF adjunto).
+VENDEDOR_NOTIFICAR_CIERRE_EMAIL = env.bool("VENDEDOR_NOTIFICAR_CIERRE_EMAIL", default=True)
+VENDEDOR_NOTIFICAR_RECIBO_COMISION_EMAIL = env.bool(
+    "VENDEDOR_NOTIFICAR_RECIBO_COMISION_EMAIL", default=True
+)
+VENDEDOR_CIERRE_EMAIL_ASUNTO = env.str(
+    "VENDEDOR_CIERRE_EMAIL_ASUNTO",
+    default="Etapa Cierre / venta — su contrato en el sistema",
+)
+VENDEDOR_RECIBO_COMISION_EMAIL_ASUNTO = env.str(
+    "VENDEDOR_RECIBO_COMISION_EMAIL_ASUNTO",
+    default="Recibo de comisión — PDF adjunto",
+)
 # Prefijo telefónico para armar enlaces wa.me (El Salvador = 503)
 RECIBO_WHATSAPP_PAIS = env.str("RECIBO_WHATSAPP_PAIS", default="503")
 # URL pública HTTPS del sitio (sin barra final). Ej. https://ventas.suempresa.com

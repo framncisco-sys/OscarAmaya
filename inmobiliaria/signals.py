@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Sum
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 
-from .models import CuotaProgramada, HistorialPrecioInmueble, Inmueble, Pago
+from .models import Contrato, CuotaProgramada, HistorialPrecioInmueble, Inmueble, Pago
 
 _inmueble_precio_anterior: dict[int, Decimal] = {}
 
@@ -74,6 +75,38 @@ def aplicar_pago_a_cuota_programada(sender, instance: Pago, created: bool, **kwa
                 cuota.save(update_fields=["pago", "estado", "pagado_en"])
 
     transaction.on_commit(_apply)
+
+
+@receiver(pre_save, sender=Contrato)
+def _contrato_recordar_etapa_comercial_previa(sender, instance: Contrato, **kwargs):
+    if not instance.pk:
+        instance._etapa_comercial_previa = None
+        return
+    prev = (
+        Contrato.objects.filter(pk=instance.pk)
+        .values_list("etapa_comercial", flat=True)
+        .first()
+    )
+    instance._etapa_comercial_previa = prev
+
+
+@receiver(post_save, sender=Contrato)
+def _contrato_notificar_vendedor_cierre(sender, instance: Contrato, created: bool, **kwargs):
+    if not getattr(settings, "VENDEDOR_NOTIFICAR_CIERRE_EMAIL", True):
+        return
+    prev = getattr(instance, "_etapa_comercial_previa", None)
+    if instance.etapa_comercial != Contrato.EtapaComercial.CIERRE:
+        return
+    if prev == Contrato.EtapaComercial.CIERRE:
+        return
+    cid = instance.pk
+
+    def _enviar():
+        from docs.vendedor_notificacion import notificar_vendedor_cierre_venta
+
+        notificar_vendedor_cierre_venta(cid)
+
+    transaction.on_commit(_enviar)
 
 
 @receiver(post_save, sender=CuotaProgramada)

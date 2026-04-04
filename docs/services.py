@@ -345,6 +345,15 @@ def emitir_recibo_comision_vendedor(*, contrato: Contrato, emitido_por=None) -> 
     doc.hash_sha256 = _sha256(pdf_bytes)
     doc.pdf_file.save(f"{numero}.pdf", ContentFile(pdf_bytes), save=False)
     doc.save(update_fields=["hash_sha256", "pdf_file"])
+    if getattr(settings, "VENDEDOR_NOTIFICAR_RECIBO_COMISION_EMAIL", True):
+        doc_id = doc.pk
+
+        def _correo_comision():
+            from .vendedor_notificacion import enviar_recibo_comision_vendedor_correo
+
+            enviar_recibo_comision_vendedor_correo(doc_id)
+
+        transaction.on_commit(_correo_comision)
     return doc
 
 
