@@ -19,4 +19,24 @@
     La mora se evalúa frente a la <strong>fecha de vencimiento</strong> de cada cuota programada y a
     <a href="{% url 'app:parametro_mora_list' %}">Parámetros de mora</a>.
   </p>
+  <div id="pago-formato-aceptacion" class="card cliente-docs-card" style="margin-top:0.85rem;display:none;border-style:dashed;" aria-live="polite">
+    <p class="field__label" style="margin-top:0;">Formato de aceptación (mismo contrato)</p>
+    <p class="muted" style="margin:0 0 0.5rem;font-size:0.9rem;line-height:1.45;">
+      Datos del formulario vinculado al contrato (nombre del cliente, plazo y cuotas según lo capturado allí).
+    </p>
+    <ul class="muted" style="margin:0;padding-left:1.2rem;font-size:0.9rem;line-height:1.5;">
+      <li><strong>N.º formulario:</strong> <span id="pago-fmt-num">—</span></li>
+      <li><strong>Nombre en formato:</strong> <span id="pago-fmt-nombre">—</span></li>
+      <li><strong>Letra mensual (formato):</strong> <span id="pago-fmt-letra">—</span></li>
+      <li><strong>Plazo / N.º cuotas / Interés (texto en formato):</strong>
+        <span id="pago-fmt-plazo">—</span> · <span id="pago-fmt-ncuotas">—</span> · <span id="pago-fmt-interes">—</span>
+      </li>
+    </ul>
+    <p style="margin:0.65rem 0 0;">
+      <a id="pago-fmt-link" href="#" class="link-action" style="display:none;">Abrir formato de aceptación</a>
+      <button type="button" id="pago-fmt-usar-letra" class="btn-secondary btn-sm" style="display:none;margin-left:0.5rem;">
+        Poner letra del formato en «Monto total»
+      </button>
+    </p>
+  </div>
 </div>

@@ -11,6 +11,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Prefetch, Q
 from django.forms import BaseInlineFormSet, inlineformset_factory
+from django.urls import reverse
 
 from .validators import validar_dui_sv, validar_nit_sv
 
@@ -252,6 +253,14 @@ class ContratoPagoSelect(forms.Select):
             option["attrs"]["data-n-cuotas-total"] = c.get("n_cuotas_total", "0")
             option["attrs"]["data-n-cuotas-pagadas"] = c.get("n_cuotas_pagadas", "0")
             option["attrs"]["data-pendientes-json"] = c.get("pendientes_json", "[]")
+            option["attrs"]["data-formato-id"] = c.get("formato_id", "")
+            option["attrs"]["data-formato-numero"] = c.get("formato_numero_formulario", "")
+            option["attrs"]["data-formato-edit-url"] = c.get("formato_edit_url", "")
+            option["attrs"]["data-formato-nombre"] = c.get("formato_nombre_cliente", "")
+            option["attrs"]["data-formato-letra-mensual"] = c.get("formato_letra_mensual", "")
+            option["attrs"]["data-formato-plazo"] = c.get("formato_plazo_txt", "")
+            option["attrs"]["data-formato-num-cuotas"] = c.get("formato_num_cuota_txt", "")
+            option["attrs"]["data-formato-interes"] = c.get("formato_interes_txt", "")
         return option
 
 
@@ -550,8 +559,9 @@ class PagoForm(forms.ModelForm):
         if ct:
             ct.label = "Contrato"
             ct.help_text = (
-                "Contrato al que aplica este pago. Al elegirlo se muestra el cliente, cuántas cuotas "
-                "del plan van pagadas y cuál sería la siguiente si el concepto es «Cuota de financiamiento»."
+                "Contrato al que aplica este pago. Al elegirlo se muestra el cliente, el formato de aceptación "
+                "si está vinculado, cuántas cuotas del calendario van pagadas y la siguiente pendiente. "
+                "Elija concepto «Cuota de financiamiento» para sugerir automáticamente el monto según ese calendario."
             )
             ct.queryset = Contrato.objects.select_related("cliente", "inmueble").order_by(
                 "-fecha_firma", "numero"
@@ -571,6 +581,10 @@ class PagoForm(forms.ModelForm):
                     )
                 )
                 stats_by_ct = {str(r["contrato_id"]): r for r in stats_rows}
+                formato_por_contrato = {
+                    f.contrato_id: f
+                    for f in FormatoAceptacion.objects.filter(contrato_id__in=pks)
+                }
                 pref = Prefetch(
                     "cuotas_programadas",
                     queryset=CuotaProgramada.objects.filter(
@@ -602,6 +616,21 @@ class PagoForm(forms.ModelForm):
                         }
                         for x in pend
                     ]
+                    fmt = formato_por_contrato.get(c.pk)
+                    fmt_id = fmt_num = fmt_url = fmt_nom = fmt_letra = ""
+                    fmt_plazo = fmt_nc = fmt_int = ""
+                    if fmt is not None:
+                        fmt_id = str(fmt.pk)
+                        fmt_num = f"{fmt.numero_formulario:04d}"
+                        fmt_url = reverse(
+                            "app:formato_aceptacion_edit", kwargs={"pk": fmt.pk}
+                        )
+                        fmt_nom = (fmt.nombre_cliente or "").strip()
+                        if fmt.letra_mensual is not None:
+                            fmt_letra = str(fmt.letra_mensual.quantize(Decimal("0.01")))
+                        fmt_plazo = (fmt.plazo_txt or "").strip()
+                        fmt_nc = (fmt.num_cuota_txt or "").strip()
+                        fmt_int = (fmt.interes_txt or "").strip()
                     catalog[str(c.pk)] = {
                         "cliente": str(c.cliente),
                         "contrato_numero": c.numero,
@@ -616,6 +645,14 @@ class PagoForm(forms.ModelForm):
                         "pendientes_json": json.dumps(
                             pendientes_payload, separators=(",", ":")
                         ),
+                        "formato_id": fmt_id,
+                        "formato_numero_formulario": fmt_num,
+                        "formato_edit_url": fmt_url,
+                        "formato_nombre_cliente": fmt_nom,
+                        "formato_letra_mensual": fmt_letra,
+                        "formato_plazo_txt": fmt_plazo,
+                        "formato_num_cuota_txt": fmt_nc,
+                        "formato_interes_txt": fmt_int,
                     }
             ct.widget = ContratoPagoSelect(catalog=catalog)
             ct.widget.choices = ct.choices
