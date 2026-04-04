@@ -2,6 +2,7 @@
   "use strict";
 
   var sel = document.getElementById("id_contrato");
+  var selFmt = document.getElementById("id_formato_aceptacion");
   var panel = document.getElementById("pago-contrato-resumen");
   var conceptoSel = document.getElementById("id_concepto");
   var cuotasN = document.getElementById("id_cuotas_incluidas");
@@ -96,7 +97,24 @@
     });
   }
 
+  function syncContratoDesdeFormato() {
+    if (!selFmt || !sel) return;
+    var fo = selFmt.selectedOptions[0];
+    if (selFmt.value && fo) {
+      var cid = fo.getAttribute("data-contrato-id");
+      if (cid) {
+        sel.value = cid;
+        return;
+      }
+    }
+    var flags = document.getElementById("pago-form-flags");
+    if (flags && flags.getAttribute("data-ocultar-contrato") === "1" && !selFmt.value) {
+      sel.value = "";
+    }
+  }
+
   function update() {
+    syncContratoDesdeFormato();
     var opt = sel.selectedOptions[0];
     if (!opt || !opt.value) {
       panel.style.display = "none";
@@ -182,9 +200,16 @@
     var fmtLetra = opt.getAttribute("data-formato-letra-mensual") || "";
 
     if (!esCuota) {
-      aplic.innerHTML =
-        "Concepto distinto de «Cuota de financiamiento»: este movimiento no liquida automáticamente una fila del calendario de cuotas. " +
-        "Si elige <strong>Cuota de financiamiento</strong>, se rellenarán la fecha y el <strong>monto total</strong> según la siguiente cuota pendiente del calendario; también puede usar el botón «Poner letra del formato» si aplica otro concepto.";
+      var nPlan = parseInt10(opt.getAttribute("data-n-cuotas-total"));
+      if (useTablaCuotas && nPlan > 0) {
+        aplic.innerHTML =
+          "Concepto distinto de «Cuota de financiamiento»: la <strong>tabla de abajo</strong> muestra el plan de cuotas solo como referencia (sin marcar pagos). " +
+          "Para liquidar cuotas en el calendario elija <strong>Cuota de financiamiento</strong> y marque las casillas desde la primera pendiente.";
+      } else {
+        aplic.innerHTML =
+          "Concepto distinto de «Cuota de financiamiento»: este movimiento no liquida el calendario de cuotas. " +
+          "Si elige <strong>Cuota de financiamiento</strong>, podrá marcar cuotas en la tabla y ajustar monto y fecha.";
+      }
       aplic.style.color = "#475569";
       return;
     }
@@ -262,6 +287,7 @@
   }
 
   sel.addEventListener("change", update);
+  if (selFmt) selFmt.addEventListener("change", update);
   if (conceptoSel) conceptoSel.addEventListener("change", update);
   if (cuotasN) cuotasN.addEventListener("input", update);
   if (cuotasN) cuotasN.addEventListener("change", update);

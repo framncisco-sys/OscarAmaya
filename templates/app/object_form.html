@@ -18,7 +18,7 @@
     <div class="alert" role="alert">{{ form.non_field_errors }}</div>
   {% endif %}
   {% for field in form.visible_fields %}
-    <div class="field{% if pago_contrato_panel and field.name == 'cuotas_incluidas' %} pago-field-cuotas-n{% endif %}"{% if pago_contrato_panel and field.name == 'cuotas_incluidas' %} id="pago-field-cuotas-n" style="display:none;"{% endif %}>
+    <div class="field{% if pago_contrato_panel and field.name == 'cuotas_incluidas' %} pago-field-cuotas-n{% endif %}"{% if pago_contrato_panel and field.name == 'cuotas_incluidas' %} id="pago-field-cuotas-n" style="display:none;"{% elif pago_ocultar_contrato and field.name == 'contrato' %} style="display:none;" aria-hidden="true"{% endif %}>
       <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
       <div class="field__control">
         {{ field }}
@@ -29,7 +29,10 @@
       {% if field.errors %}
         <div class="field__error" role="alert">{{ field.errors }}</div>
       {% endif %}
-      {% if pago_contrato_panel and field.name == "contrato" %}
+      {% if pago_contrato_panel and field.name == "formato_aceptacion" and pago_panel_debajo_formato %}
+        {% include "app/_pago_contrato_panel.html" %}
+      {% endif %}
+      {% if pago_contrato_panel and field.name == "contrato" and not pago_panel_debajo_formato %}
         {% include "app/_pago_contrato_panel.html" %}
       {% endif %}
     </div>

@@ -1296,6 +1296,11 @@ class PagoCreateView(AppLoginRequiredMixin, CreateView):
     template_name = "app/pago_form.html"
     success_url = reverse_lazy("app:pago_list")
 
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["ocultar_contrato"] = True
+        return kw
+
     def get_initial(self):
         initial = super().get_initial()
         fid = (self.request.GET.get("formato") or "").strip()
@@ -1309,6 +1314,8 @@ class PagoCreateView(AppLoginRequiredMixin, CreateView):
         ctx["cancel_url"] = reverse_lazy("app:pago_list")
         ctx["pago_contrato_panel"] = True
         ctx["pago_cuotas_checkboxes"] = True
+        ctx["pago_ocultar_contrato"] = True
+        ctx["pago_panel_debajo_formato"] = True
         return ctx
 
     def form_valid(self, form):
@@ -1332,6 +1339,8 @@ class PagoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
         ctx["cancel_url"] = reverse_lazy("app:pago_list")
         ctx["pago_contrato_panel"] = True
         ctx["pago_cuotas_checkboxes"] = False
+        ctx["pago_ocultar_contrato"] = False
+        ctx["pago_panel_debajo_formato"] = False
         return ctx
 
 

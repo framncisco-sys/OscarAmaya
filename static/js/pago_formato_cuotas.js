@@ -107,20 +107,24 @@
 
   function rebuildTable() {
     tbody.innerHTML = "";
-    if (!isCuotaConcept()) {
+    var rows = getAllCuotas();
+    var thAcc = document.getElementById("pago-cuotas-th-accion");
+    var esCuota = isCuotaConcept();
+
+    if (!rows.length) {
       wrap.style.display = "none";
       if (hiddenIds) hiddenIds.value = "";
       if (hiddenN) hiddenN.value = "1";
       return;
     }
 
-    var rows = getAllCuotas();
-    if (!rows.length) {
-      wrap.style.display = "none";
-      return;
-    }
-
     wrap.style.display = "block";
+    if (thAcc) thAcc.textContent = esCuota ? "Pagar" : "—";
+
+    if (!esCuota) {
+      if (hiddenIds) hiddenIds.value = "";
+      if (hiddenN) hiddenN.value = "1";
+    }
 
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
@@ -137,15 +141,19 @@
       var td4 = document.createElement("td");
       td4.style.padding = "0.35rem";
 
-      var chk = document.createElement("input");
-      chk.type = "checkbox";
-      chk.dataset.cuotaId = String(row.id);
-      chk.dataset.idx = String(i);
-      if (!row.abierta) {
-        chk.disabled = true;
-        chk.checked = true;
+      if (esCuota) {
+        var chk = document.createElement("input");
+        chk.type = "checkbox";
+        chk.dataset.cuotaId = String(row.id);
+        chk.dataset.idx = String(i);
+        if (!row.abierta) {
+          chk.disabled = true;
+          chk.checked = true;
+        }
+        td0.appendChild(chk);
+      } else {
+        td0.textContent = "—";
       }
-      td0.appendChild(chk);
       td1.textContent = String(row.n);
       td2.textContent = formatDate(row.v);
       td3.textContent = "$" + row.m;
@@ -158,7 +166,9 @@
       tbody.appendChild(tr);
     }
 
-    normalizeSelection();
+    if (esCuota) {
+      normalizeSelection();
+    }
   }
 
   function onContratoOrConceptoChange() {
@@ -190,6 +200,12 @@
     var o = selFmt.selectedOptions[0];
     var cid = o && o.getAttribute("data-contrato-id");
     if (cid) selCt.value = cid;
+  }
+
+  if (selCt) {
+    try {
+      selCt.dispatchEvent(new Event("change", { bubbles: true }));
+    } catch (e) {}
   }
 
   wrap.addEventListener("change", function (ev) {

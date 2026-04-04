@@ -518,7 +518,8 @@ class PagoForm(forms.ModelForm):
             "cuotas_incluidas",
         ]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, ocultar_contrato=False, **kwargs):
+        self.ocultar_contrato = bool(ocultar_contrato)
         super().__init__(*args, **kwargs)
 
         ci = self.fields.get("cuotas_incluidas")
@@ -578,8 +579,8 @@ class PagoForm(forms.ModelForm):
             fa.required = False
             fa.label = "Formato de aceptación guardado"
             fa.help_text = (
-                "Recomendado: elija el formato guardado y se enlazará el contrato correspondiente. "
-                "Los datos de referencia (cliente, letra, plazo) salen del formato; las cuotas a pagar se marcan en la tabla del calendario."
+                "Elija el formato guardado: debajo verá la referencia del cliente y el plan de cuotas del sistema. "
+                "El contrato se asigna automáticamente; para pagar cuotas marque las casillas (solo con concepto «Cuota de financiamiento»)."
             )
             fmt_qs = (
                 FormatoAceptacion.objects.filter(contrato__isnull=False)
@@ -595,8 +596,12 @@ class PagoForm(forms.ModelForm):
         if ct:
             ct.label = "Contrato"
             ct.help_text = (
-                "Se puede elegir directamente o derivarse del formato de aceptación. "
-                "Al guardar como «Cuota de financiamiento», el sistema liquida las cuotas marcadas en el calendario (orden de vencimiento)."
+                "En «Nuevo pago» se rellena solo al elegir el formato (no visible en pantalla). "
+                "Al editar un pago puede cambiar el contrato si aplica."
+                if self.ocultar_contrato
+                else (
+                    "Contrato al que aplica el pago. Con «Cuota de financiamiento», use la tabla del calendario para marcar cuotas."
+                )
             )
             ct.queryset = Contrato.objects.select_related("cliente", "inmueble").order_by(
                 "-fecha_firma", "numero"
@@ -735,6 +740,15 @@ class PagoForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        if self.ocultar_contrato and not getattr(self.instance, "pk", None):
+            if not cleaned_data.get("formato_aceptacion"):
+                raise ValidationError(
+                    {
+                        "formato_aceptacion": (
+                            "Seleccione un formato de aceptación guardado (vinculado a un contrato)."
+                        )
+                    }
+                )
         formato = cleaned_data.get("formato_aceptacion")
         if formato and formato.contrato_id:
             cleaned_data["contrato"] = formato.contrato

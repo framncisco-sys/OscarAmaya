@@ -1,1 +1,4 @@
 {% extends "app/object_form.html" %}
+{% block before_form %}
+<div id="pago-form-flags" data-ocultar-contrato="{% if pago_ocultar_contrato %}1{% else %}0{% endif %}" hidden></div>
+{% endblock %}
