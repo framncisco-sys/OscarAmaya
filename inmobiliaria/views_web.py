@@ -4,6 +4,7 @@ import base64
 import csv
 import html
 import json
+from collections import defaultdict
 import mimetypes
 from decimal import Decimal
 from types import SimpleNamespace
@@ -108,6 +109,47 @@ def _proyectos_para_formato_aceptacion() -> list[dict]:
     )
 
 
+def _catalogo_inmuebles_formato_aceptacion() -> dict:
+    """Polígonos por proyecto, lotes por polígono (o sin polígono) e índice por id de inmueble."""
+    polis_por_proyecto: dict[int, list[dict]] = defaultdict(list)
+    for pol in (
+        Poligono.objects.filter(proyecto__activo=True)
+        .select_related("proyecto")
+        .order_by("proyecto_id", "orden", "nombre")
+    ):
+        polis_por_proyecto[pol.proyecto_id].append({"id": pol.pk, "nombre": pol.nombre})
+
+    lotes_por_clave: dict[str, list[dict]] = defaultdict(list)
+    inmueble_por_id: dict[str, dict] = {}
+    for inv in (
+        Inmueble.objects.filter(proyecto__activo=True)
+        .select_related("poligono", "proyecto")
+        .order_by("proyecto_id", "poligono_id", "codigo")
+    ):
+        clave = str(inv.poligono_id) if inv.poligono_id else f"np:{inv.proyecto_id}"
+        pol_nombre = inv.poligono.nombre if inv.poligono_id else ""
+        entry = {
+            "id": inv.pk,
+            "codigo": inv.codigo,
+            "precio": str(inv.precio_lista),
+            "area_m2": str(inv.area_m2) if inv.area_m2 is not None else "",
+            "area_v2": str(inv.area_varas_cuadradas)
+            if inv.area_varas_cuadradas is not None
+            else "",
+            "poligono_nombre": pol_nombre,
+            "proyecto_id": inv.proyecto_id,
+            "clave_poligono": clave,
+        }
+        lotes_por_clave[clave].append(entry)
+        inmueble_por_id[str(inv.pk)] = entry
+
+    return {
+        "poligonosPorProyecto": {str(k): v for k, v in polis_por_proyecto.items()},
+        "lotesPorClave": dict(lotes_por_clave),
+        "inmueblePorId": inmueble_por_id,
+    }
+
+
 def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list[dict]:
     """Agrupa campos del formato impreso para el template (sin campos ocultos de lienzo)."""
     G = form.__getitem__
@@ -152,7 +194,7 @@ def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list
         {
             "title": "Datos del crédito",
             "rows": [
-                [G("num_lote"), G("poligono_txt"), G("area_m2_txt"), G("area_v2_txt")],
+                [G("area_m2_txt"), G("area_v2_txt")],
                 [G("prima_1"), G("valor_inmueble")],
                 [G("prima_2"), G("valor_financiamiento"), G("letra_mensual")],
                 [G("plazo_txt"), G("num_cuota_txt"), G("interes_txt")],
@@ -773,6 +815,7 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
         ctx["firmas_completas"] = False
         ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
         ctx["proyectos_formato"] = _proyectos_para_formato_aceptacion()
+        ctx["formato_catalogo_inmuebles"] = _catalogo_inmuebles_formato_aceptacion()
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
         return ctx
@@ -824,6 +867,7 @@ class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
         ctx["firmas_completas"] = self.object.firmas_completas
         ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
         ctx["proyectos_formato"] = _proyectos_para_formato_aceptacion()
+        ctx["formato_catalogo_inmuebles"] = _catalogo_inmuebles_formato_aceptacion()
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
         return ctx

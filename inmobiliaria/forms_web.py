@@ -804,14 +804,18 @@ class FormatoAceptacionForm(forms.ModelForm):
             "direccion_notificacion": forms.Textarea(attrs={"rows": 2}),
             "direccion_trabajo": forms.Textarea(attrs={"rows": 2}),
             "direccion_terreno": forms.Textarea(attrs={"rows": 2}),
+            "num_lote": forms.HiddenInput(),
+            "poligono_txt": forms.HiddenInput(),
             "fecha_primera_cuota": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "fecha_pago_mensual": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        fd = self.fields.get("fecha_primera_cuota")
-        if fd:
-            fd.input_formats = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"]
+        for fname in ("fecha_primera_cuota", "fecha_pago_mensual"):
+            fd = self.fields.get(fname)
+            if fd:
+                fd.input_formats = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"]
 
     def save(self, commit=True):
         import base64

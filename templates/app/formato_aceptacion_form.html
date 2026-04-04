@@ -186,7 +186,30 @@
               {% endfor %}
             </select>
           </div>
-          <div class="field__help muted">Toma los datos del módulo Proyectos; puede corregirlos después en los campos de abajo.</div>
+          <div class="field__help muted">También filtra polígonos y lotes en «Datos del crédito». Puede corregir nombre y dirección abajo.</div>
+        </div>
+      </div>
+      {% endif %}
+      {% if sec.title == "Datos del crédito" %}
+      {{ form.num_lote }}
+      {{ form.poligono_txt }}
+      <div class="formato-acept-row cols-2">
+        <div class="field">
+          <label class="field__label" for="fmt-select-poligono">Polígono</label>
+          <div class="field__control">
+            <select id="fmt-select-poligono" class="input" autocomplete="off">
+              <option value="">— Elija proyecto en «Proyecto registrado» —</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field__label" for="fmt-select-lote">No. de lote</label>
+          <div class="field__control">
+            <select id="fmt-select-lote" class="input" autocomplete="off">
+              <option value="">— No. de lote —</option>
+            </select>
+          </div>
+          <div class="field__help muted">Valor del inmueble y áreas salen del inmueble registrado.</div>
         </div>
       </div>
       {% endif %}
@@ -261,34 +284,7 @@
 </form>
 
 {{ proyectos_formato|json_script:"formato-proyectos-data" }}
-<script>
-(function () {
-  document.addEventListener("DOMContentLoaded", function () {
-    var sel = document.getElementById("id-formato-proyecto-ayuda");
-    var nom = document.getElementById("id_nombre_proyecto");
-    var dir = document.getElementById("id_direccion_terreno");
-    var dataEl = document.getElementById("formato-proyectos-data");
-    if (!sel || !nom || !dir || !dataEl) return;
-    var proyectos = [];
-    try {
-      proyectos = JSON.parse(dataEl.textContent);
-    } catch (e) {}
-    sel.addEventListener("change", function () {
-      var id = sel.value;
-      if (!id) return;
-      var found = null;
-      for (var i = 0; i < proyectos.length; i++) {
-        if (String(proyectos[i].id) === String(id)) {
-          found = proyectos[i];
-          break;
-        }
-      }
-      if (!found) return;
-      nom.value = found.nombre || "";
-      dir.value = found.direccion || "";
-    });
-  });
-})();
-</script>
+{{ formato_catalogo_inmuebles|json_script:"formato-catalogo-inmuebles-data" }}
+<script src="{% static 'js/formato_aceptacion_credito.js' %}" defer></script>
 <script src="{% static 'js/formato_aceptacion_firmas.js' %}" defer></script>
 {% endblock %}
