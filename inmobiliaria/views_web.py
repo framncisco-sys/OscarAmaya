@@ -21,7 +21,7 @@ from django.forms import ValidationError
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import ProtectedError, Sum
 from django.http import (
     FileResponse,
@@ -82,6 +82,42 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _formato_aceptacion_promesa_column_ready() -> bool:
+    """
+    True si existe la columna promesa_venta_escaneada (migración 0024 aplicada).
+    Si no, varias vistas usan .defer() para que el listado y la edición no rompan el SELECT.
+    """
+    table = FormatoAceptacion._meta.db_table
+    col = "promesa_venta_escaneada"
+    try:
+        with connection.cursor() as cursor:
+            qn = connection.ops.quote_name
+            cursor.execute(f"SELECT {qn(col)} FROM {qn(table)} WHERE 0=1")
+        return True
+    except Exception:
+        return False
+
+
+def _formato_aceptacion_qs_contrato_pdf():
+    qs = FormatoAceptacion.objects.select_related(
+        "contrato",
+        "contrato__cliente",
+        "contrato__inmueble",
+        "contrato__inmueble__proyecto",
+    )
+    if not _formato_aceptacion_promesa_column_ready():
+        qs = qs.defer("promesa_venta_escaneada")
+    return qs
+
+
+def _formato_aceptacion_qs_pk():
+    qs = FormatoAceptacion.objects.all()
+    if not _formato_aceptacion_promesa_column_ready():
+        qs = qs.defer("promesa_venta_escaneada")
+    return qs
+
 
 # Editar/eliminar formato de aceptación: credenciales de superusuario (sesión temporal).
 PBR_SESSION_FORMATO_SUPER_GATE = "PBR_FORMATO_SUPERUSER_GATE_UNTIL"
@@ -1034,19 +1070,28 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
         ctx["formato_catalogo_inmuebles"] = _catalogo_inmuebles_formato_aceptacion()
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
+        col_ok = _formato_aceptacion_promesa_column_ready()
+        ctx["formato_promesa_columna_bd"] = col_ok
+        ctx["formato_promesa_migrate_pendiente"] = bool(
+            getattr(self, "object", None) and self.object.pk and not col_ok
+        )
         if getattr(self, "object", None) and self.object.pk:
-            ctx["formato_promesa_subir_url"] = reverse(
-                "app:formato_aceptacion_promesa_subir", kwargs={"pk": self.object.pk}
-            )
-            f = self.object.promesa_venta_escaneada
-            ctx["formato_promesa_descargar_url"] = (
-                reverse(
-                    "app:formato_aceptacion_promesa_descargar",
-                    kwargs={"pk": self.object.pk},
+            if col_ok:
+                ctx["formato_promesa_subir_url"] = reverse(
+                    "app:formato_aceptacion_promesa_subir", kwargs={"pk": self.object.pk}
                 )
-                if f and f.name
-                else None
-            )
+                f = self.object.promesa_venta_escaneada
+                ctx["formato_promesa_descargar_url"] = (
+                    reverse(
+                        "app:formato_aceptacion_promesa_descargar",
+                        kwargs={"pk": self.object.pk},
+                    )
+                    if f and f.name
+                    else None
+                )
+            else:
+                ctx["formato_promesa_subir_url"] = None
+                ctx["formato_promesa_descargar_url"] = None
         else:
             ctx["formato_promesa_subir_url"] = None
             ctx["formato_promesa_descargar_url"] = None
@@ -1063,6 +1108,8 @@ class FormatoAceptacionListView(AppLoginRequiredMixin, ListView):
     paginate_by = 30
 
     def get_queryset(self):
+        # defer: si en producción aún no corrió migrate 0024, el listado no falla al no
+        # pedir la columna promesa_venta_escaneada en el SELECT.
         return (
             FormatoAceptacion.objects.order_by("-numero_formulario", "-id")
             .select_related(
@@ -1070,6 +1117,7 @@ class FormatoAceptacionListView(AppLoginRequiredMixin, ListView):
                 "contrato__inmueble",
                 "contrato__inmueble__proyecto",
             )
+            .defer("promesa_venta_escaneada")
         )
 
 
@@ -1079,19 +1127,19 @@ class FormatoAceptacionUpdateView(
     model = FormatoAceptacion
     form_class = forms.FormatoAceptacionForm
     template_name = "app/formato_aceptacion_form.html"
-    queryset = FormatoAceptacion.objects.select_related(
-        "contrato",
-        "contrato__cliente",
-        "contrato__inmueble",
-        "contrato__inmueble__proyecto",
-    )
+
+    def get_queryset(self):
+        return _formato_aceptacion_qs_contrato_pdf()
 
     def form_valid(self, form):
         pk = self.object.pk
         prev_firmas = False
         if pk:
             try:
-                prev_firmas = FormatoAceptacion.objects.get(pk=pk).firmas_completas
+                q = FormatoAceptacion.objects.filter(pk=pk)
+                if not _formato_aceptacion_promesa_column_ready():
+                    q = q.defer("promesa_venta_escaneada")
+                prev_firmas = q.get().firmas_completas
             except FormatoAceptacion.DoesNotExist:
                 prev_firmas = False
         response = super().form_valid(form)
@@ -1122,18 +1170,25 @@ class FormatoAceptacionUpdateView(
         ctx["formato_catalogo_inmuebles"] = _catalogo_inmuebles_formato_aceptacion()
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
-        ctx["formato_promesa_subir_url"] = reverse(
-            "app:formato_aceptacion_promesa_subir", kwargs={"pk": self.object.pk}
-        )
-        pf = self.object.promesa_venta_escaneada
-        ctx["formato_promesa_descargar_url"] = (
-            reverse(
-                "app:formato_aceptacion_promesa_descargar",
-                kwargs={"pk": self.object.pk},
+        col_ok = _formato_aceptacion_promesa_column_ready()
+        ctx["formato_promesa_columna_bd"] = col_ok
+        ctx["formato_promesa_migrate_pendiente"] = not col_ok
+        if col_ok:
+            ctx["formato_promesa_subir_url"] = reverse(
+                "app:formato_aceptacion_promesa_subir", kwargs={"pk": self.object.pk}
             )
-            if pf and pf.name
-            else None
-        )
+            pf = self.object.promesa_venta_escaneada
+            ctx["formato_promesa_descargar_url"] = (
+                reverse(
+                    "app:formato_aceptacion_promesa_descargar",
+                    kwargs={"pk": self.object.pk},
+                )
+                if pf and pf.name
+                else None
+            )
+        else:
+            ctx["formato_promesa_subir_url"] = None
+            ctx["formato_promesa_descargar_url"] = None
         return ctx
 
 
@@ -1143,6 +1198,12 @@ class FormatoAceptacionDeleteView(
     model = FormatoAceptacion
     template_name = "app/confirm_delete.html"
     success_url = reverse_lazy("app:formato_aceptacion_list")
+
+    def get_queryset(self):
+        qs = FormatoAceptacion.objects.all()
+        if not _formato_aceptacion_promesa_column_ready():
+            qs = qs.defer("promesa_venta_escaneada")
+        return qs
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -1169,15 +1230,7 @@ class FormatoAceptacionDeleteView(
 
 @login_required
 def formato_aceptacion_pdf(request: HttpRequest, pk: int) -> HttpResponse:
-    formato = get_object_or_404(
-        FormatoAceptacion.objects.select_related(
-            "contrato",
-            "contrato__cliente",
-            "contrato__inmueble",
-            "contrato__inmueble__proyecto",
-        ),
-        pk=pk,
-    )
+    formato = get_object_or_404(_formato_aceptacion_qs_contrato_pdf(), pk=pk)
     if not formato.firmas_completas:
         messages.error(
             request,
@@ -1210,7 +1263,7 @@ def formato_firma_preview(request: HttpRequest, pk: int, tipo: str) -> HttpRespo
     """
     if tipo not in _FORMATO_FIRMA_PREVIEW_ROLES:
         raise Http404()
-    formato = get_object_or_404(FormatoAceptacion, pk=pk)
+    formato = get_object_or_404(_formato_aceptacion_qs_pk(), pk=pk)
     field = getattr(formato, _FORMATO_FIRMA_PREVIEW_ROLES[tipo])
     if not field or not field.name:
         raise Http404()
@@ -1231,9 +1284,16 @@ def formato_aceptacion_promesa_subir(request: HttpRequest, pk: int) -> HttpRespo
         nxt = request.get_full_path()
         gate = f"{reverse('app:formato_superuser_gate')}?{urlencode({'next': nxt})}"
         return HttpResponseRedirect(gate)
+    redir = reverse("app:formato_aceptacion_edit", kwargs={"pk": pk})
+    if not _formato_aceptacion_promesa_column_ready():
+        messages.error(
+            request,
+            "La base de datos aún no tiene la columna para la promesa escaneada. "
+            "En el servidor ejecute: python manage.py migrate --noinput",
+        )
+        return HttpResponseRedirect(redir)
     formato = get_object_or_404(FormatoAceptacion, pk=pk)
     form = forms.FormatoAceptacionPromesaForm(request.POST, request.FILES)
-    redir = reverse("app:formato_aceptacion_edit", kwargs={"pk": pk})
     if not form.is_valid():
         messages.error(request, "Revise el archivo (PDF, JPG o PNG).")
         return HttpResponseRedirect(redir)
@@ -1259,6 +1319,8 @@ def formato_aceptacion_promesa_descargar(request: HttpRequest, pk: int) -> HttpR
         nxt = request.get_full_path()
         gate = f"{reverse('app:formato_superuser_gate')}?{urlencode({'next': nxt})}"
         return HttpResponseRedirect(gate)
+    if not _formato_aceptacion_promesa_column_ready():
+        raise Http404()
     formato = get_object_or_404(FormatoAceptacion, pk=pk)
     field = formato.promesa_venta_escaneada
     if not field or not field.name:

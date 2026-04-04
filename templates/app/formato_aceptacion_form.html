@@ -147,8 +147,18 @@
   {% endif %}
 </div>
 
+{% if formato_promesa_migrate_pendiente %}
+<div class="alert" role="alert" style="max-width: 920px; margin: 0 auto 1rem; border-color: #b45309; background: #fffbeb; color: #78350f;">
+  <strong>Falta aplicar migraciones en el servidor.</strong>
+  En la consola del servicio (DigitalOcean u otro) ejecute:
+  <code style="word-break: break-all;">python manage.py migrate --noinput</code>
+  y confirme que el comando de arranque incluya migraciones (por ejemplo <code>bash scripts/run_web.sh</code>).
+  Hasta entonces no se puede subir la promesa escaneada desde aquí.
+</div>
+{% endif %}
+
 {% if object.pk and formato_promesa_subir_url %}
-<section class="formato-papel" style="max-width: 920px; margin: 0 auto 1.5rem;">
+<section id="promesa-venta" class="formato-papel" style="max-width: 920px; margin: 0 auto 1.5rem;">
   <h2 class="formato-section-title">Promesa de venta escaneada</h2>
   <p class="muted" style="margin: 0 0 0.75rem; font-size: 0.88rem;">
     Suba el documento firmado; quedará disponible para descargar desde esta pantalla. Al subirlo se intenta enviar copia al cliente por correo y WhatsApp (si están configurados).

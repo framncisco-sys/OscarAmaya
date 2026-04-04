@@ -151,6 +151,22 @@ La base de datos en DigitalOcean no tiene las migraciones aplicadas.
    (El Procfile del repo ya usa ese patrón si su plataforma lo respeta al desplegar.)
 
 --------------------------------------------------------------------------------
+ERROR: column ... promesa_venta_escaneada does not exist
+--------------------------------------------------------------------------------
+
+El código ya incluye el campo en el modelo pero la base de datos no tiene la migración
+0024 (o superior). Solución: en la consola del Web Service ejecute de inmediato:
+
+  python manage.py migrate --noinput
+
+En App Platform, el Run Command recomendado es usar el script del repo (migra y arranca):
+
+  bash scripts/run_web.sh
+
+No use solo "gunicorn ..." sin migrate, o tras cada despliegue con modelos nuevos
+volverá a faltar una columna o tabla.
+
+--------------------------------------------------------------------------------
 Después de guardar y desplegar
 --------------------------------------------------------------------------------
 

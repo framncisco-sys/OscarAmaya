@@ -710,7 +710,9 @@ class PagoForm(forms.ModelForm):
                 stats_by_ct = {str(r["contrato_id"]): r for r in stats_rows}
                 formato_por_contrato = {
                     f.contrato_id: f
-                    for f in FormatoAceptacion.objects.filter(contrato_id__in=pks)
+                    for f in FormatoAceptacion.objects.filter(
+                        contrato_id__in=pks
+                    ).defer("promesa_venta_escaneada")
                 }
                 pref = Prefetch(
                     "cuotas_programadas",
@@ -830,9 +832,11 @@ class PagoForm(forms.ModelForm):
                 "Lista igual que en «Formatos de aceptación guardados». Si el formato no tiene contrato enlazado, "
                 "el sistema intenta localizarlo por lote y proyecto del documento; si no puede, debe vincular el contrato al editar el formato."
             )
-            fmt_qs = FormatoAceptacion.objects.select_related(
-                "contrato", "contrato__cliente"
-            ).order_by("-numero_formulario", "-id")
+            fmt_qs = (
+                FormatoAceptacion.objects.select_related("contrato", "contrato__cliente")
+                .defer("promesa_venta_escaneada")
+                .order_by("-numero_formulario", "-id")
+            )
             fa.queryset = fmt_qs
             formato_catalog: dict[str, dict[str, str]] = {}
             fmt_labels: dict[int, str] = {}

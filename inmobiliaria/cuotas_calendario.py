@@ -41,7 +41,11 @@ def fecha_primera_cuota_desde_formato_contrato(contrato: Contrato | None) -> dat
     """
     if not contrato or not getattr(contrato, "pk", None):
         return None
-    fmt = FormatoAceptacion.objects.filter(contrato_id=contrato.pk).first()
+    fmt = (
+        FormatoAceptacion.objects.filter(contrato_id=contrato.pk)
+        .defer("promesa_venta_escaneada")
+        .first()
+    )
     if not fmt:
         return None
     if fmt.fecha_primera_cuota:
