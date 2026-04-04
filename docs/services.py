@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import logging
+import os
 import re
+import tempfile
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -102,7 +105,29 @@ def _html_to_pdf_bytes_weasyprint(html: str) -> bytes:
     return HTML(string=html, base_url=_pdf_static_base_url()).write_pdf()
 
 
-def _xhtml2pdf_link_callback(uri: str, rel: str) -> str:
+def _xhtml2pdf_data_uri_to_temp_file(uri: str) -> str | None:
+    """xhtml2pdf no incorpora bien data: en <img>; volcamos a un PNG temporal."""
+    comma = uri.find(",")
+    if comma == -1:
+        return None
+    header = uri[:comma].lower()
+    if "base64" not in header:
+        return None
+    try:
+        raw = base64.b64decode(uri[comma + 1 :], validate=False)
+    except (ValueError, TypeError):
+        return None
+    if len(raw) < 8:
+        return None
+    fd, path = tempfile.mkstemp(prefix="pbr-pdfimg-", suffix=".png")
+    try:
+        os.write(fd, raw)
+    finally:
+        os.close(fd)
+    return path
+
+
+def _xhtml2pdf_resolve_resource(uri: str, rel: str) -> str:
     """Resuelve imágenes y recursos locales para xhtml2pdf (Windows / sin WeasyPrint)."""
     del rel  # API de xhtml2pdf; no usado aquí
     if uri.startswith(("http://", "https://")):
@@ -126,22 +151,39 @@ def _xhtml2pdf_link_callback(uri: str, rel: str) -> str:
 def _html_to_pdf_bytes_xhtml2pdf(html: str) -> bytes:
     from xhtml2pdf import pisa
 
+    temp_files: list[str] = []
+
+    def link_callback(uri: str, rel: str) -> str:
+        if uri.startswith("data:"):
+            path = _xhtml2pdf_data_uri_to_temp_file(uri)
+            if path:
+                temp_files.append(path)
+                return path
+        return _xhtml2pdf_resolve_resource(uri, rel)
+
     # @page y algunas propiedades avanzadas pueden confundir al parser; lo básico se conserva.
     html = re.sub(r"@page\s*\{[^}]*\}", "", html, flags=re.DOTALL)
 
     out = BytesIO()
-    pdf = pisa.pisaDocument(
-        src=BytesIO(html.encode("utf-8")),
-        dest=out,
-        encoding="utf-8",
-        link_callback=_xhtml2pdf_link_callback,
-    )
-    if pdf.err:
-        raise RuntimeError("xhtml2pdf reportó errores al generar el PDF.")
-    data = out.getvalue()
-    if not data:
-        raise RuntimeError("xhtml2pdf devolvió un PDF vacío.")
-    return data
+    try:
+        pdf = pisa.pisaDocument(
+            src=BytesIO(html.encode("utf-8")),
+            dest=out,
+            encoding="utf-8",
+            link_callback=link_callback,
+        )
+        if pdf.err:
+            raise RuntimeError("xhtml2pdf reportó errores al generar el PDF.")
+        data = out.getvalue()
+        if not data:
+            raise RuntimeError("xhtml2pdf devolvió un PDF vacío.")
+        return data
+    finally:
+        for path in temp_files:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
 
 
 def _html_to_pdf_bytes(html: str) -> bytes:

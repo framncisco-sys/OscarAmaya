@@ -181,15 +181,15 @@
 <table class="fa-firmas">
   <tr>
     <td>
-      {% if firma_aceptante_datauri %}<img class="fa-firma-img" src="{{ firma_aceptante_datauri }}" alt="" />{% endif %}
+      {% if firma_aceptante_datauri %}<img class="fa-firma-img" src="{{ firma_aceptante_datauri|safe }}" alt="" />{% endif %}
       <div class="fa-linea">Firma aceptante</div>
     </td>
     <td>
-      {% if firma_vendedor_datauri %}<img class="fa-firma-img" src="{{ firma_vendedor_datauri }}" alt="" />{% endif %}
+      {% if firma_vendedor_datauri %}<img class="fa-firma-img" src="{{ firma_vendedor_datauri|safe }}" alt="" />{% endif %}
       <div class="fa-linea">Firma vendedor</div>
     </td>
     <td>
-      {% if firma_autorizado_datauri %}<img class="fa-firma-img" src="{{ firma_autorizado_datauri }}" alt="" />{% endif %}
+      {% if firma_autorizado_datauri %}<img class="fa-firma-img" src="{{ firma_autorizado_datauri|safe }}" alt="" />{% endif %}
       <div class="fa-linea">Firma autorizado</div>
     </td>
   </tr>

@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from urllib.parse import urlencode
 
 from django.conf import settings
+from django.core.files.storage import default_storage
 from django.contrib import messages
 from django.forms import ValidationError
 from django.contrib.auth.decorators import login_required
@@ -67,16 +68,22 @@ from .models import (
 def _firma_a_data_uri(field_file) -> str | None:
     if not field_file or not field_file.name:
         return None
+    name = field_file.name
+    raw: bytes | None = None
     try:
-        raw = field_file.open("rb").read()
+        with field_file.open("rb") as f:
+            raw = f.read()
     except OSError:
-        return None
-    finally:
+        raw = None
+    if not raw:
         try:
-            field_file.close()
-        except Exception:
-            pass
-    mime = mimetypes.guess_type(field_file.name)[0] or "image/png"
+            with default_storage.open(name, "rb") as f:
+                raw = f.read()
+        except OSError:
+            return None
+    if not raw:
+        return None
+    mime = mimetypes.guess_type(name)[0] or "image/png"
     return f"data:{mime};base64,{base64.b64encode(raw).decode('ascii')}"
 
 
