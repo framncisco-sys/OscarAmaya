@@ -103,9 +103,14 @@
     document.querySelectorAll(".formato-firma-canvas").forEach(bindCanvas);
     var form = document.getElementById("formato-aceptacion-form");
     if (form) {
-      form.addEventListener("submit", function () {
-        onSubmit(form);
-      });
+      /* capture: true — rellenar ocultos antes que otros listeners del submit */
+      form.addEventListener(
+        "submit",
+        function () {
+          onSubmit(form);
+        },
+        true
+      );
     }
   });
 })();

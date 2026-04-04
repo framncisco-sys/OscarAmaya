@@ -1,12 +1,14 @@
 """Vistas web minimalistas (azul / blanco / gris) — gestión sin depender del admin."""
 
-import base64
 import csv
 import html
 import json
+import logging
+import os
+import tempfile
 from collections import defaultdict
-import mimetypes
 from decimal import Decimal
+from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlencode
 
@@ -64,8 +66,11 @@ from .models import (
     Vendedor,
 )
 
+logger = logging.getLogger(__name__)
 
-def _firma_a_data_uri(field_file) -> str | None:
+
+def _firma_field_bytes(field_file) -> bytes | None:
+    """Lee bytes de un ImageField (FieldFile o storage por nombre)."""
     if not field_file or not field_file.name:
         return None
     name = field_file.name
@@ -81,10 +86,23 @@ def _firma_a_data_uri(field_file) -> str | None:
                 raw = f.read()
         except OSError:
             return None
+    return raw if raw else None
+
+
+def _firma_field_temp_file_uri(field_file) -> tuple[str | None, str | None]:
+    """
+    Copia la firma a un PNG temporal y devuelve (URI file:// para <img>, ruta para borrar).
+    Evita data-URIs enormes en el HTML, que algunos motores PDF no renderizan bien.
+    """
+    raw = _firma_field_bytes(field_file)
     if not raw:
-        return None
-    mime = mimetypes.guess_type(name)[0] or "image/png"
-    return f"data:{mime};base64,{base64.b64encode(raw).decode('ascii')}"
+        return None, None
+    fd, path = tempfile.mkstemp(prefix="pbr-fa-firma-", suffix=".png")
+    try:
+        os.write(fd, raw)
+    finally:
+        os.close(fd)
+    return Path(path).as_uri(), path
 
 
 def _formato_aceptacion_direccion_impreso() -> str:
@@ -909,24 +927,44 @@ def formato_aceptacion_pdf(request: HttpRequest, pk: int) -> HttpResponse:
         return HttpResponseRedirect(
             reverse("app:formato_aceptacion_edit", kwargs={"pk": pk})
         )
-    ctx = {
-        "formato": formato,
-        "proyecto": _proyecto_para_pdf_formato(formato),
-        "razon_social": getattr(
-            settings,
-            "PBR_PROMESA_RAZON_SOCIAL_VENDEDOR",
-            "PAREDES BIENES RAÍCES",
-        ),
-        "direccion_empresa": _formato_aceptacion_direccion_impreso(),
-        "pie_inmobiliaria": "Formato de aceptación — documento interno",
-        "firma_aceptante_datauri": _firma_a_data_uri(formato.firma_aceptante),
-        "firma_vendedor_datauri": _firma_a_data_uri(formato.firma_vendedor),
-        "firma_autorizado_datauri": _firma_a_data_uri(formato.firma_autorizado),
-    }
-    pdf_bytes = generar_pdf_desde_plantilla(
-        template_name="docs/formato_aceptacion_pdf.html",
-        context=ctx,
-    )
+    tmp_firmas: list[str] = []
+    try:
+        uri_a, p_a = _firma_field_temp_file_uri(formato.firma_aceptante)
+        uri_v, p_v = _firma_field_temp_file_uri(formato.firma_vendedor)
+        uri_z, p_z = _firma_field_temp_file_uri(formato.firma_autorizado)
+        for p in (p_a, p_v, p_z):
+            if p:
+                tmp_firmas.append(p)
+        if not (uri_a and uri_v and uri_z):
+            logger.warning(
+                "PDF formato aceptación pk=%s: BD indica firmas completas pero no se leyeron los 3 archivos "
+                "(¿media en disco efímero sin S3 o archivos borrados?).",
+                pk,
+            )
+        ctx = {
+            "formato": formato,
+            "proyecto": _proyecto_para_pdf_formato(formato),
+            "razon_social": getattr(
+                settings,
+                "PBR_PROMESA_RAZON_SOCIAL_VENDEDOR",
+                "PAREDES BIENES RAÍCES",
+            ),
+            "direccion_empresa": _formato_aceptacion_direccion_impreso(),
+            "pie_inmobiliaria": "Formato de aceptación — documento interno",
+            "firma_aceptante_src": uri_a,
+            "firma_vendedor_src": uri_v,
+            "firma_autorizado_src": uri_z,
+        }
+        pdf_bytes = generar_pdf_desde_plantilla(
+            template_name="docs/formato_aceptacion_pdf.html",
+            context=ctx,
+        )
+    finally:
+        for path in tmp_firmas:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
     filename = f"formato_aceptacion_{formato.numero_formulario:04d}.pdf"
     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
     resp["Content-Disposition"] = f'attachment; filename="{filename}"'

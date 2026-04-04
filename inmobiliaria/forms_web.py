@@ -1067,7 +1067,8 @@ class FormatoAceptacionForm(forms.ModelForm):
                 data = base64.b64decode(b64, validate=False)
             except (ValueError, TypeError, binascii.Error):
                 return
-            if len(data) < 80:
+            # PNG estándar desde canvas (toDataURL); evita basura o payloads vacíos.
+            if len(data) < 8 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
                 return
             name = f"{attr}_{uuid.uuid4().hex[:12]}.png"
             getattr(instance, attr).save(name, ContentFile(data), save=False)

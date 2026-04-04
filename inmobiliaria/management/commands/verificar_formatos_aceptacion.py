@@ -3,6 +3,7 @@
 import os
 
 from django.conf import settings
+from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand
 from django.db import connection
 from django.db.migrations.recorder import MigrationRecorder
@@ -132,3 +133,24 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"  id={f.pk} nº={f.numero_formulario:04d} nombre={f.nombre_cliente!r}"
             )
+            for label, img in (
+                ("aceptante", f.firma_aceptante),
+                ("vendedor", f.firma_vendedor),
+                ("autorizado", f.firma_autorizado),
+            ):
+                nm = getattr(img, "name", None) or ""
+                if not nm:
+                    self.stdout.write(self.style.ERROR(f"    firma {label}: (sin nombre en BD)"))
+                elif default_storage.exists(nm):
+                    try:
+                        sz = default_storage.size(nm)
+                    except Exception:
+                        sz = "?"
+                    self.stdout.write(f"    firma {label}: OK en storage ({sz} bytes) {nm!r}")
+                else:
+                    self.stdout.write(
+                        self.style.ERROR(
+                            f"    firma {label}: BD tiene ruta pero NO existe en storage — "
+                            f"PDF sin imagen; use DJANGO_USE_S3_MEDIA o volumen persistente. {nm!r}"
+                        )
+                    )
