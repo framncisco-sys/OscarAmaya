@@ -41,6 +41,12 @@
   }
 
   function getAllCuotas() {
+    if (selFmt && selFmt.value && selFmt.selectedOptions[0]) {
+      var fo = selFmt.selectedOptions[0];
+      if (fo.getAttribute("data-cuotas-todas-json") != null) {
+        return parseJsonAttr(fo, "data-cuotas-todas-json") || [];
+      }
+    }
     var opt = selCt.selectedOptions[0];
     if (!opt || !opt.value) return [];
     return parseJsonAttr(opt, "data-cuotas-todas-json") || [];

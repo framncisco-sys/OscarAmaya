@@ -231,6 +231,32 @@ class InmuebleSelect(forms.Select):
         return option
 
 
+def _pago_contrato_catalog_option_attrs(c: dict) -> dict[str, str]:
+    """Atributos data-* compartidos entre select de contrato y select de formato (panel + cuotas)."""
+    return {
+        "data-contrato-id": c.get("contrato_id", ""),
+        "data-cuota-mensual": c.get("cuota_mensual", ""),
+        "data-cuota-mensual-fuente": c.get("cuota_mensual_fuente", ""),
+        "data-prox-vence": c.get("prox_vence", ""),
+        "data-prox-monto": c.get("prox_monto", ""),
+        "data-prox-numero": c.get("prox_numero", ""),
+        "data-cliente": c.get("cliente", ""),
+        "data-contrato-numero": c.get("contrato_numero", ""),
+        "data-n-cuotas-total": c.get("n_cuotas_total", "0"),
+        "data-n-cuotas-pagadas": c.get("n_cuotas_pagadas", "0"),
+        "data-pendientes-json": c.get("pendientes_json", "[]"),
+        "data-formato-id": c.get("formato_id", ""),
+        "data-formato-numero": c.get("formato_numero_formulario", ""),
+        "data-formato-edit-url": c.get("formato_edit_url", ""),
+        "data-formato-nombre": c.get("formato_nombre_cliente", ""),
+        "data-formato-letra-mensual": c.get("formato_letra_mensual", ""),
+        "data-formato-plazo": c.get("formato_plazo_txt", ""),
+        "data-formato-num-cuotas": c.get("formato_num_cuota_txt", ""),
+        "data-formato-interes": c.get("formato_interes_txt", ""),
+        "data-cuotas-todas-json": c.get("cuotas_todas_json", "[]"),
+    }
+
+
 class ContratoPagoSelect(forms.Select):
     """Select de contrato con datos para panel de referencia (cuota mensual, próxima cuota)."""
 
@@ -244,32 +270,12 @@ class ContratoPagoSelect(forms.Select):
             key = str(value)
             c = self.catalog.get(key, {})
             option.setdefault("attrs", {})
-            option["attrs"]["data-cuota-mensual"] = c.get("cuota_mensual", "")
-            option["attrs"]["data-cuota-mensual-fuente"] = c.get(
-                "cuota_mensual_fuente", ""
-            )
-            option["attrs"]["data-prox-vence"] = c.get("prox_vence", "")
-            option["attrs"]["data-prox-monto"] = c.get("prox_monto", "")
-            option["attrs"]["data-prox-numero"] = c.get("prox_numero", "")
-            option["attrs"]["data-cliente"] = c.get("cliente", "")
-            option["attrs"]["data-contrato-numero"] = c.get("contrato_numero", "")
-            option["attrs"]["data-n-cuotas-total"] = c.get("n_cuotas_total", "0")
-            option["attrs"]["data-n-cuotas-pagadas"] = c.get("n_cuotas_pagadas", "0")
-            option["attrs"]["data-pendientes-json"] = c.get("pendientes_json", "[]")
-            option["attrs"]["data-formato-id"] = c.get("formato_id", "")
-            option["attrs"]["data-formato-numero"] = c.get("formato_numero_formulario", "")
-            option["attrs"]["data-formato-edit-url"] = c.get("formato_edit_url", "")
-            option["attrs"]["data-formato-nombre"] = c.get("formato_nombre_cliente", "")
-            option["attrs"]["data-formato-letra-mensual"] = c.get("formato_letra_mensual", "")
-            option["attrs"]["data-formato-plazo"] = c.get("formato_plazo_txt", "")
-            option["attrs"]["data-formato-num-cuotas"] = c.get("formato_num_cuota_txt", "")
-            option["attrs"]["data-formato-interes"] = c.get("formato_interes_txt", "")
-            option["attrs"]["data-cuotas-todas-json"] = c.get("cuotas_todas_json", "[]")
+            option["attrs"].update(_pago_contrato_catalog_option_attrs(c))
         return option
 
 
 class FormatoPagoSelect(forms.Select):
-    """Select de formato de aceptación con data-contrato-id para sincronizar el contrato."""
+    """Select de formato: mismos data-* que el contrato para panel y tabla sin depender del <select> oculto."""
 
     def __init__(self, *args, catalog=None, **kwargs):
         self.catalog = catalog or {}
@@ -281,7 +287,7 @@ class FormatoPagoSelect(forms.Select):
             key = str(value)
             c = self.catalog.get(key, {})
             option.setdefault("attrs", {})
-            option["attrs"]["data-contrato-id"] = c.get("contrato_id", "")
+            option["attrs"].update(_pago_contrato_catalog_option_attrs(c))
         return option
 
 
@@ -574,24 +580,6 @@ class PagoForm(forms.ModelForm):
         if r:
             r.help_text = "Opcional: número de transferencia, depósito, cheque u otra referencia bancaria."
 
-        fa = self.fields.get("formato_aceptacion")
-        if fa:
-            fa.required = False
-            fa.label = "Formato de aceptación guardado"
-            fa.help_text = (
-                "Elija el formato guardado: debajo verá la referencia del cliente y el plan de cuotas del sistema. "
-                "El contrato se asigna automáticamente; para pagar cuotas marque las casillas (solo con concepto «Cuota de financiamiento»)."
-            )
-            fmt_qs = (
-                FormatoAceptacion.objects.filter(contrato__isnull=False)
-                .select_related("contrato", "contrato__cliente")
-                .order_by("-numero_formulario", "-id")
-            )
-            fa.queryset = fmt_qs
-            formato_catalog = {str(f.pk): {"contrato_id": str(f.contrato_id)} for f in fmt_qs}
-            fa.widget = FormatoPagoSelect(catalog=formato_catalog)
-            fa.widget.choices = fa.choices
-
         ct = self.fields.get("contrato")
         if ct:
             ct.label = "Contrato"
@@ -705,6 +693,7 @@ class PagoForm(forms.ModelForm):
                         cuota_ref = str(cm.quantize(Decimal("0.01")))
                         cuota_fuente = "contrato"
                     catalog[str(c.pk)] = {
+                        "contrato_id": str(c.pk),
                         "cliente": cliente_display,
                         "contrato_numero": c.numero,
                         "cuota_mensual": cuota_ref,
@@ -733,6 +722,53 @@ class PagoForm(forms.ModelForm):
                     }
             ct.widget = ContratoPagoSelect(catalog=catalog)
             ct.widget.choices = ct.choices
+
+        fa = self.fields.get("formato_aceptacion")
+        if fa:
+            fa.required = False
+            fa.label = "Formato de aceptación guardado"
+            fa.help_text = (
+                "Elija el formato guardado: debajo verá la referencia del cliente y el plan de cuotas del sistema. "
+                "El contrato se asigna automáticamente; para pagar cuotas marque las casillas (solo con concepto «Cuota de financiamiento»)."
+            )
+            fmt_qs = (
+                FormatoAceptacion.objects.filter(contrato__isnull=False)
+                .select_related("contrato", "contrato__cliente")
+                .order_by("-numero_formulario", "-id")
+            )
+            fa.queryset = fmt_qs
+            formato_catalog: dict[str, dict[str, str]] = {}
+            ct_catalog = getattr(ct.widget, "catalog", {}) if ct else {}
+            for f in fmt_qs:
+                base = dict(ct_catalog.get(str(f.contrato_id), {}))
+                fnom = (f.nombre_cliente or "").strip()
+                cliente_fmt = fnom or base.get("cliente", "") or str(f.contrato.cliente)
+                fmt_num = f"{f.numero_formulario:04d}"
+                fmt_url = reverse("app:formato_aceptacion_edit", kwargs={"pk": f.pk})
+                fmt_letra = ""
+                if f.letra_mensual is not None:
+                    fmt_letra = str(f.letra_mensual.quantize(Decimal("0.01")))
+                cuota_ref = fmt_letra or base.get("cuota_mensual", "")
+                cuota_fuente = "formato" if fmt_letra else base.get("cuota_mensual_fuente", "")
+                base.update(
+                    {
+                        "contrato_id": str(f.contrato_id),
+                        "cliente": cliente_fmt,
+                        "cuota_mensual": cuota_ref,
+                        "cuota_mensual_fuente": cuota_fuente,
+                        "formato_id": str(f.pk),
+                        "formato_numero_formulario": fmt_num,
+                        "formato_edit_url": fmt_url,
+                        "formato_nombre_cliente": fnom,
+                        "formato_letra_mensual": fmt_letra,
+                        "formato_plazo_txt": (f.plazo_txt or "").strip(),
+                        "formato_num_cuota_txt": (f.num_cuota_txt or "").strip(),
+                        "formato_interes_txt": (f.interes_txt or "").strip(),
+                    }
+                )
+                formato_catalog[str(f.pk)] = base
+            fa.widget = FormatoPagoSelect(catalog=formato_catalog)
+            fa.widget.choices = fa.choices
 
         if not self.is_bound and not getattr(self.instance, "pk", None):
             if not self.initial.get("fecha"):

@@ -55,6 +55,17 @@
     if (e) e.textContent = text && String(text).trim() ? text : "—";
   }
 
+  function getPanelOpt() {
+    if (selFmt && selFmt.value) {
+      var fo = selFmt.selectedOptions[0];
+      if (fo && fo.getAttribute("data-cuotas-todas-json") != null) {
+        return fo;
+      }
+    }
+    if (!sel) return null;
+    return sel.selectedOptions[0];
+  }
+
   function populateFormato(opt) {
     var box = document.getElementById("pago-formato-aceptacion");
     var link = document.getElementById("pago-fmt-link");
@@ -87,16 +98,6 @@
     }
   }
 
-  var btnUsarLetra = document.getElementById("pago-fmt-usar-letra");
-  if (btnUsarLetra && elMonto) {
-    btnUsarLetra.addEventListener("click", function () {
-      var opt = sel.selectedOptions[0];
-      if (!opt) return;
-      var lett = opt.getAttribute("data-formato-letra-mensual") || "";
-      if (lett) elMonto.value = lett;
-    });
-  }
-
   function syncContratoDesdeFormato() {
     if (!selFmt || !sel) return;
     var fo = selFmt.selectedOptions[0];
@@ -113,9 +114,19 @@
     }
   }
 
+  var btnUsarLetra = document.getElementById("pago-fmt-usar-letra");
+  if (btnUsarLetra && elMonto) {
+    btnUsarLetra.addEventListener("click", function () {
+      var opt = getPanelOpt();
+      if (!opt) return;
+      var lett = opt.getAttribute("data-formato-letra-mensual") || "";
+      if (lett) elMonto.value = lett;
+    });
+  }
+
   function update() {
     syncContratoDesdeFormato();
-    var opt = sel.selectedOptions[0];
+    var opt = getPanelOpt();
     if (!opt || !opt.value) {
       panel.style.display = "none";
       return;
