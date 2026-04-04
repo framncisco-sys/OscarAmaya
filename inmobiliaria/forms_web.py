@@ -1208,6 +1208,46 @@ _FORMATO_TELEFONO_FIELDS = (
 )
 
 
+def elaborado_por_sugerido_formato(contrato: Contrato | None, user) -> str:
+    """Nombre para «Elaborado por»: vendedor del contrato o perfil de vendedor vinculado al usuario."""
+    if contrato is not None:
+        n = (contrato.nombre_vendedor_documentos() or "").strip()
+        if n:
+            return n
+    if user is not None and getattr(user, "is_authenticated", False):
+        v = (
+            Vendedor.objects.filter(usuario_vinculo=user, activo=True)
+            .only("nombres", "apellidos")
+            .first()
+        )
+        if v:
+            return v.nombre_completo.strip()
+        fn = (user.get_full_name() or "").strip()
+        if fn:
+            return fn
+        return (user.get_username() or "").strip()
+    return ""
+
+
+def _aplicar_elaborado_por_desde_vendedor(instance: FormatoAceptacion, user) -> None:
+    """Al guardar: prioriza vendedor del contrato; si no hay contrato, rellena si está vacío."""
+    if instance.contrato_id:
+        c = (
+            Contrato.objects.filter(pk=instance.contrato_id)
+            .select_related("vendedor_perfil", "vendedor")
+            .first()
+        )
+        if c:
+            n = (c.nombre_vendedor_documentos() or "").strip()
+            if n:
+                instance.elaborado_por = n
+                return
+    if not (instance.elaborado_por or "").strip():
+        s = elaborado_por_sugerido_formato(None, user).strip()
+        if s:
+            instance.elaborado_por = s
+
+
 class FormatoAceptacionForm(forms.ModelForm):
     """Las firmas se capturan con lienzo (PNG en base64) vía campos ocultos *_canvas."""
 
@@ -1351,9 +1391,17 @@ class FormatoAceptacionForm(forms.ModelForm):
             "dui_exp_fecha": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "fecha_primera_cuota": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "fecha_pago_mensual": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "elaborado_por": forms.TextInput(
+                attrs={
+                    "class": "input",
+                    "autocomplete": "name",
+                    "placeholder": "Se rellena con el vendedor del contrato o su usuario",
+                }
+            ),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user=None, **kwargs):
+        self._formato_user = user
         super().__init__(*args, **kwargs)
         dui_f = self.fields.get("dui_numero")
         if dui_f:
@@ -1412,6 +1460,28 @@ class FormatoAceptacionForm(forms.ModelForm):
                 except ValueError:
                     pass
 
+        ep = self.fields.get("elaborado_por")
+        if ep:
+            ep.help_text = (
+                "Con contrato vinculado se usa el vendedor registrado en ese contrato; "
+                "sin contrato, el vendedor del catálogo enlazado a su usuario (Vendedores → usuario interno)."
+            )
+            inst = self.instance
+            cur = (getattr(inst, "elaborado_por", None) or "").strip()
+            if not cur:
+                contrato = None
+                if inst is not None and getattr(inst, "contrato_id", None):
+                    contrato = getattr(inst, "contrato", None)
+                    if contrato is None:
+                        contrato = (
+                            Contrato.objects.filter(pk=inst.contrato_id)
+                            .select_related("vendedor_perfil", "vendedor")
+                            .first()
+                        )
+                sug = elaborado_por_sugerido_formato(contrato, user)
+                if sug:
+                    self.initial.setdefault("elaborado_por", sug)
+
     def clean(self):
         cleaned = super().clean()
         plazo_raw = (cleaned.get("plazo_txt") or "").strip()
@@ -1432,6 +1502,7 @@ class FormatoAceptacionForm(forms.ModelForm):
         from django.core.files.base import ContentFile
 
         instance = super().save(commit=False)
+        _aplicar_elaborado_por_desde_vendedor(instance, getattr(self, "_formato_user", None))
 
         def _apply_firma_desde_canvas(attr: str, canvas_key: str) -> None:
             raw = (self.cleaned_data.get(canvas_key) or "").strip()

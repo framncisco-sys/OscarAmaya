@@ -1059,6 +1059,11 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
     def get_success_url(self):
         return reverse("app:formato_aceptacion_edit", kwargs={"pk": self.object.pk})
 
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["user"] = self.request.user
+        return kw
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["form_title"] = "Formato de aceptación (nuevo)"
@@ -1137,6 +1142,11 @@ class FormatoAceptacionUpdateView(
 
     def get_queryset(self):
         return _formato_aceptacion_qs_contrato_pdf()
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["user"] = self.request.user
+        return kw
 
     def form_valid(self, form):
         pk = self.object.pk
