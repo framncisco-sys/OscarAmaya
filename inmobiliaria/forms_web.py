@@ -34,6 +34,76 @@ M2_POR_V2 = Decimal("0.698896")  # 1 v² ≈ 0.698896 m² (vara salvadoreña ~0.
 IVA_TASA_SOBRE_PRECIO = Decimal("0.13")
 
 
+def contrato_desde_formato_aceptacion(f: FormatoAceptacion) -> Contrato | None:
+    """
+    Contrato explícito en el formato, o el más reciente del inmueble que coincida
+    por código de lote + nombre de proyecto (formatos guardados sin FK a contrato).
+    """
+    if f.contrato_id:
+        return f.contrato
+    num_lote = (f.num_lote or "").strip()
+    nom_proy = (f.nombre_proyecto or "").strip()
+    if not num_lote or not nom_proy:
+        return None
+    inv_qs = (
+        Inmueble.objects.filter(codigo__iexact=num_lote)
+        .select_related("proyecto")
+        .order_by("id")
+    )
+    inv = None
+    nom_lower = nom_proy.lower()
+    for candidate in inv_qs:
+        pn = (candidate.proyecto.nombre or "").strip() if candidate.proyecto_id else ""
+        if pn.lower() == nom_lower:
+            inv = candidate
+            break
+    if inv is None and inv_qs.count() == 1:
+        inv = inv_qs.first()
+    if inv is None:
+        return None
+    return (
+        Contrato.objects.filter(inmueble_id=inv.pk)
+        .order_by("-fecha_firma", "-id")
+        .select_related("cliente", "inmueble")
+        .first()
+    )
+
+
+def _formato_sin_contrato_catalogo(f: FormatoAceptacion) -> dict[str, str]:
+    """Panel mínimo cuando no hay contrato ni resolución por lote/proyecto."""
+    fnom = (f.nombre_cliente or "").strip()
+    fmt_num = f"{f.numero_formulario:04d}"
+    fmt_url = reverse("app:formato_aceptacion_edit", kwargs={"pk": f.pk})
+    fmt_letra = ""
+    if f.letra_mensual is not None:
+        fmt_letra = str(f.letra_mensual.quantize(Decimal("0.01")))
+    lote_txt = (f.num_lote or "").strip()
+    proy_txt = (f.nombre_proyecto or "").strip()
+    ref_lote = " — ".join(x for x in (lote_txt, proy_txt) if x) or "—"
+    return {
+        "contrato_id": "",
+        "cliente": fnom,
+        "contrato_numero": ref_lote,
+        "cuota_mensual": fmt_letra,
+        "cuota_mensual_fuente": "formato" if fmt_letra else "",
+        "prox_vence": "",
+        "prox_monto": "",
+        "prox_numero": "",
+        "n_cuotas_total": "0",
+        "n_cuotas_pagadas": "0",
+        "pendientes_json": "[]",
+        "formato_id": str(f.pk),
+        "formato_numero_formulario": fmt_num,
+        "formato_edit_url": fmt_url,
+        "formato_nombre_cliente": fnom,
+        "formato_letra_mensual": fmt_letra,
+        "formato_plazo_txt": (f.plazo_txt or "").strip(),
+        "formato_num_cuota_txt": (f.num_cuota_txt or "").strip(),
+        "formato_interes_txt": (f.interes_txt or "").strip(),
+        "cuotas_todas_json": "[]",
+    }
+
+
 def _cuota_mensual_estimada(
     precio_final: Decimal | None,
     plan_anos: int | None,
@@ -728,21 +798,34 @@ class PagoForm(forms.ModelForm):
             fa.required = False
             fa.label = "Formato de aceptación guardado"
             fa.help_text = (
-                "Elija el formato guardado: debajo verá la referencia del cliente y el plan de cuotas del sistema. "
-                "El contrato se asigna automáticamente; para pagar cuotas marque las casillas (solo con concepto «Cuota de financiamiento»)."
+                "Lista igual que en «Formatos de aceptación guardados». Si el formato no tiene contrato enlazado, "
+                "el sistema intenta localizarlo por lote y proyecto del documento; si no puede, debe vincular el contrato al editar el formato."
             )
-            fmt_qs = (
-                FormatoAceptacion.objects.filter(contrato__isnull=False)
-                .select_related("contrato", "contrato__cliente")
-                .order_by("-numero_formulario", "-id")
-            )
+            fmt_qs = FormatoAceptacion.objects.select_related(
+                "contrato", "contrato__cliente"
+            ).order_by("-numero_formulario", "-id")
             fa.queryset = fmt_qs
             formato_catalog: dict[str, dict[str, str]] = {}
+            fmt_labels: dict[int, str] = {}
             ct_catalog = getattr(ct.widget, "catalog", {}) if ct else {}
             for f in fmt_qs:
-                base = dict(ct_catalog.get(str(f.contrato_id), {}))
+                if f.contrato_id:
+                    res_ct: Contrato | None = f.contrato
+                    ckey = str(f.contrato_id)
+                else:
+                    res_ct = contrato_desde_formato_aceptacion(f)
+                    ckey = str(res_ct.pk) if res_ct else None
+                if ckey:
+                    base = dict(ct_catalog.get(ckey, {}))
+                else:
+                    base = _formato_sin_contrato_catalogo(f)
                 fnom = (f.nombre_cliente or "").strip()
-                cliente_fmt = fnom or base.get("cliente", "") or str(f.contrato.cliente)
+                cliente_src = (
+                    str(res_ct.cliente)
+                    if res_ct and res_ct.cliente_id
+                    else base.get("cliente", "")
+                )
+                cliente_fmt = fnom or cliente_src
                 fmt_num = f"{f.numero_formulario:04d}"
                 fmt_url = reverse("app:formato_aceptacion_edit", kwargs={"pk": f.pk})
                 fmt_letra = ""
@@ -752,7 +835,7 @@ class PagoForm(forms.ModelForm):
                 cuota_fuente = "formato" if fmt_letra else base.get("cuota_mensual_fuente", "")
                 base.update(
                     {
-                        "contrato_id": str(f.contrato_id),
+                        "contrato_id": ckey or "",
                         "cliente": cliente_fmt,
                         "cuota_mensual": cuota_ref,
                         "cuota_mensual_fuente": cuota_fuente,
@@ -767,8 +850,21 @@ class PagoForm(forms.ModelForm):
                     }
                 )
                 formato_catalog[str(f.pk)] = base
+                if f.contrato_id:
+                    fmt_labels[f.pk] = (
+                        f"Nº {fmt_num} — {fnom} — Contrato {f.contrato.numero}"
+                    )
+                elif res_ct:
+                    fmt_labels[f.pk] = (
+                        f"Nº {fmt_num} — {fnom} — Contrato {res_ct.numero} (lote/proyecto)"
+                    )
+                else:
+                    fmt_labels[f.pk] = (
+                        f"Nº {fmt_num} — {fnom} (sin contrato: edite el formato para vincularlo)"
+                    )
             fa.widget = FormatoPagoSelect(catalog=formato_catalog)
             fa.widget.choices = fa.choices
+            fa.label_from_instance = lambda o: fmt_labels.get(o.pk, str(o))
 
         if not self.is_bound and not getattr(self.instance, "pk", None):
             if not self.initial.get("fecha"):
@@ -781,13 +877,32 @@ class PagoForm(forms.ModelForm):
                 raise ValidationError(
                     {
                         "formato_aceptacion": (
-                            "Seleccione un formato de aceptación guardado (vinculado a un contrato)."
+                            "Seleccione un formato de la lista de formatos guardados."
                         )
                     }
                 )
         formato = cleaned_data.get("formato_aceptacion")
-        if formato and formato.contrato_id:
-            cleaned_data["contrato"] = formato.contrato
+        if formato:
+            if formato.contrato_id:
+                cleaned_data["contrato"] = formato.contrato
+            else:
+                c_res = contrato_desde_formato_aceptacion(formato)
+                if c_res:
+                    cleaned_data["contrato"] = c_res
+        if (
+            self.ocultar_contrato
+            and not getattr(self.instance, "pk", None)
+            and cleaned_data.get("formato_aceptacion")
+            and not cleaned_data.get("contrato")
+        ):
+            raise ValidationError(
+                {
+                    "formato_aceptacion": (
+                        "Este formato no tiene contrato vinculado y no se encontró uno por lote y proyecto. "
+                        "Abra «Editar» en ese formato y asocie el contrato, o revise que lote y nombre de proyecto coincidan con el inventario."
+                    )
+                }
+            )
 
         concepto = cleaned_data.get("concepto")
         contrato = cleaned_data.get("contrato")
