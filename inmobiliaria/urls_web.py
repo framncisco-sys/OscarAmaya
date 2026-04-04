@@ -57,7 +57,7 @@ urlpatterns = [
     ),
     path(
         "formato-aceptacion/nuevo/",
-        views.FormatoAceptacionNuevoElegirContratoView.as_view(),
+        views.FormatoAceptacionCreateStandaloneView.as_view(),
         name="formato_aceptacion_nuevo",
     ),
     path(

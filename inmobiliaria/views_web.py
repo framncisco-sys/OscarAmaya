@@ -6,6 +6,7 @@ import html
 import json
 import mimetypes
 from decimal import Decimal
+from types import SimpleNamespace
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -24,7 +25,6 @@ from django.views.decorators.http import require_POST
 from django.views.generic import (
     CreateView,
     DeleteView,
-    FormView,
     ListView,
     TemplateView,
     UpdateView,
@@ -85,10 +85,28 @@ def _formato_aceptacion_direccion_impreso() -> str:
     )
 
 
+def _proyecto_para_pdf_formato(formato: FormatoAceptacion):
+    """Cabecera PDF: proyecto del contrato o nombre libre del formulario."""
+    c = formato.contrato
+    if c is not None and c.inmueble_id:
+        return c.inmueble.proyecto
+    nombre = (formato.nombre_proyecto or "").strip() or "—"
+    return SimpleNamespace(
+        nombre=nombre,
+        direccion="",
+        municipio="",
+        departamento="",
+    )
+
+
 def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list[dict]:
     """Agrupa campos del formato impreso para el template (sin campos ocultos de lienzo)."""
     G = form.__getitem__
     return [
+        {
+            "title": "Vinculación opcional",
+            "rows": [[G("contrato")]],
+        },
         {
             "title": "Datos personales",
             "rows": [
@@ -511,8 +529,7 @@ class ContratoListView(AppLoginRequiredMixin, ListView):
         "inmueble__proyecto",
         "vendedor",
         "vendedor_perfil",
-        "formato_aceptacion",
-    )
+    ).prefetch_related("formatos_aceptacion")
 
 
 class ContratoCreateView(AppLoginRequiredMixin, CreateView):
@@ -554,8 +571,7 @@ class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Updat
         "vendedor_perfil",
         "vendedor",
         "cliente",
-        "formato_aceptacion",
-    )
+    ).prefetch_related("formatos_aceptacion")
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -729,24 +745,31 @@ class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Updat
         )
 
 
-class FormatoAceptacionNuevoElegirContratoView(AppLoginRequiredMixin, FormView):
-    """Flujo independiente del módulo: elegir contrato y pasar al formulario de ingreso."""
+class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
+    """Alta directa del formato, sin contrato obligatorio ni pasos previos."""
 
-    template_name = "app/formato_aceptacion_elegir_contrato.html"
-    form_class = forms.FormatoAceptacionElegirContratoForm
+    model = FormatoAceptacion
+    form_class = forms.FormatoAceptacionForm
+    template_name = "app/formato_aceptacion_form.html"
+
+    def form_valid(self, form):
+        form.instance.creado_por = self.request.user
+        messages.success(self.request, "Formato de aceptación guardado.")
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("app:formato_aceptacion_edit", kwargs={"pk": self.object.pk})
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["hay_contratos_libres"] = (
-            Contrato.objects.filter(formato_aceptacion__isnull=True).exists()
-        )
+        ctx["form_title"] = "Formato de aceptación (nuevo)"
+        ctx["cancel_url"] = reverse("app:formato_aceptacion_list")
+        ctx["form_multipart"] = True
+        ctx["firmas_completas"] = False
+        ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
+        form = ctx.get("form") or self.get_form()
+        ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
         return ctx
-
-    def form_valid(self, form):
-        c = form.cleaned_data["contrato"]
-        return HttpResponseRedirect(
-            reverse("app:formato_aceptacion_create", kwargs={"contrato_pk": c.pk})
-        )
 
 
 class FormatoAceptacionListView(AppLoginRequiredMixin, ListView):
@@ -780,7 +803,7 @@ class FormatoAceptacionCreateView(AppLoginRequiredMixin, CreateView):
             ),
             pk=kwargs["contrato_pk"],
         )
-        existente = FormatoAceptacion.objects.filter(contrato=self.contrato).first()
+        existente = FormatoAceptacion.objects.filter(contrato_id=self.contrato.pk).first()
         if existente:
             return HttpResponseRedirect(
                 reverse("app:formato_aceptacion_edit", kwargs={"pk": existente.pk})
@@ -795,7 +818,8 @@ class FormatoAceptacionCreateView(AppLoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         assert self.contrato is not None
-        form.instance.contrato = self.contrato
+        if form.cleaned_data.get("contrato") is None:
+            form.instance.contrato = self.contrato
         form.instance.creado_por = self.request.user
         messages.success(self.request, "Formato de aceptación guardado.")
         return super().form_valid(form)
@@ -837,10 +861,16 @@ class FormatoAceptacionUpdateView(AppLoginRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["form_title"] = (
-            f"Formato de aceptación Nº {self.object.numero_formulario:04d} — "
-            f"contrato {self.object.contrato.numero}"
-        )
+        if self.object.contrato_id:
+            ctx["form_title"] = (
+                f"Formato de aceptación Nº {self.object.numero_formulario:04d} — "
+                f"contrato {self.object.contrato.numero}"
+            )
+        else:
+            ctx["form_title"] = (
+                f"Formato de aceptación Nº {self.object.numero_formulario:04d} — "
+                "sin contrato vinculado"
+            )
         ctx["cancel_url"] = reverse("app:formato_aceptacion_list")
         ctx["form_multipart"] = True
         ctx["formato_pdf_url"] = reverse(
@@ -874,10 +904,9 @@ def formato_aceptacion_pdf(request: HttpRequest, pk: int) -> HttpResponse:
         return HttpResponseRedirect(
             reverse("app:formato_aceptacion_edit", kwargs={"pk": pk})
         )
-    inv = formato.contrato.inmueble
     ctx = {
         "formato": formato,
-        "proyecto": inv.proyecto,
+        "proyecto": _proyecto_para_pdf_formato(formato),
         "razon_social": getattr(
             settings,
             "PBR_PROMESA_RAZON_SOCIAL_VENDEDOR",

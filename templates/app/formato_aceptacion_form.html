@@ -183,6 +183,9 @@
             <div class="field">
               <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
               <div class="field__control">{{ field }}</div>
+              {% if field.help_text %}
+              <div class="field__help muted">{{ field.help_text }}</div>
+              {% endif %}
               {% if field.errors %}
                 <div class="field__error" role="alert">{{ field.errors }}</div>
               {% endif %}

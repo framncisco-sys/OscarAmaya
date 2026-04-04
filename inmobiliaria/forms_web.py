@@ -824,12 +824,12 @@ def initial_formato_aceptacion_desde_contrato(contrato: Contrato) -> dict:
         "num_cuota_txt": str(n_cuotas) if n_cuotas else "",
         "interes_txt": interes,
         "fecha_primera_cuota": cuota1.vence_en if cuota1 else None,
+        "contrato": contrato.pk,
     }
 
 
 _FORMATO_ACEPTACION_EXCLUDE = (
     "id",
-    "contrato",
     "numero_formulario",
     "creado_por",
     "creado_en",
@@ -856,6 +856,7 @@ class FormatoAceptacionForm(forms.ModelForm):
         model = FormatoAceptacion
         fields = _FORMATO_ACEPTACION_FIELDS
         widgets = {
+            "contrato": forms.Select(attrs={"class": "input-contrato-opcional"}),
             "direccion_domicilio": forms.Textarea(attrs={"rows": 2}),
             "direccion_notificacion": forms.Textarea(attrs={"rows": 2}),
             "direccion_trabajo": forms.Textarea(attrs={"rows": 2}),
@@ -868,6 +869,17 @@ class FormatoAceptacionForm(forms.ModelForm):
         fd = self.fields.get("fecha_primera_cuota")
         if fd:
             fd.input_formats = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"]
+        cf = self.fields.get("contrato")
+        if cf is not None:
+            cf.required = False
+            cf.empty_label = "— Sin vincular a contrato —"
+            cf.queryset = Contrato.objects.select_related(
+                "cliente", "inmueble", "inmueble__proyecto"
+            ).order_by("-fecha_firma", "-id")
+            cf.help_text = (
+                "Opcional. Si lo deja vacío, el formato queda solo en este módulo, "
+                "sin amarrar a un contrato del sistema."
+            )
 
     def save(self, commit=True):
         import base64
@@ -901,22 +913,3 @@ class FormatoAceptacionForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
-
-
-class FormatoAceptacionElegirContratoForm(forms.Form):
-    """Paso previo independiente: elegir contrato que aún no tenga formato de aceptación."""
-
-    contrato = forms.ModelChoiceField(
-        queryset=Contrato.objects.none(),
-        label="Contrato",
-        empty_label="— Seleccione contrato —",
-        required=True,
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["contrato"].queryset = (
-            Contrato.objects.filter(formato_aceptacion__isnull=True)
-            .select_related("cliente", "inmueble", "inmueble__proyecto")
-            .order_by("-fecha_firma", "-id")
-        )

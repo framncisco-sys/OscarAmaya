@@ -5,7 +5,7 @@
   <div class="page-toolbar__intro">
     <h1 class="page-title">Formato de aceptación</h1>
     <p class="page-toolbar__meta">
-      Módulo independiente del resto de pantallas: aquí crea, edita y descarga el mismo formato en papel (datos, referencias, crédito y firmas).
+      Formulario completo aparte del resto del sistema: puede crear formatos sin contrato o vincular uno opcionalmente. Firmas y PDF desde aquí.
     </p>
   </div>
   <div class="page-toolbar__actions">
@@ -30,7 +30,7 @@
     {% for f in items %}
     <tr>
       <td><strong>{{ f.numero_formulario|stringformat:"04d" }}</strong></td>
-      <td>{{ f.contrato.numero }}</td>
+      <td>{% if f.contrato %}{{ f.contrato.numero }}{% else %}<span class="muted">—</span>{% endif %}</td>
       <td>{{ f.nombre_cliente }}</td>
       <td class="muted">{{ f.contrato.inmueble.codigo }} — {{ f.contrato.inmueble.proyecto.nombre }}</td>
       <td>
@@ -46,7 +46,9 @@
           {% if f.firmas_completas %}
           <a href="{% url 'app:formato_aceptacion_pdf' f.pk %}" class="link-action" target="_blank" rel="noopener">PDF</a>
           {% endif %}
+          {% if f.contrato_id %}
           <a href="{% url 'app:contrato_update' f.contrato_id %}" class="link-action">Contrato</a>
+          {% endif %}
         </div>
       </td>
     </tr>

@@ -778,14 +778,17 @@ class RecordatorioPago(models.Model):
 
 class FormatoAceptacion(models.Model):
     """
-    Formato de aceptación (documento cliente / crédito) con datos del impreso corporativo
-    y archivos de firma para el PDF.
+    Formato de aceptación (documento impreso en pantalla) con firmas para el PDF.
+    El vínculo con contrato es opcional: el formulario puede usarse solo con los campos del modelo.
     """
 
-    contrato = models.OneToOneField(
+    contrato = models.ForeignKey(
         Contrato,
-        on_delete=models.CASCADE,
-        related_name="formato_aceptacion",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="formatos_aceptacion",
+        verbose_name="Contrato (opcional)",
     )
     numero_formulario = models.PositiveIntegerField(
         "Nº formulario",
@@ -906,9 +909,18 @@ class FormatoAceptacion(models.Model):
         ordering = ["-numero_formulario"]
         verbose_name = "Formato de aceptación"
         verbose_name_plural = "Formatos de aceptación"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("contrato",),
+                condition=models.Q(contrato__isnull=False),
+                name="formato_aceptacion_contrato_id_uniq_when_set",
+            ),
+        ]
 
     def __str__(self) -> str:
-        return f"Formato #{self.numero_formulario} — {self.contrato.numero}"
+        if self.contrato_id:
+            return f"Formato #{self.numero_formulario} — {self.contrato.numero}"
+        return f"Formato #{self.numero_formulario} — (sin contrato)"
 
     @property
     def firmas_completas(self) -> bool:
