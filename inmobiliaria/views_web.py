@@ -1314,6 +1314,10 @@ def formato_aceptacion_promesa_subir(request: HttpRequest, pk: int) -> HttpRespo
     try:
         from docs.formato_aceptacion_notificacion import notificar_promesa_escaneada_tras_subir
 
+        # select_related para correo/tel del cliente al notificar (evita instancia sin contrato cargado)
+        formato = FormatoAceptacion.objects.select_related("contrato", "contrato__cliente").get(
+            pk=formato.pk
+        )
         notificar_promesa_escaneada_tras_subir(request, formato)
     except Exception:
         logger.exception("Notificación promesa escaneada formato pk=%s", pk)

@@ -14,7 +14,10 @@ from django.template.loader import render_to_string
 
 from inmobiliaria.phone_sv import digitos_telefono_e164_sv
 
-from .recibo_notificacion import _correo_entrega_a_bandejas_reales
+from .recibo_notificacion import (
+    _correo_entrega_a_bandejas_reales,
+    _url_archivo_field_absoluta_o_ruta,
+)
 
 if TYPE_CHECKING:
     from django.http import HttpRequest
@@ -47,6 +50,24 @@ def _empresa_nombre() -> str:
         (getattr(settings, "PBR_PROMESA_RAZON_SOCIAL_VENDEDOR", "") or "").strip()
         or "Paredes Bienes Raíces"
     )
+
+
+def construir_url_whatsapp_promesa_formato(formato: "FormatoAceptacion") -> str | None:
+    """Enlace wa.me con texto sobre la promesa escaneada (el archivo va por correo o WhatsApp API)."""
+    tel = digitos_telefono_e164_sv(_telefono_destino_formato(formato))
+    if not tel:
+        return None
+    nombre = (formato.nombre_cliente or "").strip() or "estimado cliente"
+    n = formato.numero_formulario
+    partes = [
+        f"Hola {nombre}, le enviamos su promesa de venta escaneada (formato Nº {n:04d}) — {_empresa_nombre()}.",
+        "",
+        "Si usa solo este chat, el archivo puede ir por correo o como documento según la configuración de la inmobiliaria.",
+        "",
+        f"— {_empresa_nombre()}",
+    ]
+    texto = "\n".join(partes)
+    return f"https://wa.me/{tel}?text={urllib.parse.quote(texto)}"
 
 
 def construir_url_whatsapp_formato_pdf(
@@ -152,6 +173,7 @@ def enviar_promesa_escaneada_por_email(formato: "FormatoAceptacion") -> bool:
     raw, ctype, fname = _archivo_promesa_bytes_y_tipo(formato)
     if not raw:
         return False
+    wa_url = construir_url_whatsapp_promesa_formato(formato)
     body = render_to_string(
         "docs/email_promesa_venta_escaneada.txt",
         {
@@ -159,6 +181,7 @@ def enviar_promesa_escaneada_por_email(formato: "FormatoAceptacion") -> bool:
             "numero_fmt": f"{formato.numero_formulario:04d}",
             "nombre_cliente": (formato.nombre_cliente or "").strip(),
             "empresa_nombre": _empresa_nombre(),
+            "whatsapp_url": wa_url,
         },
     ).strip()
     msg = EmailMessage(
@@ -187,6 +210,45 @@ def enviar_promesa_escaneada_por_email(formato: "FormatoAceptacion") -> bool:
             e,
         )
         return False
+
+
+def _enviar_promesa_whatsapp_twilio(formato: "FormatoAceptacion", media_url: str | None) -> bool:
+    """Twilio con MediaUrl HTTPS público (misma configuración que recibos)."""
+    sid = getattr(settings, "TWILIO_ACCOUNT_SID", "") or ""
+    token = getattr(settings, "TWILIO_AUTH_TOKEN", "") or ""
+    from_wa = getattr(settings, "TWILIO_WHATSAPP_FROM", "") or ""
+    if not (sid and token and from_wa):
+        return False
+    to = digitos_telefono_e164_sv(_telefono_destino_formato(formato))
+    if not to:
+        return False
+    to_wa = f"whatsapp:+{to}"
+    try:
+        import base64
+        import urllib.request
+
+        body = (
+            f"Promesa de venta escaneada — Formato Nº {formato.numero_formulario:04d} — "
+            f"{_empresa_nombre()}."
+        )
+        data: dict[str, str] = {"From": from_wa, "To": to_wa, "Body": body}
+        if media_url:
+            data["MediaUrl"] = media_url
+        post = urllib.parse.urlencode(data).encode("utf-8")
+        req = urllib.request.Request(
+            f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json",
+            data=post,
+            method="POST",
+        )
+        auth = base64.b64encode(f"{sid}:{token}".encode()).decode()
+        req.add_header("Authorization", f"Basic {auth}")
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            if resp.status in (200, 201):
+                logger.info("Promesa formato %s: Twilio WhatsApp → %s", formato.pk, to_wa)
+                return True
+    except Exception as e:
+        logger.warning("Promesa formato %s: Twilio no enviado: %s", formato.pk, e)
+    return False
 
 
 def _whatsapp_meta_activo_formato() -> bool:
@@ -282,30 +344,52 @@ def notificar_promesa_escaneada_tras_subir(
     request: "HttpRequest",
     formato: "FormatoAceptacion",
 ) -> None:
+    from inmobiliaria.models import FormatoAceptacion as FormatoAceptacionModel
+
+    formato = FormatoAceptacionModel.objects.select_related("contrato", "contrato__cliente").get(
+        pk=formato.pk
+    )
+
     correo_ok = enviar_promesa_escaneada_por_email(formato)
     to = digitos_telefono_e164_sv(_telefono_destino_formato(formato))
     wa_ok = False
     wa_adjunto = False
+    twilio_ok = False
     raw, ctype, fname = _archivo_promesa_bytes_y_tipo(formato)
+    ct_lower = (ctype or "").lower()
+    es_pdf = bool(
+        raw
+        and (
+            fname.lower().endswith(".pdf")
+            or ct_lower in ("application/pdf", "application/x-pdf")
+            or raw[:4] == b"%PDF"
+        )
+    )
+
     if _whatsapp_meta_activo_formato() and to and raw:
         try:
-            from core.whatsapp_cloud import enviar_recibo_whatsapp_cloud
+            from core.whatsapp_cloud import enviar_recibo_whatsapp_cloud, send_text_message
 
-            lower = fname.lower()
-            if lower.endswith(".pdf") and ctype == "application/pdf":
-                cap = f"Promesa de venta escaneada — Formato Nº {formato.numero_formulario:04d} — {_empresa_nombre()}"
+            if es_pdf:
+                cap = (
+                    f"Promesa de venta escaneada — Formato Nº {formato.numero_formulario:04d} — "
+                    f"{_empresa_nombre()}"
+                )
+                fn = (fname or "").strip() or f"promesa_{formato.numero_formulario:04d}.pdf"
+                if not fn.lower().endswith(".pdf"):
+                    fn = f"{fn}.pdf"
                 r = enviar_recibo_whatsapp_cloud(
                     to_digits=to,
-                    filename=fname if lower.endswith(".pdf") else f"{fname}.pdf",
+                    filename=fn,
                     caption=cap,
                     document_url=None,
                     pdf_bytes=raw,
                 )
                 wa_ok = bool(r.ok)
                 wa_adjunto = bool(r.adjunto_pdf)
+                if not r.ok:
+                    logger.warning("Promesa formato %s WhatsApp Meta: %s", formato.pk, r.detalle)
             else:
-                from core.whatsapp_cloud import send_text_message
-
                 send_text_message(
                     to_digits=to,
                     body=(
@@ -316,24 +400,47 @@ def notificar_promesa_escaneada_tras_subir(
                 wa_ok = True
                 wa_adjunto = False
         except Exception as e:
-            logger.exception("Promesa formato %s: WhatsApp: %s", formato.pk, e)
+            logger.exception("Promesa formato %s: WhatsApp Meta: %s", formato.pk, e)
+
+    if getattr(settings, "RECIBO_ENVIAR_WHATSAPP_TWILIO", False) and to:
+        rel_or_abs = _url_archivo_field_absoluta_o_ruta(formato.promesa_venta_escaneada)
+        media_url = None
+        if rel_or_abs:
+            if rel_or_abs.lower().startswith("https://"):
+                media_url = rel_or_abs
+            else:
+                base = getattr(settings, "PUBLIC_BASE_URL", "").strip().rstrip("/")
+                if base:
+                    cand = f"{base}{rel_or_abs}"
+                    if cand.lower().startswith("https://"):
+                        media_url = cand
+        if media_url:
+            twilio_ok = _enviar_promesa_whatsapp_twilio(formato, media_url)
 
     partes: list[str] = []
     if correo_ok:
-        partes.append("correo")
+        partes.append("correo" + (" (entrega real)" if _correo_entrega_a_bandejas_reales() else ""))
     if wa_ok and wa_adjunto:
-        partes.append("WhatsApp con archivo PDF")
+        partes.append("WhatsApp (Meta) con PDF")
     elif wa_ok:
-        partes.append("WhatsApp (mensaje; archivo por correo si no es PDF)")
+        partes.append("WhatsApp (Meta, texto o sin adjunto PDF)")
+    if twilio_ok:
+        partes.append("WhatsApp (Twilio)")
     if partes:
         messages.success(
             request,
-            "Promesa guardada. Se envió al cliente por: " + ", ".join(partes) + ".",
+            "Promesa guardada. Se notificó al cliente por: " + ", ".join(partes) + ".",
         )
     else:
         messages.success(request, "Promesa guardada.")
         if not _email_destino_formato(formato) and not to:
             messages.info(
                 request,
-                "No se pudo notificar: agregue correo o teléfono del cliente (contrato o datos del formato).",
+                "No se pudo notificar: registre correo y teléfono del cliente en el contrato vinculado "
+                "o teléfonos en el formato (notificación / domicilio). Revise SMTP y WhatsApp (Meta/Twilio) en el servidor.",
+            )
+        elif not correo_ok and not wa_ok and not twilio_ok:
+            messages.info(
+                request,
+                "Promesa guardada; el envío por correo o WhatsApp no se completó (revise datos del cliente y la configuración de correo/WhatsApp).",
             )
