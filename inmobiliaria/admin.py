@@ -1,5 +1,6 @@
 from django.contrib import admin
 
+from .inmueble_db import inmueble_catalogo_alquiler_columns_ready, inmueble_defer_missing_catalogo_columns
 from .models import (
     Cliente,
     ClienteDocumento,
@@ -66,7 +67,7 @@ class HistorialPrecioInmuebleAdmin(admin.ModelAdmin):
 
 @admin.register(Inmueble)
 class InmuebleAdmin(admin.ModelAdmin):
-    list_display = (
+    _list_display_full = (
         "codigo",
         "modo_catalogo",
         "proyecto",
@@ -76,7 +77,19 @@ class InmuebleAdmin(admin.ModelAdmin):
         "reserva_hasta",
         "precio_lista",
     )
-    list_filter = ("modo_catalogo", "proyecto", "tipo", "estado", "poligono")
+    _list_display_sin_modo = (
+        "codigo",
+        "proyecto",
+        "poligono",
+        "tipo",
+        "estado",
+        "reserva_hasta",
+        "precio_lista",
+    )
+    list_display = _list_display_full
+    _list_filter_full = ("modo_catalogo", "proyecto", "tipo", "estado", "poligono")
+    _list_filter_sin_modo = ("proyecto", "tipo", "estado", "poligono")
+    list_filter = _list_filter_full
     search_fields = ("codigo", "notas")
     raw_id_fields = ("inmueble_padre",)
     inlines = [InmuebleDetalleEdificacionInline, InmuebleImagenInline]
@@ -137,6 +150,29 @@ class InmuebleAdmin(admin.ModelAdmin):
             {"fields": ("cliente_reserva", "reserva_hasta")},
         ),
     )
+
+    def get_list_display(self, request):
+        if inmueble_catalogo_alquiler_columns_ready():
+            return self._list_display_full
+        return self._list_display_sin_modo
+
+    def get_list_filter(self, request):
+        if inmueble_catalogo_alquiler_columns_ready():
+            return self._list_filter_full
+        return self._list_filter_sin_modo
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return inmueble_defer_missing_catalogo_columns(qs)
+
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        if not inmueble_catalogo_alquiler_columns_ready():
+            ex = list(kwargs.get("exclude") or [])
+            for f in ("modo_catalogo", "precio_alquiler_mensual", "deposito_alquiler"):
+                if f not in ex:
+                    ex.append(f)
+            kwargs["exclude"] = ex
+        return super().get_form(request, obj, **kwargs)
 
 
 class ClienteDocumentoInline(admin.TabularInline):

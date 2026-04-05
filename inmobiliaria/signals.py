@@ -18,11 +18,13 @@ _inmueble_precio_anterior: dict[int, Decimal] = {}
 def _recordar_precio_inmueble_antes_de_guardar(sender, instance: Inmueble, **kwargs):
     if not instance.pk:
         return
-    try:
-        prev = Inmueble.objects.get(pk=instance.pk)
-        _inmueble_precio_anterior[instance.pk] = prev.precio_lista
-    except Inmueble.DoesNotExist:
-        pass
+    pl = (
+        Inmueble.objects.filter(pk=instance.pk)
+        .values_list("precio_lista", flat=True)
+        .first()
+    )
+    if pl is not None:
+        _inmueble_precio_anterior[instance.pk] = pl
 
 
 @receiver(post_save, sender=Inmueble)

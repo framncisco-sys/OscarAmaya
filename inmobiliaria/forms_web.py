@@ -21,6 +21,10 @@ from .formato_aceptacion_db import (
     FORMATO_CREDITO_EXTRA_FIELDS,
     formato_aceptacion_credito_extra_columns_ready,
 )
+from .inmueble_db import (
+    inmueble_catalogo_alquiler_columns_ready,
+    inmueble_defer_missing_catalogo_columns,
+)
 from .models import (
     Cliente,
     Contrato,
@@ -52,7 +56,7 @@ def contrato_desde_formato_aceptacion(f: FormatoAceptacion) -> Contrato | None:
     nom_proy = (f.nombre_proyecto or "").strip()
     if not num_lote or not nom_proy:
         return None
-    inv_qs = (
+    inv_qs = inmueble_defer_missing_catalogo_columns(
         Inmueble.objects.filter(codigo__iexact=num_lote)
         .select_related("proyecto")
         .order_by("id")
@@ -347,6 +351,9 @@ class InmuebleForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if not inmueble_catalogo_alquiler_columns_ready():
+            for fname in ("modo_catalogo", "precio_alquiler_mensual", "deposito_alquiler"):
+                self.fields.pop(fname, None)
         for fname in _INMUEBLE_FORM_FIELDS:
             f = self.fields.get(fname)
             if f and not isinstance(
@@ -616,8 +623,10 @@ class ContratoForm(forms.ModelForm):
             "Opcional si elige vendedor del catálogo; use este campo para un nombre libre en documentos."
         )
 
-        qs = Inmueble.objects.select_related("proyecto", "poligono").order_by(
-            "proyecto__nombre", "poligono__orden", "poligono__nombre", "codigo"
+        qs = inmueble_defer_missing_catalogo_columns(
+            Inmueble.objects.select_related("proyecto", "poligono").order_by(
+                "proyecto__nombre", "poligono__orden", "poligono__nombre", "codigo"
+            )
         )
         contrato = getattr(self, "instance", None)
         # Nuevo contrato: todos los inmuebles no vendidos (cualquier tipo). Edición: incluir el lote ya vinculado aunque esté vendido.
@@ -664,7 +673,7 @@ class ContratoForm(forms.ModelForm):
         if contrato and contrato.pk and getattr(contrato, "inmueble_id", None):
             inv_id = contrato.inmueble_id
             if not qs.filter(pk=inv_id).exists():
-                qs = (
+                qs = inmueble_defer_missing_catalogo_columns(
                     Inmueble.objects.filter(Q(pk__in=qs) | Q(pk=inv_id))
                     .select_related("proyecto", "poligono")
                     .order_by("proyecto__nombre", "poligono__orden", "poligono__nombre", "codigo")

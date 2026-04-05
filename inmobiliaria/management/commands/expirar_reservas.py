@@ -11,16 +11,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         hoy = timezone.localdate()
-        qs = Inmueble.objects.filter(
+        n = Inmueble.objects.filter(
             estado=Inmueble.Estado.RESERVADO,
             reserva_hasta__isnull=False,
             reserva_hasta__lt=hoy,
+        ).update(
+            estado=Inmueble.Estado.DISPONIBLE,
+            reserva_hasta=None,
+            cliente_reserva=None,
         )
-        n = 0
-        for inv in qs:
-            inv.estado = Inmueble.Estado.DISPONIBLE
-            inv.reserva_hasta = None
-            inv.cliente_reserva = None
-            inv.save(update_fields=["estado", "reserva_hasta", "cliente_reserva"])
-            n += 1
         self.stdout.write(self.style.SUCCESS(f"Reservas liberadas: {n} inmueble(s)."))

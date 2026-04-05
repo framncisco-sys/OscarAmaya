@@ -82,6 +82,7 @@ from .formato_aceptacion_db import (
     formato_aceptacion_defer_missing_columns,
     formato_aceptacion_promesa_column_ready as _formato_aceptacion_promesa_column_ready,
 )
+from .inmueble_db import inmueble_defer_missing_catalogo_columns
 from .models import (
     Cliente,
     ClienteDocumento,
@@ -312,7 +313,7 @@ def _catalogo_inmuebles_formato_aceptacion() -> dict:
 
     lotes_por_clave: dict[str, list[dict]] = defaultdict(list)
     inmueble_por_id: dict[str, dict] = {}
-    for inv in (
+    for inv in inmueble_defer_missing_catalogo_columns(
         Inmueble.objects.filter(proyecto__activo=True)
         .select_related("poligono", "proyecto")
         .order_by("proyecto_id", "poligono_id", "codigo")
@@ -651,7 +652,10 @@ class InmuebleListView(AppLoginRequiredMixin, ListView):
     template_name = "app/inmueble_list.html"
     context_object_name = "items"
     paginate_by = 25
-    queryset = Inmueble.objects.select_related("proyecto", "poligono")
+
+    def get_queryset(self):
+        qs = Inmueble.objects.select_related("proyecto", "poligono")
+        return inmueble_defer_missing_catalogo_columns(qs)
 
 
 class InmuebleCreateView(AppLoginRequiredMixin, CreateView):
@@ -679,6 +683,10 @@ class InmuebleUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
     form_class = forms.InmuebleForm
     template_name = "app/inmueble_form.html"
     success_url = reverse_lazy("app:inmueble_list")
+
+    def get_queryset(self):
+        qs = Inmueble.objects.select_related("proyecto", "poligono")
+        return inmueble_defer_missing_catalogo_columns(qs)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -1714,6 +1722,9 @@ class InmuebleDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, DeleteView
     template_name = "app/confirm_delete.html"
     success_url = reverse_lazy("app:inmueble_list")
 
+    def get_queryset(self):
+        return inmueble_defer_missing_catalogo_columns(Inmueble.objects.all())
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["delete_title"] = "Eliminar inmueble"
@@ -1778,7 +1789,7 @@ class ParametroMoraDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, Delet
 @login_required
 def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
     proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
-    lotes = (
+    lotes = inmueble_defer_missing_catalogo_columns(
         Inmueble.objects.select_related("poligono", "cliente_reserva", "proyecto")
         .filter(proyecto_id=proyecto_id, tipo=Inmueble.Tipo.LOTE)
         .order_by("poligono__orden", "codigo")
@@ -1867,7 +1878,11 @@ def api_mapa_guardar_lote(request: HttpRequest, inmueble_id: int) -> JsonRespons
             },
             status=403,
         )
-    inmueble = get_object_or_404(Inmueble, pk=inmueble_id, tipo=Inmueble.Tipo.LOTE)
+    inmueble = get_object_or_404(
+        inmueble_defer_missing_catalogo_columns(Inmueble.objects.all()),
+        pk=inmueble_id,
+        tipo=Inmueble.Tipo.LOTE,
+    )
     try:
         payload = json.loads(request.body.decode("utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError):
@@ -2147,7 +2162,7 @@ class MapaCatastralView(AppLoginRequiredMixin, TemplateView):
 def api_mapa_catastral(request: HttpRequest, proyecto_id: int) -> JsonResponse:
     """GeoJSON FeatureCollection con datos para colorear y popup."""
     proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
-    lotes = (
+    lotes = inmueble_defer_missing_catalogo_columns(
         Inmueble.objects.select_related("poligono", "cliente_reserva", "proyecto")
         .filter(proyecto_id=proyecto_id, tipo=Inmueble.Tipo.LOTE)
         .order_by("poligono__orden", "codigo")
@@ -2260,7 +2275,11 @@ def api_mapa_catastral_guardar(request: HttpRequest, inmueble_id: int) -> JsonRe
             },
             status=403,
         )
-    inmueble = get_object_or_404(Inmueble, pk=inmueble_id, tipo=Inmueble.Tipo.LOTE)
+    inmueble = get_object_or_404(
+        inmueble_defer_missing_catalogo_columns(Inmueble.objects.all()),
+        pk=inmueble_id,
+        tipo=Inmueble.Tipo.LOTE,
+    )
     try:
         payload = json.loads(request.body.decode("utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError):
