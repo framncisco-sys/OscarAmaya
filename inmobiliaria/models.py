@@ -172,6 +172,13 @@ class Inmueble(models.Model):
         CASA_SEGUNDA = "CASA_SEGUNDA", "Casa segunda"
         LOCAL = "LOCAL", "Local comercial"
 
+    class ModoCatalogo(models.TextChoices):
+        """Agrupa el formulario: primero el modo, luego el tipo concreto."""
+
+        LOTIFICACION = "LOTIFICACION", "Lotificación (lote en proyecto)"
+        CASA = "CASA", "Casa (venta)"
+        ALQUILER = "ALQUILER", "Alquiler"
+
     class Estado(models.TextChoices):
         DISPONIBLE = "DISPONIBLE", "Disponible"
         RESERVADO = "RESERVADO", "Reservado"
@@ -200,6 +207,14 @@ class Inmueble(models.Model):
         help_text="Lote padre si este es resultado de segregación.",
     )
 
+    modo_catalogo = models.CharField(
+        "¿Qué está registrando?",
+        max_length=20,
+        choices=ModoCatalogo.choices,
+        default=ModoCatalogo.LOTIFICACION,
+        help_text="Elija primero el tipo de operación; el formulario mostrará las secciones correspondientes.",
+    )
+
     tipo = models.CharField(max_length=20, choices=Tipo.choices, default=Tipo.LOTE)
     estado = models.CharField(
         max_length=20,
@@ -215,6 +230,23 @@ class Inmueble(models.Model):
     precio_lista = models.DecimalField(
         max_digits=14,
         decimal_places=2,
+        validators=[MinValueValidator(Decimal("0"))],
+    )
+    precio_alquiler_mensual = models.DecimalField(
+        "Canon de alquiler mensual ($)",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Solo si el inmueble es para alquiler.",
+    )
+    deposito_alquiler = models.DecimalField(
+        "Depósito / garantía ($)",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
         validators=[MinValueValidator(Decimal("0"))],
     )
 

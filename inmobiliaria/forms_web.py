@@ -230,7 +230,27 @@ class PoligonoForm(forms.ModelForm):
         return cleaned
 
 
+class InmuebleTipoSelect(forms.Select):
+    """Opciones <option> con data-modos para filtrar según Lotificación / Casa / Alquiler."""
+
+    TIPO_MODOS: dict[str, tuple[str, ...]] = {
+        "LOTE": ("LOTIFICACION",),
+        "CASA_NUEVA": ("CASA", "ALQUILER"),
+        "CASA_SEGUNDA": ("CASA", "ALQUILER"),
+        "LOCAL": ("ALQUILER",),
+    }
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        opt = super().create_option(name, value, label, selected, index, subindex, attrs)
+        if value not in (None, ""):
+            mods = self.TIPO_MODOS.get(str(value), ())
+            opt.setdefault("attrs", {})
+            opt["attrs"]["data-modos"] = " ".join(mods)
+        return opt
+
+
 _INMUEBLE_FORM_FIELDS = [
+    "modo_catalogo",
     "proyecto",
     "poligono",
     "inmueble_padre",
@@ -238,6 +258,8 @@ _INMUEBLE_FORM_FIELDS = [
     "estado",
     "codigo",
     "precio_lista",
+    "precio_alquiler_mensual",
+    "deposito_alquiler",
     "area_varas_cuadradas",
     "area_m2",
     "frente_m",
@@ -332,6 +354,9 @@ class InmuebleForm(forms.ModelForm):
                 (forms.HiddenInput, forms.CheckboxInput),
             ):
                 f.widget.attrs.setdefault("class", "input")
+        tf = self.fields.get("tipo")
+        if tf:
+            tf.widget = InmuebleTipoSelect(attrs={"class": "input"})
         if self.instance.pk:
             try:
                 d = self.instance.detalle_edificacion
@@ -387,6 +412,27 @@ class InmuebleForm(forms.ModelForm):
         else:
             cleaned["reserva_hasta"] = None
             cleaned["cliente_reserva"] = None
+
+        modo = cleaned.get("modo_catalogo")
+        tipo = cleaned.get("tipo")
+        permitidos_por_modo = {
+            Inmueble.ModoCatalogo.LOTIFICACION: {Inmueble.Tipo.LOTE},
+            Inmueble.ModoCatalogo.CASA: {Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA},
+            Inmueble.ModoCatalogo.ALQUILER: {
+                Inmueble.Tipo.LOCAL,
+                Inmueble.Tipo.CASA_NUEVA,
+                Inmueble.Tipo.CASA_SEGUNDA,
+            },
+        }
+        if modo and tipo and tipo not in permitidos_por_modo.get(modo, set()):
+            self.add_error(
+                "tipo",
+                "Elija un tipo de inmueble acorde al modo (Lotificación → Lote; Casa → Casa nueva o segunda; "
+                "Alquiler → Local o casa en alquiler).",
+            )
+        if modo != Inmueble.ModoCatalogo.ALQUILER:
+            cleaned["precio_alquiler_mensual"] = None
+            cleaned["deposito_alquiler"] = None
         return cleaned
 
 

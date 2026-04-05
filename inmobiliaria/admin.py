@@ -66,8 +66,17 @@ class HistorialPrecioInmuebleAdmin(admin.ModelAdmin):
 
 @admin.register(Inmueble)
 class InmuebleAdmin(admin.ModelAdmin):
-    list_display = ("codigo", "proyecto", "poligono", "tipo", "estado", "reserva_hasta", "precio_lista")
-    list_filter = ("proyecto", "tipo", "estado", "poligono")
+    list_display = (
+        "codigo",
+        "modo_catalogo",
+        "proyecto",
+        "poligono",
+        "tipo",
+        "estado",
+        "reserva_hasta",
+        "precio_lista",
+    )
+    list_filter = ("modo_catalogo", "proyecto", "tipo", "estado", "poligono")
     search_fields = ("codigo", "notas")
     raw_id_fields = ("inmueble_padre",)
     inlines = [InmuebleDetalleEdificacionInline, InmuebleImagenInline]
@@ -76,6 +85,7 @@ class InmuebleAdmin(admin.ModelAdmin):
             "Identificación",
             {
                 "fields": (
+                    "modo_catalogo",
                     "proyecto",
                     "poligono",
                     "inmueble_padre",
@@ -90,6 +100,8 @@ class InmuebleAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "precio_lista",
+                    "precio_alquiler_mensual",
+                    "deposito_alquiler",
                     "area_varas_cuadradas",
                     "area_m2",
                     "frente_m",

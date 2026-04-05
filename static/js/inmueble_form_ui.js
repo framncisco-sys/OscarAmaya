@@ -1,25 +1,55 @@
 /**
- * Inmueble: secciones según tipo (lote / casa / local), geolocalización y galería (arrastrar/soltar).
+ * Inmueble: modo Lotificación / Casa / Alquiler → secciones + filtro de tipo;
+ * geolocalización y galería (arrastrar/soltar).
  */
 (function () {
   "use strict";
 
-  function splitTipos(s) {
+  function splitTok(s) {
     return (s || "").trim().split(/\s+/).filter(Boolean);
   }
 
-  function refreshSecciones() {
-    var sel = document.getElementById("id_tipo");
-    if (!sel) return;
-    var t = sel.value || "";
-    document.querySelectorAll(".inmueble-sec[data-show-tipos]").forEach(function (sec) {
-      var tipos = splitTipos(sec.getAttribute("data-show-tipos"));
-      var ok = tipos.indexOf(t) >= 0;
-      sec.classList.toggle("is-visible", ok);
+  function matchesDyn(el, modo, tipo) {
+    var dm = el.getAttribute("data-show-modo");
+    var dt = el.getAttribute("data-show-tipos");
+    var ms = dm ? splitTok(dm) : [];
+    var ts = dt ? splitTok(dt) : [];
+    if (ms.length && ms.indexOf(modo) < 0) return false;
+    if (ts.length && ts.indexOf(tipo) < 0) return false;
+    return true;
+  }
+
+  function filterTipoPorModo(selModo, tipoSelect) {
+    if (!selModo || !tipoSelect) return;
+    var modo = selModo.value || "LOTIFICACION";
+    var firstVis = null;
+    Array.prototype.forEach.call(tipoSelect.options, function (opt) {
+      if (!opt.value) {
+        opt.hidden = false;
+        return;
+      }
+      var mods = splitTok(opt.getAttribute("data-modos"));
+      var ok = mods.indexOf(modo) >= 0;
+      opt.hidden = !ok;
+      if (ok && !firstVis) firstVis = opt;
     });
-    document.querySelectorAll("h2.inmueble-sec-title[data-show-tipos]").forEach(function (h) {
-      var tipos = splitTipos(h.getAttribute("data-show-tipos"));
-      h.style.display = tipos.indexOf(t) >= 0 ? "" : "none";
+    var selOpt = tipoSelect.selectedOptions[0];
+    if (selOpt && selOpt.hidden && firstVis) {
+      tipoSelect.value = firstVis.value;
+    }
+  }
+
+  function refreshAll(selModo, selTipo) {
+    var modo = selModo && selModo.value ? selModo.value : "LOTIFICACION";
+    filterTipoPorModo(selModo, selTipo);
+    var tipo = selTipo && selTipo.value ? selTipo.value : "";
+    var q =
+      ".inmueble-sec[data-show-modo], .inmueble-sec[data-show-tipos], " +
+      "h2.inmueble-sec-title[data-show-modo], h2.inmueble-sec-title[data-show-tipos], " +
+      "p.inmueble-dyn[data-show-modo]";
+    document.querySelectorAll(q).forEach(function (el) {
+      if (matchesDyn(el, modo, tipo)) el.classList.add("is-visible");
+      else el.classList.remove("is-visible");
     });
   }
 
@@ -41,11 +71,15 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     var form = document.getElementById("inmueble-form-main");
+    var selModo = document.getElementById("id_modo_catalogo");
     var selTipo = document.getElementById("id_tipo");
-    if (selTipo) {
-      selTipo.addEventListener("change", refreshSecciones);
-      refreshSecciones();
+
+    function runRefresh() {
+      refreshAll(selModo, selTipo);
     }
+    if (selModo) selModo.addEventListener("change", runRefresh);
+    if (selTipo) selTipo.addEventListener("change", runRefresh);
+    runRefresh();
 
     var btnGeo = document.getElementById("inmueble-btn-geo");
     var latEl = document.getElementById("id_latitud");

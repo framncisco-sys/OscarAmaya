@@ -15,8 +15,11 @@
     border-bottom: 2px solid #003366;
   }
   .inmueble-sec { margin-bottom: 0.25rem; }
-  .inmueble-sec[data-show-tipos] { display: none; }
+  .inmueble-sec[data-show-tipos]:not([data-show-modo]) { display: none; }
+  .inmueble-sec[data-show-modo] { display: none; }
   .inmueble-sec.is-visible { display: block; }
+  h2.inmueble-sec-title[data-show-modo], p.inmueble-dyn[data-show-modo] { display: none; }
+  h2.inmueble-sec-title[data-show-modo].is-visible, p.inmueble-dyn[data-show-modo].is-visible { display: block; }
   .inmueble-galeria-drop {
     border: 2px dashed #94a3b8;
     border-radius: 10px;
@@ -39,46 +42,76 @@
     <div class="alert" role="alert">{{ form.non_field_errors }}</div>
   {% endif %}
 
-  <h2 class="inmueble-sec-title">Identificación</h2>
+  <div class="field" style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:10px;padding:1rem 1.1rem;margin-bottom:1.25rem;">
+    {% include "app/_inmueble_field.html" with field=form.modo_catalogo %}
+    <p class="muted" style="font-size:0.88rem;margin:0.35rem 0 0;">Paso 1: elija <strong>Lotificación</strong> (lote en un proyecto), <strong>Casa</strong> (venta de vivienda) o <strong>Alquiler</strong>. Paso 2: el formulario despliega las secciones y el desplegable «Tipo de inmueble» solo muestra opciones válidas.</p>
+  </div>
+
+  <h2 class="inmueble-sec-title">Proyecto y ubicación en inventario</h2>
   <div class="inmueble-sec is-visible">
+    <p class="muted inmueble-dyn" data-show-modo="LOTIFICACION" style="font-size:0.88rem;margin:0 0 0.65rem;">Lotificación: seleccione <strong>un solo proyecto</strong> (desarrollo), luego polígono y datos del lote.</p>
+    <p class="muted inmueble-dyn" data-show-modo="CASA" style="font-size:0.88rem;margin:0 0 0.65rem;">Casa: proyecto o residencial donde figura la vivienda.</p>
+    <p class="muted inmueble-dyn" data-show-modo="ALQUILER" style="font-size:0.88rem;margin:0 0 0.65rem;">Alquiler: proyecto o ubicación en catálogo del inmueble en renta.</p>
     {% include "app/_inmueble_field.html" with field=form.proyecto %}
     {% include "app/_inmueble_field.html" with field=form.poligono %}
+  </div>
+
+  <h2 class="inmueble-sec-title" data-show-modo="LOTIFICACION">Segregación (solo lotes)</h2>
+  <div class="inmueble-sec" data-show-modo="LOTIFICACION">
     {% include "app/_inmueble_field.html" with field=form.inmueble_padre %}
+  </div>
+
+  <h2 class="inmueble-sec-title">Tipo de inmueble y referencia</h2>
+  <div class="inmueble-sec is-visible">
     {% include "app/_inmueble_field.html" with field=form.tipo %}
+    <p class="field__help muted" id="inmueble-tipo-filtro-ayuda" style="margin-top:-0.35rem;">Las opciones del tipo se filtran según Lotificación / Casa / Alquiler.</p>
     {% include "app/_inmueble_field.html" with field=form.estado %}
     {% include "app/_inmueble_field.html" with field=form.codigo %}
   </div>
 
-  <h2 class="inmueble-sec-title">Precio y superficie del terreno</h2>
+  <h2 class="inmueble-sec-title">Precio y superficie</h2>
   <div class="inmueble-sec is-visible">
     {% include "app/_inmueble_field.html" with field=form.precio_lista %}
     {% include "app/_inmueble_field.html" with field=form.area_varas_cuadradas %}
     {% include "app/_inmueble_field.html" with field=form.area_m2 %}
   </div>
 
-  <h2 class="inmueble-sec-title" data-show-tipos="LOTE">Medidas y topografía (lote)</h2>
-  <div class="inmueble-sec" data-show-tipos="LOTE">
+  <h2 class="inmueble-sec-title" data-show-modo="ALQUILER">Alquiler — canon y garantía</h2>
+  <div class="inmueble-sec" data-show-modo="ALQUILER">
+    {% include "app/_inmueble_field.html" with field=form.precio_alquiler_mensual %}
+    {% include "app/_inmueble_field.html" with field=form.deposito_alquiler %}
+  </div>
+
+  <h2 class="inmueble-sec-title" data-show-modo="LOTIFICACION">Medidas y topografía (lote)</h2>
+  <div class="inmueble-sec" data-show-modo="LOTIFICACION">
     {% include "app/_inmueble_field.html" with field=form.frente_m %}
     {% include "app/_inmueble_field.html" with field=form.fondo_m %}
     {% include "app/_inmueble_field.html" with field=form.topografia %}
   </div>
 
-  <h2 class="inmueble-sec-title" data-show-tipos="CASA_NUEVA CASA_SEGUNDA LOCAL">Construcción / interior</h2>
-  <div class="inmueble-sec" data-show-tipos="CASA_NUEVA CASA_SEGUNDA LOCAL">
+  <h2 class="inmueble-sec-title" data-show-modo="CASA ALQUILER" data-show-tipos="CASA_NUEVA CASA_SEGUNDA LOCAL">Construcción / interior</h2>
+  <div class="inmueble-sec" data-show-modo="CASA ALQUILER" data-show-tipos="CASA_NUEVA CASA_SEGUNDA LOCAL">
     {% include "app/_inmueble_field.html" with field=form.banos %}
     {% include "app/_inmueble_field.html" with field=form.niveles %}
     {% include "app/_inmueble_field.html" with field=form.area_construccion_m2 %}
   </div>
 
-  <h2 class="inmueble-sec-title" data-show-tipos="CASA_NUEVA CASA_SEGUNDA">Vivienda</h2>
-  <div class="inmueble-sec" data-show-tipos="CASA_NUEVA CASA_SEGUNDA">
+  <h2 class="inmueble-sec-title" data-show-modo="CASA" data-show-tipos="CASA_NUEVA CASA_SEGUNDA">Vivienda (venta)</h2>
+  <div class="inmueble-sec" data-show-modo="CASA" data-show-tipos="CASA_NUEVA CASA_SEGUNDA">
     {% include "app/_inmueble_field.html" with field=form.habitaciones %}
     {% include "app/_inmueble_field.html" with field=form.amueblada %}
     {% include "app/_inmueble_field.html" with field=form.cochera_cubiertas %}
   </div>
 
-  <h2 class="inmueble-sec-title" data-show-tipos="LOCAL">Local comercial</h2>
-  <div class="inmueble-sec" data-show-tipos="LOCAL">
+  <h2 class="inmueble-sec-title" data-show-modo="ALQUILER" data-show-tipos="CASA_NUEVA CASA_SEGUNDA">Vivienda en alquiler</h2>
+  <div class="inmueble-sec" data-show-modo="ALQUILER" data-show-tipos="CASA_NUEVA CASA_SEGUNDA">
+    {% include "app/_inmueble_field.html" with field=form.habitaciones %}
+    {% include "app/_inmueble_field.html" with field=form.amueblada %}
+    {% include "app/_inmueble_field.html" with field=form.cochera_cubiertas %}
+  </div>
+
+  <h2 class="inmueble-sec-title" data-show-modo="ALQUILER" data-show-tipos="LOCAL">Local comercial (alquiler)</h2>
+  <div class="inmueble-sec" data-show-modo="ALQUILER" data-show-tipos="LOCAL">
     {% include "app/_inmueble_field.html" with field=form.seguridad %}
     {% include "app/_inmueble_field.html" with field=form.parqueos_clientes %}
     {% include "app/_inmueble_field.html" with field=form.carga_electrica %}
@@ -151,8 +184,8 @@
     <p class="field__help muted" id="inmueble-galeria-portada-hint" style="display:none;margin-top:0.35rem;"></p>
   </div>
 
-  <h2 class="inmueble-sec-title" data-show-tipos="LOTE">Mapas (lotes)</h2>
-  <div class="inmueble-sec" data-show-tipos="LOTE">
+  <h2 class="inmueble-sec-title" data-show-modo="LOTIFICACION">Mapas (plano y catastral)</h2>
+  <div class="inmueble-sec" data-show-modo="LOTIFICACION">
     {% include "app/_inmueble_field.html" with field=form.geometria_json %}
     {% include "app/_inmueble_field.html" with field=form.geometria_catastral_geojson %}
   </div>
