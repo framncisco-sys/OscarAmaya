@@ -172,13 +172,6 @@ class Inmueble(models.Model):
         CASA_SEGUNDA = "CASA_SEGUNDA", "Casa segunda"
         LOCAL = "LOCAL", "Local comercial"
 
-    class ModoCatalogo(models.TextChoices):
-        """Agrupa el formulario: primero el modo, luego el tipo concreto."""
-
-        LOTIFICACION = "LOTIFICACION", "Lotificación (lote en proyecto)"
-        CASA = "CASA", "Casa (venta)"
-        ALQUILER = "ALQUILER", "Alquiler"
-
     class Estado(models.TextChoices):
         DISPONIBLE = "DISPONIBLE", "Disponible"
         RESERVADO = "RESERVADO", "Reservado"
@@ -207,14 +200,6 @@ class Inmueble(models.Model):
         help_text="Lote padre si este es resultado de segregación.",
     )
 
-    modo_catalogo = models.CharField(
-        "¿Qué está registrando?",
-        max_length=20,
-        choices=ModoCatalogo.choices,
-        default=ModoCatalogo.LOTIFICACION,
-        help_text="Elija primero el tipo de operación; el formulario mostrará las secciones correspondientes.",
-    )
-
     tipo = models.CharField(max_length=20, choices=Tipo.choices, default=Tipo.LOTE)
     estado = models.CharField(
         max_length=20,
@@ -230,23 +215,6 @@ class Inmueble(models.Model):
     precio_lista = models.DecimalField(
         max_digits=14,
         decimal_places=2,
-        validators=[MinValueValidator(Decimal("0"))],
-    )
-    precio_alquiler_mensual = models.DecimalField(
-        "Canon de alquiler mensual ($)",
-        max_digits=14,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(Decimal("0"))],
-        help_text="Solo si el inmueble es para alquiler.",
-    )
-    deposito_alquiler = models.DecimalField(
-        "Depósito / garantía ($)",
-        max_digits=14,
-        decimal_places=2,
-        null=True,
-        blank=True,
         validators=[MinValueValidator(Decimal("0"))],
     )
 
@@ -346,106 +314,20 @@ class Inmueble(models.Model):
         return f"{pol} · Lote {self.codigo}"
 
 
-class InmuebleDetalleEdificacion(models.Model):
-    """Datos de casa o local (no aplica a lote suelto); OneToOne con Inmueble."""
-
-    inmueble = models.OneToOneField(
-        Inmueble,
-        on_delete=models.CASCADE,
-        related_name="detalle_edificacion",
-    )
-    habitaciones = models.PositiveSmallIntegerField(
-        "Habitaciones",
-        null=True,
-        blank=True,
-        help_text="Solo vivienda.",
-    )
-    banos = models.DecimalField(
-        "Baños",
-        max_digits=4,
-        decimal_places=1,
-        null=True,
-        blank=True,
-        help_text="Ej. 2.5 (casa o local).",
-    )
-    niveles = models.PositiveSmallIntegerField(
-        "Niveles / plantas",
-        null=True,
-        blank=True,
-    )
-    amueblada = models.BooleanField(
-        "Amueblada",
-        default=False,
-        help_text="Vivienda amueblada.",
-    )
-    cochera_cubiertas = models.PositiveSmallIntegerField(
-        "Cochera (espacios cubiertos)",
-        null=True,
-        blank=True,
-    )
-    area_construccion_m2 = models.DecimalField(
-        "Metros cuadrados de construcción",
-        max_digits=12,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        help_text="Distinto del área de terreno (lote).",
-    )
-    seguridad = models.TextField(
-        "Seguridad",
-        blank=True,
-        help_text="Ej. vigilancia, cerco, alarmas (local comercial).",
-    )
-    parqueos_clientes = models.PositiveSmallIntegerField(
-        "Parqueos para clientes",
-        null=True,
-        blank=True,
-        help_text="Local comercial.",
-    )
-    carga_electrica = models.CharField(
-        "Carga eléctrica / instalación",
-        max_length=200,
-        blank=True,
-        help_text="Ej. trifásica, 200 A, etc.",
-    )
-
-    class Meta:
-        verbose_name = "Detalle construcción / local"
-        verbose_name_plural = "Detalles construcción / local"
-
-    def __str__(self) -> str:
-        return f"Detalle {self.inmueble.codigo}"
-
-
 class InmuebleImagen(models.Model):
-    """Galería: archivo en servidor o URL externa (retrocompatibilidad)."""
+    """Galería (URL para no exigir almacenamiento de archivos en MVP)."""
 
     inmueble = models.ForeignKey(
         Inmueble,
         on_delete=models.CASCADE,
         related_name="imagenes",
     )
-    imagen = models.ImageField(
-        upload_to="inmuebles/galeria/%Y/%m/",
-        blank=True,
-        null=True,
-        validators=[
-            FileExtensionValidator(
-                allowed_extensions=["png", "jpg", "jpeg", "webp"],
-                message="Use PNG, JPG, JPEG o WEBP.",
-            )
-        ],
-    )
-    url = models.URLField(blank=True, null=True)
-    es_portada = models.BooleanField(
-        "Imagen principal (catálogo)",
-        default=False,
-    )
+    url = models.URLField()
     orden = models.PositiveSmallIntegerField(default=0)
     descripcion = models.CharField(max_length=200, blank=True)
 
     class Meta:
-        ordering = ["-es_portada", "orden", "id"]
+        ordering = ["orden", "id"]
         verbose_name = "Imagen de inmueble"
         verbose_name_plural = "Imágenes de inmuebles"
 
