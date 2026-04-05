@@ -1,15 +1,191 @@
-{% extends "app/object_form.html" %}
-{% block form_extras %}
+{% extends "app/base_app.html" %}
+{% load static %}
+{% block title %}{{ form_title }} | Paredes Bienes Raíces{% endblock %}
+
+{% block app_content %}
+<style>
+  .inmueble-sec-title {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 1.35rem 0 0.65rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 2px solid #003366;
+  }
+  .inmueble-sec { margin-bottom: 0.25rem; }
+  .inmueble-sec[data-show-tipos] { display: none; }
+  .inmueble-sec.is-visible { display: block; }
+  .inmueble-galeria-drop {
+    border: 2px dashed #94a3b8;
+    border-radius: 10px;
+    padding: 1.25rem;
+    text-align: center;
+    background: #f8fafc;
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+  }
+  .inmueble-galeria-drop.is-dragover { border-color: #003366; background: #eff6ff; }
+  .inmueble-galeria-prev { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.5rem 0; }
+  .inmueble-galeria-prev span { font-size: 0.8rem; padding: 0.2rem 0.45rem; background: #e2e8f0; border-radius: 6px; }
+</style>
+
+<h1 class="page-title">{{ form_title }}</h1>
+<form method="post" class="form-stack" enctype="multipart/form-data" id="inmueble-form-main">
+  {% csrf_token %}
+  {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+  {% if form.non_field_errors %}
+    <div class="alert" role="alert">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <h2 class="inmueble-sec-title">Identificación</h2>
+  <div class="inmueble-sec is-visible">
+    {% include "app/_inmueble_field.html" with field=form.proyecto %}
+    {% include "app/_inmueble_field.html" with field=form.poligono %}
+    {% include "app/_inmueble_field.html" with field=form.inmueble_padre %}
+    {% include "app/_inmueble_field.html" with field=form.tipo %}
+    {% include "app/_inmueble_field.html" with field=form.estado %}
+    {% include "app/_inmueble_field.html" with field=form.codigo %}
+  </div>
+
+  <h2 class="inmueble-sec-title">Precio y superficie del terreno</h2>
+  <div class="inmueble-sec is-visible">
+    {% include "app/_inmueble_field.html" with field=form.precio_lista %}
+    {% include "app/_inmueble_field.html" with field=form.area_varas_cuadradas %}
+    {% include "app/_inmueble_field.html" with field=form.area_m2 %}
+  </div>
+
+  <h2 class="inmueble-sec-title" data-show-tipos="LOTE">Medidas y topografía (lote)</h2>
+  <div class="inmueble-sec" data-show-tipos="LOTE">
+    {% include "app/_inmueble_field.html" with field=form.frente_m %}
+    {% include "app/_inmueble_field.html" with field=form.fondo_m %}
+    {% include "app/_inmueble_field.html" with field=form.topografia %}
+  </div>
+
+  <h2 class="inmueble-sec-title" data-show-tipos="CASA_NUEVA CASA_SEGUNDA LOCAL">Construcción / interior</h2>
+  <div class="inmueble-sec" data-show-tipos="CASA_NUEVA CASA_SEGUNDA LOCAL">
+    {% include "app/_inmueble_field.html" with field=form.banos %}
+    {% include "app/_inmueble_field.html" with field=form.niveles %}
+    {% include "app/_inmueble_field.html" with field=form.area_construccion_m2 %}
+  </div>
+
+  <h2 class="inmueble-sec-title" data-show-tipos="CASA_NUEVA CASA_SEGUNDA">Vivienda</h2>
+  <div class="inmueble-sec" data-show-tipos="CASA_NUEVA CASA_SEGUNDA">
+    {% include "app/_inmueble_field.html" with field=form.habitaciones %}
+    {% include "app/_inmueble_field.html" with field=form.amueblada %}
+    {% include "app/_inmueble_field.html" with field=form.cochera_cubiertas %}
+  </div>
+
+  <h2 class="inmueble-sec-title" data-show-tipos="LOCAL">Local comercial</h2>
+  <div class="inmueble-sec" data-show-tipos="LOCAL">
+    {% include "app/_inmueble_field.html" with field=form.seguridad %}
+    {% include "app/_inmueble_field.html" with field=form.parqueos_clientes %}
+    {% include "app/_inmueble_field.html" with field=form.carga_electrica %}
+  </div>
+
+  <h2 class="inmueble-sec-title">Servicios y ubicación</h2>
+  <div class="inmueble-sec is-visible">
+    {% include "app/_inmueble_field.html" with field=form.servicios_basicos %}
+    {% include "app/_inmueble_field.html" with field=form.latitud %}
+    {% include "app/_inmueble_field.html" with field=form.longitud %}
+    <div class="field">
+      <span class="field__label">Geolocalización</span>
+      <div class="field__control">
+        <button type="button" class="btn-secondary btn-sm" id="inmueble-btn-geo">Obtener mi ubicación actual</button>
+      </div>
+      <p class="field__help muted">Usa el GPS del dispositivo (navegador pedirá permiso). Útil si está en el inmueble.</p>
+    </div>
+  </div>
+
+  <h2 class="inmueble-sec-title">Enlace y notas</h2>
+  <div class="inmueble-sec is-visible">
+    {% include "app/_inmueble_field.html" with field=form.tour_virtual_url %}
+    {% include "app/_inmueble_field.html" with field=form.notas %}
+  </div>
+
+  <h2 class="inmueble-sec-title">Galería de fotos</h2>
+  <div class="inmueble-sec is-visible">
+    <input type="hidden" name="imagen_portada" id="inmueble-portada-val" value="" autocomplete="off" />
+    <p class="muted" style="font-size:0.88rem;margin:0 0 0.75rem;">
+      Arrastre imágenes al recuadro o elija archivos. Marque cuál será la <strong>imagen principal</strong> del catálogo (portada).
+      Formatos: JPG, PNG, WEBP.
+    </p>
+    {% if inmueble_imagenes %}
+    <p class="field__label" style="margin-top:0.5rem;">Imágenes actuales</p>
+    <table class="table" style="width:100%;max-width:42rem;font-size:0.88rem;margin-bottom:1rem;">
+      <thead>
+        <tr>
+          <th>Portada</th>
+          <th>Vista</th>
+          <th>Eliminar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for im in inmueble_imagenes %}
+        <tr>
+          <td>
+            <input type="radio" name="imagen_portada_pick" value="exist:{{ im.pk }}" class="inmueble-pick-portada"
+              {% if im.es_portada %}checked{% endif %} aria-label="Portada {{ im.pk }}" />
+          </td>
+          <td>
+            {% if im.imagen %}
+              <img src="{{ im.imagen.url }}" alt="" style="max-height:56px;max-width:100px;object-fit:cover;border-radius:6px;" loading="lazy" />
+            {% elif im.url %}
+              <a href="{{ im.url }}" target="_blank" rel="noopener" class="link-action">Enlace externo</a>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <label class="muted"><input type="checkbox" name="eliminar_imagen_id" value="{{ im.pk }}" /> Borrar</label>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    <div class="inmueble-galeria-drop" id="inmueble-galeria-drop" tabindex="0" role="button" aria-label="Zona para soltar fotos">
+      <strong>Suelte fotos aquí</strong> o haga clic para elegir
+    </div>
+    <input type="file" name="galeria_fotos" id="inmueble-galeria-input" multiple accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" class="input" style="max-width:100%;" />
+    <div class="inmueble-galeria-prev" id="inmueble-galeria-prev" aria-live="polite"></div>
+    <p class="field__help muted" id="inmueble-galeria-portada-hint" style="display:none;margin-top:0.35rem;"></p>
+  </div>
+
+  <h2 class="inmueble-sec-title" data-show-tipos="LOTE">Mapas (lotes)</h2>
+  <div class="inmueble-sec" data-show-tipos="LOTE">
+    {% include "app/_inmueble_field.html" with field=form.geometria_json %}
+    {% include "app/_inmueble_field.html" with field=form.geometria_catastral_geojson %}
+  </div>
+
+  <h2 class="inmueble-sec-title">Reserva</h2>
+  <div class="inmueble-sec is-visible">
+    {% include "app/_inmueble_field.html" with field=form.cliente_reserva %}
+    {% include "app/_inmueble_field.html" with field=form.reserva_hasta %}
+  </div>
+
+  {% if sensitive_password_required %}
+  <div class="field">
+    <label class="field__label" for="id_sensitive_password">Confirmar contraseña</label>
+    <div class="field__control">
+      <input type="password" name="sensitive_password" id="id_sensitive_password" autocomplete="current-password" required
+        style="width:100%;max-width:min(100%,400px);box-sizing:border-box;border:1px solid var(--pbr-border);border-radius:10px;padding:0.6rem 0.75rem;font:inherit;">
+    </div>
+    <p class="field__help muted">Su sesión de edición expiró. Ingrese su contraseña para guardar.</p>
+  </div>
+  {% endif %}
+
+  <div class="form-actions">
+    <button type="submit" class="btn-primary">Guardar</button>
+    <a href="{{ cancel_url }}" class="btn-secondary">Cancelar</a>
+  </div>
+</form>
+
 {% if historial_precios %}
 <section class="card" style="margin-top:1rem;">
   <h2 class="page-title" style="font-size:1rem;">Historial de precio de lista</h2>
   <table class="table">
     <thead>
-      <tr>
-        <th>Fecha</th>
-        <th class="right">Anterior</th>
-        <th class="right">Nuevo</th>
-      </tr>
+      <tr><th>Fecha</th><th class="right">Anterior</th><th class="right">Nuevo</th></tr>
     </thead>
     <tbody>
       {% for h in historial_precios %}
@@ -23,4 +199,9 @@
   </table>
 </section>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="{% static 'js/inmueble_form_ui.js' %}" defer></script>
 {% endblock %}

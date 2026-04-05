@@ -27,6 +27,7 @@ from .models import (
     CuotaProgramada,
     FormatoAceptacion,
     Inmueble,
+    InmuebleDetalleEdificacion,
     Pago,
     ParametroMora,
     Poligono,
@@ -229,10 +230,146 @@ class PoligonoForm(forms.ModelForm):
         return cleaned
 
 
+_INMUEBLE_FORM_FIELDS = [
+    "proyecto",
+    "poligono",
+    "inmueble_padre",
+    "tipo",
+    "estado",
+    "codigo",
+    "precio_lista",
+    "area_varas_cuadradas",
+    "area_m2",
+    "frente_m",
+    "fondo_m",
+    "topografia",
+    "servicios_basicos",
+    "latitud",
+    "longitud",
+    "tour_virtual_url",
+    "notas",
+    "geometria_json",
+    "geometria_catastral_geojson",
+    "cliente_reserva",
+    "reserva_hasta",
+]
+
+
 class InmuebleForm(forms.ModelForm):
+    """Campos de Inmueble + detalle construcción/local (OneToOne); la galería se procesa en la vista."""
+
+    habitaciones = forms.IntegerField(
+        label="Habitaciones",
+        required=False,
+        min_value=0,
+        max_value=500,
+        widget=forms.NumberInput(attrs={"class": "input", "min": 0}),
+    )
+    banos = forms.DecimalField(
+        label="Baños",
+        required=False,
+        max_digits=4,
+        decimal_places=1,
+        min_value=Decimal("0"),
+        widget=forms.NumberInput(attrs={"class": "input", "step": "0.1", "min": 0}),
+    )
+    niveles = forms.IntegerField(
+        label="Niveles / plantas",
+        required=False,
+        min_value=0,
+        max_value=50,
+        widget=forms.NumberInput(attrs={"class": "input", "min": 0}),
+    )
+    amueblada = forms.BooleanField(
+        label="Amueblada",
+        required=False,
+        initial=False,
+    )
+    cochera_cubiertas = forms.IntegerField(
+        label="Cochera (espacios cubiertos)",
+        required=False,
+        min_value=0,
+        max_value=50,
+        widget=forms.NumberInput(attrs={"class": "input", "min": 0}),
+    )
+    area_construccion_m2 = forms.DecimalField(
+        label="Metros cuadrados de construcción",
+        required=False,
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        widget=forms.NumberInput(attrs={"class": "input", "step": "0.01", "min": 0}),
+    )
+    seguridad = forms.CharField(
+        label="Seguridad",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2, "class": "input"}),
+    )
+    parqueos_clientes = forms.IntegerField(
+        label="Parqueos para clientes",
+        required=False,
+        min_value=0,
+        max_value=500,
+        widget=forms.NumberInput(attrs={"class": "input", "min": 0}),
+    )
+    carga_electrica = forms.CharField(
+        label="Carga eléctrica / instalación",
+        required=False,
+        max_length=200,
+        widget=forms.TextInput(attrs={"class": "input"}),
+    )
+
     class Meta:
         model = Inmueble
-        fields = "__all__"
+        fields = _INMUEBLE_FORM_FIELDS
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for fname in _INMUEBLE_FORM_FIELDS:
+            f = self.fields.get(fname)
+            if f and not isinstance(
+                f.widget,
+                (forms.HiddenInput, forms.CheckboxInput),
+            ):
+                f.widget.attrs.setdefault("class", "input")
+        if self.instance.pk:
+            try:
+                d = self.instance.detalle_edificacion
+            except InmuebleDetalleEdificacion.DoesNotExist:
+                d = None
+            if d:
+                self.fields["habitaciones"].initial = d.habitaciones
+                self.fields["banos"].initial = d.banos
+                self.fields["niveles"].initial = d.niveles
+                self.fields["amueblada"].initial = d.amueblada
+                self.fields["cochera_cubiertas"].initial = d.cochera_cubiertas
+                self.fields["area_construccion_m2"].initial = d.area_construccion_m2
+                self.fields["seguridad"].initial = d.seguridad
+                self.fields["parqueos_clientes"].initial = d.parqueos_clientes
+                self.fields["carga_electrica"].initial = d.carga_electrica
+
+    def _save_detalle(self, obj: Inmueble) -> None:
+        if obj.tipo == Inmueble.Tipo.LOTE:
+            InmuebleDetalleEdificacion.objects.filter(inmueble=obj).delete()
+            return
+        det, _ = InmuebleDetalleEdificacion.objects.get_or_create(inmueble=obj)
+        cd = self.cleaned_data
+        det.habitaciones = cd.get("habitaciones") or None
+        det.banos = cd.get("banos") or None
+        det.niveles = cd.get("niveles") or None
+        det.amueblada = bool(cd.get("amueblada"))
+        det.cochera_cubiertas = cd.get("cochera_cubiertas") or None
+        det.area_construccion_m2 = cd.get("area_construccion_m2") or None
+        det.seguridad = (cd.get("seguridad") or "").strip()
+        det.parqueos_clientes = cd.get("parqueos_clientes") or None
+        det.carga_electrica = (cd.get("carga_electrica") or "").strip()
+        det.save()
+
+    def save(self, commit=True):
+        obj = super().save(commit=commit)
+        if commit and obj.pk:
+            self._save_detalle(obj)
+        return obj
 
     def clean(self):
         cleaned = super().clean()

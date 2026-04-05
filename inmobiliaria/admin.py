@@ -8,6 +8,7 @@ from .models import (
     FormatoAceptacion,
     HistorialPrecioInmueble,
     Inmueble,
+    InmuebleDetalleEdificacion,
     InmuebleImagen,
     Pago,
     ParametroMora,
@@ -24,7 +25,14 @@ class PoligonoInline(admin.TabularInline):
 
 class InmuebleImagenInline(admin.TabularInline):
     model = InmuebleImagen
-    extra = 1
+    extra = 0
+    fields = ("imagen", "url", "es_portada", "orden", "descripcion")
+
+
+class InmuebleDetalleEdificacionInline(admin.StackedInline):
+    model = InmuebleDetalleEdificacion
+    extra = 0
+    can_delete = False
 
 
 @admin.register(Proyecto)
@@ -62,7 +70,7 @@ class InmuebleAdmin(admin.ModelAdmin):
     list_filter = ("proyecto", "tipo", "estado", "poligono")
     search_fields = ("codigo", "notas")
     raw_id_fields = ("inmueble_padre",)
-    inlines = [InmuebleImagenInline]
+    inlines = [InmuebleDetalleEdificacionInline, InmuebleImagenInline]
     fieldsets = (
         (
             "Identificación",

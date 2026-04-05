@@ -22,7 +22,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import connection, transaction
-from django.db.models import ProtectedError, Sum
+from django.db.models import Max, ProtectedError, Sum
 from django.http import (
     FileResponse,
     Http404,
@@ -89,6 +89,7 @@ from .models import (
     CuotaProgramada,
     FormatoAceptacion,
     Inmueble,
+    InmuebleImagen,
     Pago,
     ParametroMora,
     Poligono,
@@ -605,6 +606,45 @@ class PoligonoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
         return ctx
 
 
+def _inmueble_procesar_post_files(request: HttpRequest, inmueble: Inmueble) -> None:
+    """Elimina imágenes marcadas, agrega archivos nuevos y deja una sola portada."""
+    for pk_raw in request.POST.getlist("eliminar_imagen_id"):
+        try:
+            InmuebleImagen.objects.filter(pk=int(pk_raw), inmueble=inmueble).delete()
+        except (ValueError, TypeError):
+            continue
+    files = request.FILES.getlist("galeria_fotos")
+    next_orden = (inmueble.imagenes.aggregate(m=Max("orden"))["m"] or 0) + 1
+    nuevos_pks: list[int] = []
+    for i, f in enumerate(files):
+        im = InmuebleImagen.objects.create(
+            inmueble=inmueble,
+            imagen=f,
+            orden=next_orden + i,
+            es_portada=False,
+        )
+        nuevos_pks.append(im.pk)
+    raw_port = (request.POST.get("imagen_portada") or "").strip()
+    inmueble.imagenes.update(es_portada=False)
+    if raw_port.startswith("exist:"):
+        rest = raw_port[6:]
+        if rest.isdigit() and inmueble.imagenes.filter(pk=int(rest)).exists():
+            inmueble.imagenes.filter(pk=int(rest)).update(es_portada=True)
+    elif raw_port.startswith("nueva:") and nuevos_pks:
+        try:
+            j = int(raw_port.split(":", 1)[1])
+        except (IndexError, ValueError):
+            j = 0
+        j = min(max(0, j), len(nuevos_pks) - 1)
+        InmuebleImagen.objects.filter(pk=nuevos_pks[j]).update(es_portada=True)
+    elif nuevos_pks:
+        InmuebleImagen.objects.filter(pk=nuevos_pks[0]).update(es_portada=True)
+    elif inmueble.imagenes.exists():
+        primero = inmueble.imagenes.order_by("orden", "id").first()
+        if primero:
+            InmuebleImagen.objects.filter(pk=primero.pk).update(es_portada=True)
+
+
 # ——— Inmuebles ———
 class InmuebleListView(AppLoginRequiredMixin, ListView):
     model = Inmueble
@@ -617,14 +657,21 @@ class InmuebleListView(AppLoginRequiredMixin, ListView):
 class InmuebleCreateView(AppLoginRequiredMixin, CreateView):
     model = Inmueble
     form_class = forms.InmuebleForm
-    template_name = "app/object_form.html"
+    template_name = "app/inmueble_form.html"
     success_url = reverse_lazy("app:inmueble_list")
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["form_title"] = "Nuevo inmueble"
         ctx["cancel_url"] = reverse_lazy("app:inmueble_list")
+        ctx["form_multipart"] = True
+        ctx["inmueble_imagenes"] = []
         return ctx
+
+    def form_valid(self, form):
+        resp = super().form_valid(form)
+        _inmueble_procesar_post_files(self.request, self.object)
+        return resp
 
 
 class InmuebleUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
@@ -637,8 +684,15 @@ class InmuebleUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
         ctx = super().get_context_data(**kwargs)
         ctx["form_title"] = "Editar inmueble"
         ctx["cancel_url"] = reverse_lazy("app:inmueble_list")
+        ctx["form_multipart"] = True
+        ctx["inmueble_imagenes"] = self.object.imagenes.all()
         ctx["historial_precios"] = self.object.historial_precios.all()[:50]
         return ctx
+
+    def form_valid(self, form):
+        resp = super().form_valid(form)
+        _inmueble_procesar_post_files(self.request, self.object)
+        return resp
 
 
 # ——— Clientes ———
