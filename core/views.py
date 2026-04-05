@@ -17,7 +17,6 @@ from inmobiliaria.contratos_acceso import (
     filtrar_contratos_queryset_por_vendedor,
     totales_comision_contratos,
 )
-from inmobiliaria.inmueble_db import inmueble_defer_missing_catalogo_columns
 from inmobiliaria.models import Contrato, Inmueble, Poligono, Proyecto, Vendedor
 
 from usuarios.roles import puede_gestionar_vendedores
@@ -91,7 +90,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     )
     hoy = timezone.localdate()
     limite = hoy + timedelta(days=7)
-    reservas_por_vencer = inmueble_defer_missing_catalogo_columns(
+    reservas_por_vencer = (
         Inmueble.objects.filter(
             estado=Inmueble.Estado.RESERVADO,
             reserva_hasta__gte=hoy,
@@ -109,9 +108,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     context = {
         "total_proyectos": Proyecto.objects.count(),
         "total_inmuebles": Inmueble.objects.count(),
-        "ultimos_inmuebles": inmueble_defer_missing_catalogo_columns(
-            Inmueble.objects.select_related("proyecto").order_by("-id")[:8]
-        ),
+        "ultimos_inmuebles": Inmueble.objects.select_related("proyecto").order_by("-id")[:8],
         "poligono_stats": poligonos,
         "reservas_por_vencer": reservas_por_vencer,
         "reservas_vencidas_ct": reservas_vencidas_ct,
