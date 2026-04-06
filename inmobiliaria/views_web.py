@@ -784,12 +784,12 @@ class ArrendamientoLocalesListView(
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["listado_page_title"] = "Locales en alquiler"
+        ctx["listado_page_title"] = "Listado de alquileres de local"
         ctx["listado_meta"] = (
-            "Solo locales con «En alquiler» activado (edite el inmueble o créelo como local y márchelo)."
+            "Registre el local en «Nuevo lote o local», márchelo «En alquiler» y use «Ficha alquiler» para condiciones y fotos (sin duplicar inventario aquí)."
         )
-        ctx["nuevo_url"] = reverse("app:local_alquiler_create")
-        ctx["nuevo_boton_label"] = "Nuevo local en alquiler"
+        ctx["nuevo_url"] = reverse("app:inmueble_create")
+        ctx["nuevo_boton_label"] = "Nuevo lote o local"
         ctx["es_listado_casas"] = False
         ctx["es_listado_locales_alquiler"] = True
         return ctx
@@ -1001,72 +1001,8 @@ class InmuebleCasaGaleriaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, 
         return HttpResponseRedirect(reverse("app:inmueble_casa_galeria", args=[self.inmueble.pk]))
 
 
-class LocalAlquilerCreateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, View):
-    """Alta desde Arrendamientos: inventario del local + ficha de alquiler + galería en un solo guardado."""
-
-    template_name = "app/local_alquiler_ficha.html"
-
-    def _ctx(self, inv_form, local_form):
-        u = self.request.user
-        return {
-            "object": None,
-            "inmueble": None,
-            "inv_form": inv_form,
-            "local_form": local_form,
-            "inmueble_imagenes": [],
-            "form_title": "Nuevo local en alquiler",
-            "cancel_url": reverse("app:arrendamiento_locales_list"),
-            "form_multipart": True,
-            "es_alta_local_alquiler": True,
-            "sensitive_password_required": bool(
-                u.is_authenticated
-                and not skips_sensitive_reauth(u)
-                and not session_valid(self.request)
-            ),
-        }
-
-    def get(self, request, *args, **kwargs):
-        return render(
-            request,
-            self.template_name,
-            self._ctx(
-                forms.InmuebleLocalAlquilerInventarioForm(),
-                forms.InmuebleDetalleLocalAlquilerForm(),
-            ),
-        )
-
-    def post(self, request, *args, **kwargs):
-        if not check_sensitive_write(request):
-            messages.error(
-                request,
-                "Debe confirmar su contraseña de acceso (final del formulario) o usar «Confirmar acceso» en la app.",
-            )
-            inv_form = forms.InmuebleLocalAlquilerInventarioForm(request.POST, request.FILES)
-            local_form = forms.InmuebleDetalleLocalAlquilerForm(request.POST)
-            return render(request, self.template_name, self._ctx(inv_form, local_form))
-        inv_form = forms.InmuebleLocalAlquilerInventarioForm(request.POST, request.FILES)
-        local_form = forms.InmuebleDetalleLocalAlquilerForm(request.POST)
-        if not inv_form.is_valid() or not local_form.is_valid():
-            return render(request, self.template_name, self._ctx(inv_form, local_form))
-        with transaction.atomic():
-            inv = inv_form.save(commit=False)
-            inv.tipo = Inmueble.Tipo.LOCAL
-            inv.save()
-            det = local_form.save(commit=False)
-            det.inmueble = inv
-            det.save()
-        messages.success(
-            request,
-            "Local en alquiler registrado: inventario, condiciones de arrendamiento y fotos nuevas si las subió.",
-        )
-        _guardar_galeria_inmueble_tras_ficha(request, inv)
-        if request.user.is_authenticated and not skips_sensitive_reauth(request.user):
-            grant(request)
-        return HttpResponseRedirect(reverse("app:local_alquiler_ficha", args=[inv.pk]))
-
-
 class LocalAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, View):
-    """Local en alquiler: inventario + condiciones de arquiler + galería en una sola pantalla."""
+    """Ficha de arrendamiento del local (sin inventario del inmueble; eso va en editar inmueble)."""
 
     template_name = "app/local_alquiler_ficha.html"
 
@@ -1078,7 +1014,7 @@ class LocalAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, V
         if self.inmueble.tipo != Inmueble.Tipo.LOCAL:
             messages.warning(
                 request,
-                "Esta pantalla unificada solo aplica a inmuebles tipo local comercial.",
+                "La ficha de alquiler solo aplica a inmuebles tipo local comercial.",
             )
             return HttpResponseRedirect(reverse("app:inmueble_list"))
         return super().dispatch(request, *args, **kwargs)
@@ -1090,9 +1026,6 @@ class LocalAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, V
             return None
 
     def get_context_data(self, **kwargs):
-        inv_form = kwargs.get("inv_form")
-        if inv_form is None:
-            inv_form = forms.InmuebleLocalAlquilerInventarioForm(instance=self.inmueble)
         local_form = kwargs.get("local_form")
         if local_form is None:
             local_form = forms.InmuebleDetalleLocalAlquilerForm(
@@ -1102,13 +1035,11 @@ class LocalAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, V
         return {
             "object": self.inmueble,
             "inmueble": self.inmueble,
-            "inv_form": inv_form,
             "local_form": local_form,
             "inmueble_imagenes": _inmueble_imagenes_ordenadas(self.inmueble),
             "form_title": f"Local en alquiler · {self.inmueble.codigo}",
             "cancel_url": reverse("app:arrendamiento_locales_list"),
             "form_multipart": True,
-            "es_alta_local_alquiler": False,
             "sensitive_password_required": bool(
                 u.is_authenticated
                 and not skips_sensitive_reauth(u)
@@ -1125,41 +1056,32 @@ class LocalAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, V
                 request,
                 "Debe confirmar su contraseña de acceso (final del formulario) o usar «Confirmar acceso» en la app.",
             )
-            inv_form = forms.InmuebleLocalAlquilerInventarioForm(
-                request.POST, request.FILES, instance=self.inmueble
-            )
             local_form = forms.InmuebleDetalleLocalAlquilerForm(
                 request.POST, request.FILES, instance=self._detalle_instance()
             )
             return render(
                 request,
                 self.template_name,
-                self.get_context_data(inv_form=inv_form, local_form=local_form),
+                self.get_context_data(local_form=local_form),
             )
-        inv_form = forms.InmuebleLocalAlquilerInventarioForm(
-            request.POST, request.FILES, instance=self.inmueble
-        )
         local_form = forms.InmuebleDetalleLocalAlquilerForm(
             request.POST, request.FILES, instance=self._detalle_instance()
         )
-        if not inv_form.is_valid() or not local_form.is_valid():
+        if not local_form.is_valid():
             return render(
                 request,
                 self.template_name,
-                self.get_context_data(inv_form=inv_form, local_form=local_form),
+                self.get_context_data(local_form=local_form),
             )
         with transaction.atomic():
-            inv = inv_form.save(commit=False)
-            inv.tipo = Inmueble.Tipo.LOCAL
-            inv.save()
             det = local_form.save(commit=False)
-            det.inmueble = inv
+            det.inmueble = self.inmueble
             det.save()
         messages.success(
             request,
-            "Local en alquiler guardado: inventario, condiciones y fotos nuevas si las hubo.",
+            "Ficha de alquiler del local guardada (fotos nuevas si las hubo).",
         )
-        _guardar_galeria_inmueble_tras_ficha(request, inv)
+        _guardar_galeria_inmueble_tras_ficha(request, self.inmueble)
         if request.user.is_authenticated and not skips_sensitive_reauth(request.user):
             grant(request)
         return HttpResponseRedirect(

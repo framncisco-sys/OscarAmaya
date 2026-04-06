@@ -27,11 +27,6 @@ urlpatterns = [
     ),
     path("inmuebles/casas/", views.InmuebleCasaListView.as_view(), name="inmueble_casa_list"),
     path(
-        "inmuebles/arrendamientos/locales/nuevo/",
-        views.LocalAlquilerCreateView.as_view(),
-        name="local_alquiler_create",
-    ),
-    path(
         "inmuebles/arrendamientos/locales/",
         views.ArrendamientoLocalesListView.as_view(),
         name="arrendamiento_locales_list",
