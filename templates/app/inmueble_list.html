@@ -26,6 +26,9 @@
       {% if es_listado_casas %}
       <th>Casa / fotos</th>
       {% endif %}
+      {% if es_listado_casas_alquiler %}
+      <th>Alquiler (ficha)</th>
+      {% endif %}
       {% if es_listado_locales_alquiler %}
       <th>Ficha alquiler</th>
       {% endif %}
@@ -50,6 +53,11 @@
         <a href="{% url 'app:inmueble_casa_galeria' i.pk %}" class="link-action">Casa y fotos</a>
       </td>
       {% endif %}
+      {% if es_listado_casas_alquiler %}
+      <td>
+        <a href="{% url 'app:casa_alquiler_ficha' i.pk %}" class="link-action">Ficha alquiler</a>
+      </td>
+      {% endif %}
       {% if es_listado_locales_alquiler %}
       <td>
         <a href="{% url 'app:local_alquiler_ficha' i.pk %}" class="link-action">Ficha alquiler</a>
@@ -59,7 +67,7 @@
       <td><a href="{% url 'app:inmueble_delete' i.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a></td>
     </tr>
     {% empty %}
-    <tr><td colspan="{% if es_listado_casas or es_listado_locales_alquiler %}12{% else %}11{% endif %}" class="muted">No hay inmuebles.</td></tr>
+    <tr><td colspan="{% if es_listado_casas and es_listado_casas_alquiler %}13{% elif es_listado_casas or es_listado_locales_alquiler %}12{% else %}11{% endif %}" class="muted">No hay inmuebles.</td></tr>
     {% endfor %}
   </tbody>
 </table>

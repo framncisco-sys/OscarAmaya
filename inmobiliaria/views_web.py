@@ -92,6 +92,7 @@ from .models import (
     FormatoAceptacion,
     Inmueble,
     InmuebleDetalleCasa,
+    InmuebleDetalleCasaAlquiler,
     InmuebleDetalleLocalAlquiler,
     InmuebleImagen,
     Pago,
@@ -770,6 +771,7 @@ class ArrendamientoCasasListView(AppLoginRequiredMixin, ListView):
         ctx["nuevo_url"] = reverse("app:inmueble_casa_create")
         ctx["nuevo_boton_label"] = "Nueva casa"
         ctx["es_listado_casas"] = True
+        ctx["es_listado_casas_alquiler"] = True
         return ctx
 
 
@@ -851,6 +853,7 @@ class InmuebleUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
         resp = super().form_valid(form)
         if tipo not in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
             InmuebleDetalleCasa.objects.filter(inmueble=self.object).delete()
+            InmuebleDetalleCasaAlquiler.objects.filter(inmueble=self.object).delete()
         if tipo != Inmueble.Tipo.LOCAL:
             InmuebleDetalleLocalAlquiler.objects.filter(inmueble=self.object).delete()
         if self.request.user.is_authenticated and not skips_sensitive_reauth(self.request.user):
@@ -1029,6 +1032,91 @@ class LocalAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, V
             grant(request)
         return HttpResponseRedirect(
             reverse("app:local_alquiler_ficha", args=[self.inmueble.pk])
+        )
+
+
+class CasaAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, View):
+    """Arrendamiento de vivienda (listado Casas en alquiler)."""
+
+    template_name = "app/casa_alquiler_ficha.html"
+
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.inmueble = get_object_or_404(Inmueble, pk=self.kwargs["pk"])
+
+    def dispatch(self, request, *args, **kwargs):
+        if self.inmueble.tipo not in (
+            Inmueble.Tipo.CASA_NUEVA,
+            Inmueble.Tipo.CASA_SEGUNDA,
+        ):
+            messages.warning(
+                request,
+                "La ficha de alquiler de casa solo aplica a viviendas (casa nueva o de segunda).",
+            )
+            return HttpResponseRedirect(reverse("app:inmueble_casa_list"))
+        return super().dispatch(request, *args, **kwargs)
+
+    def _detalle_instance(self):
+        try:
+            return self.inmueble.detalle_casa_alquiler
+        except InmuebleDetalleCasaAlquiler.DoesNotExist:
+            return None
+
+    def get_context_data(self, **kwargs):
+        casa_alquiler_form = kwargs.get("casa_alquiler_form")
+        if casa_alquiler_form is None:
+            casa_alquiler_form = forms.InmuebleDetalleCasaAlquilerForm(
+                instance=self._detalle_instance()
+            )
+        u = self.request.user
+        return {
+            "object": self.inmueble,
+            "inmueble": self.inmueble,
+            "casa_alquiler_form": casa_alquiler_form,
+            "form_title": f"Casa en alquiler · {self.inmueble.codigo}",
+            "cancel_url": reverse("app:arrendamiento_casas_list"),
+            "sensitive_password_required": bool(
+                u.is_authenticated
+                and not skips_sensitive_reauth(u)
+                and not session_valid(self.request)
+            ),
+        }
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name, self.get_context_data())
+
+    def post(self, request, *args, **kwargs):
+        if not check_sensitive_write(request):
+            messages.error(
+                request,
+                "Debe confirmar su contraseña de acceso (final del formulario) o usar «Confirmar acceso» en la app.",
+            )
+            casa_alquiler_form = forms.InmuebleDetalleCasaAlquilerForm(
+                request.POST, instance=self._detalle_instance()
+            )
+            return render(
+                request,
+                self.template_name,
+                self.get_context_data(casa_alquiler_form=casa_alquiler_form),
+            )
+        casa_alquiler_form = forms.InmuebleDetalleCasaAlquilerForm(
+            request.POST, instance=self._detalle_instance()
+        )
+        if not casa_alquiler_form.is_valid():
+            return render(
+                request,
+                self.template_name,
+                self.get_context_data(casa_alquiler_form=casa_alquiler_form),
+            )
+        with transaction.atomic():
+            det = casa_alquiler_form.save(commit=False)
+            det.inmueble = self.inmueble
+            det.save()
+        messages.success(request, "Ficha de alquiler de la casa guardada.")
+        if request.user.is_authenticated and not skips_sensitive_reauth(request.user):
+            grant(request)
+        return HttpResponseRedirect(
+            reverse("app:casa_alquiler_ficha", args=[self.inmueble.pk])
         )
 
 

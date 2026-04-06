@@ -49,6 +49,11 @@ urlpatterns = [
         views.LocalAlquilerFichaView.as_view(),
         name="local_alquiler_ficha",
     ),
+    path(
+        "inmuebles/<int:pk>/casa-alquiler/",
+        views.CasaAlquilerFichaView.as_view(),
+        name="casa_alquiler_ficha",
+    ),
     path("inmuebles/<int:pk>/eliminar/", views.InmuebleDeleteView.as_view(), name="inmueble_delete"),
     path(
         "inmuebles/<int:inmueble_pk>/imagenes/<int:pk>/eliminar/",

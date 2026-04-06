@@ -624,6 +624,77 @@ class InmuebleDetalleLocalAlquiler(models.Model):
         return f"Alquiler local · {self.inmueble.codigo}"
 
 
+class InmuebleDetalleCasaAlquiler(models.Model):
+    """Arrendamiento de vivienda: inventario, restricciones, renta, depósito y vigencia."""
+
+    inmueble = models.OneToOneField(
+        Inmueble,
+        on_delete=models.CASCADE,
+        related_name="detalle_casa_alquiler",
+        verbose_name="Inmueble",
+    )
+    inventario_detallado_estado = models.TextField(
+        "Inventario detallado y estado",
+        blank=True,
+        help_text="Ej. bomba de agua, calentador, lámparas: indique estado (funcionando, nueva, etc.).",
+    )
+    acepta_mascotas = models.BooleanField(
+        "Se aceptan mascotas",
+        default=False,
+    )
+    maximo_personas = models.PositiveSmallIntegerField(
+        "Máximo de personas",
+        null=True,
+        blank=True,
+        help_text="Cupos permitidos; vacío si no aplica límite explícito.",
+    )
+    uso_exclusivo_habitacional = models.BooleanField(
+        "Uso exclusivo habitacional",
+        default=False,
+    )
+    servicios_incluidos_renta = models.TextField(
+        "Servicios incluidos en la renta",
+        blank=True,
+        help_text="Ej. vigilancia, internet, agua; relevante para el recibo mensual.",
+    )
+    arrendamiento_mensual = models.DecimalField(
+        "Arrendamiento mensual",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Ej. $450.00.",
+    )
+    deposito_garantia_monto = models.DecimalField(
+        "Depósito (fondo en garantía)",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="No es renta: fianza o mes adelantado en garantía.",
+    )
+    vigencia_inicio = models.DateField(
+        "Vigencia: fecha de inicio",
+        null=True,
+        blank=True,
+    )
+    vigencia_fin = models.DateField(
+        "Vigencia: fecha de fin",
+        null=True,
+        blank=True,
+        help_text="Ej. contrato 12 meses forzosos hasta esta fecha.",
+    )
+
+    class Meta:
+        verbose_name = "Detalle casa en alquiler"
+        verbose_name_plural = "Detalles casas en alquiler"
+
+    def __str__(self) -> str:
+        return f"Alquiler casa · {self.inmueble.codigo}"
+
+
 class InmuebleImagen(models.Model):
     """Galería: URL externa y/o archivo; una imagen puede marcarse como portada."""
 

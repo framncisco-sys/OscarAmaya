@@ -28,6 +28,7 @@ from .models import (
     FormatoAceptacion,
     Inmueble,
     InmuebleDetalleCasa,
+    InmuebleDetalleCasaAlquiler,
     InmuebleDetalleLocalAlquiler,
     Pago,
     ParametroMora,
@@ -402,6 +403,48 @@ class InmuebleDetalleLocalAlquilerForm(forms.ModelForm):
         if pg:
             pg.widget.attrs.setdefault("min", "0")
             pg.widget.attrs.setdefault("placeholder", "días")
+
+
+class InmuebleDetalleCasaAlquilerForm(forms.ModelForm):
+    """Ficha de arrendamiento para casas en alquiler."""
+
+    class Meta:
+        model = InmuebleDetalleCasaAlquiler
+        exclude = ("inmueble",)
+        widgets = {
+            "inventario_detallado_estado": forms.Textarea(attrs={"rows": 4, "class": "input"}),
+            "servicios_incluidos_renta": forms.Textarea(attrs={"rows": 3, "class": "input"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for _name, field in self.fields.items():
+            w = field.widget
+            if isinstance(w, forms.CheckboxInput):
+                continue
+            if not isinstance(w, (forms.HiddenInput,)):
+                w.attrs.setdefault("class", "input")
+        for name in ("arrendamiento_mensual", "deposito_garantia_monto"):
+            f = self.fields.get(name)
+            if f:
+                f.widget.attrs.setdefault("step", "0.01")
+                f.widget.attrs.setdefault("min", "0")
+                f.widget.attrs.setdefault("placeholder", "ej. 450.00")
+        mx = self.fields.get("maximo_personas")
+        if mx:
+            mx.widget.attrs.setdefault("min", "1")
+            mx.widget.attrs.setdefault("placeholder", "ej. 4")
+
+    def clean(self):
+        cleaned = super().clean()
+        ini = cleaned.get("vigencia_inicio")
+        fin = cleaned.get("vigencia_fin")
+        if ini and fin and fin < ini:
+            self.add_error(
+                "vigencia_fin",
+                "La fecha de fin no puede ser anterior a la de inicio.",
+            )
+        return cleaned
 
 
 class ClienteForm(forms.ModelForm):

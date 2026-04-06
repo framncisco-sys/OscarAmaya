@@ -9,6 +9,7 @@ from .models import (
     HistorialPrecioInmueble,
     Inmueble,
     InmuebleDetalleCasa,
+    InmuebleDetalleCasaAlquiler,
     InmuebleDetalleLocalAlquiler,
     InmuebleImagen,
     Pago,
@@ -39,6 +40,13 @@ class InmuebleDetalleCasaInline(admin.StackedInline):
 
 class InmuebleDetalleLocalAlquilerInline(admin.StackedInline):
     model = InmuebleDetalleLocalAlquiler
+    extra = 0
+    max_num = 1
+    can_delete = True
+
+
+class InmuebleDetalleCasaAlquilerInline(admin.StackedInline):
+    model = InmuebleDetalleCasaAlquiler
     extra = 0
     max_num = 1
     can_delete = True
@@ -90,6 +98,7 @@ class InmuebleAdmin(admin.ModelAdmin):
     raw_id_fields = ("inmueble_padre",)
     inlines = [
         InmuebleDetalleCasaInline,
+        InmuebleDetalleCasaAlquilerInline,
         InmuebleDetalleLocalAlquilerInline,
         InmuebleImagenInline,
     ]
