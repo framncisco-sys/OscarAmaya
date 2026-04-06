@@ -1,0 +1,42 @@
+{% extends "app/base_app.html" %}
+{% block title %}{{ form_title }} | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<h1 class="page-title">{{ form_title }}</h1>
+<p class="muted" style="margin-top:0;">
+  <a href="{{ cancel_url }}" class="link-action">← Locales en alquiler</a>
+  · <a href="{% url 'app:inmueble_update' inmueble.pk %}" class="link-action">Editar inmueble</a>
+</p>
+<p class="muted" style="margin-bottom:1rem;">Condiciones del arrendamiento: renta, cuotas de plaza, rubro permitido y términos del contrato.</p>
+
+<form method="post" class="form-stack">
+  {% csrf_token %}
+  {% for field in local_form.hidden_fields %}
+    {{ field }}
+  {% endfor %}
+  {% if local_form.non_field_errors %}
+    <div class="alert" role="alert">{{ local_form.non_field_errors }}</div>
+  {% endif %}
+  {% for field in local_form.visible_fields %}
+    <div class="field">
+      <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      <div class="field__control">{{ field }}</div>
+      {% if field.help_text %}<div class="field__help muted">{{ field.help_text }}</div>{% endif %}
+      {% if field.errors %}<div class="field__error" role="alert">{{ field.errors }}</div>{% endif %}
+    </div>
+  {% endfor %}
+  {% if sensitive_password_required %}
+  <div class="field">
+    <label class="field__label" for="id_sensitive_password">Confirmar contraseña</label>
+    <div class="field__control">
+      <input type="password" name="sensitive_password" id="id_sensitive_password" autocomplete="current-password" required
+        style="width:100%;max-width:min(100%,400px);box-sizing:border-box;border:1px solid var(--pbr-border);border-radius:10px;padding:0.6rem 0.75rem;font:inherit;">
+    </div>
+    <p class="field__help muted">Su sesión de edición expiró. Ingrese su contraseña para guardar (no aplica a superusuarios).</p>
+  </div>
+  {% endif %}
+  <div class="form-actions">
+    <button type="submit" class="btn-primary">Guardar ficha de alquiler</button>
+    <a href="{{ cancel_url }}" class="btn-secondary">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

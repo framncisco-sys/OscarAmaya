@@ -92,6 +92,7 @@ from .models import (
     FormatoAceptacion,
     Inmueble,
     InmuebleDetalleCasa,
+    InmuebleDetalleLocalAlquiler,
     InmuebleImagen,
     Pago,
     ParametroMora,
@@ -738,6 +739,7 @@ class ArrendamientoLocalesListView(AppLoginRequiredMixin, ListView):
         ctx["nuevo_url"] = reverse("app:inmueble_create")
         ctx["nuevo_boton_label"] = "Nuevo lote o local"
         ctx["es_listado_casas"] = False
+        ctx["es_listado_locales_alquiler"] = True
         return ctx
 
 
@@ -849,6 +851,8 @@ class InmuebleUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
         resp = super().form_valid(form)
         if tipo not in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
             InmuebleDetalleCasa.objects.filter(inmueble=self.object).delete()
+        if tipo != Inmueble.Tipo.LOCAL:
+            InmuebleDetalleLocalAlquiler.objects.filter(inmueble=self.object).delete()
         if self.request.user.is_authenticated and not skips_sensitive_reauth(self.request.user):
             grant(self.request)
         return resp
@@ -952,6 +956,80 @@ class InmuebleCasaGaleriaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, 
         if request.user.is_authenticated and not skips_sensitive_reauth(request.user):
             grant(request)
         return HttpResponseRedirect(reverse("app:inmueble_casa_galeria", args=[self.inmueble.pk]))
+
+
+class LocalAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, View):
+    """Condiciones de arrendamiento para locales comerciales (listado Locales en alquiler)."""
+
+    template_name = "app/local_alquiler_ficha.html"
+
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.inmueble = get_object_or_404(Inmueble, pk=self.kwargs["pk"])
+
+    def dispatch(self, request, *args, **kwargs):
+        if self.inmueble.tipo != Inmueble.Tipo.LOCAL:
+            messages.warning(
+                request,
+                "La ficha de alquiler solo aplica a inmuebles tipo local comercial.",
+            )
+            return HttpResponseRedirect(reverse("app:inmueble_list"))
+        return super().dispatch(request, *args, **kwargs)
+
+    def _detalle_instance(self):
+        try:
+            return self.inmueble.detalle_local_alquiler
+        except InmuebleDetalleLocalAlquiler.DoesNotExist:
+            return None
+
+    def get_context_data(self, **kwargs):
+        local_form = kwargs.get("local_form")
+        if local_form is None:
+            local_form = forms.InmuebleDetalleLocalAlquilerForm(
+                instance=self._detalle_instance()
+            )
+        u = self.request.user
+        return {
+            "object": self.inmueble,
+            "inmueble": self.inmueble,
+            "local_form": local_form,
+            "form_title": f"Local en alquiler · {self.inmueble.codigo}",
+            "cancel_url": reverse("app:arrendamiento_locales_list"),
+            "sensitive_password_required": bool(
+                u.is_authenticated
+                and not skips_sensitive_reauth(u)
+                and not session_valid(self.request)
+            ),
+        }
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name, self.get_context_data())
+
+    def post(self, request, *args, **kwargs):
+        if not check_sensitive_write(request):
+            messages.error(
+                request,
+                "Debe confirmar su contraseña de acceso (final del formulario) o usar «Confirmar acceso» en la app.",
+            )
+            local_form = forms.InmuebleDetalleLocalAlquilerForm(
+                request.POST, instance=self._detalle_instance()
+            )
+            return render(request, self.template_name, self.get_context_data(local_form=local_form))
+        local_form = forms.InmuebleDetalleLocalAlquilerForm(
+            request.POST, instance=self._detalle_instance()
+        )
+        if not local_form.is_valid():
+            return render(request, self.template_name, self.get_context_data(local_form=local_form))
+        with transaction.atomic():
+            det = local_form.save(commit=False)
+            det.inmueble = self.inmueble
+            det.save()
+        messages.success(request, "Ficha de alquiler del local guardada.")
+        if request.user.is_authenticated and not skips_sensitive_reauth(request.user):
+            grant(request)
+        return HttpResponseRedirect(
+            reverse("app:local_alquiler_ficha", args=[self.inmueble.pk])
+        )
 
 
 # ——— Clientes ———

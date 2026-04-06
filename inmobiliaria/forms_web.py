@@ -28,6 +28,7 @@ from .models import (
     FormatoAceptacion,
     Inmueble,
     InmuebleDetalleCasa,
+    InmuebleDetalleLocalAlquiler,
     Pago,
     ParametroMora,
     Poligono,
@@ -361,6 +362,46 @@ class InmuebleDetalleCasaForm(forms.ModelForm):
         if not v or not str(v).strip():
             return ""
         return normalizar_guardado_telefono_sv(v)
+
+
+class InmuebleDetalleLocalAlquilerForm(forms.ModelForm):
+    """Ficha de arrendamiento para locales comerciales."""
+
+    class Meta:
+        model = InmuebleDetalleLocalAlquiler
+        exclude = ("inmueble",)
+        widgets = {
+            "uso_permitido": forms.Textarea(attrs={"rows": 3, "class": "input"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for _name, field in self.fields.items():
+            w = field.widget
+            if isinstance(w, forms.CheckboxInput):
+                continue
+            if not isinstance(w, (forms.HiddenInput,)):
+                w.attrs.setdefault("class", "input")
+        for name in (
+            "renta_mensual",
+            "cuota_mantenimiento",
+            "deposito_garantia",
+        ):
+            f = self.fields.get(name)
+            if f:
+                f.widget.attrs.setdefault("step", "0.01")
+                f.widget.attrs.setdefault("min", "0")
+                f.widget.attrs.setdefault("placeholder", "ej. 500.00")
+        inc = self.fields.get("incremento_anual_pct")
+        if inc:
+            inc.widget.attrs.setdefault("step", "0.01")
+            inc.widget.attrs.setdefault("min", "0")
+            inc.widget.attrs.setdefault("max", "100")
+            inc.widget.attrs.setdefault("placeholder", "ej. 5 o 10")
+        pg = self.fields.get("periodo_gracia_dias")
+        if pg:
+            pg.widget.attrs.setdefault("min", "0")
+            pg.widget.attrs.setdefault("placeholder", "días")
 
 
 class ClienteForm(forms.ModelForm):

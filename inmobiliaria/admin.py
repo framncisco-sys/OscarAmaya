@@ -9,6 +9,7 @@ from .models import (
     HistorialPrecioInmueble,
     Inmueble,
     InmuebleDetalleCasa,
+    InmuebleDetalleLocalAlquiler,
     InmuebleImagen,
     Pago,
     ParametroMora,
@@ -31,6 +32,13 @@ class InmuebleImagenInline(admin.TabularInline):
 
 class InmuebleDetalleCasaInline(admin.StackedInline):
     model = InmuebleDetalleCasa
+    extra = 0
+    max_num = 1
+    can_delete = True
+
+
+class InmuebleDetalleLocalAlquilerInline(admin.StackedInline):
+    model = InmuebleDetalleLocalAlquiler
     extra = 0
     max_num = 1
     can_delete = True
@@ -80,7 +88,11 @@ class InmuebleAdmin(admin.ModelAdmin):
     list_filter = ("proyecto", "tipo", "estado", "poligono")
     search_fields = ("codigo", "notas")
     raw_id_fields = ("inmueble_padre",)
-    inlines = [InmuebleDetalleCasaInline, InmuebleImagenInline]
+    inlines = [
+        InmuebleDetalleCasaInline,
+        InmuebleDetalleLocalAlquilerInline,
+        InmuebleImagenInline,
+    ]
     fieldsets = (
         (
             "Identificación",
@@ -91,6 +103,7 @@ class InmuebleAdmin(admin.ModelAdmin):
                     "inmueble_padre",
                     "tipo",
                     "estado",
+                    "en_alquiler",
                     "codigo",
                 ),
             },

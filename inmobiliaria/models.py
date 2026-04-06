@@ -553,6 +553,77 @@ class InmuebleDetalleCasa(models.Model):
         return f"Detalle casa · {self.inmueble.codigo}"
 
 
+class InmuebleDetalleLocalAlquiler(models.Model):
+    """Condiciones de arrendamiento para locales comerciales en alquiler."""
+
+    inmueble = models.OneToOneField(
+        Inmueble,
+        on_delete=models.CASCADE,
+        related_name="detalle_local_alquiler",
+        verbose_name="Inmueble",
+    )
+    renta_mensual = models.DecimalField(
+        "Monto de renta mensual",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Ej. $500.00.",
+    )
+    cuota_mantenimiento = models.DecimalField(
+        "Cuota de mantenimiento / vigilancia",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Si el local está en una plaza.",
+    )
+    deposito_garantia = models.DecimalField(
+        "Depósito en garantía",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Suele equivaler a un mes de renta.",
+    )
+    uso_permitido = models.TextField(
+        "Uso permitido",
+        blank=True,
+        help_text="Ej. oficina, restaurante, clínica. Vital en San Miguel para no saturar una plaza con el mismo rubro.",
+    )
+    plazo_contrato = models.CharField(
+        "Plazo del contrato",
+        max_length=200,
+        blank=True,
+        help_text="Ej. mínimo 1 año o 12 meses.",
+    )
+    incremento_anual_pct = models.DecimalField(
+        "Incremento anual (%)",
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+        help_text="En El Salvador suele estilarse 5 % o 10 % cada año.",
+    )
+    periodo_gracia_dias = models.PositiveSmallIntegerField(
+        "Período de gracia (días)",
+        null=True,
+        blank=True,
+        help_text="Días sin cobrar renta para remodelar u otros acuerdos.",
+    )
+
+    class Meta:
+        verbose_name = "Detalle local en alquiler"
+        verbose_name_plural = "Detalles locales en alquiler"
+
+    def __str__(self) -> str:
+        return f"Alquiler local · {self.inmueble.codigo}"
+
+
 class InmuebleImagen(models.Model):
     """Galería: URL externa y/o archivo; una imagen puede marcarse como portada."""
 
