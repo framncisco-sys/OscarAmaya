@@ -338,6 +338,11 @@ class InmuebleDetalleCasa(models.Model):
         related_name="detalle_casa",
         verbose_name="Inmueble",
     )
+    direccion_exacta = models.TextField(
+        "Dirección exacta del inmueble",
+        blank=True,
+        help_text="Dirección completa para ubicar la propiedad.",
+    )
     tipo_construccion = models.CharField(
         "Tipo de construcción",
         max_length=24,
@@ -380,6 +385,15 @@ class InmuebleDetalleCasa(models.Model):
         "Cochera techada",
         default=False,
     )
+    amueblada = models.BooleanField(
+        "Amueblada",
+        default=False,
+    )
+    muebles_incluidos = models.TextField(
+        "Muebles incluidos (inventario)",
+        blank=True,
+        help_text="Si está amueblada, indique con qué muebles se entrega.",
+    )
     area_construccion_m2 = models.DecimalField(
         "Área de construcción (m²)",
         max_digits=12,
@@ -414,6 +428,17 @@ class InmuebleDetalleCasa(models.Model):
         "Conexiones (aire acondicionado / calentador)",
         blank=True,
         help_text="Si ya tiene acometida u observaciones.",
+    )
+    aire_ac_cantidad = models.PositiveSmallIntegerField(
+        "Cantidad de aires acondicionados",
+        null=True,
+        blank=True,
+        help_text="Número de unidades instaladas (vacío si no aplica).",
+    )
+    aire_ac_ubicacion = models.TextField(
+        "Ubicación de los aires acondicionados",
+        blank=True,
+        help_text="Ej. habitaciones, sala, comedor.",
     )
     edad_construccion_anios = models.PositiveSmallIntegerField(
         "Edad de la construcción (años, aprox.)",
@@ -466,6 +491,20 @@ class InmuebleDetalleCasa(models.Model):
         blank=True,
         help_text="Para formato de aceptación y trámites.",
         validators=[validar_dui_sv],
+    )
+    direccion_dueno = models.TextField(
+        "Dirección del dueño",
+        blank=True,
+    )
+    telefono_dueno = models.CharField(
+        "Teléfono del dueño",
+        max_length=40,
+        blank=True,
+    )
+    medios_pago_dueno = models.TextField(
+        "Medios de pago que acepta el dueño",
+        blank=True,
+        help_text="Ej. solo efectivo, Fondo Social, acuerdo con banco.",
     )
     recibo_luz_agua = models.FileField(
         "Recibo de luz y/o agua",

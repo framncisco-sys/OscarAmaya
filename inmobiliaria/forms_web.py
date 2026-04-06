@@ -323,11 +323,16 @@ class InmuebleDetalleCasaForm(forms.ModelForm):
         model = InmuebleDetalleCasa
         exclude = ("inmueble",)
         widgets = {
+            "direccion_exacta": forms.Textarea(attrs={"rows": 2, "class": "input"}),
             "garantia_construccion": forms.Textarea(attrs={"rows": 2, "class": "input"}),
             "extras_incluidos": forms.Textarea(attrs={"rows": 2, "class": "input"}),
             "conexiones_ac_calentador": forms.Textarea(attrs={"rows": 2, "class": "input"}),
+            "aire_ac_ubicacion": forms.Textarea(attrs={"rows": 2, "class": "input"}),
+            "muebles_incluidos": forms.Textarea(attrs={"rows": 2, "class": "input"}),
             "remodelaciones_recientes": forms.Textarea(attrs={"rows": 2, "class": "input"}),
             "gravamenes_hipoteca": forms.Textarea(attrs={"rows": 2, "class": "input"}),
+            "direccion_dueno": forms.Textarea(attrs={"rows": 2, "class": "input"}),
+            "medios_pago_dueno": forms.Textarea(attrs={"rows": 2, "class": "input"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -340,6 +345,22 @@ class InmuebleDetalleCasaForm(forms.ModelForm):
                 w.attrs.setdefault("class", "input")
             elif not isinstance(w, (forms.HiddenInput,)):
                 w.attrs.setdefault("class", "input")
+        ac = self.fields.get("aire_ac_cantidad")
+        if ac:
+            ac.widget.attrs.setdefault("min", "0")
+            ac.widget.attrs.setdefault("placeholder", "ej. 3")
+        td = self.fields.get("telefono_dueno")
+        if td:
+            td.widget.attrs.setdefault("maxlength", "40")
+            td.widget.attrs.setdefault("placeholder", "+503 7012 3456")
+            td.widget.attrs.setdefault("inputmode", "tel")
+            td.widget.attrs.setdefault("autocomplete", "tel")
+
+    def clean_telefono_dueno(self):
+        v = self.cleaned_data.get("telefono_dueno")
+        if not v or not str(v).strip():
+            return ""
+        return normalizar_guardado_telefono_sv(v)
 
 
 class ClienteForm(forms.ModelForm):
