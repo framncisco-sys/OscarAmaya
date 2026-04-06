@@ -8,6 +8,7 @@ import mimetypes
 import os
 import tempfile
 import time
+import uuid
 from collections import defaultdict
 from decimal import Decimal
 from pathlib import Path
@@ -786,10 +787,10 @@ class ArrendamientoLocalesListView(
         ctx = super().get_context_data(**kwargs)
         ctx["listado_page_title"] = "Listado de alquileres de local"
         ctx["listado_meta"] = (
-            "Registre el local en «Nuevo lote o local», márchelo «En alquiler» y use «Ficha alquiler» para condiciones y fotos (sin duplicar inventario aquí)."
+            "Listado de lo guardado en este módulo. «Nuevo alquiler de local» solo pide la ficha de arrendamiento y fotos; no usa el formulario de lotes."
         )
-        ctx["nuevo_url"] = reverse("app:inmueble_create")
-        ctx["nuevo_boton_label"] = "Nuevo lote o local"
+        ctx["nuevo_url"] = reverse("app:local_alquiler_create")
+        ctx["nuevo_boton_label"] = "Nuevo alquiler de local"
         ctx["es_listado_casas"] = False
         ctx["es_listado_locales_alquiler"] = True
         return ctx
@@ -1001,8 +1002,95 @@ class InmuebleCasaGaleriaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, 
         return HttpResponseRedirect(reverse("app:inmueble_casa_galeria", args=[self.inmueble.pk]))
 
 
+def _crear_inmueble_local_para_ficha_alquiler() -> Inmueble | None:
+    """
+    Soporte técnico para el módulo independiente de alquiler de local: un Inmueble tipo LOCAL
+    mínimo (código autogenerado) para enlazar InmuebleDetalleLocalAlquiler sin mostrar inventario.
+    """
+    proyecto = Proyecto.objects.order_by("pk").first()
+    if not proyecto:
+        return None
+    for _ in range(80):
+        codigo = f"ALQ-LOC-{uuid.uuid4().hex[:10].upper()}"
+        if not Inmueble.objects.filter(proyecto=proyecto, codigo=codigo).exists():
+            return Inmueble.objects.create(
+                proyecto=proyecto,
+                tipo=Inmueble.Tipo.LOCAL,
+                estado=Inmueble.Estado.DISPONIBLE,
+                codigo=codigo,
+                precio_lista=Decimal("0"),
+                en_alquiler=True,
+            )
+    return None
+
+
+class LocalAlquilerCreateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, View):
+    """Alta independiente: solo ficha de arrendamiento + fotos (el inmueble se crea por detrás)."""
+
+    template_name = "app/local_alquiler_ficha.html"
+
+    def _ctx(self, local_form):
+        u = self.request.user
+        return {
+            "object": None,
+            "inmueble": None,
+            "local_form": local_form,
+            "inmueble_imagenes": [],
+            "form_title": "Nuevo alquiler de local",
+            "cancel_url": reverse("app:arrendamiento_locales_list"),
+            "form_multipart": True,
+            "es_alta_local_alquiler": True,
+            "sensitive_password_required": bool(
+                u.is_authenticated
+                and not skips_sensitive_reauth(u)
+                and not session_valid(self.request)
+            ),
+        }
+
+    def get(self, request, *args, **kwargs):
+        return render(
+            request,
+            self.template_name,
+            self._ctx(forms.InmuebleDetalleLocalAlquilerForm()),
+        )
+
+    def post(self, request, *args, **kwargs):
+        if not check_sensitive_write(request):
+            messages.error(
+                request,
+                "Debe confirmar su contraseña de acceso (final del formulario) o usar «Confirmar acceso» en la app.",
+            )
+            return render(
+                request,
+                self.template_name,
+                self._ctx(forms.InmuebleDetalleLocalAlquilerForm(request.POST)),
+            )
+        local_form = forms.InmuebleDetalleLocalAlquilerForm(request.POST)
+        if not local_form.is_valid():
+            return render(request, self.template_name, self._ctx(local_form))
+        inv = _crear_inmueble_local_para_ficha_alquiler()
+        if not inv:
+            messages.error(
+                request,
+                "No hay ningún proyecto creado. Cree al menos un proyecto en la app y vuelva a intentar.",
+            )
+            return render(request, self.template_name, self._ctx(local_form))
+        with transaction.atomic():
+            det = local_form.save(commit=False)
+            det.inmueble = inv
+            det.save()
+        messages.success(
+            request,
+            "Alquiler de local guardado. Puede seguir editando la ficha o subir fotos.",
+        )
+        _guardar_galeria_inmueble_tras_ficha(request, inv)
+        if request.user.is_authenticated and not skips_sensitive_reauth(request.user):
+            grant(request)
+        return HttpResponseRedirect(reverse("app:local_alquiler_ficha", args=[inv.pk]))
+
+
 class LocalAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, View):
-    """Ficha de arrendamiento del local (sin inventario del inmueble; eso va en editar inmueble)."""
+    """Ficha de arrendamiento del local (módulo independiente del inventario de lotes)."""
 
     template_name = "app/local_alquiler_ficha.html"
 
@@ -1040,6 +1128,7 @@ class LocalAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, V
             "form_title": f"Local en alquiler · {self.inmueble.codigo}",
             "cancel_url": reverse("app:arrendamiento_locales_list"),
             "form_multipart": True,
+            "es_alta_local_alquiler": False,
             "sensitive_password_required": bool(
                 u.is_authenticated
                 and not skips_sensitive_reauth(u)

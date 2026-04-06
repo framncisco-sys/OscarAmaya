@@ -3,10 +3,11 @@
 {% block app_content %}
 <h1 class="page-title">{{ form_title }}</h1>
 <p class="muted" style="margin-top:0;">
-  <a href="{{ cancel_url }}" class="link-action">← Listado de alquileres de local</a>
-  · <a href="{% url 'app:inmueble_update' inmueble.pk %}" class="link-action">Editar inmueble (proyecto, código, precio, áreas…)</a>
+  <a href="{{ cancel_url }}" class="link-action">← Listado guardado (alquiler de local)</a>
 </p>
-<p class="muted" style="margin-bottom:1rem;">Solo condiciones del arrendamiento y galería; el inventario del local se edita en «Editar inmueble».</p>
+<p class="muted" style="margin-bottom:1rem;">
+  Módulo independiente del inventario de lotes: solo condiciones de arrendamiento y galería. Lo guardado aparece en el menú «Alquiler de local» → Listado guardado.
+</p>
 
 <form method="post" class="form-stack" enctype="multipart/form-data">
   {% csrf_token %}
@@ -36,7 +37,7 @@
   </div>
   {% endif %}
   <div class="form-actions">
-    <button type="submit" class="btn-primary">Guardar ficha de alquiler</button>
+    <button type="submit" class="btn-primary">{% if es_alta_local_alquiler %}Registrar alquiler de local{% else %}Guardar ficha{% endif %}</button>
     <a href="{{ cancel_url }}" class="btn-secondary">Cancelar</a>
   </div>
 </form>
