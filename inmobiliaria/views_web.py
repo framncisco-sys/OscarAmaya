@@ -732,30 +732,44 @@ class InmuebleCreateLoteView(AppLoginRequiredMixin, CreateView):
         return ctx
 
 
-class InmuebleCreateCasaView(AppLoginRequiredMixin, CreateView):
-    model = Inmueble
-    form_class = forms.InmuebleForm
-    template_name = "app/object_form.html"
-    success_url = reverse_lazy("app:inmueble_casa_list")
+class InmuebleCreateCasaView(AppLoginRequiredMixin, View):
+    """Alta de casa: datos mínimos de inventario + ficha de venta (detalle) en un solo envío."""
 
-    def get_form_kwargs(self):
-        kw = super().get_form_kwargs()
-        kw["modo_tipo"] = "casa"
-        return kw
+    template_name = "app/inmueble_casa_alta.html"
 
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx["form_title"] = "Nueva casa (nueva o de segunda)"
-        ctx["cancel_url"] = reverse_lazy("app:inmueble_casa_list")
-        return ctx
+    def get(self, request, *args, **kwargs):
+        form = forms.InmuebleCasaAltaForm(modo_tipo="casa")
+        casa_form = forms.InmuebleDetalleCasaForm(prefix="casa")
+        return render(request, self.template_name, self._ctx(form, casa_form))
 
-    def form_valid(self, form):
-        resp = super().form_valid(form)
-        messages.info(
-            self.request,
-            "Para la ficha de venta y la galería de fotos abra «Casa y fotos» en el listado de casas o en el menú lateral.",
+    def post(self, request, *args, **kwargs):
+        form = forms.InmuebleCasaAltaForm(request.POST, modo_tipo="casa")
+        casa_form = forms.InmuebleDetalleCasaForm(
+            request.POST, request.FILES, prefix="casa"
         )
-        return resp
+        if form.is_valid() and casa_form.is_valid():
+            with transaction.atomic():
+                inmueble = form.save()
+                detalle = casa_form.save(commit=False)
+                detalle.inmueble = inmueble
+                detalle.save()
+            messages.success(request, "Casa registrada con su ficha de venta.")
+            messages.info(
+                request,
+                "Puede subir o revisar fotos en «Casa y fotos» desde el listado o el menú lateral.",
+            )
+            return HttpResponseRedirect(
+                reverse("app:inmueble_casa_galeria", kwargs={"pk": inmueble.pk})
+            )
+        return render(request, self.template_name, self._ctx(form, casa_form))
+
+    def _ctx(self, form, casa_form):
+        return {
+            "form": form,
+            "casa_form": casa_form,
+            "form_title": "Nueva casa (nueva o de segunda)",
+            "cancel_url": reverse("app:inmueble_casa_list"),
+        }
 
 
 class InmuebleUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):

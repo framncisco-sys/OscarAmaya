@@ -291,6 +291,39 @@ class InmuebleForm(forms.ModelForm):
         return cleaned
 
 
+class InmuebleCasaAltaForm(InmuebleForm):
+    """Alta de casa: inventario mínimo; tipo de construcción, distribución y documentos van en InmuebleDetalleCasa."""
+
+    class Meta(InmuebleForm.Meta):
+        fields = [
+            "proyecto",
+            "poligono",
+            "tipo",
+            "estado",
+            "codigo",
+            "precio_lista",
+            "cliente_reserva",
+            "reserva_hasta",
+            "notas",
+        ]
+
+    def __init__(self, *args, modo_tipo: str = "casa", **kwargs):
+        super().__init__(*args, modo_tipo=modo_tipo, **kwargs)
+        for _name, field in self.fields.items():
+            w = field.widget
+            if isinstance(w, forms.CheckboxInput):
+                continue
+            if not isinstance(w, (forms.HiddenInput,)):
+                w.attrs.setdefault("class", "input")
+        pf = self.fields.get("precio_lista")
+        if pf:
+            pf.widget.attrs.setdefault("step", "0.01")
+            pf.widget.attrs.setdefault("min", "0")
+        nt = self.fields.get("notas")
+        if nt and isinstance(nt.widget, forms.Textarea):
+            nt.widget.attrs.setdefault("rows", 3)
+
+
 class InmuebleDetalleCasaForm(forms.ModelForm):
     """Ficha de venta de casa (nueva o segunda); se muestra solo si el tipo de inmueble es casa."""
 

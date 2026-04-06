@@ -1,0 +1,42 @@
+{% extends "app/base_app.html" %}
+{% load static %}
+{% block title %}{{ form_title }} | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<h1 class="page-title">{{ form_title }}</h1>
+<p class="muted" style="margin-top:0;">
+  <a href="{{ cancel_url }}" class="link-action">← Volver al listado de casas</a>
+</p>
+<p class="muted" style="margin:0 0 1rem;">
+  Complete los datos básicos del inventario y la ficha de construcción, conservación y documentación. Las medidas de lote y geometría del mapa no aplican aquí; puede editarlos después si el inmueble lo requiere.
+</p>
+<form method="post" class="form-stack" enctype="multipart/form-data">
+  {% csrf_token %}
+  {% for field in form.hidden_fields %}
+    {{ field }}
+  {% endfor %}
+  <section class="card" style="padding:1rem 1.1rem;margin-bottom:1rem;">
+    <h2 class="page-title" style="font-size:1.05rem;margin-top:0;">Datos básicos del inventario</h2>
+    {% if form.non_field_errors %}
+      <div class="alert" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in form.visible_fields %}
+      <div class="field">
+        <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        <div class="field__control">{{ field }}</div>
+        {% if field.help_text %}
+          <div class="field__help muted">{{ field.help_text|safe }}</div>
+        {% endif %}
+        {% if field.errors %}
+          <div class="field__error" role="alert">{{ field.errors }}</div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </section>
+  {% include "app/_inmueble_casa_detalle.html" %}
+  <div class="form-actions">
+    <button type="submit" class="btn-primary">Guardar casa</button>
+    <a href="{{ cancel_url }}" class="btn-secondary">Cancelar</a>
+  </div>
+</form>
+<script src="{% static 'js/inmueble_casa_tipo.js' %}"></script>
+{% endblock %}
