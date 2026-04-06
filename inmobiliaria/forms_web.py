@@ -300,6 +300,7 @@ class InmuebleCasaAltaForm(InmuebleForm):
             "tipo",
             "codigo",
             "precio_lista",
+            "en_alquiler",
         ]
 
     def __init__(self, *args, modo_tipo: str = "casa", **kwargs):

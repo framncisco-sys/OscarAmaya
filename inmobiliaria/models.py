@@ -288,6 +288,11 @@ class Inmueble(models.Model):
         blank=True,
         help_text="Fecha límite de la reserva. Pasada esa fecha, ejecute el comando expirar_reservas o revierta manualmente.",
     )
+    en_alquiler = models.BooleanField(
+        "En alquiler",
+        default=False,
+        help_text="Si está marcado, el inmueble aparece en Arrendamientos (locales o casas según el tipo).",
+    )
 
     class Meta:
         ordering = ["proyecto", "codigo"]

@@ -67,7 +67,16 @@ class HistorialPrecioInmuebleAdmin(admin.ModelAdmin):
 
 @admin.register(Inmueble)
 class InmuebleAdmin(admin.ModelAdmin):
-    list_display = ("codigo", "proyecto", "poligono", "tipo", "estado", "reserva_hasta", "precio_lista")
+    list_display = (
+        "codigo",
+        "proyecto",
+        "poligono",
+        "tipo",
+        "estado",
+        "en_alquiler",
+        "reserva_hasta",
+        "precio_lista",
+    )
     list_filter = ("proyecto", "tipo", "estado", "poligono")
     search_fields = ("codigo", "notas")
     raw_id_fields = ("inmueble_padre",)

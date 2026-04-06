@@ -26,6 +26,16 @@ urlpatterns = [
         name="inmueble_casa_create",
     ),
     path("inmuebles/casas/", views.InmuebleCasaListView.as_view(), name="inmueble_casa_list"),
+    path(
+        "inmuebles/arrendamientos/locales/",
+        views.ArrendamientoLocalesListView.as_view(),
+        name="arrendamiento_locales_list",
+    ),
+    path(
+        "inmuebles/arrendamientos/casas/",
+        views.ArrendamientoCasasListView.as_view(),
+        name="arrendamiento_casas_list",
+    ),
     path("inmuebles/nuevo/", views.InmuebleCreateLoteView.as_view(), name="inmueble_create"),
     path("inmuebles/", views.InmuebleLoteListView.as_view(), name="inmueble_list"),
     path("inmuebles/<int:pk>/editar/", views.InmuebleUpdateView.as_view(), name="inmueble_update"),

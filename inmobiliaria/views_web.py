@@ -714,6 +714,63 @@ class InmuebleCasaListView(AppLoginRequiredMixin, ListView):
         return ctx
 
 
+class ArrendamientoLocalesListView(AppLoginRequiredMixin, ListView):
+    """Locales comerciales marcados para alquiler."""
+
+    model = Inmueble
+    template_name = "app/inmueble_list.html"
+    context_object_name = "items"
+    paginate_by = 25
+
+    def get_queryset(self):
+        return (
+            Inmueble.objects.select_related("proyecto", "poligono")
+            .filter(tipo=Inmueble.Tipo.LOCAL, en_alquiler=True)
+            .order_by("proyecto__nombre", "poligono__orden", "codigo")
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["listado_page_title"] = "Locales en alquiler"
+        ctx["listado_meta"] = (
+            "Solo locales con «En alquiler» activado (edite el inmueble o créelo como local y márchelo)."
+        )
+        ctx["nuevo_url"] = reverse("app:inmueble_create")
+        ctx["nuevo_boton_label"] = "Nuevo lote o local"
+        ctx["es_listado_casas"] = False
+        return ctx
+
+
+class ArrendamientoCasasListView(AppLoginRequiredMixin, ListView):
+    """Casas (nueva o segunda) marcadas para alquiler."""
+
+    model = Inmueble
+    template_name = "app/inmueble_list.html"
+    context_object_name = "items"
+    paginate_by = 25
+
+    def get_queryset(self):
+        return (
+            Inmueble.objects.select_related("proyecto", "poligono")
+            .filter(
+                tipo__in=(Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA),
+                en_alquiler=True,
+            )
+            .order_by("proyecto__nombre", "codigo")
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["listado_page_title"] = "Casas en alquiler"
+        ctx["listado_meta"] = (
+            "Solo viviendas con «En alquiler» activado. Use «Casa y fotos» para la ficha y galería."
+        )
+        ctx["nuevo_url"] = reverse("app:inmueble_casa_create")
+        ctx["nuevo_boton_label"] = "Nueva casa"
+        ctx["es_listado_casas"] = True
+        return ctx
+
+
 class InmuebleCreateLoteView(AppLoginRequiredMixin, CreateView):
     model = Inmueble
     form_class = forms.InmuebleForm
