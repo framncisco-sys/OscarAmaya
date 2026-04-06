@@ -1,8 +1,14 @@
 {% extends "app/object_form.html" %}
 {% load static %}
-{% block form_before_actions %}
-  {% include "app/_inmueble_casa_detalle.html" %}
-  {% include "app/_inmueble_galeria_upload.html" %}
+{% block after_page_title %}
+{% if object.pk %}
+  {% if object.tipo == "CASA_NUEVA" or object.tipo == "CASA_SEGUNDA" %}
+  <p class="muted" style="margin:0 0 0.5rem;">
+    <a href="{% url 'app:inmueble_casa_galeria' object.pk %}" class="link-action">Casa y fotos</a>
+    <span class="muted"> — ficha de venta y galería (apartado)</span>
+  </p>
+  {% endif %}
+{% endif %}
 {% endblock %}
 {% block form_extras %}
 {% if historial_precios %}
@@ -28,9 +34,4 @@
   </table>
 </section>
 {% endif %}
-{% include "app/_inmueble_galeria_imagenes.html" %}
-{% endblock %}
-{% block extra_js %}
-{{ block.super }}
-<script src="{% static 'js/inmueble_casa_tipo.js' %}"></script>
 {% endblock %}

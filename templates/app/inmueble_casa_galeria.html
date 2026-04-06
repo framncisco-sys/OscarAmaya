@@ -1,0 +1,35 @@
+{% extends "app/base_app.html" %}
+{% load static %}
+{% block title %}{{ form_title }} | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<h1 class="page-title">{{ form_title }}</h1>
+<p class="muted" style="margin-top:0;">
+  <a href="{{ cancel_url }}" class="link-action">← Volver a datos del inmueble</a>
+  · <a href="{% url 'app:inmueble_list' %}" class="link-action">Listado</a>
+</p>
+<p class="muted">Ficha de venta y galería. No afecta el formulario principal de lotes u otros tipos.</p>
+<div id="inm-casa-only-page" data-tipo="{{ inmueble.tipo }}" hidden></div>
+
+<form method="post" class="form-stack" enctype="multipart/form-data">
+  {% csrf_token %}
+  {% include "app/_inmueble_casa_detalle.html" %}
+  {% include "app/_inmueble_galeria_upload.html" %}
+  {% if sensitive_password_required %}
+  <div class="field">
+    <label class="field__label" for="id_sensitive_password">Confirmar contraseña</label>
+    <div class="field__control">
+      <input type="password" name="sensitive_password" id="id_sensitive_password" autocomplete="current-password" required
+        style="width:100%;max-width:min(100%,400px);box-sizing:border-box;border:1px solid var(--pbr-border);border-radius:10px;padding:0.6rem 0.75rem;font:inherit;">
+    </div>
+    <p class="field__help muted">Su sesión de edición expiró. Ingrese su contraseña para guardar (no aplica a superusuarios).</p>
+  </div>
+  {% endif %}
+  <div class="form-actions">
+    <button type="submit" class="btn-primary">Guardar ficha y fotos nuevas</button>
+    <a href="{{ cancel_url }}" class="btn-secondary">Cancelar</a>
+  </div>
+</form>
+
+{% include "app/_inmueble_galeria_imagenes.html" %}
+<script src="{% static 'js/inmueble_casa_tipo.js' %}"></script>
+{% endblock %}

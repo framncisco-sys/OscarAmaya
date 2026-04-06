@@ -1409,6 +1409,58 @@ a.btn-secondary:active {
   box-shadow: inset 3px 0 0 var(--pbr-accent);
 }
 
+.app-sidebar__nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.15rem;
+}
+
+.app-sidebar__nav-group-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--pbr-muted);
+  padding: 0.35rem 0.65rem 0;
+}
+
+.app-sidebar__nav-group--current .app-sidebar__nav-group-label {
+  color: var(--pbr-accent);
+}
+
+.app-sidebar__nav-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  padding-left: 0.45rem;
+  margin-left: 0.35rem;
+  border-left: 2px solid var(--pbr-border);
+}
+
+.app-sidebar__nav-sub a {
+  color: var(--pbr-muted);
+  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  transition: background 0.12s ease, color 0.12s ease;
+  border: 1px solid transparent;
+}
+
+.app-sidebar__nav-sub a:hover {
+  color: var(--pbr-accent);
+  background: var(--pbr-accent-soft);
+}
+
+.app-sidebar__nav-sub a.is-active {
+  color: var(--pbr-accent);
+  background: var(--pbr-accent-soft);
+  border-color: rgba(0, 51, 102, 0.1);
+  font-weight: 600;
+}
+
 .app-sidebar__foot {
   margin: 1rem 0 0;
   font-size: 0.8125rem;

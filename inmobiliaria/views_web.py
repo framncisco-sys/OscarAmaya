@@ -38,6 +38,7 @@ from django.utils.decorators import method_decorator
 from django.utils.formats import date_format
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
+from django.views import View
 from django.views.generic import (
     CreateView,
     DeleteView,
@@ -64,6 +65,7 @@ from core.sensitive_access import (
     check_sensitive_write,
     grant,
     safe_next_url,
+    session_valid,
     skips_sensitive_reauth,
     ttl_seconds,
 )
@@ -662,41 +664,10 @@ class InmuebleListView(AppLoginRequiredMixin, ListView):
     queryset = Inmueble.objects.select_related("proyecto", "poligono")
 
 
-class InmuebleFormularioCasaGaleriaMixin:
-    """Plantilla unificada, multipart, ficha casa y listado de imágenes."""
-
-    template_name = "app/inmueble_form.html"
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx["form_multipart"] = True
-        casa_form = kwargs.get("casa_form")
-        if casa_form is None:
-            casa_form = self._casa_form_for_get()
-        ctx["casa_form"] = casa_form
-        obj = getattr(self, "object", None)
-        if obj and getattr(obj, "pk", None):
-            imgs = list(InmuebleImagen.objects.filter(inmueble=obj))
-            imgs.sort(key=lambda x: (not x.es_portada, x.orden, x.pk))
-            ctx["inmueble_imagenes"] = imgs
-        else:
-            ctx["inmueble_imagenes"] = []
-        return ctx
-
-    def _casa_form_for_get(self) -> forms.InmuebleDetalleCasaForm:
-        inst = None
-        obj = getattr(self, "object", None)
-        if obj and obj.pk:
-            try:
-                inst = obj.detalle_casa
-            except InmuebleDetalleCasa.DoesNotExist:
-                inst = None
-        return forms.InmuebleDetalleCasaForm(prefix="casa", instance=inst)
-
-
-class InmuebleCreateView(AppLoginRequiredMixin, InmuebleFormularioCasaGaleriaMixin, CreateView):
+class InmuebleCreateView(AppLoginRequiredMixin, CreateView):
     model = Inmueble
     form_class = forms.InmuebleForm
+    template_name = "app/object_form.html"
     success_url = reverse_lazy("app:inmueble_list")
 
     def get_context_data(self, **kwargs):
@@ -705,45 +676,21 @@ class InmuebleCreateView(AppLoginRequiredMixin, InmuebleFormularioCasaGaleriaMix
         ctx["cancel_url"] = reverse_lazy("app:inmueble_list")
         return ctx
 
-    def post(self, request, *args, **kwargs):
-        self.object = None
-        form_class = self.get_form_class()
-        form = form_class(request.POST, request.FILES)
-        casa_form = forms.InmuebleDetalleCasaForm(request.POST, request.FILES, prefix="casa")
-        if not form.is_valid():
-            return self.render_to_response(self.get_context_data(form=form, casa_form=casa_form))
+    def form_valid(self, form):
+        resp = super().form_valid(form)
         tipo = form.cleaned_data.get("tipo")
         if tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
-            if not casa_form.is_valid():
-                return self.render_to_response(self.get_context_data(form=form, casa_form=casa_form))
-        gal_err = _inmueble_galeria_subida_error_o_none(request)
-        if gal_err:
-            form.add_error(None, gal_err)
-            return self.render_to_response(self.get_context_data(form=form, casa_form=casa_form))
-        return self._guardar_inmueble_casa_y_galeria(form, casa_form, tipo)
-
-    def _guardar_inmueble_casa_y_galeria(self, form, casa_form, tipo) -> HttpResponseRedirect:
-        with transaction.atomic():
-            self.object = form.save()
-            if tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
-                det = casa_form.save(commit=False)
-                det.inmueble = self.object
-                det.save()
-            else:
-                InmuebleDetalleCasa.objects.filter(inmueble=self.object).delete()
-            _inmueble_procesar_subida_galeria(self.request, self.object)
-        messages.success(self.request, "Inmueble guardado.")
-        return HttpResponseRedirect(self.get_success_url())
+            messages.info(
+                self.request,
+                "Para la ficha de venta y la galería de fotos, use «Casa y fotos» en el listado de inmuebles (menú lateral Inmuebles → Listado).",
+            )
+        return resp
 
 
-class InmuebleUpdateView(
-    AppLoginRequiredMixin,
-    SensitiveEditMixin,
-    InmuebleFormularioCasaGaleriaMixin,
-    UpdateView,
-):
+class InmuebleUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
     model = Inmueble
     form_class = forms.InmuebleForm
+    template_name = "app/inmueble_form.html"
     success_url = reverse_lazy("app:inmueble_list")
 
     def get_context_data(self, **kwargs):
@@ -753,58 +700,95 @@ class InmuebleUpdateView(
         ctx["historial_precios"] = self.object.historial_precios.all()[:50]
         return ctx
 
+    def form_valid(self, form):
+        tipo = form.cleaned_data.get("tipo")
+        resp = super().form_valid(form)
+        if tipo not in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
+            InmuebleDetalleCasa.objects.filter(inmueble=self.object).delete()
+        if self.request.user.is_authenticated and not skips_sensitive_reauth(self.request.user):
+            grant(self.request)
+        return resp
+
+
+class InmuebleCasaGaleriaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, View):
+    """Ficha ampliada y galería solo para casa nueva o segunda (no mezcla con el formulario de lote)."""
+
+    template_name = "app/inmueble_casa_galeria.html"
+
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.inmueble = get_object_or_404(Inmueble, pk=self.kwargs["pk"])
+
+    def dispatch(self, request, *args, **kwargs):
+        if self.inmueble.tipo not in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
+            messages.warning(
+                request,
+                "«Casa y fotos» solo aplica a inmuebles tipo casa nueva o casa segunda.",
+            )
+            return HttpResponseRedirect(reverse("app:inmueble_list"))
+        return super().dispatch(request, *args, **kwargs)
+
+    def _detalle_instance(self):
+        try:
+            return self.inmueble.detalle_casa
+        except InmuebleDetalleCasa.DoesNotExist:
+            return None
+
+    def get_context_data(self, **kwargs):
+        casa_form = kwargs.get("casa_form")
+        if casa_form is None:
+            casa_form = forms.InmuebleDetalleCasaForm(
+                prefix="casa", instance=self._detalle_instance()
+            )
+        imgs = list(InmuebleImagen.objects.filter(inmueble=self.inmueble))
+        imgs.sort(key=lambda x: (not x.es_portada, x.orden, x.pk))
+        u = self.request.user
+        return {
+            "object": self.inmueble,
+            "inmueble": self.inmueble,
+            "casa_form": casa_form,
+            "inmueble_imagenes": imgs,
+            "form_title": f"Casa y fotos · {self.inmueble.codigo}",
+            "cancel_url": reverse("app:inmueble_update", args=[self.inmueble.pk]),
+            "form_multipart": True,
+            "sensitive_password_required": bool(
+                u.is_authenticated
+                and not skips_sensitive_reauth(u)
+                and not session_valid(self.request)
+            ),
+        }
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name, self.get_context_data())
+
     def post(self, request, *args, **kwargs):
-        self.object = self.get_object()
         if not check_sensitive_write(request):
             messages.error(
                 request,
                 "Debe confirmar su contraseña de acceso (final del formulario) o usar «Confirmar acceso» en la app.",
             )
-            form_class = self.get_form_class()
-            form = form_class(request.POST, request.FILES, instance=self.object)
-            try:
-                det = self.object.detalle_casa
-            except InmuebleDetalleCasa.DoesNotExist:
-                det = None
             casa_form = forms.InmuebleDetalleCasaForm(
-                request.POST, request.FILES, prefix="casa", instance=det
+                request.POST, request.FILES, prefix="casa", instance=self._detalle_instance()
             )
-            return self.render_to_response(self.get_context_data(form=form, casa_form=casa_form))
-        form_class = self.get_form_class()
-        form = form_class(request.POST, request.FILES, instance=self.object)
-        try:
-            det = self.object.detalle_casa
-        except InmuebleDetalleCasa.DoesNotExist:
-            det = None
+            return render(request, self.template_name, self.get_context_data(casa_form=casa_form))
         casa_form = forms.InmuebleDetalleCasaForm(
-            request.POST, request.FILES, prefix="casa", instance=det
+            request.POST, request.FILES, prefix="casa", instance=self._detalle_instance()
         )
-        if not form.is_valid():
-            return self.render_to_response(self.get_context_data(form=form, casa_form=casa_form))
-        tipo = form.cleaned_data.get("tipo")
-        if tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
-            if not casa_form.is_valid():
-                return self.render_to_response(self.get_context_data(form=form, casa_form=casa_form))
+        if not casa_form.is_valid():
+            return render(request, self.template_name, self.get_context_data(casa_form=casa_form))
         gal_err = _inmueble_galeria_subida_error_o_none(request)
         if gal_err:
-            form.add_error(None, gal_err)
-            return self.render_to_response(self.get_context_data(form=form, casa_form=casa_form))
-        return self._guardar_inmueble_casa_y_galeria(form, casa_form, tipo)
-
-    def _guardar_inmueble_casa_y_galeria(self, form, casa_form, tipo) -> HttpResponseRedirect:
+            messages.error(request, gal_err)
+            return render(request, self.template_name, self.get_context_data(casa_form=casa_form))
         with transaction.atomic():
-            self.object = form.save()
-            if tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
-                det = casa_form.save(commit=False)
-                det.inmueble = self.object
-                det.save()
-            else:
-                InmuebleDetalleCasa.objects.filter(inmueble=self.object).delete()
-            _inmueble_procesar_subida_galeria(self.request, self.object)
-        messages.success(self.request, "Inmueble guardado.")
-        if self.request.user.is_authenticated and not skips_sensitive_reauth(self.request.user):
-            grant(self.request)
-        return HttpResponseRedirect(self.get_success_url())
+            det = casa_form.save(commit=False)
+            det.inmueble = self.inmueble
+            det.save()
+            _inmueble_procesar_subida_galeria(request, self.inmueble)
+        messages.success(request, "Ficha de casa y galería guardadas.")
+        if request.user.is_authenticated and not skips_sensitive_reauth(request.user):
+            grant(request)
+        return HttpResponseRedirect(reverse("app:inmueble_casa_galeria", args=[self.inmueble.pk]))
 
 
 # ——— Clientes ———
@@ -1833,7 +1817,10 @@ class InmuebleDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, DeleteView
         return ctx
 
 
-def _redirect_inmueble_edit(inmueble_pk: int) -> HttpResponseRedirect:
+def _redirect_tras_accion_imagen(inmueble_pk: int) -> HttpResponseRedirect:
+    inv = get_object_or_404(Inmueble, pk=inmueble_pk)
+    if inv.tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
+        return HttpResponseRedirect(reverse("app:inmueble_casa_galeria", args=[inmueble_pk]))
     return HttpResponseRedirect(reverse("app:inmueble_update", args=[inmueble_pk]))
 
 
@@ -1845,11 +1832,11 @@ def inmueble_imagen_eliminar(request: HttpRequest, inmueble_pk: int, pk: int) ->
             request,
             "Credenciales de superusuario incorrectas o incompletas. No se eliminó la imagen.",
         )
-        return _redirect_inmueble_edit(inmueble_pk)
+        return _redirect_tras_accion_imagen(inmueble_pk)
     img = get_object_or_404(InmuebleImagen, pk=pk, inmueble_id=inmueble_pk)
     img.delete()
     messages.success(request, "Imagen eliminada.")
-    return _redirect_inmueble_edit(inmueble_pk)
+    return _redirect_tras_accion_imagen(inmueble_pk)
 
 
 @login_required
@@ -1860,12 +1847,12 @@ def inmueble_imagen_portada(request: HttpRequest, inmueble_pk: int, pk: int) -> 
             request,
             "Credenciales de superusuario incorrectas. No se cambió la portada.",
         )
-        return _redirect_inmueble_edit(inmueble_pk)
+        return _redirect_tras_accion_imagen(inmueble_pk)
     img = get_object_or_404(InmuebleImagen, pk=pk, inmueble_id=inmueble_pk)
     InmuebleImagen.objects.filter(inmueble_id=inmueble_pk).update(es_portada=False)
     InmuebleImagen.objects.filter(pk=img.pk).update(es_portada=True)
     messages.success(request, "Portada actualizada.")
-    return _redirect_inmueble_edit(inmueble_pk)
+    return _redirect_tras_accion_imagen(inmueble_pk)
 
 
 @login_required
@@ -1876,12 +1863,12 @@ def inmueble_imagen_descripcion(request: HttpRequest, inmueble_pk: int, pk: int)
             request,
             "Credenciales de superusuario incorrectas. No se guardó la descripción.",
         )
-        return _redirect_inmueble_edit(inmueble_pk)
+        return _redirect_tras_accion_imagen(inmueble_pk)
     img = get_object_or_404(InmuebleImagen, pk=pk, inmueble_id=inmueble_pk)
     img.descripcion = (request.POST.get("descripcion") or "").strip()[:200]
     img.save(update_fields=["descripcion"])
     messages.success(request, "Descripción de la imagen actualizada.")
-    return _redirect_inmueble_edit(inmueble_pk)
+    return _redirect_tras_accion_imagen(inmueble_pk)
 
 
 class ClienteDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, DeleteView):

@@ -23,6 +23,7 @@
       <th>Área (m²)</th>
       <th>Área (v²)</th>
       <th>Precio</th>
+      <th>Casa / fotos</th>
       <th></th>
       <th></th>
     </tr>
@@ -39,11 +40,16 @@
       <td>{% if i.area_m2 %}{{ i.area_m2 }}{% else %}—{% endif %}</td>
       <td>{% if i.area_varas_cuadradas %}{{ i.area_varas_cuadradas }}{% else %}—{% endif %}</td>
       <td>${{ i.precio_lista }}</td>
+      <td>
+        {% if i.tipo == "CASA_NUEVA" or i.tipo == "CASA_SEGUNDA" %}
+        <a href="{% url 'app:inmueble_casa_galeria' i.pk %}" class="link-action">Casa y fotos</a>
+        {% else %}—{% endif %}
+      </td>
       <td><a href="{% url 'app:inmueble_update' i.pk %}" class="link-action">Editar</a></td>
       <td><a href="{% url 'app:inmueble_delete' i.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a></td>
     </tr>
     {% empty %}
-    <tr><td colspan="11" class="muted">No hay inmuebles.</td></tr>
+    <tr><td colspan="12" class="muted">No hay inmuebles.</td></tr>
     {% endfor %}
   </tbody>
 </table>
