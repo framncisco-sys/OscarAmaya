@@ -14,7 +14,14 @@
           <a href="{% url 'app:local_alquiler_create' %}"{% if u == 'local_alquiler_create' %} class="is-active" aria-current="page"{% endif %}>Nuevo alquiler de local</a>
         </div>
       </div>
-      <div class="app-sidebar__nav-group{% if u == 'inmueble_list' or u == 'inmueble_create' or u == 'inmueble_casa_list' or u == 'inmueble_casa_create' or u == 'inmueble_update' or u == 'inmueble_delete' or u == 'inmueble_casa_galeria' or u == 'casa_alquiler_ficha' or u == 'inmueble_imagen_eliminar' or u == 'inmueble_imagen_portada' or u == 'inmueble_imagen_descripcion' or u == 'arrendamiento_casas_list' %} app-sidebar__nav-group--current{% endif %}">
+      <div class="app-sidebar__nav-group{% if u == 'arrendamiento_casas_list' or u == 'casa_alquiler_ficha' or u == 'casa_alquiler_create' %} app-sidebar__nav-group--current{% endif %}">
+        <span class="app-sidebar__nav-group-label">Casas en alquiler</span>
+        <div class="app-sidebar__nav-sub">
+          <a href="{% url 'app:arrendamiento_casas_list' %}"{% if u == 'arrendamiento_casas_list' or u == 'casa_alquiler_ficha' %} class="is-active" aria-current="page"{% endif %}>Listado guardado</a>
+          <a href="{% url 'app:casa_alquiler_create' %}"{% if u == 'casa_alquiler_create' %} class="is-active" aria-current="page"{% endif %}>Nuevo alquiler de casa</a>
+        </div>
+      </div>
+      <div class="app-sidebar__nav-group{% if u == 'inmueble_list' or u == 'inmueble_create' or u == 'inmueble_casa_list' or u == 'inmueble_casa_create' or u == 'inmueble_update' or u == 'inmueble_delete' or u == 'inmueble_casa_galeria' or u == 'inmueble_imagen_eliminar' or u == 'inmueble_imagen_portada' or u == 'inmueble_imagen_descripcion' %} app-sidebar__nav-group--current{% endif %}">
         <span class="app-sidebar__nav-group-label">Inmuebles</span>
         <div class="app-sidebar__nav-sub">
           <span class="app-sidebar__nav-sub-label">Inmueble lote</span>
@@ -23,8 +30,6 @@
           <span class="app-sidebar__nav-sub-label">Casa nueva o usada</span>
           <a href="{% url 'app:inmueble_casa_list' %}"{% if u == 'inmueble_casa_list' %} class="is-active" aria-current="page"{% endif %}>Listado</a>
           <a href="{% url 'app:inmueble_casa_create' %}"{% if u == 'inmueble_casa_create' %} class="is-active" aria-current="page"{% endif %}>Nueva casa</a>
-          <span class="app-sidebar__nav-sub-label">Arrendamientos</span>
-          <a href="{% url 'app:arrendamiento_casas_list' %}"{% if u == 'arrendamiento_casas_list' or u == 'casa_alquiler_ficha' %} class="is-active" aria-current="page"{% endif %}>Listado de casas en alquiler</a>
         </div>
       </div>
       <a href="{% url 'app:contrato_list' %}"{% if u == 'contrato_list' or u == 'contrato_create' or u == 'contrato_update' or u == 'contrato_delete' or u == 'contrato_estado_cuenta' %} class="is-active" aria-current="page"{% endif %}>{% if contratos_restriccion_vendedor %}Mis contratos{% else %}Contratos{% endif %}</a>

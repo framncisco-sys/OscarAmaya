@@ -820,10 +820,10 @@ class ArrendamientoCasasListView(
         ctx = super().get_context_data(**kwargs)
         ctx["listado_page_title"] = "Listado de casas en alquiler"
         ctx["listado_meta"] = (
-            "Registre la vivienda en «Nueva casa», márchela «En alquiler» y use «Ficha alquiler» para condiciones y fotos (sin duplicar inventario aquí)."
+            "Listado de lo guardado en este módulo. «Nuevo alquiler de casa» solo pide la ficha de arrendamiento de vivienda y fotos; no usa el formulario de «Nueva casa» (venta)."
         )
-        ctx["nuevo_url"] = reverse("app:inmueble_casa_create")
-        ctx["nuevo_boton_label"] = "Nueva casa"
+        ctx["nuevo_url"] = reverse("app:casa_alquiler_create")
+        ctx["nuevo_boton_label"] = "Nuevo alquiler de casa"
         ctx["es_listado_casas"] = True
         ctx["es_listado_casas_alquiler"] = True
         return ctx
@@ -1024,6 +1024,28 @@ def _crear_inmueble_local_para_ficha_alquiler() -> Inmueble | None:
     return None
 
 
+def _crear_inmueble_casa_para_ficha_alquiler() -> Inmueble | None:
+    """
+    Soporte técnico para el módulo independiente de casas en alquiler: Inmueble mínimo
+    (casa de segunda por defecto, código autogenerado) para InmuebleDetalleCasaAlquiler.
+    """
+    proyecto = Proyecto.objects.order_by("pk").first()
+    if not proyecto:
+        return None
+    for _ in range(80):
+        codigo = f"ALQ-CAS-{uuid.uuid4().hex[:10].upper()}"
+        if not Inmueble.objects.filter(proyecto=proyecto, codigo=codigo).exists():
+            return Inmueble.objects.create(
+                proyecto=proyecto,
+                tipo=Inmueble.Tipo.CASA_SEGUNDA,
+                estado=Inmueble.Estado.DISPONIBLE,
+                codigo=codigo,
+                precio_lista=Decimal("0"),
+                en_alquiler=True,
+            )
+    return None
+
+
 class LocalAlquilerCreateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, View):
     """Alta independiente: solo ficha de arrendamiento + fotos (el inmueble se crea por detrás)."""
 
@@ -1178,8 +1200,73 @@ class LocalAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, V
         )
 
 
+class CasaAlquilerCreateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, View):
+    """Alta independiente: solo ficha de arrendamiento de vivienda + fotos (formulario distinto al de local)."""
+
+    template_name = "app/casa_alquiler_ficha.html"
+
+    def _ctx(self, casa_alquiler_form):
+        u = self.request.user
+        return {
+            "object": None,
+            "inmueble": None,
+            "casa_alquiler_form": casa_alquiler_form,
+            "inmueble_imagenes": [],
+            "form_title": "Nuevo alquiler de casa",
+            "cancel_url": reverse("app:arrendamiento_casas_list"),
+            "form_multipart": True,
+            "es_alta_casa_alquiler": True,
+            "sensitive_password_required": bool(
+                u.is_authenticated
+                and not skips_sensitive_reauth(u)
+                and not session_valid(self.request)
+            ),
+        }
+
+    def get(self, request, *args, **kwargs):
+        return render(
+            request,
+            self.template_name,
+            self._ctx(forms.InmuebleDetalleCasaAlquilerForm()),
+        )
+
+    def post(self, request, *args, **kwargs):
+        if not check_sensitive_write(request):
+            messages.error(
+                request,
+                "Debe confirmar su contraseña de acceso (final del formulario) o usar «Confirmar acceso» en la app.",
+            )
+            return render(
+                request,
+                self.template_name,
+                self._ctx(forms.InmuebleDetalleCasaAlquilerForm(request.POST)),
+            )
+        casa_alquiler_form = forms.InmuebleDetalleCasaAlquilerForm(request.POST)
+        if not casa_alquiler_form.is_valid():
+            return render(request, self.template_name, self._ctx(casa_alquiler_form))
+        inv = _crear_inmueble_casa_para_ficha_alquiler()
+        if not inv:
+            messages.error(
+                request,
+                "No hay ningún proyecto creado. Cree al menos un proyecto en la app y vuelva a intentar.",
+            )
+            return render(request, self.template_name, self._ctx(casa_alquiler_form))
+        with transaction.atomic():
+            det = casa_alquiler_form.save(commit=False)
+            det.inmueble = inv
+            det.save()
+        messages.success(
+            request,
+            "Alquiler de casa guardado. Puede seguir editando la ficha o subir fotos.",
+        )
+        _guardar_galeria_inmueble_tras_ficha(request, inv)
+        if request.user.is_authenticated and not skips_sensitive_reauth(request.user):
+            grant(request)
+        return HttpResponseRedirect(reverse("app:casa_alquiler_ficha", args=[inv.pk]))
+
+
 class CasaAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, View):
-    """Ficha de arrendamiento de la vivienda (sin inventario del inmueble; eso va en nueva casa / editar / casa y fotos)."""
+    """Ficha de arrendamiento de vivienda (módulo independiente del inventario de casas en venta)."""
 
     template_name = "app/casa_alquiler_ficha.html"
 
@@ -1220,6 +1307,7 @@ class CasaAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Vi
             "form_title": f"Casa en alquiler · {self.inmueble.codigo}",
             "cancel_url": reverse("app:arrendamiento_casas_list"),
             "form_multipart": True,
+            "es_alta_casa_alquiler": False,
             "sensitive_password_required": bool(
                 u.is_authenticated
                 and not skips_sensitive_reauth(u)
