@@ -4,26 +4,52 @@
 <h1 class="page-title">{{ form_title }}</h1>
 <p class="muted" style="margin-top:0;">
   <a href="{{ cancel_url }}" class="link-action">← Locales en alquiler</a>
-  · <a href="{% url 'app:inmueble_update' inmueble.pk %}" class="link-action">Editar inmueble</a>
+  {% if inmueble and inmueble.pk %}
+  · <a href="{% url 'app:inmueble_update' inmueble.pk %}" class="link-action">Mapa, geometría y más campos</a>
+  {% endif %}
 </p>
-<p class="muted" style="margin-bottom:1rem;">Condiciones del arrendamiento: renta, cuotas de plaza, rubro permitido y términos del contrato.</p>
+<p class="muted" style="margin-bottom:1rem;">
+  En una sola pantalla: datos del local (inventario), condiciones de arrendamiento y, si corresponde, fotos nuevas al guardar.
+</p>
 
 <form method="post" class="form-stack" enctype="multipart/form-data">
   {% csrf_token %}
-  {% for field in local_form.hidden_fields %}
-    {{ field }}
-  {% endfor %}
-  {% if local_form.non_field_errors %}
-    <div class="alert" role="alert">{{ local_form.non_field_errors }}</div>
-  {% endif %}
-  {% for field in local_form.visible_fields %}
-    <div class="field">
-      <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-      <div class="field__control">{{ field }}</div>
-      {% if field.help_text %}<div class="field__help muted">{{ field.help_text }}</div>{% endif %}
-      {% if field.errors %}<div class="field__error" role="alert">{{ field.errors }}</div>{% endif %}
-    </div>
-  {% endfor %}
+  <section class="card" style="padding:1rem 1.1rem;margin-bottom:1rem;">
+    <h2 class="page-title" style="font-size:1.05rem;margin-top:0;">Datos del local (inventario)</h2>
+    {% for field in inv_form.hidden_fields %}
+      {{ field }}
+    {% endfor %}
+    {% if inv_form.non_field_errors %}
+      <div class="alert" role="alert">{{ inv_form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in inv_form.visible_fields %}
+      <div class="field">
+        <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        <div class="field__control">{{ field }}</div>
+        {% if field.help_text %}<div class="field__help muted">{{ field.help_text }}</div>{% endif %}
+        {% if field.errors %}<div class="field__error" role="alert">{{ field.errors }}</div>{% endif %}
+      </div>
+    {% endfor %}
+  </section>
+
+  <section class="card" style="padding:1rem 1.1rem;margin-bottom:1rem;">
+    <h2 class="page-title" style="font-size:1.05rem;margin-top:0;">Condiciones del arrendamiento</h2>
+    {% for field in local_form.hidden_fields %}
+      {{ field }}
+    {% endfor %}
+    {% if local_form.non_field_errors %}
+      <div class="alert" role="alert">{{ local_form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in local_form.visible_fields %}
+      <div class="field">
+        <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        <div class="field__control">{{ field }}</div>
+        {% if field.help_text %}<div class="field__help muted">{{ field.help_text }}</div>{% endif %}
+        {% if field.errors %}<div class="field__error" role="alert">{{ field.errors }}</div>{% endif %}
+      </div>
+    {% endfor %}
+  </section>
+
   {% include "app/_inmueble_galeria_upload.html" %}
   {% if sensitive_password_required %}
   <div class="field">
@@ -36,7 +62,7 @@
   </div>
   {% endif %}
   <div class="form-actions">
-    <button type="submit" class="btn-primary">Guardar ficha de alquiler</button>
+    <button type="submit" class="btn-primary">{% if es_alta_local_alquiler %}Registrar local{% else %}Guardar todo{% endif %}</button>
     <a href="{{ cancel_url }}" class="btn-secondary">Cancelar</a>
   </div>
 </form>

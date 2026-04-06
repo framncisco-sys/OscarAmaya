@@ -7,7 +7,7 @@
     <nav class="app-sidebar__nav">
       <a href="{% url 'app:proyecto_list' %}"{% if u == 'proyecto_list' or u == 'proyecto_create' or u == 'proyecto_update' %} class="is-active" aria-current="page"{% endif %}>Proyectos</a>
       <a href="{% url 'app:poligono_list' %}"{% if u == 'poligono_list' or u == 'poligono_create' or u == 'poligono_update' %} class="is-active" aria-current="page"{% endif %}>Polígonos</a>
-      <div class="app-sidebar__nav-group{% if u == 'inmueble_list' or u == 'inmueble_create' or u == 'inmueble_casa_list' or u == 'inmueble_casa_create' or u == 'inmueble_update' or u == 'inmueble_delete' or u == 'inmueble_casa_galeria' or u == 'local_alquiler_ficha' or u == 'casa_alquiler_ficha' or u == 'inmueble_imagen_eliminar' or u == 'inmueble_imagen_portada' or u == 'inmueble_imagen_descripcion' or u == 'arrendamiento_locales_list' or u == 'arrendamiento_casas_list' %} app-sidebar__nav-group--current{% endif %}">
+      <div class="app-sidebar__nav-group{% if u == 'inmueble_list' or u == 'inmueble_create' or u == 'inmueble_casa_list' or u == 'inmueble_casa_create' or u == 'inmueble_update' or u == 'inmueble_delete' or u == 'inmueble_casa_galeria' or u == 'local_alquiler_create' or u == 'local_alquiler_ficha' or u == 'casa_alquiler_ficha' or u == 'inmueble_imagen_eliminar' or u == 'inmueble_imagen_portada' or u == 'inmueble_imagen_descripcion' or u == 'arrendamiento_locales_list' or u == 'arrendamiento_casas_list' %} app-sidebar__nav-group--current{% endif %}">
         <span class="app-sidebar__nav-group-label">Inmuebles</span>
         <div class="app-sidebar__nav-sub">
           <span class="app-sidebar__nav-sub-label">Inmueble lote</span>
