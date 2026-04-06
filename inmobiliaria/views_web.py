@@ -190,6 +190,33 @@ def _inmueble_procesar_subida_galeria(request: HttpRequest, inv: Inmueble) -> No
         InmuebleImagen.objects.filter(pk=pk_portada).update(es_portada=True)
 
 
+def _inmueble_imagenes_ordenadas(inv: Inmueble) -> list[InmuebleImagen]:
+    imgs = list(InmuebleImagen.objects.filter(inmueble=inv))
+    imgs.sort(key=lambda x: (not x.es_portada, x.orden, x.pk))
+    return imgs
+
+
+def _guardar_galeria_inmueble_tras_ficha(request: HttpRequest, inv: Inmueble) -> None:
+    """Tras guardar una ficha: subida de fotos + portada (misma regla que Casa y fotos)."""
+    gal_err = _inmueble_galeria_subida_error_o_none(request)
+    if gal_err:
+        messages.error(request, gal_err)
+        return
+    n_fotos = len(request.FILES.getlist("galeria_fotos"))
+    try:
+        with transaction.atomic():
+            _inmueble_procesar_subida_galeria(request, inv)
+    except Exception:
+        logger.exception("Error al guardar fotos de galería (inmueble)")
+        messages.error(
+            request,
+            "La ficha ya está guardada; revise las fotos (formato, tamaño) o vuelva a intentar.",
+        )
+    else:
+        if n_fotos:
+            messages.success(request, f"Se agregaron {n_fotos} foto(s) a la galería.")
+
+
 def _firma_preview_flags(formato: FormatoAceptacion | None) -> dict[str, bool]:
     """True solo si hay archivo legible en storage (evita <img> roto en producción)."""
     empty = {"aceptante": False, "vendedor": False, "autorizado": False}
@@ -872,6 +899,10 @@ class InmuebleUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
         ctx["form_title"] = "Editar inmueble"
         ctx["cancel_url"] = _inmueble_url_listado_tras_tipo(self.object.tipo)
         ctx["historial_precios"] = self.object.historial_precios.all()[:50]
+        if self.object.pk:
+            ctx["inmueble_imagenes"] = _inmueble_imagenes_ordenadas(self.object)
+        else:
+            ctx["inmueble_imagenes"] = []
         return ctx
 
     def form_valid(self, form):
@@ -917,8 +948,7 @@ class InmuebleCasaGaleriaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, 
             casa_form = forms.InmuebleDetalleCasaForm(
                 prefix="casa", instance=self._detalle_instance()
             )
-        imgs = list(InmuebleImagen.objects.filter(inmueble=self.inmueble))
-        imgs.sort(key=lambda x: (not x.es_portada, x.orden, x.pk))
+        imgs = _inmueble_imagenes_ordenadas(self.inmueble)
         u = self.request.user
         return {
             "object": self.inmueble,
@@ -964,23 +994,7 @@ class InmuebleCasaGaleriaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, 
             "Ficha de casa guardada (texto y documentos adjuntos: escritura, recibos, plano, etc.).",
         )
 
-        gal_err = _inmueble_galeria_subida_error_o_none(request)
-        if gal_err:
-            messages.error(request, gal_err)
-        else:
-            n_fotos = len(request.FILES.getlist("galeria_fotos"))
-            try:
-                with transaction.atomic():
-                    _inmueble_procesar_subida_galeria(request, self.inmueble)
-            except Exception:
-                logger.exception("Error al guardar fotos de galería (inmueble casa)")
-                messages.error(
-                    request,
-                    "La ficha ya está guardada; revise las fotos (formato, tamaño) o vuelva a intentar.",
-                )
-            else:
-                if n_fotos:
-                    messages.success(request, f"Se agregaron {n_fotos} foto(s) a la galería.")
+        _guardar_galeria_inmueble_tras_ficha(request, self.inmueble)
 
         if request.user.is_authenticated and not skips_sensitive_reauth(request.user):
             grant(request)
@@ -1022,8 +1036,10 @@ class LocalAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, V
             "object": self.inmueble,
             "inmueble": self.inmueble,
             "local_form": local_form,
+            "inmueble_imagenes": _inmueble_imagenes_ordenadas(self.inmueble),
             "form_title": f"Local en alquiler · {self.inmueble.codigo}",
             "cancel_url": reverse("app:arrendamiento_locales_list"),
+            "form_multipart": True,
             "sensitive_password_required": bool(
                 u.is_authenticated
                 and not skips_sensitive_reauth(u)
@@ -1041,11 +1057,11 @@ class LocalAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, V
                 "Debe confirmar su contraseña de acceso (final del formulario) o usar «Confirmar acceso» en la app.",
             )
             local_form = forms.InmuebleDetalleLocalAlquilerForm(
-                request.POST, instance=self._detalle_instance()
+                request.POST, request.FILES, instance=self._detalle_instance()
             )
             return render(request, self.template_name, self.get_context_data(local_form=local_form))
         local_form = forms.InmuebleDetalleLocalAlquilerForm(
-            request.POST, instance=self._detalle_instance()
+            request.POST, request.FILES, instance=self._detalle_instance()
         )
         if not local_form.is_valid():
             return render(request, self.template_name, self.get_context_data(local_form=local_form))
@@ -1054,6 +1070,7 @@ class LocalAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, V
             det.inmueble = self.inmueble
             det.save()
         messages.success(request, "Ficha de alquiler del local guardada.")
+        _guardar_galeria_inmueble_tras_ficha(request, self.inmueble)
         if request.user.is_authenticated and not skips_sensitive_reauth(request.user):
             grant(request)
         return HttpResponseRedirect(
@@ -1099,8 +1116,10 @@ class CasaAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Vi
             "object": self.inmueble,
             "inmueble": self.inmueble,
             "casa_alquiler_form": casa_alquiler_form,
+            "inmueble_imagenes": _inmueble_imagenes_ordenadas(self.inmueble),
             "form_title": f"Casa en alquiler · {self.inmueble.codigo}",
             "cancel_url": reverse("app:arrendamiento_casas_list"),
+            "form_multipart": True,
             "sensitive_password_required": bool(
                 u.is_authenticated
                 and not skips_sensitive_reauth(u)
@@ -1118,7 +1137,7 @@ class CasaAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Vi
                 "Debe confirmar su contraseña de acceso (final del formulario) o usar «Confirmar acceso» en la app.",
             )
             casa_alquiler_form = forms.InmuebleDetalleCasaAlquilerForm(
-                request.POST, instance=self._detalle_instance()
+                request.POST, request.FILES, instance=self._detalle_instance()
             )
             return render(
                 request,
@@ -1126,7 +1145,7 @@ class CasaAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Vi
                 self.get_context_data(casa_alquiler_form=casa_alquiler_form),
             )
         casa_alquiler_form = forms.InmuebleDetalleCasaAlquilerForm(
-            request.POST, instance=self._detalle_instance()
+            request.POST, request.FILES, instance=self._detalle_instance()
         )
         if not casa_alquiler_form.is_valid():
             return render(
@@ -1139,6 +1158,7 @@ class CasaAlquilerFichaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Vi
             det.inmueble = self.inmueble
             det.save()
         messages.success(request, "Ficha de alquiler de la casa guardada.")
+        _guardar_galeria_inmueble_tras_ficha(request, self.inmueble)
         if request.user.is_authenticated and not skips_sensitive_reauth(request.user):
             grant(request)
         return HttpResponseRedirect(

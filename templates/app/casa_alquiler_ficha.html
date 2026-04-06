@@ -9,7 +9,7 @@
 </p>
 <p class="muted" style="margin-bottom:1rem;">Inventario, restricciones, servicios incluidos en la renta, monto mensual, depósito en garantía (no es renta) y vigencia del contrato.</p>
 
-<form method="post" class="form-stack">
+<form method="post" class="form-stack" enctype="multipart/form-data">
   {% csrf_token %}
   {% for field in casa_alquiler_form.hidden_fields %}
     {{ field }}
@@ -31,6 +31,7 @@
       {% if field.errors %}<div class="field__error" role="alert">{{ field.errors }}</div>{% endif %}
     </div>
   {% endfor %}
+  {% include "app/_inmueble_galeria_upload.html" %}
   {% if sensitive_password_required %}
   <div class="field">
     <label class="field__label" for="id_sensitive_password">Confirmar contraseña</label>
@@ -46,4 +47,5 @@
     <a href="{{ cancel_url }}" class="btn-secondary">Cancelar</a>
   </div>
 </form>
+{% include "app/_inmueble_galeria_imagenes.html" %}
 {% endblock %}

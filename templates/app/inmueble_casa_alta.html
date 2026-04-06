@@ -33,6 +33,12 @@
     {% endfor %}
   </section>
   {% include "app/_inmueble_casa_detalle.html" %}
+  <section class="card" style="padding:1rem 1.1rem;margin-bottom:1rem;">
+    <h2 class="page-title" style="font-size:1.05rem;margin-top:0;">Galería de fotos y portada</h2>
+    <p class="muted" style="margin:0;font-size:0.9rem;">
+      Al pulsar <strong>Guardar casa</strong> se abrirá la pantalla <strong>Casa y fotos</strong>, donde podrá subir imágenes, elegir <strong>portada</strong> y describir cada foto (las subidas nuevas piden usuario y contraseña de superusuario, igual que en las demás fichas).
+    </p>
+  </section>
   <div class="form-actions">
     <button type="submit" class="btn-primary">Guardar casa</button>
     <a href="{{ cancel_url }}" class="btn-secondary">Cancelar</a>
