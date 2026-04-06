@@ -20,8 +20,14 @@ urlpatterns = [
     path("poligonos/nuevo/", views.PoligonoCreateView.as_view(), name="poligono_create"),
     path("poligonos/<int:pk>/editar/", views.PoligonoUpdateView.as_view(), name="poligono_update"),
     path("poligonos/<int:pk>/eliminar/", views.PoligonoDeleteView.as_view(), name="poligono_delete"),
-    path("inmuebles/", views.InmuebleListView.as_view(), name="inmueble_list"),
-    path("inmuebles/nuevo/", views.InmuebleCreateView.as_view(), name="inmueble_create"),
+    path(
+        "inmuebles/casas/nuevo/",
+        views.InmuebleCreateCasaView.as_view(),
+        name="inmueble_casa_create",
+    ),
+    path("inmuebles/casas/", views.InmuebleCasaListView.as_view(), name="inmueble_casa_list"),
+    path("inmuebles/nuevo/", views.InmuebleCreateLoteView.as_view(), name="inmueble_create"),
+    path("inmuebles/", views.InmuebleLoteListView.as_view(), name="inmueble_list"),
     path("inmuebles/<int:pk>/editar/", views.InmuebleUpdateView.as_view(), name="inmueble_update"),
     path(
         "inmuebles/<int:pk>/casa-y-fotos/",

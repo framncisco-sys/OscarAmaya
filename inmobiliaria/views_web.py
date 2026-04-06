@@ -656,34 +656,105 @@ class PoligonoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
 
 
 # ——— Inmuebles ———
-class InmuebleListView(AppLoginRequiredMixin, ListView):
+def _inmueble_url_listado_tras_tipo(tipo: str) -> str:
+    if tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
+        return reverse("app:inmueble_casa_list")
+    return reverse("app:inmueble_list")
+
+
+class InmuebleLoteListView(AppLoginRequiredMixin, ListView):
+    """Lotes y locales (sin casas); equivalente al inventario «inmueble lote» de antes."""
+
     model = Inmueble
     template_name = "app/inmueble_list.html"
     context_object_name = "items"
     paginate_by = 25
-    queryset = Inmueble.objects.select_related("proyecto", "poligono")
+
+    def get_queryset(self):
+        return (
+            Inmueble.objects.select_related("proyecto", "poligono")
+            .exclude(
+                tipo__in=(Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA),
+            )
+            .order_by("proyecto__nombre", "poligono__orden", "codigo")
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["listado_page_title"] = "Inmueble lote"
+        ctx["listado_meta"] = "Lotes y locales comerciales por proyecto y polígono (sin casas)."
+        ctx["nuevo_url"] = reverse("app:inmueble_create")
+        ctx["nuevo_boton_label"] = "Nuevo lote o local"
+        ctx["es_listado_casas"] = False
+        return ctx
 
 
-class InmuebleCreateView(AppLoginRequiredMixin, CreateView):
+class InmuebleCasaListView(AppLoginRequiredMixin, ListView):
+    """Solo casas nuevas o de segunda."""
+
+    model = Inmueble
+    template_name = "app/inmueble_list.html"
+    context_object_name = "items"
+    paginate_by = 25
+
+    def get_queryset(self):
+        return (
+            Inmueble.objects.select_related("proyecto", "poligono")
+            .filter(tipo__in=(Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA))
+            .order_by("proyecto__nombre", "codigo")
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["listado_page_title"] = "Casa nueva o usada"
+        ctx["listado_meta"] = "Inventario de viviendas; use «Casa y fotos» para la ficha ampliada y galería."
+        ctx["nuevo_url"] = reverse("app:inmueble_casa_create")
+        ctx["nuevo_boton_label"] = "Nueva casa"
+        ctx["es_listado_casas"] = True
+        return ctx
+
+
+class InmuebleCreateLoteView(AppLoginRequiredMixin, CreateView):
     model = Inmueble
     form_class = forms.InmuebleForm
     template_name = "app/object_form.html"
     success_url = reverse_lazy("app:inmueble_list")
 
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["modo_tipo"] = "lote_local"
+        return kw
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["form_title"] = "Nuevo inmueble"
+        ctx["form_title"] = "Nuevo inmueble lote o local"
         ctx["cancel_url"] = reverse_lazy("app:inmueble_list")
+        return ctx
+
+
+class InmuebleCreateCasaView(AppLoginRequiredMixin, CreateView):
+    model = Inmueble
+    form_class = forms.InmuebleForm
+    template_name = "app/object_form.html"
+    success_url = reverse_lazy("app:inmueble_casa_list")
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["modo_tipo"] = "casa"
+        return kw
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form_title"] = "Nueva casa (nueva o de segunda)"
+        ctx["cancel_url"] = reverse_lazy("app:inmueble_casa_list")
         return ctx
 
     def form_valid(self, form):
         resp = super().form_valid(form)
-        tipo = form.cleaned_data.get("tipo")
-        if tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
-            messages.info(
-                self.request,
-                "Para la ficha de venta y la galería de fotos, use «Casa y fotos» en el listado de inmuebles (menú lateral Inmuebles → Listado).",
-            )
+        messages.info(
+            self.request,
+            "Para la ficha de venta y la galería de fotos abra «Casa y fotos» en el listado de casas o en el menú lateral.",
+        )
         return resp
 
 
@@ -691,12 +762,14 @@ class InmuebleUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
     model = Inmueble
     form_class = forms.InmuebleForm
     template_name = "app/inmueble_form.html"
-    success_url = reverse_lazy("app:inmueble_list")
+
+    def get_success_url(self) -> str:
+        return _inmueble_url_listado_tras_tipo(self.object.tipo)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["form_title"] = "Editar inmueble"
-        ctx["cancel_url"] = reverse_lazy("app:inmueble_list")
+        ctx["cancel_url"] = _inmueble_url_listado_tras_tipo(self.object.tipo)
         ctx["historial_precios"] = self.object.historial_precios.all()[:50]
         return ctx
 
@@ -725,7 +798,7 @@ class InmuebleCasaGaleriaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, 
                 request,
                 "«Casa y fotos» solo aplica a inmuebles tipo casa nueva o casa segunda.",
             )
-            return HttpResponseRedirect(reverse("app:inmueble_list"))
+            return HttpResponseRedirect(reverse("app:inmueble_casa_list"))
         return super().dispatch(request, *args, **kwargs)
 
     def _detalle_instance(self):
@@ -1808,7 +1881,9 @@ class PoligonoDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, DeleteView
 class InmuebleDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, DeleteView):
     model = Inmueble
     template_name = "app/confirm_delete.html"
-    success_url = reverse_lazy("app:inmueble_list")
+
+    def get_success_url(self) -> str:
+        return _inmueble_url_listado_tras_tipo(self.object.tipo)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)

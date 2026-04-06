@@ -235,8 +235,45 @@ class InmuebleForm(forms.ModelForm):
         model = Inmueble
         fields = "__all__"
 
+    def __init__(self, *args, modo_tipo: str = "", **kwargs):
+        """
+        modo_tipo:
+          - "" : edición / formulario completo (todos los tipos).
+          - "lote_local" : alta solo lote o local comercial.
+          - "casa" : alta solo casa nueva o segunda.
+        """
+        self.modo_tipo = modo_tipo or ""
+        super().__init__(*args, **kwargs)
+        tf = self.fields.get("tipo")
+        if not tf:
+            return
+        if self.modo_tipo == "lote_local":
+            tf.choices = [
+                (Inmueble.Tipo.LOTE, Inmueble.Tipo.LOTE.label),
+                (Inmueble.Tipo.LOCAL, Inmueble.Tipo.LOCAL.label),
+            ]
+            if self.instance.pk:
+                pass
+            elif "tipo" not in self.initial:
+                tf.initial = Inmueble.Tipo.LOTE
+        elif self.modo_tipo == "casa":
+            tf.choices = [
+                (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_NUEVA.label),
+                (Inmueble.Tipo.CASA_SEGUNDA, Inmueble.Tipo.CASA_SEGUNDA.label),
+            ]
+            if not self.instance.pk and "tipo" not in self.initial:
+                tf.initial = Inmueble.Tipo.CASA_NUEVA
+
     def clean(self):
         cleaned = super().clean()
+        t = cleaned.get("tipo")
+        if self.modo_tipo == "lote_local" and t not in (Inmueble.Tipo.LOTE, Inmueble.Tipo.LOCAL):
+            self.add_error("tipo", "Seleccione lote o local comercial.")
+        if self.modo_tipo == "casa" and t not in (
+            Inmueble.Tipo.CASA_NUEVA,
+            Inmueble.Tipo.CASA_SEGUNDA,
+        ):
+            self.add_error("tipo", "Seleccione casa nueva o casa de segunda.")
         m2 = cleaned.get("area_m2")
         v2 = cleaned.get("area_varas_cuadradas")
         if m2 and not v2:

@@ -1438,6 +1438,21 @@ a.btn-secondary:active {
   border-left: 2px solid var(--pbr-border);
 }
 
+.app-sidebar__nav-sub-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pbr-muted);
+  padding: 0.5rem 0.55rem 0.15rem;
+  margin-top: 0.15rem;
+}
+
+.app-sidebar__nav-sub-label:first-child {
+  margin-top: 0;
+  padding-top: 0.15rem;
+}
+
 .app-sidebar__nav-sub a {
   color: var(--pbr-muted);
   text-decoration: none;

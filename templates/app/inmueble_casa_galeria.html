@@ -5,7 +5,7 @@
 <h1 class="page-title">{{ form_title }}</h1>
 <p class="muted" style="margin-top:0;">
   <a href="{{ cancel_url }}" class="link-action">← Volver a datos del inmueble</a>
-  · <a href="{% url 'app:inmueble_list' %}" class="link-action">Listado</a>
+  · <a href="{% url 'app:inmueble_casa_list' %}" class="link-action">Listado casas</a>
 </p>
 <p class="muted">Ficha de venta y galería. No afecta el formulario principal de lotes u otros tipos.</p>
 <div id="inm-casa-only-page" data-tipo="{{ inmueble.tipo }}" hidden></div>

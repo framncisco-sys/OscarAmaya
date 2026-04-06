@@ -7,11 +7,15 @@
     <nav class="app-sidebar__nav">
       <a href="{% url 'app:proyecto_list' %}"{% if u == 'proyecto_list' or u == 'proyecto_create' or u == 'proyecto_update' %} class="is-active" aria-current="page"{% endif %}>Proyectos</a>
       <a href="{% url 'app:poligono_list' %}"{% if u == 'poligono_list' or u == 'poligono_create' or u == 'poligono_update' %} class="is-active" aria-current="page"{% endif %}>Polígonos</a>
-      <div class="app-sidebar__nav-group{% if u == 'inmueble_list' or u == 'inmueble_create' or u == 'inmueble_update' or u == 'inmueble_delete' or u == 'inmueble_casa_galeria' or u == 'inmueble_imagen_eliminar' or u == 'inmueble_imagen_portada' or u == 'inmueble_imagen_descripcion' %} app-sidebar__nav-group--current{% endif %}">
+      <div class="app-sidebar__nav-group{% if u == 'inmueble_list' or u == 'inmueble_create' or u == 'inmueble_casa_list' or u == 'inmueble_casa_create' or u == 'inmueble_update' or u == 'inmueble_delete' or u == 'inmueble_casa_galeria' or u == 'inmueble_imagen_eliminar' or u == 'inmueble_imagen_portada' or u == 'inmueble_imagen_descripcion' %} app-sidebar__nav-group--current{% endif %}">
         <span class="app-sidebar__nav-group-label">Inmuebles</span>
         <div class="app-sidebar__nav-sub">
+          <span class="app-sidebar__nav-sub-label">Inmueble lote</span>
           <a href="{% url 'app:inmueble_list' %}"{% if u == 'inmueble_list' %} class="is-active" aria-current="page"{% endif %}>Listado</a>
-          <a href="{% url 'app:inmueble_create' %}"{% if u == 'inmueble_create' %} class="is-active" aria-current="page"{% endif %}>Nuevo</a>
+          <a href="{% url 'app:inmueble_create' %}"{% if u == 'inmueble_create' %} class="is-active" aria-current="page"{% endif %}>Nuevo lote o local</a>
+          <span class="app-sidebar__nav-sub-label">Casa nueva o usada</span>
+          <a href="{% url 'app:inmueble_casa_list' %}"{% if u == 'inmueble_casa_list' %} class="is-active" aria-current="page"{% endif %}>Listado</a>
+          <a href="{% url 'app:inmueble_casa_create' %}"{% if u == 'inmueble_casa_create' %} class="is-active" aria-current="page"{% endif %}>Nueva casa</a>
         </div>
       </div>
       <a href="{% url 'app:contrato_list' %}"{% if u == 'contrato_list' or u == 'contrato_create' or u == 'contrato_update' or u == 'contrato_delete' or u == 'contrato_estado_cuenta' %} class="is-active" aria-current="page"{% endif %}>{% if contratos_restriccion_vendedor %}Mis contratos{% else %}Contratos{% endif %}</a>

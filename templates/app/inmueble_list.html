@@ -1,13 +1,13 @@
 {% extends "app/base_app.html" %}
-{% block title %}Inmuebles | Paredes Bienes Raíces{% endblock %}
+{% block title %}{{ listado_page_title|default:"Inmuebles" }} | Paredes Bienes Raíces{% endblock %}
 {% block app_content %}
 <header class="page-toolbar">
   <div class="page-toolbar__intro">
-    <h1 class="page-title">Inmuebles</h1>
-    <p class="page-toolbar__meta">Inventario de lotes y viviendas por proyecto y polígono.</p>
+    <h1 class="page-title">{{ listado_page_title|default:"Inmuebles" }}</h1>
+    <p class="page-toolbar__meta">{{ listado_meta|default:"Inventario por proyecto y polígono." }}</p>
   </div>
   <div class="page-toolbar__actions">
-    <a href="{% url 'app:inmueble_create' %}" class="btn-primary btn-sm">Nuevo inmueble</a>
+    <a href="{{ nuevo_url }}" class="btn-primary btn-sm">{{ nuevo_boton_label|default:"Nuevo" }}</a>
   </div>
 </header>
 <div class="data-panel">
@@ -23,7 +23,9 @@
       <th>Área (m²)</th>
       <th>Área (v²)</th>
       <th>Precio</th>
+      {% if es_listado_casas %}
       <th>Casa / fotos</th>
+      {% endif %}
       <th></th>
       <th></th>
     </tr>
@@ -40,16 +42,16 @@
       <td>{% if i.area_m2 %}{{ i.area_m2 }}{% else %}—{% endif %}</td>
       <td>{% if i.area_varas_cuadradas %}{{ i.area_varas_cuadradas }}{% else %}—{% endif %}</td>
       <td>${{ i.precio_lista }}</td>
+      {% if es_listado_casas %}
       <td>
-        {% if i.tipo == "CASA_NUEVA" or i.tipo == "CASA_SEGUNDA" %}
         <a href="{% url 'app:inmueble_casa_galeria' i.pk %}" class="link-action">Casa y fotos</a>
-        {% else %}—{% endif %}
       </td>
+      {% endif %}
       <td><a href="{% url 'app:inmueble_update' i.pk %}" class="link-action">Editar</a></td>
       <td><a href="{% url 'app:inmueble_delete' i.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a></td>
     </tr>
     {% empty %}
-    <tr><td colspan="12" class="muted">No hay inmuebles.</td></tr>
+    <tr><td colspan="{% if es_listado_casas %}12{% else %}11{% endif %}" class="muted">No hay inmuebles.</td></tr>
     {% endfor %}
   </tbody>
 </table>
