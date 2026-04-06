@@ -27,6 +27,7 @@ from .models import (
     CuotaProgramada,
     FormatoAceptacion,
     Inmueble,
+    InmuebleDetalleCasa,
     Pago,
     ParametroMora,
     Poligono,
@@ -251,6 +252,32 @@ class InmuebleForm(forms.ModelForm):
             cleaned["reserva_hasta"] = None
             cleaned["cliente_reserva"] = None
         return cleaned
+
+
+class InmuebleDetalleCasaForm(forms.ModelForm):
+    """Ficha de venta de casa (nueva o segunda); se muestra solo si el tipo de inmueble es casa."""
+
+    class Meta:
+        model = InmuebleDetalleCasa
+        exclude = ("inmueble",)
+        widgets = {
+            "garantia_construccion": forms.Textarea(attrs={"rows": 2, "class": "input"}),
+            "extras_incluidos": forms.Textarea(attrs={"rows": 2, "class": "input"}),
+            "conexiones_ac_calentador": forms.Textarea(attrs={"rows": 2, "class": "input"}),
+            "remodelaciones_recientes": forms.Textarea(attrs={"rows": 2, "class": "input"}),
+            "gravamenes_hipoteca": forms.Textarea(attrs={"rows": 2, "class": "input"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for _name, field in self.fields.items():
+            w = field.widget
+            if isinstance(w, forms.CheckboxInput):
+                continue
+            if isinstance(w, forms.ClearableFileInput):
+                w.attrs.setdefault("class", "input")
+            elif not isinstance(w, (forms.HiddenInput,)):
+                w.attrs.setdefault("class", "input")
 
 
 class ClienteForm(forms.ModelForm):

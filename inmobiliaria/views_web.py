@@ -22,7 +22,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import connection, transaction
-from django.db.models import ProtectedError, Sum
+from django.db.models import Max, ProtectedError, Sum
 from django.http import (
     FileResponse,
     Http404,
@@ -89,6 +89,8 @@ from .models import (
     CuotaProgramada,
     FormatoAceptacion,
     Inmueble,
+    InmuebleDetalleCasa,
+    InmuebleImagen,
     Pago,
     ParametroMora,
     Poligono,
@@ -135,6 +137,52 @@ def _verify_superuser_credentials(username: str, password: str) -> bool:
         is_active=True,
     ).first()
     return bool(u and u.check_password(password))
+
+
+def _inmueble_galeria_superusuario_post_ok(request: HttpRequest) -> bool:
+    """Subir / editar / eliminar imágenes de galería: credenciales de superusuario en cada solicitud."""
+    u = (request.POST.get("superuser_username") or "").strip()
+    p = (request.POST.get("superuser_password") or "").strip()
+    return _verify_superuser_credentials(u, p)
+
+
+def _inmueble_galeria_subida_error_o_none(request: HttpRequest) -> str | None:
+    if not request.FILES.getlist("galeria_fotos"):
+        return None
+    if not _inmueble_galeria_superusuario_post_ok(request):
+        return (
+            "Para subir fotos a la galería ingrese usuario y contraseña de un superusuario de Django "
+            "(campos al final de la sección Galería)."
+        )
+    return None
+
+
+def _inmueble_procesar_subida_galeria(request: HttpRequest, inv: Inmueble) -> None:
+    files = request.FILES.getlist("galeria_fotos")
+    if not files:
+        return
+    if not _inmueble_galeria_superusuario_post_ok(request):
+        return
+    raw_idx = (request.POST.get("galeria_portada_index") or "").strip()
+    try:
+        portada_i = int(raw_idx) if raw_idx != "" else None
+    except ValueError:
+        portada_i = None
+    max_o = InmuebleImagen.objects.filter(inmueble=inv).aggregate(m=Max("orden"))["m"] or 0
+    created_pks: list[int] = []
+    for i, f in enumerate(files):
+        img = InmuebleImagen.objects.create(
+            inmueble=inv,
+            imagen=f,
+            orden=max_o + i + 1,
+            url="",
+            es_portada=False,
+        )
+        created_pks.append(img.pk)
+    if portada_i is not None and 0 <= portada_i < len(created_pks):
+        pk_portada = created_pks[portada_i]
+        InmuebleImagen.objects.filter(inmueble=inv).update(es_portada=False)
+        InmuebleImagen.objects.filter(pk=pk_portada).update(es_portada=True)
 
 
 def _firma_preview_flags(formato: FormatoAceptacion | None) -> dict[str, bool]:
@@ -614,10 +662,41 @@ class InmuebleListView(AppLoginRequiredMixin, ListView):
     queryset = Inmueble.objects.select_related("proyecto", "poligono")
 
 
-class InmuebleCreateView(AppLoginRequiredMixin, CreateView):
+class InmuebleFormularioCasaGaleriaMixin:
+    """Plantilla unificada, multipart, ficha casa y listado de imágenes."""
+
+    template_name = "app/inmueble_form.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form_multipart"] = True
+        casa_form = kwargs.get("casa_form")
+        if casa_form is None:
+            casa_form = self._casa_form_for_get()
+        ctx["casa_form"] = casa_form
+        obj = getattr(self, "object", None)
+        if obj and getattr(obj, "pk", None):
+            imgs = list(InmuebleImagen.objects.filter(inmueble=obj))
+            imgs.sort(key=lambda x: (not x.es_portada, x.orden, x.pk))
+            ctx["inmueble_imagenes"] = imgs
+        else:
+            ctx["inmueble_imagenes"] = []
+        return ctx
+
+    def _casa_form_for_get(self) -> forms.InmuebleDetalleCasaForm:
+        inst = None
+        obj = getattr(self, "object", None)
+        if obj and obj.pk:
+            try:
+                inst = obj.detalle_casa
+            except InmuebleDetalleCasa.DoesNotExist:
+                inst = None
+        return forms.InmuebleDetalleCasaForm(prefix="casa", instance=inst)
+
+
+class InmuebleCreateView(AppLoginRequiredMixin, InmuebleFormularioCasaGaleriaMixin, CreateView):
     model = Inmueble
     form_class = forms.InmuebleForm
-    template_name = "app/object_form.html"
     success_url = reverse_lazy("app:inmueble_list")
 
     def get_context_data(self, **kwargs):
@@ -626,11 +705,45 @@ class InmuebleCreateView(AppLoginRequiredMixin, CreateView):
         ctx["cancel_url"] = reverse_lazy("app:inmueble_list")
         return ctx
 
+    def post(self, request, *args, **kwargs):
+        self.object = None
+        form_class = self.get_form_class()
+        form = form_class(request.POST, request.FILES)
+        casa_form = forms.InmuebleDetalleCasaForm(request.POST, request.FILES, prefix="casa")
+        if not form.is_valid():
+            return self.render_to_response(self.get_context_data(form=form, casa_form=casa_form))
+        tipo = form.cleaned_data.get("tipo")
+        if tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
+            if not casa_form.is_valid():
+                return self.render_to_response(self.get_context_data(form=form, casa_form=casa_form))
+        gal_err = _inmueble_galeria_subida_error_o_none(request)
+        if gal_err:
+            form.add_error(None, gal_err)
+            return self.render_to_response(self.get_context_data(form=form, casa_form=casa_form))
+        return self._guardar_inmueble_casa_y_galeria(form, casa_form, tipo)
 
-class InmuebleUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
+    def _guardar_inmueble_casa_y_galeria(self, form, casa_form, tipo) -> HttpResponseRedirect:
+        with transaction.atomic():
+            self.object = form.save()
+            if tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
+                det = casa_form.save(commit=False)
+                det.inmueble = self.object
+                det.save()
+            else:
+                InmuebleDetalleCasa.objects.filter(inmueble=self.object).delete()
+            _inmueble_procesar_subida_galeria(self.request, self.object)
+        messages.success(self.request, "Inmueble guardado.")
+        return HttpResponseRedirect(self.get_success_url())
+
+
+class InmuebleUpdateView(
+    AppLoginRequiredMixin,
+    SensitiveEditMixin,
+    InmuebleFormularioCasaGaleriaMixin,
+    UpdateView,
+):
     model = Inmueble
     form_class = forms.InmuebleForm
-    template_name = "app/inmueble_form.html"
     success_url = reverse_lazy("app:inmueble_list")
 
     def get_context_data(self, **kwargs):
@@ -639,6 +752,59 @@ class InmuebleUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
         ctx["cancel_url"] = reverse_lazy("app:inmueble_list")
         ctx["historial_precios"] = self.object.historial_precios.all()[:50]
         return ctx
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if not check_sensitive_write(request):
+            messages.error(
+                request,
+                "Debe confirmar su contraseña de acceso (final del formulario) o usar «Confirmar acceso» en la app.",
+            )
+            form_class = self.get_form_class()
+            form = form_class(request.POST, request.FILES, instance=self.object)
+            try:
+                det = self.object.detalle_casa
+            except InmuebleDetalleCasa.DoesNotExist:
+                det = None
+            casa_form = forms.InmuebleDetalleCasaForm(
+                request.POST, request.FILES, prefix="casa", instance=det
+            )
+            return self.render_to_response(self.get_context_data(form=form, casa_form=casa_form))
+        form_class = self.get_form_class()
+        form = form_class(request.POST, request.FILES, instance=self.object)
+        try:
+            det = self.object.detalle_casa
+        except InmuebleDetalleCasa.DoesNotExist:
+            det = None
+        casa_form = forms.InmuebleDetalleCasaForm(
+            request.POST, request.FILES, prefix="casa", instance=det
+        )
+        if not form.is_valid():
+            return self.render_to_response(self.get_context_data(form=form, casa_form=casa_form))
+        tipo = form.cleaned_data.get("tipo")
+        if tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
+            if not casa_form.is_valid():
+                return self.render_to_response(self.get_context_data(form=form, casa_form=casa_form))
+        gal_err = _inmueble_galeria_subida_error_o_none(request)
+        if gal_err:
+            form.add_error(None, gal_err)
+            return self.render_to_response(self.get_context_data(form=form, casa_form=casa_form))
+        return self._guardar_inmueble_casa_y_galeria(form, casa_form, tipo)
+
+    def _guardar_inmueble_casa_y_galeria(self, form, casa_form, tipo) -> HttpResponseRedirect:
+        with transaction.atomic():
+            self.object = form.save()
+            if tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
+                det = casa_form.save(commit=False)
+                det.inmueble = self.object
+                det.save()
+            else:
+                InmuebleDetalleCasa.objects.filter(inmueble=self.object).delete()
+            _inmueble_procesar_subida_galeria(self.request, self.object)
+        messages.success(self.request, "Inmueble guardado.")
+        if self.request.user.is_authenticated and not skips_sensitive_reauth(self.request.user):
+            grant(self.request)
+        return HttpResponseRedirect(self.get_success_url())
 
 
 # ——— Clientes ———
@@ -1665,6 +1831,57 @@ class InmuebleDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, DeleteView
         ctx["delete_title"] = "Eliminar inmueble"
         ctx["delete_blurb"] = "No se puede eliminar si hay contratos u otros registros enlazados a este lote o bien."
         return ctx
+
+
+def _redirect_inmueble_edit(inmueble_pk: int) -> HttpResponseRedirect:
+    return HttpResponseRedirect(reverse("app:inmueble_update", args=[inmueble_pk]))
+
+
+@login_required
+@require_POST
+def inmueble_imagen_eliminar(request: HttpRequest, inmueble_pk: int, pk: int) -> HttpResponseRedirect:
+    if not _inmueble_galeria_superusuario_post_ok(request):
+        messages.error(
+            request,
+            "Credenciales de superusuario incorrectas o incompletas. No se eliminó la imagen.",
+        )
+        return _redirect_inmueble_edit(inmueble_pk)
+    img = get_object_or_404(InmuebleImagen, pk=pk, inmueble_id=inmueble_pk)
+    img.delete()
+    messages.success(request, "Imagen eliminada.")
+    return _redirect_inmueble_edit(inmueble_pk)
+
+
+@login_required
+@require_POST
+def inmueble_imagen_portada(request: HttpRequest, inmueble_pk: int, pk: int) -> HttpResponseRedirect:
+    if not _inmueble_galeria_superusuario_post_ok(request):
+        messages.error(
+            request,
+            "Credenciales de superusuario incorrectas. No se cambió la portada.",
+        )
+        return _redirect_inmueble_edit(inmueble_pk)
+    img = get_object_or_404(InmuebleImagen, pk=pk, inmueble_id=inmueble_pk)
+    InmuebleImagen.objects.filter(inmueble_id=inmueble_pk).update(es_portada=False)
+    InmuebleImagen.objects.filter(pk=img.pk).update(es_portada=True)
+    messages.success(request, "Portada actualizada.")
+    return _redirect_inmueble_edit(inmueble_pk)
+
+
+@login_required
+@require_POST
+def inmueble_imagen_descripcion(request: HttpRequest, inmueble_pk: int, pk: int) -> HttpResponseRedirect:
+    if not _inmueble_galeria_superusuario_post_ok(request):
+        messages.error(
+            request,
+            "Credenciales de superusuario incorrectas. No se guardó la descripción.",
+        )
+        return _redirect_inmueble_edit(inmueble_pk)
+    img = get_object_or_404(InmuebleImagen, pk=pk, inmueble_id=inmueble_pk)
+    img.descripcion = (request.POST.get("descripcion") or "").strip()[:200]
+    img.save(update_fields=["descripcion"])
+    messages.success(request, "Descripción de la imagen actualizada.")
+    return _redirect_inmueble_edit(inmueble_pk)
 
 
 class ClienteDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, DeleteView):

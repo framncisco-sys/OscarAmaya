@@ -1,0 +1,23 @@
+{# Ficha venta casa — visible solo si tipo = CASA_NUEVA o CASA_SEGUNDA (JS). #}
+<section class="card" id="inm-casa-panel" style="display:none;margin-top:1rem;padding:1rem 1.1rem;">
+  <h2 class="page-title" style="font-size:1.05rem;margin-top:0;">Venta de casa (nueva o usada)</h2>
+  <p class="muted" style="margin:0 0 0.75rem;font-size:0.9rem;">
+    Complete la ficha según el tipo: en <strong>casa nueva</strong> destaque año de entrega y garantía; en <strong>casa usada</strong>, edad, estado y remodelaciones.
+  </p>
+  {% if casa_form.non_field_errors %}
+    <div class="alert" role="alert">{{ casa_form.non_field_errors }}</div>
+  {% endif %}
+  {% for field in casa_form %}
+    {% with fn=field.name %}
+    <div class="field inm-casa-row"
+      {% if fn == "ano_finalizacion_obra" or fn == "garantia_construccion" %}data-inm-casa-sub="nueva"
+      {% elif fn == "edad_construccion_anios" or fn == "estado_conservacion" or fn == "remodelaciones_recientes" %}data-inm-casa-sub="segunda"
+      {% else %}data-inm-casa-sub="all"{% endif %}>
+      <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      <div class="field__control">{{ field }}</div>
+      {% if field.help_text %}<div class="field__help muted">{{ field.help_text|safe }}</div>{% endif %}
+      {% if field.errors %}<div class="field__error" role="alert">{{ field.errors }}</div>{% endif %}
+    </div>
+    {% endwith %}
+  {% endfor %}
+</section>

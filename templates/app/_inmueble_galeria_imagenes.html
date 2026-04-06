@@ -1,0 +1,55 @@
+{# Fuera del formulario principal: acciones por imagen (POST independientes). #}
+{% if object and object.pk %}
+<section class="card" style="margin-top:1rem;padding:1rem 1.1rem;">
+  <h2 class="page-title" style="font-size:1.05rem;margin-top:0;">Administrar fotos guardadas</h2>
+  <p class="muted" style="font-size:0.9rem;">Cada acción requiere usuario y contraseña de <strong>superusuario</strong>.</p>
+  {% if inmueble_imagenes %}
+  <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:1rem;">
+    {% for img in inmueble_imagenes %}
+    <li class="card" style="padding:0.75rem;display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-start;">
+      <div style="flex:0 0 auto;">
+        {% if img.url_visual %}
+        <a href="{{ img.url_visual }}" target="_blank" rel="noopener">
+          <img src="{{ img.url_visual }}" alt="" width="140" height="105" style="object-fit:cover;border-radius:8px;border:1px solid var(--pbr-border);">
+        </a>
+        {% else %}
+        <span class="muted">Sin vista previa</span>
+        {% endif %}
+        {% if img.es_portada %}<div><span class="muted" style="font-size:0.8rem;">Portada</span></div>{% endif %}
+      </div>
+      <div style="flex:1;min-width:220px;">
+        <form method="post" action="{% url 'app:inmueble_imagen_descripcion' inmueble_pk=object.pk pk=img.pk %}" class="form-stack" style="margin-bottom:0.75rem;">
+          {% csrf_token %}
+          <label class="field__label" for="desc_{{ img.pk }}">Descripción</label>
+          <input type="text" name="descripcion" id="desc_{{ img.pk }}" value="{{ img.descripcion }}" maxlength="200" class="input" style="width:100%;max-width:28rem;box-sizing:border-box;margin-bottom:0.35rem;">
+          <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;">
+            <input type="text" name="superuser_username" autocomplete="username" class="input" placeholder="Usuario superusuario" style="max-width:10rem;">
+            <input type="password" name="superuser_password" autocomplete="current-password" class="input" placeholder="Contraseña" style="max-width:10rem;">
+            <button type="submit" class="btn-secondary" style="font-size:0.85rem;">Guardar descripción</button>
+          </div>
+        </form>
+        <form method="post" action="{% url 'app:inmueble_imagen_portada' inmueble_pk=object.pk pk=img.pk %}" style="margin-bottom:0.5rem;" onsubmit="return confirm('¿Marcar como portada?');">
+          {% csrf_token %}
+          <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;">
+            <input type="text" name="superuser_username" autocomplete="username" class="input" placeholder="Usuario superusuario" style="max-width:10rem;">
+            <input type="password" name="superuser_password" autocomplete="current-password" class="input" placeholder="Contraseña" style="max-width:10rem;">
+            <button type="submit" class="btn-secondary" style="font-size:0.85rem;">Usar como portada</button>
+          </div>
+        </form>
+        <form method="post" action="{% url 'app:inmueble_imagen_eliminar' inmueble_pk=object.pk pk=img.pk %}" onsubmit="return confirm('¿Eliminar esta imagen de forma permanente?');">
+          {% csrf_token %}
+          <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;">
+            <input type="text" name="superuser_username" autocomplete="username" class="input" placeholder="Usuario superusuario" style="max-width:10rem;">
+            <input type="password" name="superuser_password" autocomplete="current-password" class="input" placeholder="Contraseña" style="max-width:10rem;">
+            <button type="submit" class="btn-secondary" style="font-size:0.85rem;color:#b91c1c;">Eliminar imagen</button>
+          </div>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No hay fotos aún. Use el formulario de arriba para subirlas al guardar.</p>
+  {% endif %}
+</section>
+{% endif %}

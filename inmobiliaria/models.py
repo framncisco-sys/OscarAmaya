@@ -314,15 +314,213 @@ class Inmueble(models.Model):
         return f"{pol} · Lote {self.codigo}"
 
 
+class InmuebleDetalleCasa(models.Model):
+    """Ficha ampliada para venta de casa nueva o de segunda (no aplica a lotes ni locales)."""
+
+    class TipoConstruccion(models.TextChoices):
+        SISTEMA_BLOQUE = "SISTEMA_BLOQUE", "Sistema bloque"
+        PREFABRICADA = "PREFABRICADA", "Prefabricada"
+        ADOBE_REFORZADO = "ADOBE_REFORZADO", "Adobe reforzado"
+
+    class DistribucionSalaComedorCocina(models.TextChoices):
+        INDEPENDIENTES = "INDEPENDIENTES", "Independientes"
+        CONCEPTO_ABIERTO = "CONCEPTO_ABIERTO", "Concepto abierto"
+        MIXTO = "MIXTO", "Mixto / otro (amplíe en notas)"
+
+    class EstadoConservacion(models.TextChoices):
+        EXCELENTE = "EXCELENTE", "Excelente"
+        BUENO = "BUENO", "Bueno"
+        REQUIERE_REPARACIONES = "REQUIERE_REPARACIONES", "Requiere reparaciones"
+
+    inmueble = models.OneToOneField(
+        Inmueble,
+        on_delete=models.CASCADE,
+        related_name="detalle_casa",
+        verbose_name="Inmueble",
+    )
+    tipo_construccion = models.CharField(
+        "Tipo de construcción",
+        max_length=24,
+        choices=TipoConstruccion.choices,
+        blank=True,
+    )
+    niveles = models.PositiveSmallIntegerField(
+        "Niveles (plantas)",
+        null=True,
+        blank=True,
+        help_text="1, 2 o 3 plantas.",
+        validators=[MaxValueValidator(3), MinValueValidator(1)],
+    )
+    distribucion_sala_comedor_cocina = models.CharField(
+        "Sala, comedor y cocina",
+        max_length=24,
+        choices=DistribucionSalaComedorCocina.choices,
+        blank=True,
+        help_text="¿Independientes o concepto abierto?",
+    )
+    habitaciones = models.PositiveSmallIntegerField(
+        "Número de habitaciones",
+        null=True,
+        blank=True,
+    )
+    banos = models.DecimalField(
+        "Número de baños",
+        max_digits=4,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        help_text="Ej. 2 o 2,5.",
+    )
+    cochera_capacidad_vehiculos = models.PositiveSmallIntegerField(
+        "Cochera: capacidad (vehículos)",
+        null=True,
+        blank=True,
+    )
+    cochera_techada = models.BooleanField(
+        "Cochera techada",
+        default=False,
+    )
+    area_construccion_m2 = models.DecimalField(
+        "Área de construcción (m²)",
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+    )
+    modelo_casa = models.CharField(
+        "Modelo de casa",
+        max_length=120,
+        blank=True,
+        help_text='Ej. «Modelo Roble», «Modelo Gardenia».',
+    )
+    ano_finalizacion_obra = models.PositiveSmallIntegerField(
+        "Año de finalización de la obra",
+        null=True,
+        blank=True,
+        help_text="Cuándo se entrega o entregó la obra (casa nueva).",
+    )
+    garantia_construccion = models.TextField(
+        "Garantía de construcción",
+        blank=True,
+        help_text="Ej. 1 año en vicios ocultos, 5 años en estructura.",
+    )
+    extras_incluidos = models.TextField(
+        "Extras incluidos",
+        blank=True,
+        help_text="Ej. piso cerámico, encimeras de granito, closets.",
+    )
+    conexiones_ac_calentador = models.TextField(
+        "Conexiones (aire acondicionado / calentador)",
+        blank=True,
+        help_text="Si ya tiene acometida u observaciones.",
+    )
+    edad_construccion_anios = models.PositiveSmallIntegerField(
+        "Edad de la construcción (años, aprox.)",
+        null=True,
+        blank=True,
+    )
+    estado_conservacion = models.CharField(
+        "Estado de conservación",
+        max_length=24,
+        choices=EstadoConservacion.choices,
+        blank=True,
+    )
+    remodelaciones_recientes = models.TextField(
+        "Remodelaciones recientes",
+        blank=True,
+        help_text='Ej. «Techo cambiado en 2024», «Piso nuevo».',
+    )
+    gravamenes_hipoteca = models.TextField(
+        "Gravámenes / hipoteca",
+        blank=True,
+        help_text="¿Hipoteca vigente con algún banco? (relevante para compraventa).",
+    )
+    servicio_anda_al_dia = models.BooleanField(
+        "Servicio de agua (ANDA) al día",
+        default=False,
+    )
+    servicio_eeh_al_dia = models.BooleanField(
+        "Energía eléctrica (EEH/DELSUR) al día",
+        default=False,
+    )
+    servicio_alcaldia_al_dia = models.BooleanField(
+        "Impuestos municipales (Alcaldía) al día",
+        default=False,
+    )
+    escritura_copia = models.FileField(
+        "Escritura (copia simple)",
+        upload_to="inmuebles/casas/escritura/%Y/%m/",
+        blank=True,
+        help_text="Para validar matrícula en CNR.",
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["pdf", "png", "jpg", "jpeg", "webp"],
+                message="Use PDF o imagen (JPG, PNG, WEBP).",
+            )
+        ],
+    )
+    dui_dueno = models.CharField(
+        "DUI del dueño",
+        max_length=20,
+        blank=True,
+        help_text="Para formato de aceptación y trámites.",
+        validators=[validar_dui_sv],
+    )
+    recibo_luz_agua = models.FileField(
+        "Recibo de luz y/o agua",
+        upload_to="inmuebles/casas/recibos/%Y/%m/",
+        blank=True,
+        help_text="Verificar dirección y ausencia de mora.",
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["pdf", "png", "jpg", "jpeg", "webp"],
+                message="Use PDF o imagen.",
+            )
+        ],
+    )
+    plano_catastro = models.FileField(
+        "Plano de catastro",
+        upload_to="inmuebles/casas/catastro/%Y/%m/",
+        blank=True,
+        help_text="Ayuda a la valuación bancaria.",
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["pdf", "png", "jpg", "jpeg", "webp"],
+                message="Use PDF o imagen.",
+            )
+        ],
+    )
+
+    class Meta:
+        verbose_name = "Detalle de casa (venta)"
+        verbose_name_plural = "Detalles de casas (venta)"
+
+    def __str__(self) -> str:
+        return f"Detalle casa · {self.inmueble.codigo}"
+
+
 class InmuebleImagen(models.Model):
-    """Galería (URL para no exigir almacenamiento de archivos en MVP)."""
+    """Galería: URL externa y/o archivo; una imagen puede marcarse como portada."""
 
     inmueble = models.ForeignKey(
         Inmueble,
         on_delete=models.CASCADE,
         related_name="imagenes",
     )
-    url = models.URLField()
+    url = models.URLField(blank=True, default="")
+    imagen = models.ImageField(
+        "Archivo de imagen",
+        upload_to="inmuebles/galeria/%Y/%m/",
+        blank=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["png", "jpg", "jpeg", "webp", "gif"],
+                message="Use PNG, JPG, JPEG, WEBP o GIF.",
+            )
+        ],
+    )
+    es_portada = models.BooleanField("Portada", default=False)
     orden = models.PositiveSmallIntegerField(default=0)
     descripcion = models.CharField(max_length=200, blank=True)
 
@@ -333,6 +531,20 @@ class InmuebleImagen(models.Model):
 
     def __str__(self) -> str:
         return f"Img {self.inmueble.codigo}"
+
+    def clean(self) -> None:
+        super().clean()
+        if not (self.url or "").strip() and not self.imagen:
+            from django.core.exceptions import ValidationError
+
+            raise ValidationError("Indique una URL o suba un archivo de imagen.")
+
+    @property
+    def url_visual(self) -> str:
+        if self.imagen and self.imagen.name:
+            return self.imagen.url
+        u = (self.url or "").strip()
+        return u
 
 
 class HistorialPrecioInmueble(models.Model):

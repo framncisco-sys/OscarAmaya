@@ -1,0 +1,35 @@
+{# Dentro del formulario principal: subida múltiple + credenciales superusuario. #}
+<section class="card" style="margin-top:1rem;padding:1rem 1.1rem;">
+  <h2 class="page-title" style="font-size:1.05rem;margin-top:0;">Galería de fotos</h2>
+  <p class="muted" style="font-size:0.9rem;">
+    Para <strong>subir</strong> fotos en este guardado, indique usuario y contraseña de un <strong>superusuario</strong>.
+    Para portada, eliminar o editar descripción de fotos ya guardadas, use la sección debajo del formulario (también pide superusuario).
+  </p>
+  <div class="field" style="margin-top:0.75rem;">
+    <label class="field__label" for="id_galeria_fotos">Agregar fotos (varias)</label>
+    <div class="field__control">
+      <input type="file" name="galeria_fotos" id="id_galeria_fotos" accept="image/png,image/jpeg,image/webp,image/gif" multiple class="input">
+    </div>
+  </div>
+  <div class="field">
+    <label class="field__label" for="id_galeria_portada_index">Portada entre las nuevas: índice (0 = primera)</label>
+    <div class="field__control">
+      <input type="number" name="galeria_portada_index" id="id_galeria_portada_index" min="0" step="1" class="input" style="max-width:8rem;" placeholder="vacío = ninguna">
+    </div>
+  </div>
+  <fieldset style="border:1px solid var(--pbr-border);border-radius:10px;padding:0.75rem 1rem;margin-top:1rem;">
+    <legend class="muted" style="font-size:0.85rem;">Superusuario (solo si sube fotos aquí)</legend>
+    <div class="field">
+      <label class="field__label" for="id_galeria_su_user">Usuario</label>
+      <div class="field__control">
+        <input type="text" name="superuser_username" id="id_galeria_su_user" autocomplete="username" class="input" style="max-width:min(100%,320px);">
+      </div>
+    </div>
+    <div class="field">
+      <label class="field__label" for="id_galeria_su_pass">Contraseña</label>
+      <div class="field__control">
+        <input type="password" name="superuser_password" id="id_galeria_su_pass" autocomplete="current-password" class="input" style="max-width:min(100%,320px);">
+      </div>
+    </div>
+  </fieldset>
+</section>

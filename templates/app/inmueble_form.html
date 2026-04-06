@@ -1,4 +1,9 @@
 {% extends "app/object_form.html" %}
+{% load static %}
+{% block form_before_actions %}
+  {% include "app/_inmueble_casa_detalle.html" %}
+  {% include "app/_inmueble_galeria_upload.html" %}
+{% endblock %}
 {% block form_extras %}
 {% if historial_precios %}
 <section class="card" style="margin-top:1rem;">
@@ -23,4 +28,9 @@
   </table>
 </section>
 {% endif %}
+{% include "app/_inmueble_galeria_imagenes.html" %}
+{% endblock %}
+{% block extra_js %}
+{{ block.super }}
+<script src="{% static 'js/inmueble_casa_tipo.js' %}"></script>
 {% endblock %}

@@ -24,6 +24,21 @@ urlpatterns = [
     path("inmuebles/nuevo/", views.InmuebleCreateView.as_view(), name="inmueble_create"),
     path("inmuebles/<int:pk>/editar/", views.InmuebleUpdateView.as_view(), name="inmueble_update"),
     path("inmuebles/<int:pk>/eliminar/", views.InmuebleDeleteView.as_view(), name="inmueble_delete"),
+    path(
+        "inmuebles/<int:inmueble_pk>/imagenes/<int:pk>/eliminar/",
+        views.inmueble_imagen_eliminar,
+        name="inmueble_imagen_eliminar",
+    ),
+    path(
+        "inmuebles/<int:inmueble_pk>/imagenes/<int:pk>/portada/",
+        views.inmueble_imagen_portada,
+        name="inmueble_imagen_portada",
+    ),
+    path(
+        "inmuebles/<int:inmueble_pk>/imagenes/<int:pk>/descripcion/",
+        views.inmueble_imagen_descripcion,
+        name="inmueble_imagen_descripcion",
+    ),
     path("clientes/", views.ClienteListView.as_view(), name="cliente_list"),
     path("clientes/nuevo/", views.ClienteCreateView.as_view(), name="cliente_create"),
     path("clientes/<int:pk>/editar/", views.ClienteUpdateView.as_view(), name="cliente_update"),
