@@ -297,14 +297,9 @@ class InmuebleCasaAltaForm(InmuebleForm):
     class Meta(InmuebleForm.Meta):
         fields = [
             "proyecto",
-            "poligono",
             "tipo",
-            "estado",
             "codigo",
             "precio_lista",
-            "cliente_reserva",
-            "reserva_hasta",
-            "notas",
         ]
 
     def __init__(self, *args, modo_tipo: str = "casa", **kwargs):
@@ -319,9 +314,6 @@ class InmuebleCasaAltaForm(InmuebleForm):
         if pf:
             pf.widget.attrs.setdefault("step", "0.01")
             pf.widget.attrs.setdefault("min", "0")
-        nt = self.fields.get("notas")
-        if nt and isinstance(nt.widget, forms.Textarea):
-            nt.widget.attrs.setdefault("rows", 3)
 
 
 class InmuebleDetalleCasaForm(forms.ModelForm):
