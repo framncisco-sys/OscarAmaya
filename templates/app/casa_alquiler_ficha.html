@@ -4,33 +4,58 @@
 <h1 class="page-title">{{ form_title }}</h1>
 <p class="muted" style="margin-top:0;">
   <a href="{{ cancel_url }}" class="link-action">← Casas en alquiler</a>
-  · <a href="{% url 'app:inmueble_casa_galeria' inmueble.pk %}" class="link-action">Casa y fotos</a>
-  · <a href="{% url 'app:inmueble_update' inmueble.pk %}" class="link-action">Editar inmueble</a>
+  {% if inmueble and inmueble.pk %}
+  · <a href="{% url 'app:inmueble_update' inmueble.pk %}" class="link-action">Mapa, geometría y más campos</a>
+  {% endif %}
 </p>
-<p class="muted" style="margin-bottom:1rem;">Inventario, restricciones, servicios incluidos en la renta, monto mensual, depósito en garantía (no es renta) y vigencia del contrato.</p>
+<p class="muted" style="margin-bottom:1rem;">
+  En una sola pantalla: datos de la vivienda (inventario), condiciones de arrendamiento y, si corresponde, fotos nuevas al guardar.
+</p>
 
 <form method="post" class="form-stack" enctype="multipart/form-data">
   {% csrf_token %}
-  {% for field in casa_alquiler_form.hidden_fields %}
-    {{ field }}
-  {% endfor %}
-  {% if casa_alquiler_form.non_field_errors %}
-    <div class="alert" role="alert">{{ casa_alquiler_form.non_field_errors }}</div>
-  {% endif %}
-  {% for field in casa_alquiler_form.visible_fields %}
-    {% if field.name == "acepta_mascotas" %}
-    <div class="card" style="padding:0.85rem 1rem;margin:0.75rem 0;border:1px dashed var(--pbr-border, #ccc);border-radius:10px;">
-      <p class="field__label" style="margin:0 0 0.5rem;"><strong>Restricciones</strong></p>
-      <p class="muted" style="margin:0 0 0.65rem;font-size:0.88rem;">Mascotas, cupo de personas y uso habitacional.</p>
-    </div>
+  <section class="card" style="padding:1rem 1.1rem;margin-bottom:1rem;">
+    <h2 class="page-title" style="font-size:1.05rem;margin-top:0;">Datos de la vivienda (inventario)</h2>
+    {% for field in inv_form.hidden_fields %}
+      {{ field }}
+    {% endfor %}
+    {% if inv_form.non_field_errors %}
+      <div class="alert" role="alert">{{ inv_form.non_field_errors }}</div>
     {% endif %}
-    <div class="field">
-      <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-      <div class="field__control">{{ field }}</div>
-      {% if field.help_text %}<div class="field__help muted">{{ field.help_text }}</div>{% endif %}
-      {% if field.errors %}<div class="field__error" role="alert">{{ field.errors }}</div>{% endif %}
-    </div>
-  {% endfor %}
+    {% for field in inv_form.visible_fields %}
+      <div class="field">
+        <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        <div class="field__control">{{ field }}</div>
+        {% if field.help_text %}<div class="field__help muted">{{ field.help_text }}</div>{% endif %}
+        {% if field.errors %}<div class="field__error" role="alert">{{ field.errors }}</div>{% endif %}
+      </div>
+    {% endfor %}
+  </section>
+
+  <section class="card" style="padding:1rem 1.1rem;margin-bottom:1rem;">
+    <h2 class="page-title" style="font-size:1.05rem;margin-top:0;">Condiciones del arrendamiento</h2>
+    {% for field in casa_alquiler_form.hidden_fields %}
+      {{ field }}
+    {% endfor %}
+    {% if casa_alquiler_form.non_field_errors %}
+      <div class="alert" role="alert">{{ casa_alquiler_form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in casa_alquiler_form.visible_fields %}
+      {% if field.name == "acepta_mascotas" %}
+      <div class="card" style="padding:0.85rem 1rem;margin:0.75rem 0;border:1px dashed var(--pbr-border, #ccc);border-radius:10px;">
+        <p class="field__label" style="margin:0 0 0.5rem;"><strong>Restricciones</strong></p>
+        <p class="muted" style="margin:0 0 0.65rem;font-size:0.88rem;">Mascotas, cupo de personas y uso habitacional.</p>
+      </div>
+      {% endif %}
+      <div class="field">
+        <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        <div class="field__control">{{ field }}</div>
+        {% if field.help_text %}<div class="field__help muted">{{ field.help_text }}</div>{% endif %}
+        {% if field.errors %}<div class="field__error" role="alert">{{ field.errors }}</div>{% endif %}
+      </div>
+    {% endfor %}
+  </section>
+
   {% include "app/_inmueble_galeria_upload.html" %}
   {% if sensitive_password_required %}
   <div class="field">
@@ -43,7 +68,7 @@
   </div>
   {% endif %}
   <div class="form-actions">
-    <button type="submit" class="btn-primary">Guardar ficha de alquiler</button>
+    <button type="submit" class="btn-primary">{% if es_alta_casa_alquiler %}Registrar casa{% else %}Guardar todo{% endif %}</button>
     <a href="{{ cancel_url }}" class="btn-secondary">Cancelar</a>
   </div>
 </form>
