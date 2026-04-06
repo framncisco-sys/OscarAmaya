@@ -1,6 +1,9 @@
 # Referencia breve para DigitalOcean App Platform (revise la documentación oficial
 # porque el esquema puede variar). Ajuste repo, region y todas las variables.
 #
+# ERROR común: column inmobiliaria_inmueble.en_alquiler does not exist
+# (Arrendamientos / Locales o Casas en alquiler). Misma causa: migrate no aplicado en PostgreSQL.
+#
 # ERROR común: column inmobiliaria_pago.formato_aceptacion_id does not exist
 # Causa: el código nuevo está desplegado pero NO se ejecutó migrate en PostgreSQL.
 # Solución:

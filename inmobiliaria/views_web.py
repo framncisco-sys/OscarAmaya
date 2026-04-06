@@ -23,6 +23,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import connection, transaction
 from django.db.models import Max, ProtectedError, Sum
+from django.db.utils import ProgrammingError
 from django.http import (
     FileResponse,
     Http404,
@@ -716,7 +717,30 @@ class InmuebleCasaListView(AppLoginRequiredMixin, ListView):
         return ctx
 
 
-class ArrendamientoLocalesListView(AppLoginRequiredMixin, ListView):
+class ArrendamientoListProgrammingErrorMixin:
+    """
+    Si en producción no se ejecutó migrate (p. ej. falta 0030_en_alquiler),
+    el filtro por en_alquiler provoca ProgrammingError: mensaje claro en lugar de página amarilla.
+    """
+
+    def get(self, request, *args, **kwargs):
+        try:
+            return super().get(request, *args, **kwargs)
+        except ProgrammingError as exc:
+            if "en_alquiler" not in str(exc):
+                raise
+            messages.error(
+                request,
+                "Faltan migraciones en la base de datos (columna «en alquiler»). "
+                "Ejecute: python manage.py migrate --noinput. "
+                "En DigitalOcean use como Run Command: bash scripts/run_web.sh",
+            )
+            return HttpResponseRedirect(reverse("app:index"))
+
+
+class ArrendamientoLocalesListView(
+    AppLoginRequiredMixin, ArrendamientoListProgrammingErrorMixin, ListView
+):
     """Locales comerciales marcados para alquiler."""
 
     model = Inmueble
@@ -744,7 +768,9 @@ class ArrendamientoLocalesListView(AppLoginRequiredMixin, ListView):
         return ctx
 
 
-class ArrendamientoCasasListView(AppLoginRequiredMixin, ListView):
+class ArrendamientoCasasListView(
+    AppLoginRequiredMixin, ArrendamientoListProgrammingErrorMixin, ListView
+):
     """Casas (nueva o segunda) marcadas para alquiler."""
 
     model = Inmueble
