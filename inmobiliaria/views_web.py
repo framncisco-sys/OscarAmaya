@@ -743,7 +743,7 @@ class InmuebleCreateCasaView(AppLoginRequiredMixin, View):
         return render(request, self.template_name, self._ctx(form, casa_form))
 
     def post(self, request, *args, **kwargs):
-        form = forms.InmuebleCasaAltaForm(request.POST, modo_tipo="casa")
+        form = forms.InmuebleCasaAltaForm(request.POST, request.FILES, modo_tipo="casa")
         casa_form = forms.InmuebleDetalleCasaForm(
             request.POST, request.FILES, prefix="casa"
         )
@@ -863,16 +863,35 @@ class InmuebleCasaGaleriaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, 
         )
         if not casa_form.is_valid():
             return render(request, self.template_name, self.get_context_data(casa_form=casa_form))
-        gal_err = _inmueble_galeria_subida_error_o_none(request)
-        if gal_err:
-            messages.error(request, gal_err)
-            return render(request, self.template_name, self.get_context_data(casa_form=casa_form))
+        # Guardar ficha y archivos del detalle en transacción aparte: si falla la galería o credenciales
+        # de superusuario, no se pierden datos ni documentos ya validados.
         with transaction.atomic():
             det = casa_form.save(commit=False)
             det.inmueble = self.inmueble
             det.save()
-            _inmueble_procesar_subida_galeria(request, self.inmueble)
-        messages.success(request, "Ficha de casa y galería guardadas.")
+        messages.success(
+            request,
+            "Ficha de casa guardada (texto y documentos adjuntos: escritura, recibos, plano, etc.).",
+        )
+
+        gal_err = _inmueble_galeria_subida_error_o_none(request)
+        if gal_err:
+            messages.error(request, gal_err)
+        else:
+            n_fotos = len(request.FILES.getlist("galeria_fotos"))
+            try:
+                with transaction.atomic():
+                    _inmueble_procesar_subida_galeria(request, self.inmueble)
+            except Exception:
+                logger.exception("Error al guardar fotos de galería (inmueble casa)")
+                messages.error(
+                    request,
+                    "La ficha ya está guardada; revise las fotos (formato, tamaño) o vuelva a intentar.",
+                )
+            else:
+                if n_fotos:
+                    messages.success(request, f"Se agregaron {n_fotos} foto(s) a la galería.")
+
         if request.user.is_authenticated and not skips_sensitive_reauth(request.user):
             grant(request)
         return HttpResponseRedirect(reverse("app:inmueble_casa_galeria", args=[self.inmueble.pk]))
