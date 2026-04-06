@@ -501,10 +501,19 @@ class InmuebleDetalleCasa(models.Model):
         max_length=40,
         blank=True,
     )
-    medios_pago_dueno = models.TextField(
-        "Medios de pago que acepta el dueño",
-        blank=True,
-        help_text="Ej. solo efectivo, Fondo Social, acuerdo con banco.",
+    pago_dueno_efectivo = models.BooleanField(
+        "Efectivo",
+        default=False,
+        help_text="El dueño acepta pago en efectivo.",
+    )
+    pago_dueno_fondo_social = models.BooleanField(
+        "Financiamiento con Fondo Social",
+        default=False,
+    )
+    pago_dueno_sistema_financiero = models.BooleanField(
+        "Sistema financiero (banco)",
+        default=False,
+        help_text="El dueño acepta trato o financiamiento vía banco.",
     )
     recibo_luz_agua = models.FileField(
         "Recibo de luz y/o agua",

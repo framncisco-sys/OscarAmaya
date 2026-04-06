@@ -9,6 +9,12 @@
   {% endif %}
   {% for field in casa_form %}
     {% with fn=field.name %}
+    {% if fn == "pago_dueno_efectivo" %}
+    <div class="inm-casa-row" data-inm-casa-sub="all" style="margin-top:0.75rem;padding-top:0.65rem;border-top:1px dashed var(--pbr-border, #ccc);">
+      <p class="field__label" style="margin:0 0 0.35rem;"><strong>Medios de pago que acepta el dueño</strong></p>
+      <p class="muted" style="margin:0;font-size:0.88rem;">Marque efectivo, Fondo Social y/o sistema financiero si aplica (puede elegir más de una).</p>
+    </div>
+    {% endif %}
     <div class="field inm-casa-row"
       {% if fn == "ano_finalizacion_obra" or fn == "garantia_construccion" %}data-inm-casa-sub="nueva"
       {% elif fn == "edad_construccion_anios" or fn == "estado_conservacion" or fn == "remodelaciones_recientes" %}data-inm-casa-sub="segunda"

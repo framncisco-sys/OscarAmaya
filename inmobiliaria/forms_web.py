@@ -332,7 +332,6 @@ class InmuebleDetalleCasaForm(forms.ModelForm):
             "remodelaciones_recientes": forms.Textarea(attrs={"rows": 2, "class": "input"}),
             "gravamenes_hipoteca": forms.Textarea(attrs={"rows": 2, "class": "input"}),
             "direccion_dueno": forms.Textarea(attrs={"rows": 2, "class": "input"}),
-            "medios_pago_dueno": forms.Textarea(attrs={"rows": 2, "class": "input"}),
         }
 
     def __init__(self, *args, **kwargs):
