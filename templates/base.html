@@ -5,55 +5,114 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1a2d42">
+  <script>
+    /* Detección inicial antes del CSS (evita salto de layout) */
+    (function () {
+      var w = window.innerWidth || 1024;
+      var ua = navigator.userAgent || "";
+      var mobile = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+      var tablet = /iPad|Tablet|PlayBook|Silk|Android(?!.*Mobile)/i.test(ua);
+      var tvUa = /SmartTV|SMART-TV|GoogleTV|AppleTV|HbbTV|NetCast|Tizen|FireTV|Roku|CrKey|BRAVIA/i.test(ua);
+      var v;
+      var cls;
+      if (tvUa || w >= 2560) {
+        v = "tv";
+        cls = "tv";
+      } else if (w < 640 || (mobile && !tablet && w < 900)) {
+        v = "phone";
+        cls = "mobile";
+      } else if (w < 1024 || tablet) {
+        v = "tablet";
+        cls = "mobile";
+      } else if (w < 1440) {
+        v = "laptop";
+        cls = "computer";
+      } else if (w < 1920) {
+        v = "desktop";
+        cls = "computer";
+      } else {
+        v = "large";
+        cls = "computer";
+      }
+      var html = document.documentElement;
+      html.setAttribute("data-pbr-view", v);
+      html.setAttribute("data-pbr-class", cls);
+      html.setAttribute(
+        "data-pbr-device",
+        cls === "mobile" ? v : cls === "tv" ? "tv" : v === "laptop" ? "laptop" : "desktop"
+      );
+      html.className = "pbr-view-" + v + " pbr-class-" + cls;
+    })();
+  </script>
   <title>{% block title %}Paredes Bienes Raíces{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'theme.css' %}">
+  <script src="{% static 'js/pbr-viewport.js' %}" defer></script>
+  <script src="{% static 'js/pbr-offline.js' %}" defer></script>
+  <script src="{% static 'js/pbr-loader.js' %}" defer></script>
+  <script src="{% static 'js/pbr-header.js' %}" defer></script>
   <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
   <link rel="manifest" href="{% url 'pbr_web_manifest' %}">
 </head>
 <body class="{% block body_class %}app-body{% endblock %}">
-  <div id="pbr-offline-bar" class="pbr-offline-bar" role="status" aria-live="polite" hidden>
-    Sin conexión a Internet. Puede seguir viendo páginas ya visitadas; para guardar cambios en el servidor espere a recuperar la red — al reconectar se actualizará la página.
+  {% include "includes/pbr_system_loader.html" %}
+  <div id="pbr-offline-bar" class="pbr-offline-bar pbr-offline-bar--offline" role="status" aria-live="polite" hidden>
+    Sin conexión a Internet. Puede seguir trabajando; al recuperar la red se subirán los cambios.
   </div>
-  <header class="app-header">
+  <header class="app-header" id="pbr-app-header" data-pbr-header>
     <div class="app-wrap app-header__inner">
-      <a class="brand brand--logo" href="{% url 'home' %}" aria-label="Paredes Desarrollos Inmobiliarios — inicio">
-        <img src="{% static 'logo_paredes_desarrollos.png' %}" alt="Paredes Desarrollos Inmobiliarios" class="brand__img" decoding="async">
+      <a class="brand brand--logo" href="{% url 'home' %}" aria-label="{{ marca_portal.nombre|default:'Paredes' }} — inicio">
+        <img src="{% static marca_portal.logo|default:'logo_paredes_desarrollos.png' %}" alt="{{ marca_portal.nombre|default:'Paredes' }}" class="brand__img" decoding="async">
       </a>
       <div class="app-header__right">
         {% if request.user.is_authenticated %}
-        <div class="app-session" aria-label="Usuario en sesión">
-          <span class="status-badge status-badge--online" title="Conectado — sesión activa" role="img" aria-label="Conectado"></span>
-          <div class="app-session__stack">
+        <div class="app-user-chip" aria-label="Usuario en sesión">
+          <div class="app-user-chip__avatar" aria-hidden="true">
             {% if request.user.get_full_name %}
-            <span class="app-session__name">{{ request.user.get_full_name }}</span>
-            <span class="app-session__login">@{{ request.user.username }}</span>
+              {{ request.user.get_full_name|slice:":1"|upper }}
             {% else %}
-            <span class="app-session__name">{{ request.user.username }}</span>
+              {{ request.user.username|slice:":1"|upper }}
             {% endif %}
-            <span class="app-session__rol">
+          </div>
+          <div class="app-user-chip__body">
+            <span class="app-user-chip__name">
+              {% if request.user.get_full_name %}{{ request.user.get_full_name }}{% else %}{{ request.user.username }}{% endif %}
+            </span>
+            {% if request.user.get_full_name %}
+            <span class="app-user-chip__login">@{{ request.user.username }}</span>
+            {% endif %}
+            <span class="app-role-badge{% if request.user.is_superuser %} app-role-badge--admin{% endif %}">
+              <span class="status-badge status-badge--online status-badge--compact" title="Conectado" aria-hidden="true"></span>
               {% if request.user.is_superuser %}
                 Superusuario
               {% elif perfil_app_ctx %}
                 {{ perfil_app_ctx.get_rol_display }}
               {% else %}
-                Sin perfil en la app
+                Sin perfil
               {% endif %}
             </span>
           </div>
         </div>
-        {% endif %}
-        <nav class="app-nav" aria-label="Principal">
-          {% if request.user.is_authenticated %}
-            <a href="{% url 'app:index' %}">Gestión</a>
-            <a href="{% url 'dashboard' %}">Dashboard</a>
-            <form method="post" action="{% url 'logout' %}">
-              {% csrf_token %}
-              <button type="submit" class="link-btn">Cerrar sesión</button>
-            </form>
-          {% else %}
-            <a href="{% url 'login' %}">Ingresar</a>
-          {% endif %}
+        <form method="post" action="{% url 'logout' %}" class="app-header__logout">
+          {% csrf_token %}
+          <button type="submit" class="app-header__logout-btn" title="Cerrar sesión">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span>Salir</span>
+          </button>
+        </form>
+        {% elif request.resolver_match.url_name != 'login' %}
+        <nav class="app-nav app-nav--guest" aria-label="Acceso al sistema">
+          <a href="{% url 'login' %}" class="app-nav__cta">
+            <span class="app-nav__cta-glow" aria-hidden="true"></span>
+            <span class="app-nav__cta-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            </span>
+            <span class="app-nav__cta-text">
+              <strong>Ingresar</strong>
+              <small>Acceso al sistema</small>
+            </span>
+          </a>
         </nav>
+        {% endif %}
       </div>
     </div>
   </header>
@@ -61,7 +120,7 @@
     {% if messages %}
     <div class="app-wrap" style="padding-top:0.75rem;">
       {% for message in messages %}
-      <div class="alert {% if message.tags %}alert--{{ message.tags }}{% endif %}" role="alert">{{ message }}</div>
+      <div class="alert {% if message.tags %}alert--{{ message.tags }}{% endif %}" role="alert">{% if 'allow_html' in message.tags %}{{ message|safe }}{% else %}{{ message }}{% endif %}</div>
       {% endfor %}
     </div>
     {% endif %}
@@ -70,82 +129,19 @@
   {% block extra_js %}{% endblock %}
   <script>
     (function () {
-      function pbrApplyViewportClass() {
-        var html = document.documentElement;
-        var w = window.innerWidth || document.documentElement.clientWidth;
-        var coarse = window.matchMedia("(pointer: coarse)").matches;
-        var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        var device = "computer";
-        var view = "desktop";
-        if (w < 640) {
-          device = "phone";
-          view = "phone";
-        } else if (w < 1024) {
-          view = "tablet";
-        } else if (w < 1920) {
-          view = "desktop";
-        } else if (w < 2560) {
-          view = "large";
-        } else {
-          device = "tv";
-          view = "tv";
-        }
-        if (coarse && w < 1024) device = "phone";
-        html.dataset.pbrDevice = device;
-        html.dataset.pbrView = view;
-        html.dataset.pbrPointer = coarse ? "coarse" : "fine";
-        if (reduce) html.dataset.pbrReducedMotion = "1";
-        else delete html.dataset.pbrReducedMotion;
-      }
-      var t;
-      function onResize() {
-        clearTimeout(t);
-        t = setTimeout(pbrApplyViewportClass, 100);
-      }
-      pbrApplyViewportClass();
-      window.addEventListener("resize", onResize);
-      window.addEventListener("orientationchange", onResize);
-      window.matchMedia("(pointer: coarse)").addEventListener("change", pbrApplyViewportClass);
-      window.matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", pbrApplyViewportClass);
-    })();
-  </script>
-  <script>
-    (function () {
-      var bar = document.getElementById("pbr-offline-bar");
-      function setBar(visible) {
-        if (!bar) return;
-        bar.hidden = !visible;
-        bar.setAttribute("aria-hidden", visible ? "false" : "true");
-        document.body.classList.toggle("pbr-network-offline", visible);
-      }
-      function pbrReloadAfterOnline() {
-        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-          navigator.serviceWorker.getRegistration().then(function (reg) {
-            if (reg && reg.waiting) {
-              reg.waiting.postMessage("SKIP_WAITING");
-            }
-            return reg ? reg.update() : null;
-          }).finally(function () {
-            window.location.reload();
-          });
-        } else {
-          window.location.reload();
-        }
-      }
-      var hadDisconnect = !navigator.onLine;
-      window.addEventListener("offline", function () {
-        hadDisconnect = true;
-        setBar(true);
-      });
-      window.addEventListener("online", function () {
-        setBar(false);
-        if (hadDisconnect) {
-          hadDisconnect = false;
-          window.setTimeout(pbrReloadAfterOnline, 400);
-        }
-      });
-      if (!navigator.onLine) {
-        setBar(true);
+      var swUrl = "{% url 'pbr_service_worker' %}";
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker
+          .register(swUrl, { scope: "/" })
+          .then(function (reg) {
+            return reg.update();
+          })
+          .catch(function () {});
+        navigator.serviceWorker.addEventListener("message", function (ev) {
+          if (ev.data && ev.data.type === "PBR_SYNC_NOW" && window.pbrOffline) {
+            window.pbrOffline.sync();
+          }
+        });
       }
       document.addEventListener("visibilitychange", function () {
         if (document.visibilityState !== "visible" || !navigator.onLine) return;
@@ -155,15 +151,6 @@
           });
         }
       });
-      var swUrl = "{% url 'pbr_service_worker' %}";
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker
-          .register(swUrl, { scope: "/" })
-          .then(function (reg) {
-            return reg.update();
-          })
-          .catch(function () {});
-      }
     })();
   </script>
 </body>

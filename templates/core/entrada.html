@@ -1,25 +1,20 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Inicio | Paredes Bienes Raíces{% endblock %}
+{% block title %}Inicio | Paredes{% endblock %}
 
 {% block content %}
 <div class="app-wrap">
 <section class="card login-card">
   <p class="login-card__brand">
-    <img src="{% static 'logo_paredes_desarrollos.png' %}" alt="Paredes Desarrollos Inmobiliarios" class="login-card__logo" decoding="async">
+    <img src="{% static 'logo_paredes_bienes_raices.png' %}" alt="Paredes Bienes Raíces" class="login-card__logo" decoding="async">
   </p>
   <h1 class="page-title">Bienvenido</h1>
-  <p class="page-lead">Elige una opción para continuar.</p>
+  <p class="page-lead">Ingrese al sistema o vea el catálogo público de Paredes Bienes Raíces.</p>
   <div class="form-grid">
-    <a class="btn-primary btn-block" href="{% url 'login' %}">Ir al ingreso</a>
-    <a class="btn-secondary btn-block" href="{% url 'ping' %}">Probar conexión (/ping/)</a>
+    <a class="btn-primary btn-block" href="{% url 'login' %}">Ingresar al sistema</a>
+    <a class="btn-secondary btn-block" href="{% url 'catalogo:list' %}">Catálogo Bienes Raíces</a>
   </div>
-  <p class="muted code-hint">
-    URLs útiles:<br>
-    <code>http://127.0.0.1:8000/login/</code><br>
-    <code>http://127.0.0.1:8000/ping/</code>
-  </p>
 </section>
 </div>
 {% endblock %}

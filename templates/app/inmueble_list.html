@@ -51,19 +51,30 @@
       {% if es_listado_casas %}
       <td>
         <a href="{% url 'app:inmueble_casa_galeria' i.pk %}" class="link-action">Casa y fotos</a>
+        · <a href="{% url 'app:recibo_comision_casa_venta' %}" class="link-action">Recibo comisión</a>
       </td>
       {% endif %}
       {% if es_listado_casas_alquiler %}
       <td>
         <a href="{% url 'app:casa_alquiler_ficha' i.pk %}" class="link-action">Ficha alquiler</a>
+        · <a href="{% url 'app:emitir_recibo_comision_alquiler' i.pk %}" class="link-action">Recibo comisión</a>
       </td>
       {% endif %}
       {% if es_listado_locales_alquiler %}
       <td>
         <a href="{% url 'app:local_alquiler_ficha' i.pk %}" class="link-action">Ficha alquiler</a>
+        · <a href="{% url 'app:emitir_recibo_comision_alquiler' i.pk %}" class="link-action">Recibo comisión</a>
       </td>
       {% endif %}
-      <td><a href="{% url 'app:inmueble_update' i.pk %}" class="link-action">Editar</a></td>
+      <td>
+        {% if es_listado_casas_alquiler %}
+        <a href="{% url 'app:casa_alquiler_ficha' i.pk %}" class="link-action">Editar ficha</a>
+        {% elif es_listado_locales_alquiler %}
+        <a href="{% url 'app:local_alquiler_ficha' i.pk %}" class="link-action">Editar ficha</a>
+        {% else %}
+        <a href="{% url 'app:inmueble_update' i.pk %}" class="link-action">Editar</a>
+        {% endif %}
+      </td>
       <td><a href="{% url 'app:inmueble_delete' i.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a></td>
     </tr>
     {% empty %}

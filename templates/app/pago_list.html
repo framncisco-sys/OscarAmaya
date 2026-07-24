@@ -1,5 +1,5 @@
 {% extends "app/base_app.html" %}
-{% block title %}Pagos | Paredes Bienes Raíces{% endblock %}
+{% block title %}Pagos | {{ marca_portal.nombre }}{% endblock %}
 {% block app_content %}
 {% if contrato_filtro %}
 <p class="alert" role="status" style="margin-bottom:1rem;">
@@ -11,14 +11,34 @@
 {% endif %}
 <header class="page-toolbar">
   <div class="page-toolbar__intro">
-    <h1 class="page-title">Pagos</h1>
-    <p class="page-toolbar__meta">Primas, cuotas y abonos registrados.</p>
+    <h1 class="page-title">{% if filtro_validacion == 'pendiente' %}Abonos pendientes de gerencia{% else %}Pagos{% endif %}</h1>
+    <p class="page-toolbar__meta">
+      Reserva, prima y cuotas a plazos: el vendedor registra el abono; gerencia confirma el depósito en cuenta y recién entonces se emite el recibo (correo/WhatsApp).
+    </p>
   </div>
   <div class="page-toolbar__actions">
+    {% if puede_validar_abonos_app and pagos_pendientes_validacion_ct %}
+    <a href="{% url 'app:pago_list' %}?validacion=pendiente" class="btn-secondary btn-sm">
+      Pendientes ({{ pagos_pendientes_validacion_ct }})
+    </a>
+    {% endif %}
     <a href="{% url 'app:pago_create' %}" class="btn-primary btn-sm">Registrar pago</a>
-    <a href="{% url 'app:export_pagos_csv' %}" class="btn-secondary btn-sm">Exportar CSV (contabilidad)</a>
+    <a href="{% url 'app:export_pagos_csv' %}" class="btn-secondary btn-sm">Exportar CSV</a>
   </div>
 </header>
+
+{% if filtro_validacion == 'pendiente' %}
+<p class="alert alert--info" role="status" style="margin-bottom:1rem;">
+  Solo reservas, primas y cuotas a la espera de confirmación de depósito.
+  <a href="{% url 'app:pago_list' %}">Ver todos los pagos</a>
+</p>
+{% elif pagos_pendientes_validacion_ct and puede_validar_abonos_app %}
+<p class="alert" role="status" style="margin-bottom:1rem;">
+  Hay <strong>{{ pagos_pendientes_validacion_ct }}</strong> abono(s) pendiente(s) de validación.
+  <a href="{% url 'app:pago_list' %}?validacion=pendiente">Revisar ahora</a>
+</p>
+{% endif %}
+
 <div class="data-panel">
 <table class="table">
   <thead>
@@ -28,6 +48,7 @@
       <th>Cliente</th>
       <th>Concepto</th>
       <th>Monto</th>
+      <th>Validación</th>
       <th></th>
     </tr>
   </thead>
@@ -40,15 +61,31 @@
       <td>{{ p.get_concepto_display }}</td>
       <td>${{ p.monto }}</td>
       <td>
+        {% if p.validacion_abono == 'PENDIENTE' %}
+        <span class="badge badge--reservado">Pendiente gerencia</span>
+        {% elif p.validacion_abono == 'VALIDADO' %}
+        <span class="badge badge--disponible">Validado</span>
+        {% elif p.validacion_abono == 'RECHAZADO' %}
+        <span class="badge badge--vendido">Rechazado</span>
+        {% else %}
+        <span class="muted">—</span>
+        {% endif %}
+      </td>
+      <td>
         <div class="action-cluster">
-          <a href="{% url 'app:pago_update' p.pk %}" class="link-action">Editar</a>
+          {% if p.pendiente_validacion_gerente and puede_validar_abonos_app %}
+          <a href="{% url 'app:pago_validar_abono' p.pk %}" class="link-action">Confirmar abono</a>
+          <a href="{% url 'app:pago_rechazar_abono' p.pk %}" class="link-action" style="color:#b91c1c;">Rechazar</a>
+          {% elif p.puede_emitir_recibo_cliente %}
           <a href="{% url 'app:emitir_recibo' p.pk %}" class="link-action">Recibo PDF</a>
+          {% endif %}
+          <a href="{% url 'app:pago_update' p.pk %}" class="link-action">Editar</a>
           <a href="{% url 'app:pago_delete' p.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a>
         </div>
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="6" class="muted">No hay pagos.</td></tr>
+    <tr><td colspan="7" class="muted">No hay pagos{% if filtro_validacion == 'pendiente' %} pendientes{% endif %}.</td></tr>
     {% endfor %}
   </tbody>
 </table>

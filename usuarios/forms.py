@@ -7,6 +7,12 @@ from .models import PerfilUsuario
 
 User = get_user_model()
 
+_ROL_HELP = (
+    "Administrador / Gerencia: acceso completo. "
+    "Ventas / comercial: solo el flujo de venta (formato, contrato, pagos). "
+    "Tras crear un vendedor, vincúlelo en el catálogo Vendedores."
+)
+
 
 class UsuarioAppCrearForm(forms.Form):
     username = forms.CharField(
@@ -22,6 +28,7 @@ class UsuarioAppCrearForm(forms.Form):
     )
     email = forms.EmailField(
         required=False,
+        label="Correo",
         widget=forms.EmailInput(attrs={"autocomplete": "email"}),
     )
     first_name = forms.CharField(
@@ -45,21 +52,27 @@ class UsuarioAppCrearForm(forms.Form):
         widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
     )
     rol = forms.ChoiceField(
-        label="Rol en la aplicación",
+        label="Rol",
         choices=PerfilUsuario.Rol.choices,
+        help_text=_ROL_HELP,
     )
-    telefono = forms.CharField(max_length=40, required=False)
-    activo_en_app = forms.BooleanField(
-        label="Activo en gestión web (/app/)",
+    telefono = forms.CharField(label="Teléfono", max_length=40, required=False)
+    cuenta_activa = forms.BooleanField(
+        label="Cuenta activa (puede iniciar sesión y usar la app)",
         initial=True,
         required=False,
     )
-    is_staff = forms.BooleanField(
-        label="Puede acceder al sitio de administración Django (/interno/)",
-        initial=True,
+    acceso_interno = forms.BooleanField(
+        label="Acceso técnico al panel interno (/interno/)",
+        initial=False,
         required=False,
-        help_text="Solo marque si necesita el panel admin clásico.",
+        help_text="Solo para personal de sistemas. Los vendedores y la gerencia de oficina no lo necesitan.",
     )
+
+    def __init__(self, *args, mostrar_acceso_interno: bool = False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not mostrar_acceso_interno:
+            self.fields.pop("acceso_interno", None)
 
     def clean_username(self):
         u = self.cleaned_data["username"].strip()
@@ -79,7 +92,7 @@ class UsuarioAppCrearForm(forms.Form):
 
 
 class UsuarioAppEditarForm(forms.Form):
-    email = forms.EmailField(required=False)
+    email = forms.EmailField(required=False, label="Correo")
     first_name = forms.CharField(label="Nombre", max_length=150, required=False)
     last_name = forms.CharField(label="Apellidos", max_length=150, required=False)
     password1 = forms.CharField(
@@ -95,21 +108,26 @@ class UsuarioAppEditarForm(forms.Form):
         required=False,
     )
     rol = forms.ChoiceField(
-        label="Rol en la aplicación",
+        label="Rol",
         choices=PerfilUsuario.Rol.choices,
-        help_text="Se guarda el rol que elija. Si el usuario sigue marcado como superusuario de Django, conserva acceso total en /interno/ aunque aquí figure otro rol.",
+        help_text=_ROL_HELP,
     )
-    telefono = forms.CharField(max_length=40, required=False)
-    notas = forms.CharField(widget=forms.Textarea, required=False)
-    activo_en_app = forms.BooleanField(
-        label="Activo en gestión web (/app/)",
+    telefono = forms.CharField(label="Teléfono", max_length=40, required=False)
+    notas = forms.CharField(label="Notas internas", widget=forms.Textarea, required=False)
+    cuenta_activa = forms.BooleanField(
+        label="Cuenta activa (puede iniciar sesión y usar la app)",
         required=False,
     )
-    is_active = forms.BooleanField(label="Usuario activo (Django)", required=False)
-    is_staff = forms.BooleanField(
-        label="Staff Django (/interno/)",
+    acceso_interno = forms.BooleanField(
+        label="Acceso técnico al panel interno (/interno/)",
         required=False,
+        help_text="Solo para personal de sistemas. Los vendedores y la gerencia de oficina no lo necesitan.",
     )
+
+    def __init__(self, *args, mostrar_acceso_interno: bool = False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not mostrar_acceso_interno:
+            self.fields.pop("acceso_interno", None)
 
     def clean(self):
         data = super().clean()

@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block body_class %}app-body app-body--catalogo{% endblock %}
+{% block title %}{{ inmueble.codigo }} · {{ inmueble.proyecto.nombre }} | Catálogo{% endblock %}
+
+{% block content %}
+<div class="app-wrap catalogo catalogo--detalle">
+  <nav class="catalogo-nav" aria-label="Volver">
+    <a href="{% url 'catalogo:list' %}">&larr; Volver al catálogo</a>
+  </nav>
+
+  <header class="catalogo-detalle-head">
+    <p class="catalogo-detalle-head__proy">{{ inmueble.proyecto.nombre }}</p>
+    <h1 class="catalogo-detalle-head__title">{{ inmueble.get_tipo_display }} · {{ inmueble.codigo }}</h1>
+    <p class="catalogo-detalle-head__meta">
+      {% if inmueble.poligono %}{{ inmueble.poligono.nombre }} · {% endif %}
+      {% if inmueble.proyecto.municipio %}{{ inmueble.proyecto.municipio }}{% endif %}{% if inmueble.proyecto.municipio and inmueble.proyecto.departamento %}, {% endif %}{% if inmueble.proyecto.departamento %}{{ inmueble.proyecto.departamento }}{% endif %}
+    </p>
+  </header>
+
+  <aside class="catalogo-share catalogo-share--compact" aria-label="Enviar este inmueble al cliente">
+    <p class="catalogo-share__label">Enlace y QR de este inmueble (solo fotos)</p>
+    <div class="catalogo-share__grid">
+      <div class="catalogo-share__qr-box">
+        <img
+          class="catalogo-share__qr"
+          id="catalogo-qr-img"
+          src="{{ catalogo_qr_url }}"
+          alt="Código QR de este inmueble"
+          width="148"
+          height="148"
+        >
+        <p class="catalogo-share__qr-cap muted">QR de esta ficha</p>
+        <div class="catalogo-share__qr-actions">
+          <a class="btn-secondary catalogo-share__btn" id="catalogo-qr-download" href="{{ catalogo_qr_url }}" download="catalogo-inmueble-{{ inmueble.pk }}-qr.png">Descargar QR</a>
+          <button type="button" class="btn-secondary catalogo-share__btn" id="catalogo-qr-refresh">Generar otro QR</button>
+        </div>
+      </div>
+      <div class="catalogo-share__links">
+        <p class="catalogo-share__hint muted" style="margin-top:0;">
+          Cada inmueble tiene su propio QR. Se regenera con la URL actual (no es el mismo del listado ni del manual).
+        </p>
+        <div class="catalogo-share__row">
+          <input type="text" class="catalogo-share__url" id="catalogo-share-url" readonly value="{{ catalogo_share_url }}" aria-label="URL de la galería">
+          <button type="button" class="btn-primary catalogo-share__btn" id="catalogo-copy-btn">Copiar enlace</button>
+          <a class="btn-secondary catalogo-share__btn" id="catalogo-wa-btn" target="_blank" rel="noopener">WhatsApp</a>
+        </div>
+        <p class="catalogo-share__hint muted" id="catalogo-copy-msg" hidden>Enlace copiado.</p>
+      </div>
+    </div>
+  </aside>
+
+  {% if imagenes %}
+  <div class="catalogo-galeria" data-catalogo-galeria>
+    {% for img in imagenes %}
+    <figure class="catalogo-galeria__item">
+      <button type="button" class="catalogo-galeria__btn" data-catalogo-open="{{ forloop.counter0 }}" aria-label="Ampliar foto{% if img.descripcion %}: {{ img.descripcion }}{% endif %}">
+        <img src="{{ img.url_visual }}" alt="{{ img.descripcion|default:inmueble.codigo }}" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}" decoding="async">
+      </button>
+      {% if img.descripcion %}
+      <figcaption class="catalogo-galeria__cap">{{ img.descripcion }}</figcaption>
+      {% endif %}
+    </figure>
+    {% endfor %}
+  </div>
+
+  <div class="catalogo-lightbox" id="catalogo-lightbox" hidden>
+    <button type="button" class="catalogo-lightbox__close" data-catalogo-close aria-label="Cerrar">&times;</button>
+    <button type="button" class="catalogo-lightbox__nav catalogo-lightbox__nav--prev" data-catalogo-prev aria-label="Anterior">&#10094;</button>
+    <img src="" alt="" class="catalogo-lightbox__img" data-catalogo-img>
+    <button type="button" class="catalogo-lightbox__nav catalogo-lightbox__nav--next" data-catalogo-next aria-label="Siguiente">&#10095;</button>
+    <p class="catalogo-lightbox__cap" data-catalogo-cap></p>
+  </div>
+  {% else %}
+  <div class="catalogo-empty card">
+    <p class="page-lead" style="margin:0;">Este inmueble aún no tiene fotografías publicadas.</p>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+(function () {
+  var input = document.getElementById("catalogo-share-url");
+  var btn = document.getElementById("catalogo-copy-btn");
+  var msg = document.getElementById("catalogo-copy-msg");
+  var wa = document.getElementById("catalogo-wa-btn");
+  var qrImg = document.getElementById("catalogo-qr-img");
+  var qrDl = document.getElementById("catalogo-qr-download");
+  var qrRefresh = document.getElementById("catalogo-qr-refresh");
+  if (input && btn) {
+    var url = input.value;
+    if (wa) {
+      wa.href = "https://wa.me/?text=" + encodeURIComponent(
+        "Le comparto las fotos de {{ inmueble.get_tipo_display|escapejs }} {{ inmueble.codigo|escapejs }} ({{ inmueble.proyecto.nombre|escapejs }}):\n" + url
+      );
+    }
+    btn.addEventListener("click", function () {
+      function ok() {
+        if (msg) { msg.hidden = false; }
+        btn.textContent = "¡Copiado!";
+        setTimeout(function () { btn.textContent = "Copiar enlace"; }, 2000);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(ok).catch(function () {
+          input.select();
+          document.execCommand("copy");
+          ok();
+        });
+      } else {
+        input.select();
+        document.execCommand("copy");
+        ok();
+      }
+    });
+  }
+  if (qrRefresh && qrImg) {
+    qrRefresh.addEventListener("click", function () {
+      var base = qrImg.getAttribute("src").split("?")[0];
+      var stamp = String(Date.now());
+      var next = base + "?v=" + stamp;
+      qrImg.src = next;
+      if (qrDl) {
+        qrDl.href = next;
+        qrDl.setAttribute("download", "catalogo-inmueble-{{ inmueble.pk }}-qr-" + stamp + ".png");
+      }
+      qrRefresh.textContent = "QR actualizado";
+      setTimeout(function () { qrRefresh.textContent = "Generar otro QR"; }, 1600);
+    });
+  }
+})();
+</script>
+{% if imagenes %}
+<script>
+(function () {
+  var urls = [
+    {% for img in imagenes %}
+    { src: "{{ img.url_visual|escapejs }}", cap: "{{ img.descripcion|default:''|escapejs }}" }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+  var box = document.getElementById("catalogo-lightbox");
+  if (!box || !urls.length) return;
+  var imgEl = box.querySelector("[data-catalogo-img]");
+  var capEl = box.querySelector("[data-catalogo-cap]");
+  var idx = 0;
+  function show(i) {
+    idx = (i + urls.length) % urls.length;
+    imgEl.src = urls[idx].src;
+    imgEl.alt = urls[idx].cap || "";
+    capEl.textContent = urls[idx].cap || "";
+    box.hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+  function hide() {
+    box.hidden = true;
+    document.body.style.overflow = "";
+  }
+  document.querySelectorAll("[data-catalogo-open]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      show(parseInt(btn.getAttribute("data-catalogo-open"), 10) || 0);
+    });
+  });
+  box.querySelector("[data-catalogo-close]").addEventListener("click", hide);
+  box.querySelector("[data-catalogo-prev]").addEventListener("click", function () { show(idx - 1); });
+  box.querySelector("[data-catalogo-next]").addEventListener("click", function () { show(idx + 1); });
+  box.addEventListener("click", function (e) { if (e.target === box) hide(); });
+  document.addEventListener("keydown", function (e) {
+    if (box.hidden) return;
+    if (e.key === "Escape") hide();
+    if (e.key === "ArrowLeft") show(idx - 1);
+    if (e.key === "ArrowRight") show(idx + 1);
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

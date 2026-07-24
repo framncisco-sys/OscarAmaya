@@ -1,11 +1,14 @@
 {% extends "app/object_form.html" %}
 {% block after_page_title %}
-<p class="muted page-lead" style="max-width: 40rem;">
-  El <strong>día de vencimiento</strong> de cada cuota mensual debe coincidir con lo acordado en el
-  <strong>formato de aceptación</strong> vinculado al contrato (campos «Fecha pago primera cuota» y
-  «Fecha de pago mensual»). Al generar cuotas en el contrato, el sistema sugiere esa primera fecha;
-  el resto cae el <strong>mismo día de cada mes</strong> hasta la última cuota.
-  Aquí solo configura la <strong>tasa diaria</strong> y los <strong>días de gracia</strong> respecto
-  a esas fechas de vencimiento.
+<p class="muted page-lead" style="max-width: 42rem;">
+  No se usa «mora» por interés diario. Ustedes definen:
+</p>
+<ol class="muted page-lead" style="max-width: 42rem; margin-top: 0;">
+  <li><strong>Monto del recargo administrativo</strong> (cantidad fija).</li>
+  <li><strong>Días de gracia</strong> después de la fecha de vencimiento de la cuota.</li>
+</ol>
+<p class="muted page-lead" style="max-width: 42rem;">
+  Ejemplo: cuota vence el día 5, gracia = 5 → el recargo aplica desde el 11.
+  Si no pagaron ese mes, en el siguiente mes el cobro es <strong>cuota + recargo</strong>.
 </p>
 {% endblock %}

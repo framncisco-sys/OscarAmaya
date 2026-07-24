@@ -1,0 +1,58 @@
+{% extends "app/base_app.html" %}
+{% block title %}{{ page_title }} | Paredes Bienes Raíces{% endblock %}
+
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">{{ page_title }}</h1>
+    <p class="page-toolbar__meta">{{ page_meta }}</p>
+  </div>
+</header>
+
+<section class="card pbr-card--info" style="margin-bottom:1.25rem;">
+  <h2 class="page-title" style="font-size:1.05rem;margin:0 0 0.5rem;">Vincular cliente (alquiler)</h2>
+  <p class="muted" style="margin:0;line-height:1.55;">
+    En la ficha del local o casa, campo <strong>Inquilino / arrendatario</strong> → elija el cliente del módulo Clientes.
+  </p>
+</section>
+
+<div class="grid-modulos dash-modulos">
+  <a class="card modulo dash-modulo" href="{% url 'app:arrendamiento_locales_list' %}">
+    <span class="dash-modulo__icon">🏪</span>
+    <h3>Locales en alquiler</h3>
+    <p>Listado guardado{% if sidebar_stats %} · {{ sidebar_stats.alquiler_locales }} registrado{{ sidebar_stats.alquiler_locales|pluralize:"s" }}{% endif %}</p>
+  </a>
+  <a class="card modulo dash-modulo" href="{% url 'app:local_alquiler_create' %}">
+    <span class="dash-modulo__icon">➕</span>
+    <h3>Nuevo alquiler de local</h3>
+    <p>Alta con condiciones de arrendamiento e inquilino opcional.</p>
+  </a>
+  <a class="card modulo dash-modulo" href="{% url 'app:arrendamiento_casas_list' %}">
+    <span class="dash-modulo__icon">🏠</span>
+    <h3>Casas en alquiler</h3>
+    <p>Listado guardado{% if sidebar_stats %} · {{ sidebar_stats.alquiler_casas }} registrada{{ sidebar_stats.alquiler_casas|pluralize:"s" }}{% endif %}</p>
+  </a>
+  <a class="card modulo dash-modulo" href="{% url 'app:casa_alquiler_create' %}">
+    <span class="dash-modulo__icon">➕</span>
+    <h3>Nuevo alquiler de casa</h3>
+    <p>Ficha de arrendamiento, inventario y arrendatario.</p>
+  </a>
+  <a class="card modulo dash-modulo" href="{% url 'app:recibo_comision_alquiler_local' %}">
+    <span class="dash-modulo__icon">💰</span>
+    <h3>Comisión · local en alquiler</h3>
+    <p>Recibo PDF de comisión al vendedor por arrendamiento de local.</p>
+  </a>
+  <a class="card modulo dash-modulo" href="{% url 'app:recibo_comision_alquiler_casa' %}">
+    <span class="dash-modulo__icon">💰</span>
+    <h3>Comisión · casa en alquiler</h3>
+    <p>Recibo PDF de comisión al asesor por arrendamiento de casa.</p>
+  </a>
+  {% if puede_gestionar_vendedores_app %}
+  <a class="card modulo dash-modulo" href="{% url 'app:asesor_alquiler_list' %}">
+    <span class="dash-modulo__icon">👤</span>
+    <h3>Asesores de alquiler</h3>
+    <p>Catálogo propio del módulo de arrendamientos (no es vendedores de proyectos).</p>
+  </a>
+  {% endif %}
+</div>
+{% endblock %}

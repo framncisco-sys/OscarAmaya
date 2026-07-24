@@ -60,10 +60,12 @@ def usuario_create(request: HttpRequest) -> HttpResponse:
     if not puede_gestionar_usuarios(request.user):
         return HttpResponseForbidden("Sin permiso para crear usuarios.")
 
+    mostrar_interno = request.user.is_superuser
     if request.method == "POST":
-        form = UsuarioAppCrearForm(request.POST)
+        form = UsuarioAppCrearForm(request.POST, mostrar_acceso_interno=mostrar_interno)
         if form.is_valid():
             cd = form.cleaned_data
+            activa = bool(cd.get("cuenta_activa", True))
             with transaction.atomic():
                 u = User.objects.create_user(
                     username=cd["username"],
@@ -71,13 +73,13 @@ def usuario_create(request: HttpRequest) -> HttpResponse:
                     password=cd["password1"],
                     first_name=cd.get("first_name") or "",
                     last_name=cd.get("last_name") or "",
-                    is_staff=cd.get("is_staff", False),
-                    is_active=True,
+                    is_staff=bool(cd.get("acceso_interno", False)) if mostrar_interno else False,
+                    is_active=activa,
                 )
                 perfil, _ = PerfilUsuario.objects.get_or_create(user=u)
                 perfil.rol = cd["rol"]
                 perfil.telefono = cd.get("telefono") or ""
-                perfil.activo_en_app = cd.get("activo_en_app", True)
+                perfil.activo_en_app = activa
                 perfil.save()
             u.refresh_from_db()
             perfil.refresh_from_db()
@@ -90,10 +92,17 @@ def usuario_create(request: HttpRequest) -> HttpResponse:
                 before=None,
                 after=snapshot_auth_user(u),
             )
-            messages.success(request, f"Usuario «{u.username}» creado.")
+            if cd["rol"] == PerfilUsuario.Rol.VENTAS:
+                messages.success(
+                    request,
+                    f"Usuario «{u.username}» creado. "
+                    "Para el flujo de vendedor: vaya a Vendedores y asigne este usuario en «Usuario vínculo».",
+                )
+            else:
+                messages.success(request, f"Usuario «{u.username}» creado.")
             return redirect("app:usuario_list")
     else:
-        form = UsuarioAppCrearForm()
+        form = UsuarioAppCrearForm(mostrar_acceso_interno=mostrar_interno)
 
     return render(
         request,
@@ -116,17 +125,20 @@ def usuario_update(request: HttpRequest, pk: int) -> HttpResponse:
     if user.is_superuser and not request.user.is_superuser:
         return HttpResponseForbidden("Solo un superusuario puede editar a otro superusuario.")
     perfil, _ = PerfilUsuario.objects.get_or_create(user=user)
+    mostrar_interno = request.user.is_superuser
 
     if request.method == "POST":
-        form = UsuarioAppEditarForm(request.POST)
+        form = UsuarioAppEditarForm(request.POST, mostrar_acceso_interno=mostrar_interno)
         if form.is_valid():
             cd = form.cleaned_data
             antes = snapshot_auth_user(user)
+            activa = bool(cd.get("cuenta_activa"))
             user.email = cd.get("email") or ""
             user.first_name = cd.get("first_name") or ""
             user.last_name = cd.get("last_name") or ""
-            user.is_active = cd["is_active"]
-            user.is_staff = cd["is_staff"]
+            user.is_active = activa
+            if mostrar_interno:
+                user.is_staff = bool(cd.get("acceso_interno"))
             p1 = cd.get("password1") or ""
             if p1:
                 user.set_password(p1)
@@ -134,7 +146,7 @@ def usuario_update(request: HttpRequest, pk: int) -> HttpResponse:
             perfil.rol = cd["rol"]
             perfil.telefono = cd.get("telefono") or ""
             perfil.notas = cd.get("notas") or ""
-            perfil.activo_en_app = cd["activo_en_app"]
+            perfil.activo_en_app = activa
             perfil.save()
             user.refresh_from_db()
             perfil.refresh_from_db()
@@ -160,10 +172,10 @@ def usuario_update(request: HttpRequest, pk: int) -> HttpResponse:
                 "rol": perfil.rol,
                 "telefono": perfil.telefono,
                 "notas": perfil.notas,
-                "activo_en_app": perfil.activo_en_app,
-                "is_active": user.is_active,
-                "is_staff": user.is_staff,
-            }
+                "cuenta_activa": bool(user.is_active and perfil.activo_en_app),
+                "acceso_interno": user.is_staff,
+            },
+            mostrar_acceso_interno=mostrar_interno,
         )
 
     return render(

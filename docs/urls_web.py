@@ -13,4 +13,3 @@ urlpatterns = [
         name="emitir_recibo_comision",
     ),
 ]
-

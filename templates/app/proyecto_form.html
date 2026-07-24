@@ -1,0 +1,75 @@
+{% extends "app/base_app.html" %}
+{% block title %}{{ form_title }} | {{ marca_portal.nombre }}{% endblock %}
+
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">{{ form_title }}</h1>
+    <p class="page-toolbar__meta">
+      Registre los datos del residencial, su <strong>logo</strong> (documentos PDF) y el <strong>plano</strong> (mapa de lotes).
+    </p>
+  </div>
+</header>
+
+<form method="post" class="form-stack" enctype="multipart/form-data">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="alert" role="alert">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  {% for field in form %}
+  {% if field.name != 'logo' and field.name != 'plano_maestro' %}
+  <div class="field">
+    <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+    <div class="field__control">{{ field }}</div>
+    {% if field.help_text %}<div class="field__help muted">{{ field.help_text|safe }}</div>{% endif %}
+    {% if field.errors %}<div class="field__error" role="alert">{{ field.errors }}</div>{% endif %}
+  </div>
+  {% endif %}
+  {% endfor %}
+
+  <section class="card" style="margin:1rem 0;padding:1rem 1.1rem;">
+    <h2 style="font-size:1rem;margin:0 0 0.85rem;">Logo y plano del proyecto</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));gap:1.25rem;">
+      <div class="field" style="margin:0;">
+        <label class="field__label" for="{{ form.logo.id_for_label }}">{{ form.logo.label }}</label>
+        {% if object and object.logo %}
+        <p style="margin:0 0 0.5rem;">
+          <img src="{{ object.logo.url }}" alt="Logo actual" style="max-height:96px;max-width:100%;object-fit:contain;border:1px solid #e2e8f0;border-radius:8px;background:#fff;padding:6px;">
+        </p>
+        {% endif %}
+        <div class="field__control">{{ form.logo }}</div>
+        {% if form.logo.help_text %}<div class="field__help muted">{{ form.logo.help_text|safe }}</div>{% endif %}
+        {% if form.logo.errors %}<div class="field__error" role="alert">{{ form.logo.errors }}</div>{% endif %}
+      </div>
+      <div class="field" style="margin:0;">
+        <label class="field__label" for="{{ form.plano_maestro.id_for_label }}">{{ form.plano_maestro.label }}</label>
+        {% if object and object.plano_maestro %}
+        <p class="muted" style="margin:0 0 0.5rem;font-size:0.9rem;">
+          Archivo actual:
+          <a href="{{ object.plano_maestro.url }}" target="_blank" rel="noopener">{{ object.plano_maestro.name|cut:"proyectos/planos/" }}</a>
+        </p>
+        {% endif %}
+        <div class="field__control">{{ form.plano_maestro }}</div>
+        {% if form.plano_maestro.help_text %}<div class="field__help muted">{{ form.plano_maestro.help_text|safe }}</div>{% endif %}
+        {% if form.plano_maestro.errors %}<div class="field__error" role="alert">{{ form.plano_maestro.errors }}</div>{% endif %}
+      </div>
+    </div>
+  </section>
+
+  {% if sensitive_password_required %}
+  <div class="field">
+    <label class="field__label" for="id_sensitive_password">Confirmar contraseña</label>
+    <div class="field__control">
+      <input type="password" name="sensitive_password" id="id_sensitive_password" autocomplete="current-password" required
+        style="width:100%;max-width:min(100%,400px);box-sizing:border-box;border:1px solid var(--pbr-border);border-radius:10px;padding:0.6rem 0.75rem;font:inherit;">
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="form-actions">
+    <button type="submit" class="btn-primary">Guardar</button>
+    <a href="{{ cancel_url }}" class="btn-secondary">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

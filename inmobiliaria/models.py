@@ -20,11 +20,23 @@ class Proyecto(models.Model):
     )
     activo = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
+    logo = models.ImageField(
+        "Logo del proyecto",
+        upload_to="proyectos/logos/%Y/%m/",
+        blank=True,
+        help_text="Logo del residencial/lotificación (PNG o JPG). Se usa en recibos y documentos PDF.",
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["png", "jpg", "jpeg", "webp"],
+                message="Use PNG, JPG o WEBP.",
+            )
+        ],
+    )
     plano_maestro = models.FileField(
-        "Plano maestro del proyecto",
+        "Plano del proyecto",
         upload_to="proyectos/planos/%Y/%m/",
         blank=True,
-        help_text="Una sola imagen o PDF del plano completo de la lotificación. Cada polígono marcará su zona sobre este archivo (sin volver a subirlo).",
+        help_text="Plano completo de la lotificación (imagen o PDF). Los polígonos se marcan sobre este archivo.",
         validators=[
             FileExtensionValidator(
                 allowed_extensions=["pdf", "png", "jpg", "jpeg", "webp"],
@@ -40,6 +52,14 @@ class Proyecto(models.Model):
 
     def __str__(self) -> str:
         return self.nombre
+
+    @property
+    def tiene_logo(self) -> bool:
+        return bool(self.logo and self.logo.name)
+
+    @property
+    def tiene_plano(self) -> bool:
+        return bool(self.plano_maestro and self.plano_maestro.name)
 
 
 class Poligono(models.Model):
@@ -562,6 +582,15 @@ class InmuebleDetalleLocalAlquiler(models.Model):
         related_name="detalle_local_alquiler",
         verbose_name="Inmueble",
     )
+    inquilino = models.ForeignKey(
+        "Cliente",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="alquileres_local",
+        verbose_name="Inquilino / arrendatario",
+        help_text="Cliente al que se arrienda este local (módulo alquiler, aparte de contratos de venta).",
+    )
     renta_mensual = models.DecimalField(
         "Monto de renta mensual",
         max_digits=14,
@@ -632,6 +661,15 @@ class InmuebleDetalleCasaAlquiler(models.Model):
         on_delete=models.CASCADE,
         related_name="detalle_casa_alquiler",
         verbose_name="Inmueble",
+    )
+    inquilino = models.ForeignKey(
+        "Cliente",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="alquileres_casa",
+        verbose_name="Inquilino / arrendatario",
+        help_text="Cliente al que se arrienda esta casa (módulo alquiler, aparte de contratos de venta).",
     )
     inventario_detallado_estado = models.TextField(
         "Inventario detallado y estado",
@@ -825,7 +863,7 @@ class ClienteDocumento(models.Model):
 
 
 class Vendedor(models.Model):
-    """Asesor o corredor: catálogo para asignar ventas, comisión y recibo de comisión."""
+    """Asesor o corredor de venta de proyectos (lotes, casas). No aplica al módulo de alquileres."""
 
     nombres = models.CharField(max_length=120)
     apellidos = models.CharField(max_length=120)
@@ -837,7 +875,7 @@ class Vendedor(models.Model):
         decimal_places=2,
         default=Decimal("3"),
         validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
-        help_text="Porcentaje sugerido sobre el precio de venta al elegir este vendedor en un contrato.",
+        help_text="Porcentaje de comisión sobre el precio de venta. Se copia al contrato al elegir este vendedor; con eso se calcula el recibo de comisión de venta.",
     )
     usuario_vinculo = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -855,6 +893,39 @@ class Vendedor(models.Model):
         ordering = ["apellidos", "nombres"]
         verbose_name = "Vendedor"
         verbose_name_plural = "Vendedores"
+
+    def __str__(self) -> str:
+        return self.nombre_completo
+
+    @property
+    def nombre_completo(self) -> str:
+        return f"{self.nombres} {self.apellidos}".strip()
+
+
+class AsesorAlquiler(models.Model):
+    """Asesor o intermediario del módulo de alquileres (independiente del catálogo de venta de proyectos)."""
+
+    nombres = models.CharField(max_length=120)
+    apellidos = models.CharField(max_length=120)
+    dui = models.CharField(max_length=20, blank=True, validators=[validar_dui_sv])
+    telefono = models.CharField(max_length=40, blank=True)
+    email = models.EmailField(blank=True)
+    comision_arrendamiento_pct = models.DecimalField(
+        "Comisión sugerida (%)",
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("100"),
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+        help_text="Porcentaje de referencia sobre la renta mensual al emitir recibo de comisión de alquiler.",
+    )
+    activo = models.BooleanField(default=True)
+    notas = models.TextField(blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["apellidos", "nombres"]
+        verbose_name = "Asesor de alquiler"
+        verbose_name_plural = "Asesores de alquiler"
 
     def __str__(self) -> str:
         return self.nombre_completo
@@ -1070,15 +1141,31 @@ class Contrato(models.Model):
 
 
 class Pago(models.Model):
-    """Registro de primas, cuotas, mantenimiento, abonos y mora."""
+    """Registro de primas, cuotas, mantenimiento, abonos y recargo administrativo."""
 
     class Concepto(models.TextChoices):
+        RESERVA = "RESERVA", "Reserva pagada"
         PRIMA = "PRIMA", "Prima / enganche"
-        CUOTA = "CUOTA", "Cuota de financiamiento"
+        CUOTA = "CUOTA", "Cuota de financiamiento (plazos)"
         MANTENIMIENTO = "MANTENIMIENTO", "Cuota de mantenimiento"
         ABONO_CAPITAL = "ABONO_CAPITAL", "Abono a capital"
-        MORA = "MORA", "Intereses moratorios"
+        MORA = "MORA", "Recargo administrativo"
         OTRO = "OTRO", "Otro"
+
+    class ValidacionAbono(models.TextChoices):
+        NO_APLICA = "NO_APLICA", "No requiere validación"
+        PENDIENTE = "PENDIENTE", "Pendiente de gerencia"
+        VALIDADO = "VALIDADO", "Abono confirmado en cuenta"
+        RECHAZADO = "RECHAZADO", "Rechazado por gerencia"
+
+    CONCEPTOS_CON_VALIDACION = frozenset(
+        {
+            Concepto.RESERVA,
+            Concepto.PRIMA,
+            Concepto.CUOTA,
+            Concepto.ABONO_CAPITAL,
+        }
+    )
 
     contrato = models.ForeignKey(
         Contrato,
@@ -1108,6 +1195,28 @@ class Pago(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(200)],
         help_text="Si el concepto es cuota de financiamiento: cuántas cuotas consecutivas (en orden de vencimiento) liquida este pago.",
     )
+    validacion_abono = models.CharField(
+        max_length=12,
+        choices=ValidacionAbono.choices,
+        default=ValidacionAbono.NO_APLICA,
+        db_index=True,
+        verbose_name="Validación de abono",
+        help_text="Reserva, prima, cuotas a plazos y abono a capital: gerencia confirma el depósito en cuenta antes de emitir recibo al cliente.",
+    )
+    validado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pagos_abono_validados",
+        verbose_name="Validado por",
+    )
+    validado_en = models.DateTimeField(null=True, blank=True, verbose_name="Validado en")
+    validacion_nota = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Nota de validación",
+    )
     creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -1117,6 +1226,35 @@ class Pago(models.Model):
 
     def __str__(self) -> str:
         return f"{self.fecha} {self.get_concepto_display()} {self.monto}"
+
+    @property
+    def requiere_validacion_gerente(self) -> bool:
+        return self.concepto in self.CONCEPTOS_CON_VALIDACION
+
+    @property
+    def pendiente_validacion_gerente(self) -> bool:
+        return self.validacion_abono == self.ValidacionAbono.PENDIENTE
+
+    @property
+    def puede_emitir_recibo_cliente(self) -> bool:
+        if self.validacion_abono == self.ValidacionAbono.RECHAZADO:
+            return False
+        if self.requiere_validacion_gerente:
+            return self.validacion_abono == self.ValidacionAbono.VALIDADO
+        return True
+
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            if self.concepto in self.CONCEPTOS_CON_VALIDACION:
+                if self.validacion_abono in (
+                    "",
+                    None,
+                    self.ValidacionAbono.NO_APLICA,
+                ):
+                    self.validacion_abono = self.ValidacionAbono.PENDIENTE
+            else:
+                self.validacion_abono = self.ValidacionAbono.NO_APLICA
+        super().save(*args, **kwargs)
 
 
 class CuotaProgramada(models.Model):
@@ -1391,28 +1529,41 @@ class FormatoAceptacion(models.Model):
 
 
 class ParametroMora(models.Model):
-    """Parámetros para cálculo de mora (ajustar según política interna y asesoría legal)."""
+    """
+    Recargo administrativo (monto fijo), no interés diario.
+    Si una cuota no se paga y pasan los días de gracia, al mes siguiente
+    corresponde cobrar la cuota + el recargo definido aquí.
+    """
 
     nombre = models.CharField(max_length=80, default="Default")
+    monto_recargo = models.DecimalField(
+        "Monto del recargo administrativo",
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Monto fijo que ustedes definen. Se suma a la cuota del mes siguiente "
+        "si el mes anterior quedó sin pagar después de los días de gracia.",
+    )
     tasa_diaria_porcentaje = models.DecimalField(
         max_digits=8,
         decimal_places=6,
         default=Decimal("0"),
-        help_text="Porcentaje diario sobre saldo vencido (ej. 0.05 = 0.05% diario). "
-        "El saldo vencido se entiende respecto a la fecha de vencimiento de cada cuota del contrato; "
-        "ese vencimiento debe coincidir con el calendario generado desde el formato de aceptación "
-        "(mismo día de cada mes hasta la última cuota).",
+        blank=True,
+        help_text="Obsoleto: ya no se usa. El cobro es un monto fijo (recargo administrativo).",
     )
     dias_gracia = models.PositiveSmallIntegerField(
+        "Días de gracia",
         default=0,
-        help_text="Días naturales después del vencimiento de la cuota (día acordado en formato de "
-        "aceptación / calendario de cuotas) antes de aplicar mora según esta tasa.",
+        help_text="Días naturales después de la fecha de vencimiento de la cuota "
+        "antes de aplicar el recargo administrativo. Ej.: si vence el 5 y gracia = 5, "
+        "el recargo aplica a partir del 11; en el siguiente mes se cobra cuota + recargo.",
     )
     activo = models.BooleanField(default=True)
 
     class Meta:
-        verbose_name = "Parámetro de mora"
-        verbose_name_plural = "Parámetros de mora"
+        verbose_name = "Parámetro de recargo administrativo"
+        verbose_name_plural = "Parámetros de recargo administrativo"
 
     def __str__(self) -> str:
         return self.nombre

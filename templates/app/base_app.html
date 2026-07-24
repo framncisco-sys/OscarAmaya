@@ -1,69 +1,42 @@
 {% extends "base.html" %}
+{% load static %}
 {% block content %}
-{% with u=request.resolver_match.url_name|default:'' %}
 <div class="app-layout">
   <aside class="app-sidebar" aria-label="Módulos">
-    <a href="{% url 'app:index' %}" class="app-sidebar__title{% if u == 'index' %} is-active{% endif %}">Gestión</a>
-    <nav class="app-sidebar__nav">
-      <a href="{% url 'app:proyecto_list' %}"{% if u == 'proyecto_list' or u == 'proyecto_create' or u == 'proyecto_update' %} class="is-active" aria-current="page"{% endif %}>Proyectos</a>
-      <a href="{% url 'app:poligono_list' %}"{% if u == 'poligono_list' or u == 'poligono_create' or u == 'poligono_update' %} class="is-active" aria-current="page"{% endif %}>Polígonos</a>
-      <div class="app-sidebar__nav-group{% if u == 'inmueble_list' or u == 'inmueble_create' or u == 'inmueble_casa_list' or u == 'inmueble_casa_create' or u == 'inmueble_update' or u == 'inmueble_delete' or u == 'inmueble_casa_galeria' or u == 'inmueble_imagen_eliminar' or u == 'inmueble_imagen_portada' or u == 'inmueble_imagen_descripcion' or u == 'arrendamiento_locales_list' or u == 'local_alquiler_ficha' or u == 'local_alquiler_create' or u == 'arrendamiento_casas_list' or u == 'casa_alquiler_ficha' or u == 'casa_alquiler_create' %} app-sidebar__nav-group--current{% endif %}">
-        <span class="app-sidebar__nav-group-label">Inmuebles</span>
-        <div class="app-sidebar__nav-sub">
-          <span class="app-sidebar__nav-sub-label">Arrendamiento</span>
-          <span class="app-sidebar__nav-sub-label">Alquiler de local</span>
-          <a href="{% url 'app:arrendamiento_locales_list' %}"{% if u == 'arrendamiento_locales_list' or u == 'local_alquiler_ficha' %} class="is-active" aria-current="page"{% endif %}>Listado guardado</a>
-          <a href="{% url 'app:local_alquiler_create' %}"{% if u == 'local_alquiler_create' %} class="is-active" aria-current="page"{% endif %}>Nuevo alquiler de local</a>
-          <span class="app-sidebar__nav-sub-label">Casas en alquiler</span>
-          <a href="{% url 'app:arrendamiento_casas_list' %}"{% if u == 'arrendamiento_casas_list' or u == 'casa_alquiler_ficha' %} class="is-active" aria-current="page"{% endif %}>Listado guardado</a>
-          <a href="{% url 'app:casa_alquiler_create' %}"{% if u == 'casa_alquiler_create' %} class="is-active" aria-current="page"{% endif %}>Nuevo alquiler de casa</a>
-          <span class="app-sidebar__nav-sub-label">Inmueble lote</span>
-          <a href="{% url 'app:inmueble_list' %}"{% if u == 'inmueble_list' %} class="is-active" aria-current="page"{% endif %}>Listado</a>
-          <a href="{% url 'app:inmueble_create' %}"{% if u == 'inmueble_create' %} class="is-active" aria-current="page"{% endif %}>Nuevo lote o local</a>
-          <span class="app-sidebar__nav-sub-label">Casa nueva o usada</span>
-          <a href="{% url 'app:inmueble_casa_list' %}"{% if u == 'inmueble_casa_list' %} class="is-active" aria-current="page"{% endif %}>Listado</a>
-          <a href="{% url 'app:inmueble_casa_create' %}"{% if u == 'inmueble_casa_create' %} class="is-active" aria-current="page"{% endif %}>Nueva casa</a>
-        </div>
+    {% if marca_portal %}
+    <div class="app-sidebar__brand-chip" title="{{ marca_portal.nombre }}">
+      <img src="{% static marca_portal.logo %}" alt="" class="app-sidebar__brand-chip-logo" decoding="async" aria-hidden="true">
+      <div class="app-sidebar__brand-chip-text">
+        <span class="app-sidebar__brand-chip-label">Sistema</span>
+        <strong class="app-sidebar__brand-chip-name">{{ marca_portal.eyebrow|default:marca_portal.nombre }}</strong>
       </div>
-      <a href="{% url 'app:contrato_list' %}"{% if u == 'contrato_list' or u == 'contrato_create' or u == 'contrato_update' or u == 'contrato_delete' or u == 'contrato_estado_cuenta' %} class="is-active" aria-current="page"{% endif %}>{% if contratos_restriccion_vendedor %}Mis contratos{% else %}Contratos{% endif %}</a>
-      <a href="{% url 'app:mapa_editor' %}"{% if u == 'mapa_editor' or u == 'api_mapa_proyecto' or u == 'api_mapa_guardar_lote' %} class="is-active" aria-current="page"{% endif %}>Mapa interactivo</a>
-      <a href="{% url 'app:mapa_catastral' %}"{% if u == 'mapa_catastral' or u == 'api_mapa_catastral' or u == 'api_mapa_catastral_guardar' %} class="is-active" aria-current="page"{% endif %}>Mapa catastral</a>
-      {% if puede_gestionar_vendedores_app %}
-      <a href="{% url 'app:vendedor_list' %}"{% if u == 'vendedor_list' or u == 'vendedor_create' or u == 'vendedor_update' or u == 'vendedor_delete' %} class="is-active" aria-current="page"{% endif %}>Vendedores</a>
+    </div>
+    {% endif %}
+
+    {% if es_vendedor_restringido %}
+    {% include "includes/app_sidebar_vendedor_flujo.html" %}
+    {% else %}
+      {% if es_sistema_bienes_raices %}
+      {% include "includes/app_sidebar_clientes.html" %}
+      {% include "includes/app_sidebar_vendedores.html" %}
+      {% include "includes/app_sidebar_inmuebles.html" %}
+      {% include "includes/app_sidebar_asesores_alquiler.html" %}
       {% endif %}
-      <a href="{% url 'app:formato_aceptacion' %}"{% if u == 'formato_aceptacion' or u == 'formato_aceptacion_nuevo' or u == 'formato_aceptacion_list' or u == 'formato_aceptacion_edit' or u == 'formato_aceptacion_pdf' %} class="is-active" aria-current="page"{% endif %}>Formato de aceptación</a>
-      <a href="{% url 'app:pago_list' %}"{% if u == 'pago_list' or u == 'pago_create' or u == 'pago_update' or u == 'export_pagos_csv' %} class="is-active" aria-current="page"{% endif %}>Pagos</a>
-      <a href="{% url 'app:parametro_mora_list' %}"{% if u == 'parametro_mora_list' or u == 'parametro_mora_create' or u == 'parametro_mora_update' %} class="is-active" aria-current="page"{% endif %}>Parámetros mora</a>
-      <a href="{% url 'app:docs_list' %}"{% if u == 'docs_list' or u == 'doc_download' or u == 'emitir_promesa' or u == 'emitir_recibo' or u == 'emitir_recibo_comision' %} class="is-active" aria-current="page"{% endif %}>Documentos</a>
-      {% if puede_gestionar_usuarios_app %}
-      <a href="{% url 'app:usuario_list' %}"{% if u == 'usuario_list' or u == 'usuario_create' or u == 'usuario_update' or u == 'usuario_delete' or u == 'usuario_roles_manual' %} class="is-active" aria-current="page"{% endif %}>Usuarios</a>
+      {% if es_sistema_desarrollos %}
+      {% include "includes/app_sidebar_vendedores.html" %}
       {% endif %}
-      {% if puede_ver_historial_auditoria %}
-      <a href="{% url 'app:audit_log_list' %}"{% if u == 'audit_log_list' or u == 'audit_log_detail' %} class="is-active" aria-current="page"{% endif %}>Historial</a>
+      {% if muestra_sidebar_gestion %}
+      {% include "includes/app_sidebar_gestion.html" %}
       {% endif %}
-    </nav>
-    <p class="app-sidebar__foot muted">
-      {% if request.user.is_authenticated %}
-      <span class="app-sidebar__session-line">
-        <span class="status-badge status-badge--online status-badge--compact" title="Conectado" aria-hidden="true"></span>
-        <span class="app-sidebar__user" title="Usuario en sesión">{{ request.user.get_full_name|default:request.user.username }}</span>
-      </span>
-      {% if request.user.get_full_name %}<span class="app-sidebar__login">@{{ request.user.username }}</span><br>{% else %}<br>{% endif %}
-      {% endif %}
-      {% if request.user.is_superuser %}
-      <span class="app-sidebar__rol">Superusuario</span><br>
-      {% elif perfil_app_ctx %}
-      <span class="app-sidebar__rol">{{ perfil_app_ctx.get_rol_display }}</span><br>
-      {% else %}
-      <span class="app-sidebar__rol">Sin perfil en la app</span><br>
-      {% endif %}
-      <a href="{% url 'app:index' %}">Inicio Gestión</a>
-      · <a href="{% url 'app:sensitive_reauth' %}?next={{ request.path }}">Confirmar acceso</a>
-    </p>
+    {% endif %}
+    {% include "includes/app_sidebar_session.html" %}
   </aside>
   <div class="app-content">
     {% block app_content %}{% endblock %}
   </div>
 </div>
-{% endwith %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/pbr-sidebar.js' %}" defer></script>
 {% endblock %}

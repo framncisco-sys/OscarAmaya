@@ -38,6 +38,9 @@
   {% endif %}
   <div class="form-actions">
     <button type="submit" class="btn-primary">{% if es_alta_local_alquiler %}Registrar alquiler de local{% else %}Guardar ficha{% endif %}</button>
+    {% if inmueble %}
+    <a href="{% url 'app:emitir_recibo_comision_alquiler' inmueble.pk %}" class="btn-secondary">Recibo comisión</a>
+    {% endif %}
     <a href="{{ cancel_url }}" class="btn-secondary">Cancelar</a>
   </div>
 </form>

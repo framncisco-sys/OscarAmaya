@@ -1,0 +1,86 @@
+{% extends "app/base_app.html" %}
+{% block title %}{{ form_title }} | Paredes Bienes Raíces{% endblock %}
+
+{% block app_content %}
+<h1 class="page-title">{{ form_title }}</h1>
+<p class="muted" style="margin-top:0;">
+  <a href="{{ cancel_url }}" class="link-action">← {{ cancel_label }}</a>
+</p>
+
+<section class="card pbr-card--info" style="margin-bottom:1rem;">
+  <p class="muted" style="margin:0;">
+    <strong>Módulo:</strong> Alquileres (independiente de ventas y contratos)<br>
+    <strong>Inmueble:</strong> {{ inmueble.get_tipo_display }} {{ inmueble.codigo }} — {{ inmueble.proyecto.nombre }}<br>
+    {% if renta_mensual %}
+      <strong>Renta mensual (referencia):</strong> ${{ renta_mensual|floatformat:2 }} USD
+    {% else %}
+      <strong>Renta mensual:</strong> no registrada en la ficha — indique el monto de comisión abajo.
+    {% endif %}
+  </p>
+</section>
+
+<p class="muted page-lead" style="max-width:42rem;margin-bottom:1rem;">
+  Elija el asesor del catálogo de alquiler (independiente de vendedores de proyectos) o escriba el nombre. Defina monto y concepto antes de generar el PDF.
+</p>
+
+<form method="post" class="form-stack">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+    <div class="alert" role="alert">{{ form.non_field_errors }}</div>
+  {% endif %}
+  {% for field in form %}
+    <div class="field">
+      <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      <div class="field__control">{{ field }}</div>
+      {% if field.help_text %}<div class="field__help muted">{{ field.help_text|safe }}</div>{% endif %}
+      {% if field.errors %}<div class="field__error" role="alert">{{ field.errors }}</div>{% endif %}
+    </div>
+  {% endfor %}
+  <div class="form-actions">
+    <button type="submit" class="btn-primary">Generar PDF del recibo</button>
+    <a href="{{ cancel_url }}" class="btn-secondary">Cancelar</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+{{ vendedores_catalogo|json_script:"vendedores-catalogo-data" }}
+<script>
+(function () {
+  var sel = document.getElementById("id_asesor_perfil");
+  var nombre = document.getElementById("id_vendedor_nombre");
+  var pct = document.getElementById("id_comision_porcentaje");
+  var monto = document.getElementById("id_monto_comision");
+  var el = document.getElementById("vendedores-catalogo-data");
+  var catalogo = el ? JSON.parse(el.textContent) : {};
+  if (sel && nombre) {
+    sel.addEventListener("change", function () {
+      var id = sel.value;
+      if (id && catalogo[id]) {
+        nombre.value = catalogo[id].nombre || "";
+        if (pct && catalogo[id].pct != null && catalogo[id].pct !== "") {
+          pct.value = catalogo[id].pct;
+          pct.dispatchEvent(new Event("change"));
+        }
+      }
+    });
+  }
+})();
+</script>
+{% if renta_mensual %}
+<script>
+(function () {
+  var pct = document.getElementById("id_comision_porcentaje");
+  var monto = document.getElementById("id_monto_comision");
+  var renta = {{ renta_mensual }};
+  if (!pct || !monto || !renta) return;
+  pct.addEventListener("change", function () {
+    var p = parseFloat(pct.value);
+    if (!isFinite(p) || p < 0) return;
+    monto.value = (Math.round(renta * p / 100 * 100) / 100).toFixed(2);
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

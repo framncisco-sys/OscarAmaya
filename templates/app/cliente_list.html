@@ -18,6 +18,7 @@
       <th>Apellidos</th>
       <th>Teléfono</th>
       <th>Email</th>
+      <th>Inmuebles</th>
       <th></th>
       <th></th>
       <th></th>
@@ -30,12 +31,18 @@
       <td>{{ c.apellidos }}</td>
       <td>{{ c.telefono|default:"—" }}</td>
       <td>{{ c.email|default:"—" }}</td>
+      <td class="muted">
+        {% if c.num_contratos %}<span title="Contratos de venta">{{ c.num_contratos }} venta{{ c.num_contratos|pluralize }}</span>{% endif %}
+        {% if c.num_reservas %}{% if c.num_contratos %} · {% endif %}<span title="Apartados">{{ c.num_reservas }} reserva{{ c.num_reservas|pluralize }}</span>{% endif %}
+        {% if c.num_alquileres_local or c.num_alquileres_casa %}{% if c.num_contratos or c.num_reservas %} · {% endif %}<span title="Alquileres">{{ c.num_alquileres_local|add:c.num_alquileres_casa }} alquiler{{ c.num_alquileres_local|add:c.num_alquileres_casa|pluralize:"es" }}</span>{% endif %}
+        {% if not c.num_contratos and not c.num_reservas and not c.num_alquileres_local and not c.num_alquileres_casa %}—{% endif %}
+      </td>
       <td><a href="{% url 'app:cliente_update' c.pk %}" class="link-action">Editar</a></td>
       <td><a href="{% url 'app:cliente_reporte_pdf' c.pk %}" class="link-action">Reporte PDF</a></td>
       <td><a href="{% url 'app:cliente_delete' c.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a></td>
     </tr>
     {% empty %}
-    <tr><td colspan="7" class="muted">No hay clientes.</td></tr>
+    <tr><td colspan="9" class="muted">No hay clientes.</td></tr>
     {% endfor %}
   </tbody>
 </table>

@@ -1,5 +1,5 @@
 {% extends "app/base_app.html" %}
-{% block title %}Plan de cuotas y estado de cuenta | Paredes Bienes Raíces{% endblock %}
+{% block title %}Plan de cuotas y estado de cuenta | {{ marca_portal.nombre }}{% endblock %}
 {% block app_content %}
 <h1 class="page-title">Plan de cuotas y estado de cuenta</h1>
 <p class="page-lead">
@@ -7,6 +7,30 @@
   <a href="{% url 'app:contrato_update' contrato.pk %}">Editar contrato</a>
   · <a href="{% url 'app:pago_list' %}?contrato={{ contrato.pk }}">Pagos de este contrato</a>
 </p>
+
+{% if cobro_mes.cuota %}
+<section class="card" style="border-left:4px solid #1e3a5f;">
+  <h2 style="font-size:1rem;margin:0 0 0.5rem;">A cobrar este mes</h2>
+  <p style="margin:0 0 0.5rem;">{{ cobro_mes.nota }}</p>
+  <p style="margin:0;font-size:1.25rem;font-weight:700;">
+    Total: ${{ cobro_mes.monto_total }}
+    <span class="muted" style="font-size:0.9rem;font-weight:500;">
+      (cuota ${{ cobro_mes.monto_cuota }}{% if cobro_mes.monto_recargo %} + recargo administrativo ${{ cobro_mes.monto_recargo }}{% endif %})
+    </span>
+  </p>
+  {% if param_recargo %}
+  <p class="muted" style="margin:0.75rem 0 0;font-size:0.875rem;">
+    Política activa: ${{ param_recargo.monto_recargo }} de recargo · {{ param_recargo.dias_gracia }} día(s) de gracia.
+    <a href="{% url 'app:parametro_mora_list' %}">Configurar</a>
+  </p>
+  {% else %}
+  <p class="muted" style="margin:0.75rem 0 0;font-size:0.875rem;">
+    No hay política de recargo activa.
+    <a href="{% url 'app:parametro_mora_create' %}">Definir monto y días de gracia</a>
+  </p>
+  {% endif %}
+</section>
+{% endif %}
 
 <section class="card">
   <h2 style="font-size:1rem;margin:0 0 0.75rem;">Resumen del plan de cuotas</h2>
@@ -20,7 +44,7 @@
     <div><dt class="muted" style="font-size:0.8rem;margin:0;">Ya cubierto (cuotas pagadas)</dt><dd style="margin:0.15rem 0 0;font-weight:600;color:#15803d;">${{ cuotas_resumen.monto_cuotas_pagadas }}</dd></div>
     <div><dt class="muted" style="font-size:0.8rem;margin:0;">Falta por cuotas programadas</dt><dd style="margin:0.15rem 0 0;font-weight:600;color:#b45309;">${{ cuotas_resumen.monto_cuotas_por_pagar }}</dd></div>
   </dl>
-  <p class="muted" style="font-size:0.875rem;margin:0;">Los montos «falta» son la suma de cuotas aún no marcadas como pagadas en el plan. No incluyen primas u otros conceptos fuera del calendario de cuotas.</p>
+  <p class="muted" style="font-size:0.875rem;margin:0;">Los montos «falta» son la suma de cuotas aún no marcadas como pagadas. El recargo administrativo se muestra aparte en «A cobrar este mes».</p>
   {% else %}
   <p class="muted">Este contrato no tiene cuotas programadas cargadas. Si el financiamiento es en cuotas, genéreelas o regístrelas al editar el contrato (formulario de cuotas).</p>
   {% endif %}
@@ -52,19 +76,20 @@
   {% endif %}
   <p><strong>Total pagado (suma de movimientos):</strong> ${{ total_pagado }}</p>
   <p><strong>Saldo estimado (precio − pagos):</strong> ${{ saldo_estimado }}</p>
-  <p class="muted" style="margin-top:0.75rem;">El saldo es orientativo; valide con política de capital e intereses.</p>
+  <p class="muted" style="margin-top:0.75rem;">El saldo es orientativo; valide con política de capital.</p>
   <p class="muted" style="margin-top:0.5rem;">
-    La <strong>fecha de pago</strong> de cada cuota es la del <strong>pago</strong> que la liquidó (registrada en Pagos).
-    La <strong>mora</strong> se evalúa comparando esa fecha con el <strong>vencimiento</strong> de la cuota; use
-    <a href="{% url 'app:parametro_mora_list' %}">Parámetros de mora</a> como referencia de tasas y gracias.
+    Si no pagan una cuota y pasan los <strong>días de gracia</strong>, al mes siguiente aparece
+    <strong>cuota + recargo administrativo</strong>.
+    Configure el monto y la gracia en
+    <a href="{% url 'app:parametro_mora_list' %}">Recargo administrativo</a>.
   </p>
 </section>
 
 <section class="card">
   <h2 style="font-size:1rem;margin:0 0 0.75rem;">Detalle de cada cuota</h2>
   <p class="muted" style="font-size:0.875rem;margin:0 0 0.75rem;">
-    Fechas en formato día/mes/año. «Cumplimiento»: si ya pagó, días de retraso respecto al vencimiento (0 = a tiempo o antes).
-    Si sigue pendiente o vencida y ya pasó la fecha límite, días impaga tras el vencimiento (corte {{ hoy|date:"d/m/Y" }}).
+    Fechas en formato día/mes/año. Tras el vencimiento + gracia, la cuota genera recargo administrativo
+    (corte {{ hoy|date:"d/m/Y" }}).
   </p>
   <table class="table">
     <thead>
@@ -76,16 +101,21 @@
         <th>Fecha del pago</th>
         <th class="right">Monto del pago</th>
         <th>Ref. pago</th>
-        <th>Cumplimiento</th>
+        <th>Cumplimiento / recargo</th>
       </tr>
     </thead>
     <tbody>
       {% for row in filas_cuotas %}
       {% with c=row.cuota %}
-      <tr>
-        <td>{{ c.numero }}</td>
+      <tr{% if row.es_proxima %} style="background:#f0f7ff;"{% endif %}>
+        <td>{{ c.numero }}{% if row.es_proxima %} <span class="muted">(próxima)</span>{% endif %}</td>
         <td>{{ c.vence_en|date:"d/m/Y" }} <span class="muted">({{ c.vence_en|date:"l" }})</span></td>
-        <td class="right">${{ c.monto }}</td>
+        <td class="right">
+          ${{ c.monto }}
+          {% if row.es_proxima and row.a_cobrar_recargo %}
+          <br><span style="color:#b45309;font-size:0.85rem;">+ recargo ${{ row.a_cobrar_recargo }} → total ${{ row.a_cobrar_total }}</span>
+          {% endif %}
+        </td>
         <td>{{ c.get_estado_display }}</td>
         <td>{% if row.fecha_pago %}{{ row.fecha_pago|date:"d/m/Y" }}{% else %}—{% endif %}</td>
         <td class="right">{% if row.pago_monto is not None %}${{ row.pago_monto }}{% else %}—{% endif %}</td>
@@ -97,8 +127,12 @@
             {% else %}
               A tiempo o antes
             {% endif %}
+          {% elif row.genera_recargo %}
+            <span style="color:#b91c1c;font-weight:600;">Genera recargo administrativo</span>
+            <span class="muted" style="display:block;font-size:0.8rem;">Gracia venció el {{ row.fecha_limite_gracia|date:"d/m/Y" }}</span>
           {% elif row.dias_impago_tras_venc %}
-            <span style="color:#b91c1c;font-weight:600;">Impaga: {{ row.dias_impago_tras_venc }} día{% if row.dias_impago_tras_venc != 1 %}s{% endif %} tras vencimiento</span>
+            <span style="color:#b45309;font-weight:600;">Impaga: {{ row.dias_impago_tras_venc }} día{% if row.dias_impago_tras_venc != 1 %}s{% endif %} tras vencimiento</span>
+            <span class="muted" style="display:block;font-size:0.8rem;">Gracia hasta {{ row.fecha_limite_gracia|date:"d/m/Y" }}</span>
           {% else %}
             —
           {% endif %}

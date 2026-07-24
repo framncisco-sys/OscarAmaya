@@ -11,27 +11,24 @@
       line-height: 1.35;
     }
     body.pdf-recibo .pdf-header {
-      margin: 0 0 6px;
-      padding: 0 0 6px;
+      margin: 0 0 8px;
+      padding: 0 0 8px;
       border-bottom: 1px solid #d4d4d8;
     }
     body.pdf-recibo .pdf-header-logos td {
-      height: 132px;
-      min-height: 132px;
-      padding: 3px 14px 4px;
+      height: 168px;
+      min-height: 168px;
+      padding: 6px 10px 8px;
       vertical-align: middle;
     }
-    body.pdf-recibo .pdf-logo--proyecto {
-      height: 104px;
-      max-height: 104px;
-      width: auto;
-      vertical-align: middle;
-    }
+    body.pdf-recibo .pdf-logo--proyecto,
     body.pdf-recibo .pdf-logo--empresa {
-      height: 88px;
-      max-height: 88px;
+      height: 136px;
+      max-height: 136px;
       width: auto;
+      max-width: 280px;
       vertical-align: middle;
+      object-fit: contain;
     }
 
     .rec-wrap { overflow: visible; max-width: 100%; }
@@ -317,12 +314,21 @@
     </tr>
   </thead>
   <tbody>
+    {% for etiqueta, monto_linea_fmt in desglose_lineas_fmt %}
+    <tr>
+      <td>{% if forloop.first %}{{ pago.fecha|date:"d/m/Y" }}{% else %}{% endif %}</td>
+      <td>{{ etiqueta }}</td>
+      <td>{% if forloop.first %}{{ pago.referencia|default:"—" }}{% else %}—{% endif %}</td>
+      <td class="rec-monto-celda">{{ monto_linea_fmt }}</td>
+    </tr>
+    {% empty %}
     <tr>
       <td>{{ pago.fecha|date:"d/m/Y" }}</td>
       <td>{{ pago.get_concepto_display }}</td>
       <td>{{ pago.referencia|default:"—" }}</td>
       <td class="rec-monto-celda">{{ monto_fmt }}</td>
     </tr>
+    {% endfor %}
     <tr class="rec-total-row">
       <td colspan="3" class="rec-total-lbl">Total recibido (USD)</td>
       <td class="rec-total-val">{{ monto_fmt }}</td>
@@ -331,7 +337,16 @@
 </table>
 </div>
 
-{% if pago.notas %}
+{% if desglose and desglose.monto_abono_capital > 0 and not pago.notas %}
+<p class="rec-h2">Observaciones</p>
+<div class="box">
+  Del total recibido, {{ monto_abono_capital_fmt }} USD se aplican como abono a capital
+  (reducción del saldo del financiamiento). El resto liquida la(s) cuota(s) del calendario.
+</div>
+{% elif pago.concepto == 'ABONO_CAPITAL' and not pago.notas %}
+<p class="rec-h2">Observaciones</p>
+<div class="box">Pago aplicado a capital / reducción del saldo del financiamiento.</div>
+{% elif pago.notas %}
 <p class="rec-h2">Observaciones</p>
 <div class="box">{{ pago.notas }}</div>
 {% endif %}

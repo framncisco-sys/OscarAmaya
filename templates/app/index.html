@@ -1,102 +1,187 @@
 {% extends "app/base_app.html" %}
-{% block title %}Gestión | Paredes Bienes Raíces{% endblock %}
+{% block title %}Gestión | {{ marca_portal.nombre }}{% endblock %}
 
 {% block app_content %}
-<header class="page-toolbar">
-  <div class="page-toolbar__intro">
-    <h1 class="page-title">Gestión inmobiliaria</h1>
-    <p class="page-toolbar__meta">Trabaja aquí el día a día; no necesitas abrir la consola administrativa.</p>
+{% with s=gestion_resumen %}
+<header class="dash-header">
+  <div>
+    <h1 class="page-title dash-header__title">Gestión · Desarrollos</h1>
+    <p class="page-lead dash-header__lead">
+      Lotificaciones y cartera: formato → contrato → reserva → prima y promesa → plazos.
+      Sin alquileres ni venta de casas.
+    </p>
+  </div>
+  <div class="gestion-header__actions">
+    <p class="dash-meta muted">Actualizado {{ gestion_actualizado|date:"d/m/Y H:i" }}</p>
+    <a href="{% url 'dashboard' %}" class="btn-secondary btn-sm">Ver dashboard</a>
   </div>
 </header>
 
-<section class="grid-modulos">
-  <a class="card modulo" href="{% url 'app:proyecto_list' %}">
+{% if gestion_alertas %}
+<section class="gestion-alertas" aria-label="Alertas">
+  {% for a in gestion_alertas %}
+  <div class="alert gestion-alerta gestion-alerta--{{ a.tipo }}" role="alert">
+    {{ a.texto }}
+    {% if a.url_name %}<a href="{% url a.url_name %}" class="link-action">{{ a.url_label }}</a>{% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<h2 class="gestion-section-title">Flujo de venta de lotes (vendedor)</h2>
+<ol class="gestion-flujo" aria-label="Pasos de venta">
+  <li class="gestion-flujo__paso">
+    <a class="gestion-flujo__card" href="{% url 'app:formato_aceptacion' %}">
+      <span class="gestion-flujo__num" aria-hidden="true">1</span>
+      <span class="gestion-flujo__body">
+        <strong>Formato de aceptación (nuevo)</strong>
+        <small>El vendedor registra primero el formato de ingreso.</small>
+      </span>
+    </a>
+  </li>
+  <li class="gestion-flujo__paso">
+    <a class="gestion-flujo__card" href="{% url 'app:contrato_create' %}">
+      <span class="gestion-flujo__num" aria-hidden="true">2</span>
+      <span class="gestion-flujo__body">
+        <strong>Llenado de contrato</strong>
+        <small>Cliente, lote del proyecto, precio, vendedor y condiciones.</small>
+      </span>
+    </a>
+  </li>
+  <li class="gestion-flujo__paso">
+    <a class="gestion-flujo__card" href="{% url 'app:pago_create' %}?concepto=RESERVA">
+      <span class="gestion-flujo__num" aria-hidden="true">3</span>
+      <span class="gestion-flujo__body">
+        <strong>Reserva pagada</strong>
+        <small>El vendedor registra el abono; gerencia valida antes del recibo.</small>
+      </span>
+    </a>
+  </li>
+  <li class="gestion-flujo__paso">
+    <a class="gestion-flujo__card" href="{% url 'app:pago_create' %}?concepto=PRIMA">
+      <span class="gestion-flujo__num" aria-hidden="true">4</span>
+      <span class="gestion-flujo__body">
+        <strong>Prima pagada → promesa</strong>
+        <small>Tras validar la prima en cuenta, emitir promesa de venta.</small>
+      </span>
+    </a>
+  </li>
+  <li class="gestion-flujo__paso">
+    <a class="gestion-flujo__card" href="{% url 'app:pago_create' %}?concepto=CUOTA">
+      <span class="gestion-flujo__num" aria-hidden="true">5</span>
+      <span class="gestion-flujo__body">
+        <strong>Recibos a plazos</strong>
+        <small>El vendedor registra la cuota; gerencia valida antes del recibo.</small>
+      </span>
+    </a>
+  </li>
+</ol>
+<p class="muted gestion-flujo__hint">
+  También: <a href="{% url 'app:contrato_list' %}">contratos</a>,
+  <a href="{% url 'app:pago_list' %}">pagos</a>,
+  <a href="{% url 'app:formato_aceptacion_list' %}">formatos guardados</a>
+  y <a href="{% url 'app:docs_list' %}">documentos PDF</a>.
+</p>
+
+<section class="grid-kpis dash-kpis gestion-kpis" aria-label="Resumen">
+  <article class="card kpi dash-kpi">
+    <span class="dash-kpi__icon" aria-hidden="true">🏗</span>
     <h3>Proyectos</h3>
-    <p>Lotificaciones y residenciales.</p>
-  </a>
-  <a class="card modulo" href="{% url 'app:poligono_list' %}">
-    <h3>Polígonos</h3>
-    <p>Etapas y agrupación de lotes.</p>
-  </a>
-  <a class="card modulo" href="{% url 'app:inmueble_list' %}">
-    <h3>Inmuebles</h3>
-    <p>En el menú: <strong>Inmueble lote</strong> (lotes y locales) y aparte <strong>Casa nueva o usada</strong> (otro listado y otro formulario de alta).</p>
-  </a>
-  <a class="card modulo" href="{% url 'app:contrato_list' %}">
-    <h3>{% if contratos_restriccion_vendedor %}Mis contratos{% else %}Contratos{% endif %}</h3>
-    <p>{% if contratos_restriccion_vendedor %}Sus ventas, inmueble, comisión y recibo PDF.{% else %}Ventas, cuotas, promesas y recibo de comisión por contrato.{% endif %}</p>
+    <p>{{ s.proyectos }}</p>
+    <span class="dash-kpi__hint">{{ s.poligonos }} polígono(s)</span>
+  </article>
+  <article class="card kpi dash-kpi dash-kpi--ok">
+    <span class="dash-kpi__icon" aria-hidden="true">📦</span>
+    <h3>Lotes</h3>
+    <p>{{ s.lotes_locales }}</p>
+    <span class="dash-kpi__hint">Inventario de lotificación</span>
+  </article>
+  <article class="card kpi dash-kpi">
+    <span class="dash-kpi__icon" aria-hidden="true">📄</span>
+    <h3>Contratos</h3>
+    <p>{{ s.contratos_activos }}</p>
+    <span class="dash-kpi__hint">{{ s.contratos_total }} total · activos</span>
+  </article>
+  <article class="card kpi dash-kpi dash-kpi--sold">
+    <span class="dash-kpi__icon" aria-hidden="true">💵</span>
+    <h3>Pagos del mes</h3>
+    <p>{{ s.pagos_mes }}</p>
+    <span class="dash-kpi__hint">${{ s.monto_mes|floatformat:0 }} USD</span>
+  </article>
+</section>
+
+<h2 class="gestion-section-title">Proyectos y mapas</h2>
+<section class="grid-modulos dash-modulos gestion-modulos">
+  <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:proyecto_list' %}">
+    <span class="dash-modulo__icon">🏗</span>
+    <h3>Proyectos</h3>
+    <p>Lotificaciones, logo y planos.</p>
+    <span class="gestion-modulo__stat">{{ s.proyectos }} activo(s)</span>
   </a>
   {% if puede_gestionar_vendedores_app %}
-  <a class="card modulo" href="{% url 'app:vendedor_list' %}">
+  <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:vendedor_list' %}">
+    <span class="dash-modulo__icon">👤</span>
     <h3>Vendedores</h3>
-    <p>Asesores, comisión sugerida y recibos por venta.</p>
+    <p>Registro del vendedor y % de comisión de venta.</p>
+    <span class="gestion-modulo__stat">{% if sidebar_stats %}{{ sidebar_stats.vendedores }} activo(s){% else %}Catálogo{% endif %}</span>
   </a>
   {% endif %}
-  <a class="card modulo" href="{% url 'app:formato_aceptacion' %}">
-    <h3>Formato de aceptación</h3>
-    <p>Formulario de ingreso y PDF con firmas, desde este módulo.</p>
+  <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:poligono_list' %}">
+    <span class="dash-modulo__icon">🗺</span>
+    <h3>Polígonos</h3>
+    <p>Etapas y agrupación de lotes.</p>
+    <span class="gestion-modulo__stat">{{ s.poligonos }} registrado(s)</span>
   </a>
-  <a class="card modulo" href="{% url 'app:pago_list' %}">
-    <h3>Pagos</h3>
-    <p>Primas, cuotas y abonos.</p>
+  <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:inmueble_list' %}">
+    <span class="dash-modulo__icon">📦</span>
+    <h3>Lotes</h3>
+    <p>Inventario de lotes por proyecto.</p>
+    <span class="gestion-modulo__stat">{{ s.lotes_locales }} lote(s)</span>
+  </a>
+  <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:mapa_editor' %}">
+    <span class="dash-modulo__icon">📍</span>
+    <h3>Mapa interactivo</h3>
+    <p>Dibujar lotes sobre el plano del proyecto.</p>
+  </a>
+  <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:mapa_catastral' %}">
+    <span class="dash-modulo__icon">🌍</span>
+    <h3>Mapa catastral</h3>
+    <p>Geometría sobre OpenStreetMap.</p>
   </a>
 </section>
 
-{% if puede_gestionar_usuarios_app %}
-<section class="grid-modulos" style="margin-top:1rem;">
-  <a class="card modulo" href="{% url 'app:usuario_list' %}">
+{% if puede_gestionar_usuarios_app or puede_ver_historial_auditoria %}
+<h2 class="gestion-section-title">Administración</h2>
+<section class="grid-modulos dash-modulos gestion-modulos">
+  {% if puede_gestionar_usuarios_app %}
+  <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:usuario_list' %}">
+    <span class="dash-modulo__icon">👥</span>
     <h3>Usuarios y roles</h3>
-    <p>Cuentas internas, tipos de acceso y perfiles.</p>
+    <p>Cuentas internas y tipos de acceso.</p>
   </a>
-  <a class="card modulo" href="{% url 'app:usuario_roles_manual' %}">
+  <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:usuario_roles_manual' %}">
+    <span class="dash-modulo__icon">📖</span>
     <h3>Guía de roles</h3>
-    <p>Qué significa cada tipo en el sistema.</p>
+    <p>Qué puede hacer cada perfil.</p>
   </a>
-</section>
-{% endif %}
-
-{% if puede_ver_historial_auditoria %}
-<section class="grid-modulos" style="margin-top:1rem;">
-  <a class="card modulo" href="{% url 'app:audit_log_list' %}">
-    <h3>Historial de actividad</h3>
-    <p>Quién creó, editó o eliminó registros (solo administrador).</p>
-  </a>
-</section>
-{% endif %}
-
-<section class="card">
-  <h2>Otros</h2>
-  <p class="muted">Parámetros de mora y políticas de cálculo.</p>
-  <div class="btn-row">
-    <a href="{% url 'app:parametro_mora_list' %}" class="btn-secondary">Parámetros de mora</a>
-    <a href="{% url 'dashboard' %}" class="btn-secondary">Dashboard</a>
-  </div>
-</section>
-
-<section class="card pbr-card--info" style="margin-top:1.25rem;">
-  <h2>Correo (recibos y avisos)</h2>
-  <p class="muted" style="margin-top:0;margin-bottom:0;">
-    El envío de recibos y avisos por correo lo habilita quien administra el servidor o el hosting.
-    Si un cliente no recibe mensajes, revise que tenga email en su ficha y, si el problema sigue, informe al responsable técnico.
-  </p>
-  {% if request.user.is_superuser %}
-  <details class="pbr-tech-details">
-    <summary>Configuración técnica del servidor (solo referencia)</summary>
-    <div class="pbr-tech-details__body">
-      <p class="muted" style="margin-top:0;">
-        El envío SMTP se define en el archivo <code>.env</code> del proyecto (puede partir de <code>.env.example</code>).
-        Hacen falta al menos <strong>EMAIL_HOST</strong>, <strong>EMAIL_HOST_USER</strong> y <strong>EMAIL_HOST_PASSWORD</strong>.
-        Sin esa configuración, el sistema solo registrará intentos en consola del servidor.
-      </p>
-      <p class="muted" style="margin-bottom:0.5rem;">
-        <strong>Probar SMTP</strong> en la PC donde corre la aplicación (PowerShell o CMD, carpeta del proyecto):
-      </p>
-      <pre class="pbr-code-sample">python manage.py probar_correo su@correo.com</pre>
-      <p class="muted" style="margin-top:0.75rem;margin-bottom:0;font-size:0.9rem;">
-        El comando muestra la configuración detectada y envía un correo de prueba. Si falla: contraseña de aplicación (p. ej. Gmail), puerto 587 con TLS o 465 con SSL, y que el remitente coincida con la cuenta si el proveedor lo exige.
-      </p>
-    </div>
-  </details>
   {% endif %}
+  {% if puede_ver_historial_auditoria %}
+  <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:audit_log_list' %}">
+    <span class="dash-modulo__icon">🕐</span>
+    <h3>Historial de actividad</h3>
+    <p>Auditoría de cambios en el sistema.</p>
+  </a>
+  {% endif %}
+  <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:parametro_mora_list' %}">
+    <span class="dash-modulo__icon">⚙</span>
+    <h3>Recargo administrativo</h3>
+    <p>Monto fijo y días de gracia. Si no pagan un mes, al siguiente: cuota + recargo.</p>
+  </a>
 </section>
+{% endif %}
+
+<p class="dash-foot muted">
+  Sistema Desarrollos: proyectos, lotes, contratos y cartera. Alquileres y venta de casas están en Bienes Raíces.
+</p>
+{% endwith %}
 {% endblock %}

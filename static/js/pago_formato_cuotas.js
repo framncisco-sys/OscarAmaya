@@ -72,13 +72,55 @@
       if (r) sum += parseFloat(String(r.m).replace(",", ".")) || 0;
     }
     sum = Math.round(sum * 100) / 100;
+    wrap.setAttribute("data-suma-cuotas", openChecksPrefix.length ? String(sum) : "0");
     if (isCuotaConcept() && elMonto) {
-      elMonto.value = openChecksPrefix.length ? sum.toFixed(2) : "";
+      // Al marcar cuotas se sugiere la suma; si ya había un monto mayor, se conserva el excedente.
+      var actual = parseFloat(String(elMonto.value || "").replace(",", ".")) || 0;
+      if (!openChecksPrefix.length) {
+        elMonto.value = "";
+      } else if (actual > sum + 0.0001) {
+        elMonto.value = actual.toFixed(2);
+      } else {
+        elMonto.value = sum.toFixed(2);
+      }
     }
     if (isCuotaConcept() && openChecksPrefix.length && elFecha) {
       var ix0 = parseInt(openChecksPrefix[0].dataset.idx, 10);
       var r0 = rowsByIdx[ix0];
       if (r0 && r0.v) elFecha.value = r0.v;
+    }
+    actualizarHintExcedente(sum);
+  }
+
+  function actualizarHintExcedente(sumaCuotas) {
+    var el = document.getElementById("pago-hint-excedente-capital");
+    if (!el) return;
+    if (!isCuotaConcept() || !elMonto) {
+      el.style.display = "none";
+      el.textContent = "";
+      return;
+    }
+    var suma = typeof sumaCuotas === "number"
+      ? sumaCuotas
+      : parseFloat(wrap.getAttribute("data-suma-cuotas") || "0") || 0;
+    var total = parseFloat(String(elMonto.value || "").replace(",", ".")) || 0;
+    var exc = Math.round((total - suma) * 100) / 100;
+    if (suma > 0 && exc > 0.009) {
+      el.style.display = "block";
+      el.innerHTML =
+        "Excedente <strong>$" +
+        exc.toFixed(2) +
+        "</strong> → abono a capital en el <strong>mismo recibo</strong> " +
+        "(cuota $" +
+        suma.toFixed(2) +
+        " + capital $" +
+        exc.toFixed(2) +
+        " = $" +
+        total.toFixed(2) +
+        "). El total se descuenta del saldo.";
+    } else {
+      el.style.display = "none";
+      el.textContent = "";
     }
   }
 
@@ -220,6 +262,15 @@
       normalizeSelection();
     }
   });
+
+  if (elMonto) {
+    elMonto.addEventListener("input", function () {
+      actualizarHintExcedente();
+    });
+    elMonto.addEventListener("change", function () {
+      actualizarHintExcedente();
+    });
+  }
 
   rebuildTable();
 })();

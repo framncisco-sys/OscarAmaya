@@ -6,18 +6,20 @@ import sys
 from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.views import LogoutView
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
 from django.views.static import serve
 
-from core.forms import LoginForm
 from core.views import (
+    PortalLoginView,
     admin_legacy_redirect,
     admin_login_to_web,
     dashboard,
+    elegir_marca,
     home,
     ping,
+    portal_marca,
     pbr_service_worker,
     pbr_web_manifest,
 )
@@ -30,15 +32,14 @@ urlpatterns = [
     path("webhooks/whatsapp/", whatsapp_webhook, name="whatsapp_webhook"),
     path("ping/", ping, name="ping"),
     path("", home, name="home"),
+    path("elegir/", elegir_marca, name="elegir_marca"),
+    path("portal/<slug:slug>/", portal_marca, name="portal_marca"),
+    path("catalogo/", include("inmobiliaria.urls_catalogo")),
     path("app/", include("inmobiliaria.urls_web")),
     path("dashboard/", dashboard, name="dashboard"),
     path(
         "login/",
-        LoginView.as_view(
-            template_name="core/login.html",
-            authentication_form=LoginForm,
-            redirect_authenticated_user=True,
-        ),
+        PortalLoginView.as_view(),
         name="login",
     ),
     path("logout/", LogoutView.as_view(), name="logout"),

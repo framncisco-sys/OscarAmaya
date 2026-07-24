@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    AsesorAlquiler,
     Cliente,
     ClienteDocumento,
     Contrato,
@@ -54,9 +55,19 @@ class InmuebleDetalleCasaAlquilerInline(admin.StackedInline):
 
 @admin.register(Proyecto)
 class ProyectoAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "municipio", "departamento", "activo", "plano_maestro")
+    list_display = ("nombre", "municipio", "departamento", "activo", "logo", "plano_maestro")
     list_filter = ("activo", "departamento")
-    search_fields = ("nombre", "direccion")
+    search_fields = ("nombre", "municipio", "departamento", "direccion")
+    fields = (
+        "nombre",
+        "municipio",
+        "departamento",
+        "direccion",
+        "logo",
+        "plano_maestro",
+        "permisos_notas",
+        "activo",
+    )
     inlines = [PoligonoInline]
 
 
@@ -191,6 +202,13 @@ class VendedorAdmin(admin.ModelAdmin):
     raw_id_fields = ("usuario_vinculo",)
 
 
+@admin.register(AsesorAlquiler)
+class AsesorAlquilerAdmin(admin.ModelAdmin):
+    list_display = ("apellidos", "nombres", "dui", "telefono", "comision_arrendamiento_pct", "activo")
+    list_filter = ("activo",)
+    search_fields = ("nombres", "apellidos", "dui", "email", "telefono")
+
+
 @admin.register(Contrato)
 class ContratoAdmin(admin.ModelAdmin):
     list_display = (
@@ -234,4 +252,6 @@ class FormatoAceptacionAdmin(admin.ModelAdmin):
 
 @admin.register(ParametroMora)
 class ParametroMoraAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "tasa_diaria_porcentaje", "dias_gracia", "activo")
+    list_display = ("nombre", "monto_recargo", "dias_gracia", "activo")
+    list_filter = ("activo",)
+    fields = ("nombre", "monto_recargo", "dias_gracia", "activo")

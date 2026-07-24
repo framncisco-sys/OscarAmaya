@@ -3,7 +3,10 @@
 {% block app_content %}
 <h1 class="page-title">{{ form_title }}</h1>
 {% if es_crear %}
-<p class="muted" style="max-width:42rem;">El usuario podrá iniciar sesión en <code>/login/</code> con el nombre de usuario y la contraseña indicados.</p>
+<p class="muted" style="max-width:42rem;">
+  Complete los datos básicos. El <strong>rol</strong> define qué verá en el sistema.
+  Si elige <strong>Ventas / comercial</strong>, después vincule la cuenta en el módulo Vendedores.
+</p>
 {% elif edit_user %}
 <p class="muted">Usuario: <strong>{{ edit_user.username }}</strong></p>
 {% endif %}

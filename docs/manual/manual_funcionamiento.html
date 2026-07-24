@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Manual de funcionamiento — Paredes Bienes Raíces</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm 20mm 16mm;
+      @frame footer {
+        -pdf-frame-content: footerContent;
+        bottom: 8mm;
+        margin-left: 16mm;
+        margin-right: 16mm;
+        height: 12mm;
+      }
+    }
+    body {
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 10.5pt;
+      color: #152433;
+      line-height: 1.45;
+    }
+    .cover {
+      text-align: center;
+      padding-top: 42mm;
+      page-break-after: always;
+    }
+    .cover-kicker {
+      color: #3d6ea3;
+      font-size: 11pt;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .cover h1 {
+      color: #003366;
+      font-size: 24pt;
+      margin: 0 0 8px;
+      line-height: 1.2;
+    }
+    .cover .sub {
+      color: #5c6b7a;
+      font-size: 12.5pt;
+      margin: 0 0 24px;
+    }
+    .cover .box {
+      display: inline-block;
+      border: 1px solid #c8d4e3;
+      background: #f4f7fb;
+      padding: 14px 22px;
+      text-align: left;
+      margin-top: 16px;
+    }
+    .cover .meta { color: #5c6b7a; font-size: 10pt; margin: 4px 0; }
+    h1 {
+      color: #003366;
+      font-size: 15pt;
+      border-bottom: 2px solid #003366;
+      padding-bottom: 4px;
+      margin: 0 0 10px;
+    }
+    h2 {
+      color: #003366;
+      font-size: 12pt;
+      margin: 14px 0 6px;
+    }
+    h3 {
+      color: #3d6ea3;
+      font-size: 10.5pt;
+      margin: 11px 0 4px;
+    }
+    p { margin: 0 0 7px; }
+    ul, ol { margin: 0 0 9px; padding-left: 18px; }
+    li { margin-bottom: 2px; }
+    .muted { color: #5c6b7a; }
+    .note {
+      border-left: 3px solid #003366;
+      background: #f0f4f9;
+      padding: 7px 9px;
+      margin: 8px 0;
+    }
+    .warn {
+      border-left: 3px solid #b45309;
+      background: #fffbeb;
+      padding: 7px 9px;
+      margin: 8px 0;
+    }
+    .ok {
+      border-left: 3px solid #0f766e;
+      background: #f0fdfa;
+      padding: 7px 9px;
+      margin: 8px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 7px 0 12px;
+      font-size: 9.2pt;
+    }
+    th, td {
+      border: 1px solid #c8d4e3;
+      padding: 5px 6px;
+      vertical-align: top;
+      text-align: left;
+    }
+    th {
+      background: #003366;
+      color: #ffffff;
+      font-weight: bold;
+    }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .check td:first-child { width: 18px; text-align: center; }
+    .section { page-break-before: always; }
+    .keep { page-break-inside: avoid; }
+    .path {
+      font-family: Courier, monospace;
+      font-size: 9pt;
+      background: #f0f4f9;
+      padding: 1px 4px;
+    }
+    #footerContent {
+      font-size: 8pt;
+      color: #5c6b7a;
+      border-top: 1px solid #c8d4e3;
+      padding-top: 4px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div id="footerContent">
+  Manual de funcionamiento v1.1 · Paredes Desarrollos Inmobiliarios · Confidencial — uso interno
+</div>
+
+<div class="cover">
+  <p class="cover-kicker">Documento interno · Capacitación</p>
+  <h1>Manual de funcionamiento<br>del sistema</h1>
+  <p class="sub">Paredes Desarrollos Inmobiliarios<br>Gestión inmobiliaria, contratos, alquileres y cartera</p>
+  <div class="box">
+    <p class="meta"><strong>Versión:</strong> 1.1 (ampliada)</p>
+    <p class="meta"><strong>Fecha:</strong> 15 de julio de 2026</p>
+    <p class="meta"><strong>Incluye:</strong> Flujos, asignación vendedor/asesor, catálogo público, checklist de capacitación y glosario</p>
+    <p class="meta"><strong>Público:</strong> Personal operativo y administración</p>
+  </div>
+</div>
+
+<h1>Índice</h1>
+<ol>
+  <li>Introducción y acceso</li>
+  <li>Mapa del menú</li>
+  <li>Clientes</li>
+  <li>Vendedores (venta / proyectos)</li>
+  <li>Asesores de alquiler</li>
+  <li>Inmuebles: venta y alquiler</li>
+  <li>Proyectos, polígonos y mapas</li>
+  <li>Contratos, pagos y mora</li>
+  <li>Documentos PDF</li>
+  <li>Catálogo público de fotos</li>
+  <li>Flujos de trabajo recomendados</li>
+  <li>Checklist de capacitación</li>
+  <li>Glosario</li>
+  <li>Preguntas frecuentes y problemas comunes</li>
+</ol>
+
+<div class="section">
+<h1>1. Introducción y acceso</h1>
+<p>
+El sistema tiene dos caras: la <strong>app interna</strong> (con usuario) para operar el negocio, y un
+<strong>catálogo público</strong> de fotos para clientes interesados (sin login).
+</p>
+
+<h2>1.1 Ingreso</h2>
+<ol>
+  <li>Abra el navegador → dirección del sistema (ejemplo local: <span class="path">http://127.0.0.1:8000/login/</span>).</li>
+  <li>Escriba <strong>Usuario</strong> y <strong>Contraseña</strong> → <strong>Entrar</strong>.</li>
+  <li>Verá el menú lateral y el área de trabajo. Abajo: sesión, Dashboard y Salir.</li>
+</ol>
+<div class="note">Si olvidó la clave, contacte al administrador. No comparta su usuario.</div>
+
+<h2>1.2 Roles (resumen operativo)</h2>
+<table>
+  <tr><th>Rol</th><th>Uso típico</th></tr>
+  <tr><td>Administrador / Gerencia</td><td>Todo el sistema, usuarios, historial</td></tr>
+  <tr><td>Ventas</td><td>Clientes, contratos, vendedores, seguimiento</td></tr>
+  <tr><td>Cartera</td><td>Pagos, cuotas, mora</td></tr>
+  <tr><td>Proyectos</td><td>Proyectos, polígonos, inventarios, mapas</td></tr>
+  <tr><td>Consulta</td><td>Ver; edición limitada</td></tr>
+</table>
+<p class="muted">Algunas acciones piden <strong>Confirmar acceso</strong> (volver a escribir la contraseña).</p>
+</div>
+
+<div class="section">
+<h1>2. Mapa del menú</h1>
+<table>
+  <tr><th>Módulo</th><th>Opciones principales</th><th>Para qué</th></tr>
+  <tr><td><strong>Clientes</strong></td><td>Listado · Nuevo cliente</td><td>Expediente comprador/inquilino</td></tr>
+  <tr><td><strong>Vendedores</strong></td><td>Catálogo · Nuevo vendedor</td><td>Asesores de <em>venta de proyectos</em></td></tr>
+  <tr><td><strong>Inmuebles</strong></td><td>Alquileres · Venta · Catálogo para clientes</td><td>Inventario y enlace público de fotos</td></tr>
+  <tr><td><strong>Asesores alquiler</strong></td><td>Catálogo · Nuevo asesor</td><td>Asesores de <em>arrendamientos</em> (aparte)</td></tr>
+  <tr><td><strong>Gestión</strong></td><td>Inicio · Proyectos · Contratos · Pagos · Documentos · Admin</td><td>Operación diaria y cartera</td></tr>
+</table>
+<div class="warn">
+  <strong>Regla de oro:</strong> Vendedores (venta) ≠ Asesores alquiler. Son dos catálogos independientes.
+</div>
+</div>
+
+<div class="section">
+<h1>3. Clientes</h1>
+<h2>3.1 Alta</h2>
+<ol>
+  <li><strong>Clientes → Nuevo cliente</strong>.</li>
+  <li>Complete datos y documentos del expediente.</li>
+  <li>Guarde → aparece en <strong>Listado de clientes</strong>.</li>
+</ol>
+<h2>3.2 Uso posterior</h2>
+<ul>
+  <li>Como <strong>comprador</strong> en un contrato de venta.</li>
+  <li>Como <strong>inquilino</strong> en ficha de alquiler.</li>
+  <li>Como <strong>cliente reserva</strong> en un lote/casa apartado.</li>
+  <li>Reporte: <strong>Reporte PDF</strong> desde el listado.</li>
+</ul>
+</div>
+
+<div class="section">
+<h1>4. Vendedores (venta / proyectos)</h1>
+<p>Para asesores de <strong>lotes y casas en venta</strong>, contratos y comisión de venta.</p>
+<ol>
+  <li><strong>Vendedores → Nuevo vendedor</strong>.</li>
+  <li>Nombres, contacto, % comisión sugerido (sobre precio de venta), Activo.</li>
+  <li>Opcional: vincular usuario del sistema.</li>
+</ol>
+<h2>4.1 Dónde se asigna</h2>
+<table>
+  <tr><th>Pregunta</th><th>Respuesta</th></tr>
+  <tr><td>¿Vendió una casa o lote?</td><td>En el <strong>Contrato</strong> → campo <strong>Vendedor</strong></td></tr>
+  <tr><td>¿En el proyecto?</td><td><strong>No.</strong> El proyecto no lleva vendedor</td></tr>
+  <tr><td>¿Recibo de comisión de venta?</td><td>Toma el vendedor del contrato</td></tr>
+</table>
+<div class="ok">Ruta: <strong>Gestión → Cartera y cobros → Contratos</strong> → crear/editar → elegir Vendedor del catálogo.</div>
+</div>
+
+<div class="section">
+<h1>5. Asesores de alquiler</h1>
+<p>Catálogo <strong>aparte</strong> para arrendamientos (locales y casas en alquiler).</p>
+<ol>
+  <li><strong>Asesores alquiler → Nuevo asesor</strong>.</li>
+  <li>% sugerido sobre la <strong>renta mensual</strong> (no sobre precio de venta).</li>
+</ol>
+<h2>5.1 Dónde se asigna</h2>
+<p>
+Al preparar el <strong>Recibo de comisión de alquiler</strong>:
+campo <strong>Asesor del catálogo de alquiler</strong>
+(o nombre libre si no está registrado).
+</p>
+<div class="ok">Ruta: <strong>Inmuebles → Alquileres → Comisión · local/casa…</strong> → elegir inmueble → seleccionar asesor.</div>
+</div>
+
+<div class="section">
+<h1>6. Inmuebles: venta y alquiler</h1>
+<h2>6.1 Venta</h2>
+<ol>
+  <li><strong>Inmuebles → Venta</strong>.</li>
+  <li>Casa: Nueva casa en venta / Casas nueva o usada.</li>
+  <li>Lote: Nuevo lote o local / Lotes y locales.</li>
+  <li>Opcional: Cliente reserva (apartado). Venta formal = Contrato.</li>
+  <li>Suba fotos en la galería (alimentan el catálogo público si está Disponible).</li>
+</ol>
+<h2>6.2 Alquiler</h2>
+<ol>
+  <li><strong>Inmuebles → Alquileres</strong>.</li>
+  <li>Nuevo alquiler de local o de casa.</li>
+  <li>Vincule <strong>Inquilino / arrendatario</strong> (módulo Clientes).</li>
+  <li>Comisión: use el catálogo de <strong>Asesores alquiler</strong>.</li>
+</ol>
+</div>
+
+<div class="section">
+<h1>7. Proyectos, polígonos y mapas</h1>
+<ol>
+  <li><strong>Gestión → Proyectos y mapas → Proyectos</strong> → crear lotificación.</li>
+  <li><strong>Polígonos</strong> → etapas/agrupaciones.</li>
+  <li>Registrar lotes en inventario de venta.</li>
+  <li><strong>Mapa interactivo</strong> (plano del proyecto) y/o <strong>Mapa catastral</strong>.</li>
+</ol>
+<p class="muted">El proyecto organiza el inventario. El vendedor se asigna después, por cada venta, en el contrato.</p>
+</div>
+
+<div class="section">
+<h1>8. Contratos, pagos y mora</h1>
+<h2>8.1 Contrato de venta</h2>
+<ol>
+  <li><strong>Gestión → Contratos → Nuevo</strong>.</li>
+  <li>Cliente + Inmueble + precio + plan de pagos.</li>
+  <li>Campo <strong>Vendedor</strong> (catálogo de Vendedores).</li>
+  <li>Desde el listado: Promesa PDF · Recibo vendedor (comisión).</li>
+</ol>
+<h2>8.2 Pagos</h2>
+<ol>
+  <li><strong>Gestión → Pagos</strong>.</li>
+  <li>Registre prima, cuota o abono.</li>
+  <li>Se puede emitir <strong>Recibo de ingreso</strong> del cliente (PDF).</li>
+</ol>
+<h2>8.3 Mora</h2>
+<p><strong>Parámetros mora</strong>: reglas de mora de la cartera (según permisos).</p>
+</div>
+
+<div class="section">
+<h1>9. Documentos PDF</h1>
+<table>
+  <tr><th>Documento</th><th>Desde dónde</th><th>Beneficiario</th></tr>
+  <tr><td>Promesa de venta</td><td>Contratos → Promesa PDF</td><td>Cliente / venta</td></tr>
+  <tr><td>Recibo de ingreso</td><td>Pagos / Documentos</td><td>Cliente</td></tr>
+  <tr><td>Comisión vendedor</td><td>Contratos → Recibo vendedor</td><td>Vendedor de proyectos</td></tr>
+  <tr><td>Comisión alquiler</td><td>Alquileres → Comisión…</td><td>Asesor de alquiler</td></tr>
+  <tr><td>Formato de aceptación</td><td>Gestión → Documentos</td><td>Uso interno / firmas</td></tr>
+  <tr><td>Reporte de cliente</td><td>Clientes → Reporte PDF</td><td>Expediente</td></tr>
+</table>
+<p>Histórico: <strong>Gestión → Documentos → Documentos</strong>.</p>
+</div>
+
+<div class="section">
+<h1>10. Catálogo público de fotos</h1>
+<p>Muestra solo fotos de inmuebles <strong>Disponibles</strong>. Sin precios, contratos ni datos internos.</p>
+<ol>
+  <li>App: <strong>Inmuebles → Catálogo para clientes</strong>.</li>
+  <li>O URL: <span class="path">/catalogo/</span></li>
+  <li>Botones <strong>Copiar enlace</strong> o <strong>WhatsApp</strong>.</li>
+  <li>Puede compartir la galería de un inmueble concreto.</li>
+</ol>
+<div class="note">El cliente no necesita usuario. Suba las fotos desde la ficha del inmueble en la app.</div>
+</div>
+
+<div class="section">
+<h1>11. Flujos de trabajo recomendados</h1>
+<h2>11.1 Venta (camino completo)</h2>
+<ol>
+  <li>Cliente → Proyecto/polígono → Lote o casa en inventario.</li>
+  <li>Contrato + <strong>Vendedor</strong>.</li>
+  <li>Promesa PDF → Pagos → Recibo ingreso cliente.</li>
+  <li>Recibo de comisión al vendedor.</li>
+</ol>
+<h2>11.2 Alquiler</h2>
+<ol>
+  <li>Cliente (inquilino) → Ficha Alquileres + vínculo.</li>
+  <li>Asesor alquiler (si no existe).</li>
+  <li>Recibo de comisión de alquiler con asesor del catálogo.</li>
+</ol>
+<h2>11.3 Compartir fotos</h2>
+<ol>
+  <li>Fotos en la app · estado Disponible.</li>
+  <li>Catálogo para clientes → copiar / WhatsApp.</li>
+</ol>
+</div>
+
+<div class="section">
+<h1>12. Checklist de capacitación</h1>
+<p>Marque cada punto al capacitar a un colaborador nuevo.</p>
+
+<h2>12.1 Acceso y orientación</h2>
+<table class="check">
+  <tr><th></th><th>Actividad</th></tr>
+  <tr><td>☐</td><td>Ingresar y cerrar sesión correctamente</td></tr>
+  <tr><td>☐</td><td>Identificar su rol en la tarjeta de sesión</td></tr>
+  <tr><td>☐</td><td>Reconocer los 5 bloques del menú lateral</td></tr>
+  <tr><td>☐</td><td>Usar Dashboard / Inicio de Gestión</td></tr>
+</table>
+
+<h2>12.2 Datos maestros</h2>
+<table class="check">
+  <tr><th></th><th>Actividad</th></tr>
+  <tr><td>☐</td><td>Crear un cliente de prueba y localizarlo en el listado</td></tr>
+  <tr><td>☐</td><td>Crear un vendedor (venta) y un asesor de alquiler (aparte)</td></tr>
+  <tr><td>☐</td><td>Explicar por qué son catálogos distintos</td></tr>
+</table>
+
+<h2>12.3 Inventario</h2>
+<table class="check">
+  <tr><th></th><th>Actividad</th></tr>
+  <tr><td>☐</td><td>Crear o ubicar un proyecto y un polígono</td></tr>
+  <tr><td>☐</td><td>Registrar un lote o una casa en venta</td></tr>
+  <tr><td>☐</td><td>Registrar un local o casa en alquiler e inquilino</td></tr>
+  <tr><td>☐</td><td>Subir al menos 2 fotos a una galería</td></tr>
+</table>
+
+<h2>12.4 Venta y comisión</h2>
+<table class="check">
+  <tr><th></th><th>Actividad</th></tr>
+  <tr><td>☐</td><td>Crear contrato: cliente + inmueble + vendedor</td></tr>
+  <tr><td>☐</td><td>Emitir Promesa PDF</td></tr>
+  <tr><td>☐</td><td>Registrar un pago y ver recibo de ingreso</td></tr>
+  <tr><td>☐</td><td>Emitir recibo de comisión al vendedor</td></tr>
+</table>
+
+<h2>12.5 Alquiler y catálogo público</h2>
+<table class="check">
+  <tr><th></th><th>Actividad</th></tr>
+  <tr><td>☐</td><td>Emitir recibo de comisión de alquiler eligiendo asesor</td></tr>
+  <tr><td>☐</td><td>Abrir Catálogo para clientes y copiar el enlace</td></tr>
+  <tr><td>☐</td><td>Enviar (o simular) el enlace por WhatsApp</td></tr>
+</table>
+
+<p class="muted">Capacitador: _________________ &nbsp;&nbsp; Colaborador: _________________ &nbsp;&nbsp; Fecha: ________</p>
+</div>
+
+<div class="section">
+<h1>13. Glosario</h1>
+<table>
+  <tr><th>Término</th><th>Significado en este sistema</th></tr>
+  <tr><td>Proyecto</td><td>Lotificación o residencial (agrupa inmuebles)</td></tr>
+  <tr><td>Polígono</td><td>Etapa o zona dentro de un proyecto</td></tr>
+  <tr><td>Disponible</td><td>Estado de inventario; aparece en catálogo público</td></tr>
+  <tr><td>Reservado</td><td>Apartado con cliente reserva; aún no es venta formal</td></tr>
+  <tr><td>Contrato</td><td>Venta formal: cliente + inmueble + condiciones + vendedor</td></tr>
+  <tr><td>Vendedor</td><td>Asesor del catálogo de <em>ventas de proyectos</em></td></tr>
+  <tr><td>Asesor alquiler</td><td>Asesor del catálogo de <em>arrendamientos</em></td></tr>
+  <tr><td>Recibo de ingreso</td><td>PDF de pago del cliente</td></tr>
+  <tr><td>Recibo de comisión</td><td>PDF de liquidación al vendedor o al asesor</td></tr>
+  <tr><td>Catálogo público</td><td>Página /catalogo/ solo con fotos, sin login</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h1>14. Preguntas frecuentes y problemas comunes</h1>
+
+<div class="keep">
+<h3>No veo Vendedores ni Asesores alquiler</h3>
+<p>Su rol no tiene permiso. Pida a Admin/Gerencia/Ventas que le habiliten la gestión de asesores.</p>
+</div>
+
+<div class="keep">
+<h3>¿Dónde asigno quién vendió una casa?</h3>
+<p>En el <strong>Contrato</strong>, campo <strong>Vendedor</strong>. No en el proyecto.</p>
+</div>
+
+<div class="keep">
+<h3>¿Dónde asigno quién intermediaron un alquiler?</h3>
+<p>En el <strong>Recibo de comisión de alquiler</strong>, campo <strong>Asesor del catálogo de alquiler</strong>.</p>
+</div>
+
+<div class="keep">
+<h3>¿Puedo usar el mismo nombre en venta y alquiler?</h3>
+<p>Sí, pero hay que darlo de alta en ambos catálogos (o escribir nombre libre solo en el recibo de alquiler). El sistema no los mezcla solo.</p>
+</div>
+
+<div class="keep">
+<h3>El catálogo público no muestra un inmueble</h3>
+<p>Proyecto activo + estado Disponible + fotos cargadas.</p>
+</div>
+
+<div class="keep">
+<h3>Usuario o contraseña incorrectos</h3>
+<p>La clave no coincide con la de la base. El administrador debe restablecerla. No es un error del formulario.</p>
+</div>
+
+<div class="keep">
+<h3>Pide confirmar acceso otra vez</h3>
+<p>Es normal en operaciones sensibles. Use <strong>Confirmar acceso</strong> e ingrese su contraseña.</p>
+</div>
+
+<p style="margin-top:22px;" class="muted">
+Fin del manual v1.1. Paredes Desarrollos Inmobiliarios — A &amp; Z<br>
+Archivo: docs/manual/Manual_Funcionamiento_Paredes_Bienes_Raices.pdf
+</p>
+</div>
+
+</body>
+</html>

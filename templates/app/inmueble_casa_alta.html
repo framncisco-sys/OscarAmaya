@@ -7,7 +7,7 @@
   <a href="{{ cancel_url }}" class="link-action">← Volver al listado de casas</a>
 </p>
 <p class="muted" style="margin:0 0 1rem;">
-  Indique proyecto, tipo de casa, código y precio; el estado queda <strong>disponible</strong> hasta que lo cambie desde «Editar inmueble». Polígono, reservas, notas y demás datos de inventario se gestionan ahí, no en este alta.
+  Indique tipo de casa, código y precio de venta. El estado queda <strong>disponible</strong> hasta que lo cambie desde «Editar inmueble». Este módulo no usa proyecto ni polígono de lotificación (eso es solo para lotes).
 </p>
 <form method="post" class="form-stack" enctype="multipart/form-data">
   {% csrf_token %}
@@ -15,7 +15,7 @@
     {{ field }}
   {% endfor %}
   <section class="card" style="padding:1rem 1.1rem;margin-bottom:1rem;">
-    <h2 class="page-title" style="font-size:1.05rem;margin-top:0;">Datos básicos del inventario</h2>
+    <h2 class="page-title" style="font-size:1.05rem;margin-top:0;">Datos de la casa</h2>
     {% if form.non_field_errors %}
       <div class="alert" role="alert">{{ form.non_field_errors }}</div>
     {% endif %}

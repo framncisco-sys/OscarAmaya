@@ -2,51 +2,134 @@
 {% load static %}
 
 {% block body_class %}app-body app-body--login{% endblock %}
-{% block title %}Ingresar | Paredes Bienes Raíces{% endblock %}
+{% block title %}Ingresar | Paredes{% endblock %}
 
 {% block content %}
-<div class="login-shell">
-  <div class="login-shell__inner">
-    <section class="login-panel" aria-labelledby="login-heading">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<div class="login-stage" data-pbr-login-stage>
+  <div class="login-stage__atmosphere" aria-hidden="true">
+    <span class="login-stage__orb login-stage__orb--blue"></span>
+    <span class="login-stage__orb login-stage__orb--gold"></span>
+    <span class="login-stage__mesh"></span>
+  </div>
+
+  <div class="login-stage__layout">
+    <aside class="login-brands" aria-label="Marcas del grupo Paredes">
+      <p class="login-brands__kicker">Grupo Paredes</p>
+      <h2 class="login-brands__title">Dos sistemas. <span>Una misma confianza.</span></h2>
+      <p class="login-brands__lead">Inicie sesión para acceder a Bienes Raíces o Desarrollos Inmobiliarios.</p>
+
+      <div class="login-visual" aria-hidden="true">
+        <figure class="login-visual__main">
+          <img src="{% static 'login_hero_desarrollos.png' %}" alt="" class="login-visual__img" decoding="async" loading="eager">
+          <span class="login-visual__fade"></span>
+          <figcaption class="login-visual__tag">Desarrollos residenciales</figcaption>
+        </figure>
+        <div class="login-visual__stack">
+          <figure class="login-visual__side login-visual__side--lotes">
+            <img src="{% static 'login_hero_lotes_cerca.png' %}" alt="" class="login-visual__img" decoding="async" loading="lazy">
+            <span class="login-visual__fade"></span>
+            <figcaption class="login-visual__tag">Desarrolladores de lotificaciones</figcaption>
+          </figure>
+          <figure class="login-visual__side login-visual__side--venta">
+            <img src="{% static 'login_hero_lotes_aereos.png' %}" alt="" class="login-visual__img" decoding="async" loading="lazy">
+            <span class="login-visual__fade"></span>
+            <figcaption class="login-visual__tag">Venta de lotes</figcaption>
+          </figure>
+          <figure class="login-visual__side login-visual__side--interior">
+            <img src="{% static 'login_hero_interior.png' %}" alt="" class="login-visual__img" decoding="async" loading="lazy">
+            <span class="login-visual__fade"></span>
+            <figcaption class="login-visual__tag">Hogares &amp; arrendamientos</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <div class="login-brands__grid">
+        <article class="login-brand-tile login-brand-tile--br" data-login-brand>
+          <span class="login-brand-tile__glow" aria-hidden="true"></span>
+          <img src="{% static 'logo_paredes_bienes_raices.png' %}" alt="Paredes Bienes Raíces" class="login-brand-tile__logo" decoding="async">
+          <span class="login-brand-tile__caption">Arrendamientos e intermediación</span>
+        </article>
+        <article class="login-brand-tile login-brand-tile--dev" data-login-brand>
+          <span class="login-brand-tile__glow" aria-hidden="true"></span>
+          <img src="{% static 'logo_paredes_desarrollos.png' %}" alt="Paredes Desarrollos Inmobiliarios" class="login-brand-tile__logo" decoding="async">
+          <span class="login-brand-tile__caption">Proyectos, lotes y cartera</span>
+        </article>
+      </div>
+    </aside>
+
+    <section class="login-panel login-panel--enter" aria-labelledby="login-heading" data-login-panel>
+      <div class="login-panel__shine" aria-hidden="true"></div>
       <div class="login-panel__accent" aria-hidden="true"></div>
       <div class="login-panel__body">
-        <p class="login-panel__eyebrow">Paredes Desarrollos Inmobiliarios</p>
+        <p class="login-panel__eyebrow">Acceso seguro</p>
         <h1 id="login-heading" class="login-panel__title">Ingresar al sistema</h1>
-        <p class="login-panel__lead">Gestión inmobiliaria, contratos y cartera en un solo lugar.</p>
+        <p class="login-panel__lead">Escriba su usuario y contraseña para continuar.</p>
 
-        {% if form.errors %}
-        <div class="login-panel__alert alert" role="alert">
-          <strong>No se pudo iniciar sesión.</strong> Revise usuario y contraseña.
+        {% if form.non_field_errors %}
+        <div class="login-panel__alert login-panel__alert--error" role="alert">
+          <span class="login-panel__alert-icon" aria-hidden="true">!</span>
+          <div>
+            <strong>No se pudo iniciar sesión</strong>
+            <p>{{ form.non_field_errors.0 }}</p>
+          </div>
+        </div>
+        {% elif form.errors %}
+        <div class="login-panel__alert login-panel__alert--warn" role="alert">
+          <span class="login-panel__alert-icon" aria-hidden="true">!</span>
+          <div>
+            <strong>Revise los campos</strong>
+            <p>Complete usuario y contraseña correctamente.</p>
+          </div>
         </div>
         {% endif %}
 
-        <form method="post" class="login-form" novalidate>
+        <form method="post" class="login-form" id="pbr-login-form" novalidate>
           {% csrf_token %}
-          <div class="login-field">
+          {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+          <div class="login-field{% if form.username.errors %} login-field--invalid{% endif %}">
             <label class="login-field__label" for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
             <div class="login-field__row">
               <span class="login-field__icon" aria-hidden="true">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" focusable="false">
                   <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z" fill="currentColor" opacity="0.45"/>
                 </svg>
               </span>
               {{ form.username }}
             </div>
-            {% if form.username.errors %}<p class="login-field__error">{{ form.username.errors.0 }}</p>{% endif %}
+            {% if form.username.errors %}
+            <p class="login-field__error" id="login-error-username">{{ form.username.errors.0 }}</p>
+            {% endif %}
           </div>
-          <div class="login-field">
+
+          <div class="login-field{% if form.password.errors %} login-field--invalid{% endif %}">
             <label class="login-field__label" for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
             <div class="login-field__row">
               <span class="login-field__icon" aria-hidden="true">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" focusable="false">
                   <path d="M18 10h-1V8a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Zm-9-2a3 3 0 0 1 6 0v2H9V8Z" fill="currentColor" opacity="0.45"/>
                 </svg>
               </span>
               {{ form.password }}
+              <button type="button" class="login-field__toggle" id="pbr-login-toggle-pw" aria-label="Mostrar contraseña" aria-pressed="false" title="Mostrar contraseña">
+                <svg class="login-field__toggle-icon login-field__toggle-icon--show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="login-field__toggle-icon login-field__toggle-icon--hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" hidden><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </button>
             </div>
-            {% if form.password.errors %}<p class="login-field__error">{{ form.password.errors.0 }}</p>{% endif %}
+            {% if form.password.errors %}
+            <p class="login-field__error" id="login-error-password">{{ form.password.errors.0 }}</p>
+            {% endif %}
           </div>
-          <button type="submit" class="btn-primary login-form__submit">Entrar</button>
+
+          <button type="submit" class="btn-primary login-form__submit" id="pbr-login-submit">
+            <span class="login-form__submit-text">Entrar</span>
+            <svg class="login-form__submit-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+            <span class="login-form__submit-spinner" aria-hidden="true"></span>
+          </button>
         </form>
       </div>
       <footer class="login-panel__foot">
@@ -63,4 +146,8 @@
     </section>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/pbr-login.js' %}" defer></script>
 {% endblock %}

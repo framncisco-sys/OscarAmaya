@@ -37,28 +37,29 @@ def vendedor_catalogo_activo_vinculado(user):
 
 def aplica_restriccion_contratos_por_vendedor(user) -> bool:
     """True si este usuario solo debe ver contratos donde figura como vendedor."""
-    if usuario_ve_todos_los_contratos(user):
-        return False
-    return vendedor_catalogo_activo_vinculado(user) is not None
+    from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
+    return es_vendedor_restringido(user)
 
 
 def filtrar_contratos_queryset_por_vendedor(qs, user):
     """Restringe el queryset a contratos del catálogo vinculado o con `contrato.vendedor` = usuario."""
-    if usuario_ve_todos_los_contratos(user):
+    if not aplica_restriccion_contratos_por_vendedor(user):
         return qs
     v = vendedor_catalogo_activo_vinculado(user)
-    if v is None:
-        return qs
-    return qs.filter(Q(vendedor_perfil_id=v.pk) | Q(vendedor_id=user.pk))
+    if v is not None:
+        return qs.filter(Q(vendedor_perfil_id=v.pk) | Q(vendedor_id=user.pk))
+    # Rol Ventas sin catálogo: solo contratos donde el usuario figura como vendedor interno.
+    return qs.filter(vendedor_id=user.pk)
 
 
 def usuario_puede_ver_contrato(user, contrato: Contrato) -> bool:
     if not aplica_restriccion_contratos_por_vendedor(user):
         return True
     v = vendedor_catalogo_activo_vinculado(user)
-    if v is None:
-        return True
-    return contrato.vendedor_perfil_id == v.pk or contrato.vendedor_id == user.pk
+    if v is not None:
+        return contrato.vendedor_perfil_id == v.pk or contrato.vendedor_id == user.pk
+    return contrato.vendedor_id == user.pk
 
 
 def filtrar_pagos_queryset_por_vendedor(qs, user):

@@ -1,0 +1,67 @@
+# Desarrollo local con PostgreSQL aislado de producción.
+#
+# Uso:
+#   1) cp .env.example .env   (o copie .env.docker.example → .env y ajuste)
+#   2) docker compose -f docker-compose.dev.yml up --build
+#   3) En otra terminal: docker compose -f docker-compose.dev.yml exec web python manage.py migrate
+#   4) Abra http://127.0.0.1:8000
+#
+# Hot-reload: `runserver` detecta cambios en el volumen montado (.:/app) y recarga solo.
+# Depuración: expone el puerto 8000; puede enlazar el depurador de su IDE al proceso dentro del contenedor
+#   o usar `docker compose -f docker-compose.dev.yml exec web python -m debugpy --listen 0.0.0.0:5678 manage.py runserver 0.0.0.0:8000`
+#   (requiere añadir debugpy a requirements de dev si lo usa).
+
+name: paredes-bienes-raices-dev
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-paredes_bienes_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-paredes_dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_cambiar_en_env}
+    ports:
+      # 5433 en el host evita choque con un PostgreSQL nativo en 5432.
+      - "${POSTGRES_PUBLISH_PORT:-5433}:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-U", "${POSTGRES_USER:-paredes_dev}", "-d", "${POSTGRES_DB:-paredes_bienes_dev}"]
+      interval: 5s
+      timeout: 5s
+      retries: 8
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      # Código en caliente: cualquier cambio en el host se ve dentro del contenedor.
+      - .:/app
+    working_dir: /app
+    ports:
+      - "${DJANGO_PUBLISH_PORT:-8000}:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DJANGO_SETTINGS_MODULE: backend.settings
+      # Estas variables tienen prioridad sobre .env cuando usa este compose.
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-paredes_bienes_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-paredes_dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_cambiar_en_env}
+      DEBUG: ${DEBUG:-True}
+      DJANGO_ALLOW_LOCALHOST_DB: "1"
+      # Si .env trae DATABASE_URL de producción, no debe ganar sobre POSTGRES_HOST=db
+      DJANGO_IGNORE_DATABASE_URL: "1"
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,web}
+      # Sin PORT de PaaS: no se dispara el aviso de "BD en localhost" en settings.
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_dev_data:

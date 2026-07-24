@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block body_class %}app-body app-body--portal{% endblock %}
+{% block title %}Elegir empresa | Paredes{% endblock %}
+
+{% block content %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<section class="portal-stage" data-pbr-portal-chooser>
+  <div class="portal-stage__atmosphere" aria-hidden="true">
+    <span class="portal-stage__orb portal-stage__orb--blue"></span>
+    <span class="portal-stage__orb portal-stage__orb--gold"></span>
+    <span class="portal-stage__mesh"></span>
+  </div>
+
+  <div class="portal-stage__inner">
+    <header class="portal-hero">
+      <div class="portal-hero__status" role="status">
+        <span class="portal-hero__pulse" aria-hidden="true"></span>
+        <span>Sesión iniciada</span>
+        {% if request.user.is_authenticated %}
+        <span class="portal-hero__sep" aria-hidden="true">·</span>
+        <span class="portal-hero__user">
+          {% if request.user.get_full_name %}{{ request.user.get_full_name }}{% else %}{{ request.user.username }}{% endif %}
+        </span>
+        {% endif %}
+      </div>
+
+      <p class="portal-hero__kicker">Portal Paredes</p>
+      <h1 class="portal-hero__title">Elija con qué <span class="portal-hero__accent">empresa continuar</span></h1>
+      <p class="portal-hero__lead">
+        Dos sistemas independientes. Seleccione uno para entrar;
+        podrá cambiar después desde el menú lateral.
+      </p>
+      <div class="portal-hero__hint" aria-hidden="true">
+        <span>Pase el cursor o use</span>
+        <kbd>1</kbd>
+        <span>/</span>
+        <kbd>2</kbd>
+      </div>
+    </header>
+
+    <div class="portal-doors" role="list">
+      {% for m in marcas %}
+      <a
+        class="portal-door portal-door--{{ m.slug }}"
+        href="{% url 'portal_marca' m.slug %}"
+        role="listitem"
+        aria-label="{{ m.nombre }} — {{ m.subtitulo }}"
+        data-pbr-brand-card
+        data-portal-key="{{ forloop.counter }}"
+        style="--portal-delay: {{ forloop.counter0 }}"
+      >
+        <span class="portal-door__glow" aria-hidden="true"></span>
+        <span class="portal-door__index" aria-hidden="true">0{{ forloop.counter }}</span>
+        <span class="portal-door__badge">{{ m.eyebrow }}</span>
+        <span class="portal-door__logo-frame">
+          <img src="{% static m.logo %}" alt="" class="portal-door__logo" decoding="async">
+        </span>
+        <span class="portal-door__copy">
+          <span class="portal-door__name">{{ m.nombre }}</span>
+          <span class="portal-door__sub">{{ m.subtitulo }}</span>
+        </span>
+        <span class="portal-door__cta">
+          <span>Entrar al sistema</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>
+          </svg>
+        </span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/pbr-portal-chooser.js' %}" defer></script>
+{% endblock %}

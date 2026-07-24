@@ -1,10 +1,10 @@
 {% extends "app/base_app.html" %}
-{% block title %}Proyectos | Paredes Bienes Raíces{% endblock %}
+{% block title %}Proyectos | {{ marca_portal.nombre }}{% endblock %}
 {% block app_content %}
 <header class="page-toolbar">
   <div class="page-toolbar__intro">
     <h1 class="page-title">Proyectos</h1>
-    <p class="page-toolbar__meta">Lotificaciones y residenciales activos en el sistema.</p>
+    <p class="page-toolbar__meta">Lotificaciones y residenciales. En cada uno puede registrar logo y plano.</p>
   </div>
   <div class="page-toolbar__actions">
     <a href="{% url 'app:proyecto_create' %}" class="btn-primary btn-sm">Nuevo proyecto</a>
@@ -14,9 +14,10 @@
 <table class="table">
   <thead>
     <tr>
+      <th>Logo</th>
       <th>Nombre</th>
       <th>Municipio</th>
-      <th>Departamento</th>
+      <th>Plano</th>
       <th>Activo</th>
       <th></th>
       <th></th>
@@ -25,15 +26,28 @@
   <tbody>
     {% for p in items %}
     <tr>
+      <td>
+        {% if p.logo %}
+        <img src="{{ p.logo.url }}" alt="" style="height:40px;width:auto;max-width:72px;object-fit:contain;vertical-align:middle;">
+        {% else %}
+        <span class="muted">—</span>
+        {% endif %}
+      </td>
       <td><strong>{{ p.nombre }}</strong></td>
       <td>{{ p.municipio|default:"—" }}</td>
-      <td>{{ p.departamento|default:"—" }}</td>
+      <td>
+        {% if p.plano_maestro %}
+        <a href="{{ p.plano_maestro.url }}" class="link-action" target="_blank" rel="noopener">Ver plano</a>
+        {% else %}
+        <span class="muted">Sin plano</span>
+        {% endif %}
+      </td>
       <td>{% if p.activo %}<span class="badge badge--activo">Sí</span>{% else %}<span class="badge badge--bloqueado">No</span>{% endif %}</td>
       <td><a href="{% url 'app:proyecto_update' p.pk %}" class="link-action">Editar</a></td>
       <td><a href="{% url 'app:proyecto_delete' p.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a></td>
     </tr>
     {% empty %}
-    <tr><td colspan="6" class="muted">No hay proyectos.</td></tr>
+    <tr><td colspan="7" class="muted">No hay proyectos.</td></tr>
     {% endfor %}
   </tbody>
 </table>

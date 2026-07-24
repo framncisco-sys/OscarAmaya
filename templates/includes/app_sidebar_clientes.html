@@ -1,0 +1,28 @@
+{% if sidebar_nav %}
+<section class="app-sidebar__hub app-sidebar__hub--clientes{% if sidebar_nav.clientes_active %} app-sidebar__hub--active{% endif %}" aria-label="Clientes" data-pbr-sidebar-hub>
+  <header class="app-sidebar__hub-head">
+    <span class="app-sidebar__hub-badge app-sidebar__hub-badge--clientes" aria-hidden="true">👥</span>
+    <div class="app-sidebar__hub-titles">
+      <span class="app-sidebar__hub-title">Clientes</span>
+      <span class="app-sidebar__hub-sub">Expediente · documentos · reportes</span>
+    </div>
+  </header>
+
+  <div class="app-sidebar__hub-body">
+    <a href="{% url 'app:cliente_list' %}" class="app-sidebar__quick app-sidebar__quick--solo{% if sidebar_nav.cliente_list_active %} is-active{% endif %}"{% if sidebar_nav.cliente_list_active %} aria-current="page"{% endif %}>
+      <span class="app-sidebar__quick-icon" aria-hidden="true">📋</span>
+      <span class="app-sidebar__quick-text">
+        <strong>Listado de clientes</strong>
+        <small>Fichas guardadas{% if sidebar_stats %} · {{ sidebar_stats.clientes }} registrado{{ sidebar_stats.clientes|pluralize:"s" }}{% endif %}</small>
+      </span>
+    </a>
+    <a href="{% url 'app:cliente_create' %}" class="app-sidebar__quick app-sidebar__quick--solo{% if sidebar_nav.cliente_create_active %} is-active{% endif %}"{% if sidebar_nav.cliente_create_active %} aria-current="page"{% endif %}>
+      <span class="app-sidebar__quick-icon" aria-hidden="true">➕</span>
+      <span class="app-sidebar__quick-text">
+        <strong>Nuevo cliente</strong>
+        <small>Alta con documentos del expediente</small>
+      </span>
+    </a>
+  </div>
+</section>
+{% endif %}

@@ -1,0 +1,124 @@
+{% if sidebar_nav %}
+<section class="app-sidebar__hub app-sidebar__hub--gestion{% if sidebar_nav.gestion_active %} app-sidebar__hub--active{% endif %}" aria-label="Gestión y cartera" data-pbr-sidebar-hub>
+  <header class="app-sidebar__hub-head">
+    <span class="app-sidebar__hub-badge app-sidebar__hub-badge--gestion" aria-hidden="true">📋</span>
+    <div class="app-sidebar__hub-titles">
+      <span class="app-sidebar__hub-title">Gestión</span>
+      <span class="app-sidebar__hub-sub">Lotificación · contratos · cartera</span>
+    </div>
+  </header>
+
+  <div class="app-sidebar__hub-body">
+    <a href="{% url 'app:index' %}" class="app-sidebar__quick app-sidebar__quick--inicio{% if sidebar_nav.index_active %} is-active{% endif %}"{% if sidebar_nav.index_active %} aria-current="page"{% endif %}>
+      <span class="app-sidebar__quick-icon" aria-hidden="true">🏠</span>
+      <span class="app-sidebar__quick-text">
+        <strong>Inicio</strong>
+        <small>Resumen y pasos del flujo</small>
+      </span>
+    </a>
+
+    <details class="app-sidebar__accord" data-pbr-accord{% if sidebar_nav.open_docs or sidebar_nav.open_cartera or sidebar_nav.formato_active or sidebar_nav.contrato_active or sidebar_nav.pago_active %} open{% endif %}>
+      <summary class="app-sidebar__accord-summary">
+        <span class="app-sidebar__accord-icon" aria-hidden="true">①</span>
+        <span class="app-sidebar__accord-label">Flujo de venta</span>
+        <span class="app-sidebar__accord-chevron" aria-hidden="true"></span>
+      </summary>
+      <div class="app-sidebar__accord-panel">
+        <p class="app-sidebar__accord-hint">Orden: formato → contrato → reserva → prima/promesa → plazos. Abonos con validación de gerencia.</p>
+        <a href="{% url 'app:formato_aceptacion' %}"{% if sidebar_nav.formato_active %} class="is-active" aria-current="page"{% endif %}>
+          1. Formato de aceptación (nuevo){% if sidebar_stats %}<span class="app-sidebar__stat" title="Formatos">{{ sidebar_stats.formatos }}</span>{% endif %}
+        </a>
+        <a href="{% url 'app:contrato_create' %}"{% if sidebar_nav.contrato_active %} class="is-active" aria-current="page"{% endif %}>
+          2. Llenado de contrato
+        </a>
+        <a href="{% url 'app:pago_create' %}?concepto=RESERVA"{% if sidebar_nav.pago_active %} class="is-active" aria-current="page"{% endif %}>
+          3. Reserva pagada (recibo)
+        </a>
+        <a href="{% url 'app:pago_create' %}?concepto=PRIMA">
+          4. Prima pagada → promesa
+        </a>
+        <a href="{% url 'app:pago_create' %}?concepto=CUOTA">
+          5. Recibos a plazos
+        </a>
+        <a href="{% url 'app:contrato_list' %}">
+          {% if contratos_restriccion_vendedor %}Mis contratos{% else %}Listado de contratos{% endif %}{% if sidebar_stats %}<span class="app-sidebar__stat">{{ sidebar_stats.contratos_activos }}</span>{% endif %}
+        </a>
+        {% if puede_gestionar_vendedores_app %}
+        <a href="{% url 'app:vendedor_list' %}"{% if sidebar_nav.vendedor_list_active or sidebar_nav.vendedor_create_active %} class="is-active" aria-current="page"{% endif %}>
+          Vendedores (registro){% if sidebar_stats and sidebar_stats.vendedores %}<span class="app-sidebar__stat">{{ sidebar_stats.vendedores }}</span>{% endif %}
+        </a>
+        {% endif %}
+        <a href="{% url 'app:pago_list' %}">
+          Todos los pagos{% if sidebar_stats %}<span class="app-sidebar__stat">{{ sidebar_stats.pagos_mes }}</span>{% endif %}
+        </a>
+        {% if puede_validar_abonos_app %}
+        <a href="{% url 'app:pago_list' %}?validacion=pendiente">
+          Validar abonos (gerencia)
+        </a>
+        {% endif %}
+        <a href="{% url 'app:formato_aceptacion_list' %}">Formatos guardados</a>
+        <a href="{% url 'app:docs_list' %}"{% if sidebar_nav.docs_active %} class="is-active" aria-current="page"{% endif %}>
+          Documentos PDF{% if sidebar_stats %}<span class="app-sidebar__stat">{{ sidebar_stats.documentos }}</span>{% endif %}
+        </a>
+      </div>
+    </details>
+
+    <details class="app-sidebar__accord" data-pbr-accord{% if sidebar_nav.open_proyectos %} open{% endif %}>
+      <summary class="app-sidebar__accord-summary">
+        <span class="app-sidebar__accord-icon" aria-hidden="true">🏗</span>
+        <span class="app-sidebar__accord-label">Proyectos y mapas</span>
+        <span class="app-sidebar__accord-chevron" aria-hidden="true"></span>
+      </summary>
+      <div class="app-sidebar__accord-panel">
+        <a href="{% url 'app:proyecto_list' %}"{% if sidebar_nav.proyecto_active %} class="is-active" aria-current="page"{% endif %}>
+          Proyectos{% if sidebar_stats %}<span class="app-sidebar__stat" title="Proyectos activos">{{ sidebar_stats.proyectos }}</span>{% endif %}
+        </a>
+        <a href="{% url 'app:poligono_list' %}"{% if sidebar_nav.poligono_active %} class="is-active" aria-current="page"{% endif %}>
+          Polígonos{% if sidebar_stats %}<span class="app-sidebar__stat" title="Polígonos registrados">{{ sidebar_stats.poligonos }}</span>{% endif %}
+        </a>
+        <a href="{% url 'app:mapa_editor' %}"{% if sidebar_nav.mapa_editor_active %} class="is-active" aria-current="page"{% endif %}>Mapa interactivo</a>
+        <a href="{% url 'app:mapa_catastral' %}"{% if sidebar_nav.mapa_catastral_active %} class="is-active" aria-current="page"{% endif %}>Mapa catastral</a>
+        <a href="{% url 'app:inmueble_list' %}">Lotes del proyecto</a>
+      </div>
+    </details>
+
+    <details class="app-sidebar__accord" data-pbr-accord{% if sidebar_nav.mora_active or sidebar_nav.aviso_cobro_active %} open{% endif %}>
+      <summary class="app-sidebar__accord-summary">
+        <span class="app-sidebar__accord-icon" aria-hidden="true">⚙</span>
+        <span class="app-sidebar__accord-label">Cartera avanzada</span>
+        <span class="app-sidebar__accord-chevron" aria-hidden="true"></span>
+      </summary>
+      <div class="app-sidebar__accord-panel">
+        <a href="{% url 'app:aviso_cobro_list' %}"{% if sidebar_nav.aviso_cobro_active %} class="is-active" aria-current="page"{% endif %}>
+          Avisos de cobro (5 días antes)
+        </a>
+        <a href="{% url 'app:parametro_mora_list' %}"{% if sidebar_nav.mora_active %} class="is-active" aria-current="page"{% endif %}>
+          Recargo administrativo{% if sidebar_stats %}<span class="app-sidebar__stat">{{ sidebar_stats.parametros_mora }}</span>{% endif %}
+        </a>
+      </div>
+    </details>
+
+    {% if puede_gestionar_usuarios_app or puede_ver_historial_auditoria %}
+    <details class="app-sidebar__accord app-sidebar__accord--admin" data-pbr-accord{% if sidebar_nav.open_admin %} open{% endif %}>
+      <summary class="app-sidebar__accord-summary">
+        <span class="app-sidebar__accord-icon" aria-hidden="true">⚙</span>
+        <span class="app-sidebar__accord-label">Administración</span>
+        <span class="app-sidebar__accord-chevron" aria-hidden="true"></span>
+      </summary>
+      <div class="app-sidebar__accord-panel">
+        {% if puede_gestionar_usuarios_app %}
+        <a href="{% url 'app:usuario_list' %}"{% if sidebar_nav.usuario_active %} class="is-active" aria-current="page"{% endif %}>
+          Usuarios{% if sidebar_stats and sidebar_stats.usuarios %}<span class="app-sidebar__stat" title="Usuarios activos">{{ sidebar_stats.usuarios }}</span>{% endif %}
+        </a>
+        {% endif %}
+        {% if puede_ver_historial_auditoria %}
+        <a href="{% url 'app:audit_log_list' %}"{% if sidebar_nav.audit_active %} class="is-active" aria-current="page"{% endif %}>
+          Historial{% if sidebar_stats and sidebar_stats.auditoria %}<span class="app-sidebar__stat" title="Registros de auditoría">{{ sidebar_stats.auditoria }}</span>{% endif %}
+        </a>
+        {% endif %}
+      </div>
+    </details>
+    {% endif %}
+  </div>
+</section>
+{% endif %}

@@ -1,0 +1,134 @@
+{% extends "docs/_base_pdf.html" %}
+{% block pdf_body_class %} class="pdf-comision-alquiler"{% endblock %}
+{% block pdf_header %}
+<div class="pdf-header pdf-header--pbr-br">
+  <table class="pdf-header-logos">
+    <tr>
+      <td>
+        <img src="{% firstof proyecto_logo_src 'logo_valle_alegre.png' %}" alt="Logo del proyecto" class="pdf-logo pdf-logo--proyecto">
+      </td>
+      <td>
+        <img src="logo_paredes_bienes_raices.png" alt="Paredes Bienes Raíces" class="pdf-logo pdf-logo--pbr-br">
+      </td>
+    </tr>
+  </table>
+</div>
+{% endblock %}
+{% block pdf_extra_styles %}
+    body.pdf-comision-alquiler { margin: 0; padding: 0; color: #1e293b; font-size: 11px; line-height: 1.4; }
+    body.pdf-comision-alquiler .pdf-header--pbr-br { margin: 0 0 12px; padding: 0 0 10px; border-bottom: 2px solid #003366; }
+    body.pdf-comision-alquiler .pdf-header-logos td { height: 168px; min-height: 168px; padding: 6px 10px 8px; vertical-align: middle; }
+    body.pdf-comision-alquiler .pdf-logo--proyecto,
+    body.pdf-comision-alquiler .pdf-logo--pbr-br { height: 136px; max-height: 136px; width: auto; max-width: 280px; object-fit: contain; }
+    .cv-band { background: linear-gradient(135deg, #0f3d2e 0%, #1b5e3b 55%, #2d7a52 100%); color: #fff; padding: 14px 16px 12px; border-radius: 6px 6px 0 0; text-align: center; }
+    .cv-band__kicker { margin: 0 0 4px; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.9; }
+    .cv-band h1 { margin: 0 0 6px; font-size: 20px; font-weight: 800; }
+    .cv-band__meta { margin: 0; font-size: 10px; opacity: 0.92; }
+    .cv-shell { border: 2px solid #1b5e3b; border-top: none; border-radius: 0 0 6px 6px; overflow: hidden; }
+    .cv-payee { background: #f0fdf4; border-bottom: 1px dashed #86efac; padding: 12px 14px; text-align: center; }
+    .cv-payee__lbl { margin: 0 0 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: #166534; font-weight: 700; }
+    .cv-payee__name { margin: 0; font-size: 16px; font-weight: 800; color: #14532d; }
+    .cv-amount { background: #fffbeb; border-bottom: 2px solid #f59e0b; padding: 14px; text-align: center; }
+    .cv-amount__words { margin: 0 0 6px; font-size: 11px; color: #92400e; font-style: italic; }
+    .cv-amount__value { margin: 0; font-size: 26px; font-weight: 800; color: #b45309; }
+    .cv-amount__ccy { font-size: 14px; font-weight: 700; color: #78350f; }
+    .cv-grid { width: 100%; border-collapse: collapse; }
+    .cv-grid td { width: 50%; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 10px; }
+    .cv-grid td:first-child { border-right: 1px solid #e2e8f0; }
+    .cv-sec { margin: 0 0 5px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; font-weight: 700; }
+    .cv-grid p { margin: 0 0 3px; }
+    .cv-detail { padding: 10px 12px 8px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+    .cv-detail table { width: 100%; border-collapse: collapse; font-size: 10px; }
+    .cv-detail th { text-align: left; padding: 5px 8px; background: #e2e8f0; color: #334155; font-size: 8px; text-transform: uppercase; }
+    .cv-detail td { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+    .cv-detail .cv-total td { font-weight: 800; background: #ecfdf5; color: #14532d; border-bottom: none; }
+    .cv-detail .cv-monto { text-align: right; font-weight: 700; white-space: nowrap; }
+    .cv-firmas { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    .cv-firmas td { width: 50%; text-align: center; padding: 8px 10px 4px; font-size: 9px; color: #64748b; }
+    .cv-firmas .cv-line { border-top: 1px solid #94a3b8; margin: 22px 10px 0; padding-top: 5px; }
+    .cv-pie { margin: 8px 0 0; padding: 8px 10px; font-size: 8.5px; color: #94a3b8; text-align: center; line-height: 1.5; border-top: 1px solid #e2e8f0; }
+{% endblock %}
+
+{% block content %}
+<div class="cv-band">
+  <p class="cv-band__kicker">Módulo de alquileres · liquidación de comisión</p>
+  <h1>Recibo de comisión</h1>
+  <p class="cv-band__meta">
+    N.º <strong>{{ doc.numero }}</strong>
+    · {{ doc.emitido_en|date:"d/m/Y H:i" }}
+    {% if lugar_emision %} · {{ lugar_emision }}{% endif %}
+  </p>
+</div>
+
+<div class="cv-shell">
+  <div class="cv-payee">
+    <p class="cv-payee__lbl">Beneficiario / vendedor</p>
+    <p class="cv-payee__name">{{ vendedor_nombre }}</p>
+  </div>
+
+  <div class="cv-amount">
+    <p class="cv-amount__words">{{ monto_letras }}</p>
+    <p class="cv-amount__value">{{ monto_fmt }} <span class="cv-amount__ccy">USD</span></p>
+  </div>
+
+  <table class="cv-grid">
+    <tr>
+      <td>
+        <p class="cv-sec">Empresa emisora</p>
+        <p><strong>{{ razon_social_emisor }}</strong></p>
+        {% if emisor_nit %}<p>NIT {{ emisor_nit }}</p>{% endif %}
+        <p>Comisión por intermediación en arrendamiento</p>
+      </td>
+      <td>
+        <p class="cv-sec">Inmueble en alquiler</p>
+        <p>{{ inmueble.get_tipo_display }} <strong>{{ inmueble.codigo }}</strong></p>
+        <p>{{ proyecto.nombre|title }}</p>
+        <p>Renta mensual ref.: <strong>{{ renta_mensual_fmt }} USD</strong></p>
+      </td>
+    </tr>
+  </table>
+
+  <div class="cv-detail">
+    <p class="cv-sec" style="margin-bottom:6px;">Detalle de la comisión</p>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:14%;">Fecha</th>
+          <th style="width:46%;">Concepto</th>
+          <th style="width:22%;">Referencia</th>
+          <th style="width:18%;text-align:right;">Monto USD</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{ doc.emitido_en|date:"d/m/Y" }}</td>
+          <td>
+            {{ comision_concepto }}
+            {% if comision_porcentaje_txt %}
+              <br><span style="color:#64748b;font-size:9px;">Referencia: {{ comision_porcentaje_txt }}.</span>
+            {% endif %}
+          </td>
+          <td>{{ inmueble.codigo }} · alquiler</td>
+          <td class="cv-monto">{{ monto_fmt }}</td>
+        </tr>
+        <tr class="cv-total">
+          <td colspan="3">Total comisión liquidada</td>
+          <td class="cv-monto">{{ monto_fmt }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <table class="cv-firmas">
+    <tr>
+      <td><div class="cv-line">Autorizado — {{ razon_social_emisor }}</div></td>
+      <td><div class="cv-line">Recibí conforme — {{ vendedor_nombre }}</div></td>
+    </tr>
+  </table>
+</div>
+
+<p class="cv-pie">
+  Comprobante de comisión por alquiler en USD. Independiente del módulo de ventas y contratos.
+  Ref. <strong>{{ doc.numero }}</strong>.
+</p>
+{% endblock %}

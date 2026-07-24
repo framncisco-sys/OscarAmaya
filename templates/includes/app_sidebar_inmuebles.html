@@ -1,0 +1,35 @@
+{% if sidebar_nav %}
+<section class="app-sidebar__hub app-sidebar__hub--inmuebles{% if sidebar_nav.inmuebles_active %} app-sidebar__hub--active{% endif %}" aria-label="Inmuebles" data-pbr-sidebar-hub>
+  <header class="app-sidebar__hub-head">
+    <span class="app-sidebar__hub-badge" aria-hidden="true">🏘</span>
+    <div class="app-sidebar__hub-titles">
+      <span class="app-sidebar__hub-title">Inmuebles</span>
+      <span class="app-sidebar__hub-sub">Alquiler · venta</span>
+    </div>
+  </header>
+
+  <div class="app-sidebar__hub-body">
+    <a href="{% url 'app:inmuebles_alquiler_hub' %}" class="app-sidebar__quick app-sidebar__quick--solo{% if sidebar_nav.inmuebles_alquiler_nav_active %} is-active{% endif %}"{% if sidebar_nav.inmuebles_alquiler_nav_active %} aria-current="page"{% endif %}>
+      <span class="app-sidebar__quick-icon" aria-hidden="true">🔑</span>
+      <span class="app-sidebar__quick-text">
+        <strong>Alquileres</strong>
+        <small>Locales y casas{% if sidebar_stats %} · {{ sidebar_stats.alquiler_locales|add:sidebar_stats.alquiler_casas }} en cartera{% endif %}</small>
+      </span>
+    </a>
+    <a href="{% url 'app:inmuebles_venta_hub' %}" class="app-sidebar__quick app-sidebar__quick--solo{% if sidebar_nav.inmuebles_venta_nav_active %} is-active{% endif %}"{% if sidebar_nav.inmuebles_venta_nav_active %} aria-current="page"{% endif %}>
+      <span class="app-sidebar__quick-icon" aria-hidden="true">🏡</span>
+      <span class="app-sidebar__quick-text">
+        <strong>Venta</strong>
+        <small>Casas y lotes{% if sidebar_stats %} · {{ sidebar_stats.casas_venta|add:sidebar_stats.lotes_locales }} en inventario{% endif %}</small>
+      </span>
+    </a>
+    <a href="{% url 'catalogo:list' %}" class="app-sidebar__quick app-sidebar__quick--solo" target="_blank" rel="noopener" title="Abre el enlace público para enviarlo al cliente">
+      <span class="app-sidebar__quick-icon" aria-hidden="true">📷</span>
+      <span class="app-sidebar__quick-text">
+        <strong>Catálogo para clientes</strong>
+        <small>Paredes Bienes Raíces · fotos sin login</small>
+      </span>
+    </a>
+  </div>
+</section>
+{% endif %}

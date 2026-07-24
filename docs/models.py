@@ -4,13 +4,17 @@ from django.conf import settings
 from django.db import models
 
 from crm.models import HojaVisita, Lead
-from inmobiliaria.models import Contrato, Inmueble, Pago, Vendedor
+from inmobiliaria.models import AsesorAlquiler, Contrato, Inmueble, Pago, Vendedor
 
 
 class DocumentoTipo(models.TextChoices):
     PROMESA_VENTA = "PROMESA_VENTA", "Promesa de venta"
     RECIBO_INGRESO = "RECIBO_INGRESO", "Recibo de ingreso"
     RECIBO_COMISION_VENDEDOR = "RECIBO_COMISION_VENDEDOR", "Recibo de comisión (vendedor)"
+    RECIBO_COMISION_ARRENDAMIENTO = (
+        "RECIBO_COMISION_ARRENDAMIENTO",
+        "Recibo de comisión (arrendamiento)",
+    )
     HOJA_VISITA = "HOJA_VISITA", "Hoja de visita"
 
 
@@ -32,7 +36,7 @@ class CorrelativoDocumento(models.Model):
 
 class DocumentoEmitido(models.Model):
     tipo = models.CharField(max_length=30, choices=DocumentoTipo.choices, db_index=True)
-    numero = models.CharField(max_length=40, db_index=True)
+    numero = models.CharField(max_length=64, db_index=True)
 
     contrato = models.ForeignKey(Contrato, on_delete=models.SET_NULL, null=True, blank=True)
     pago = models.ForeignKey(Pago, on_delete=models.SET_NULL, null=True, blank=True)
@@ -45,7 +49,15 @@ class DocumentoEmitido(models.Model):
         null=True,
         blank=True,
         related_name="documentos_comision",
-        verbose_name="vendedor (comisión)",
+        verbose_name="vendedor (comisión venta)",
+    )
+    asesor_alquiler = models.ForeignKey(
+        AsesorAlquiler,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recibos_comision",
+        verbose_name="asesor (comisión alquiler)",
     )
 
     emitido_por = models.ForeignKey(
@@ -58,6 +70,33 @@ class DocumentoEmitido(models.Model):
 
     pdf_file = models.FileField(upload_to="docs/%Y/%m/", blank=True)
     hash_sha256 = models.CharField(max_length=64, blank=True)
+
+    monto_comision_usd = models.DecimalField(
+        "Monto comisión (USD)",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Comisión liquidada en el recibo al vendedor (snapshot al emitir).",
+    )
+    comision_porcentaje_recibo = models.DecimalField(
+        "Porcentaje comisión (recibo)",
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Porcentaje mostrado en el recibo de comisión, si aplica.",
+    )
+    comision_concepto = models.TextField(
+        blank=True,
+        help_text="Concepto o detalle impreso en el recibo de comisión al vendedor.",
+    )
+    recibo_beneficiario_nombre = models.CharField(
+        "Beneficiario del recibo",
+        max_length=120,
+        blank=True,
+        help_text="Nombre del vendedor o asesor en recibos de arrendamiento.",
+    )
 
     class Meta:
         ordering = ["-emitido_en", "-id"]

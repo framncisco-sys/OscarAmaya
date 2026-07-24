@@ -147,7 +147,7 @@ def enviar_recibo_comision_vendedor_correo(doc_id: int) -> bool:
         except Exception:
             pass
 
-    monto = contrato.monto_comision_efectivo()
+    monto = doc.monto_comision_usd or contrato.monto_comision_efectivo()
     ctx = {
         "doc": doc,
         "contrato": contrato,

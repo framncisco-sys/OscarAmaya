@@ -9,6 +9,7 @@ weasyprint>=62,<70
 xhtml2pdf>=0.2.15,<0.3
 num2words>=0.5,<1
 pillow>=11,<13
+qrcode>=7.4,<9
 # Media persistente (DigitalOcean Spaces, AWS S3, MinIO…)
 django-storages[s3]>=1.14,<2
 boto3>=1.35,<2

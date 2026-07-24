@@ -5,9 +5,10 @@ from io import BytesIO
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -18,8 +19,9 @@ from inmobiliaria.contratos_acceso import (
     usuario_puede_ver_contrato,
     vendedor_catalogo_activo_vinculado,
 )
-from inmobiliaria.models import Contrato, Pago
+from inmobiliaria.models import Contrato, Inmueble, Pago
 
+from .forms import ReciboComisionVendedorForm
 from .models import DocumentoEmitido, DocumentoTipo
 from .recibo_notificacion import ReciboNotificacionInfo, construir_url_whatsapp_recibo
 from .services import (
@@ -151,8 +153,7 @@ def _alerta_html_recibo_emitido(
     )
 
 
-@login_required
-def emitir_recibo_comision(request: HttpRequest, contrato_id: int) -> HttpResponse:
+def _contrato_para_recibo_comision(contrato_id: int, user):
     base = Contrato.objects.select_related(
         "vendedor_perfil",
         "vendedor",
@@ -160,25 +161,130 @@ def emitir_recibo_comision(request: HttpRequest, contrato_id: int) -> HttpRespon
         "inmueble",
         "inmueble__proyecto",
     )
-    contrato = get_object_or_404(
-        filtrar_contratos_queryset_por_vendedor(base, request.user),
+    return get_object_or_404(
+        filtrar_contratos_queryset_por_vendedor(base, user),
         pk=contrato_id,
     )
-    try:
-        doc = emitir_recibo_comision_vendedor(contrato=contrato, emitido_por=request.user)
-    except ValueError as exc:
-        messages.error(request, str(exc))
-        return redirect("app:contrato_update", pk=contrato.pk)
-    url_pdf = reverse("app:doc_download", args=[doc.id])
-    messages.success(
-        request,
-        format_html(
-            'Recibo de comisión <strong>{}</strong> generado. <a href="{}">Descargar PDF</a>.',
-            doc.numero,
-            url_pdf,
-        ),
+
+
+def _contratos_venta_queryset(user):
+    """Contratos de venta (lotes/casas), no alquiler — para comisión al vendedor."""
+    qs = (
+        Contrato.objects.select_related(
+            "cliente",
+            "inmueble",
+            "inmueble__proyecto",
+            "vendedor_perfil",
+            "vendedor",
+        )
+        .filter(inmueble__en_alquiler=False)
+        .order_by("-fecha_firma", "-id")
     )
-    return redirect("app:contrato_list")
+    return filtrar_contratos_queryset_por_vendedor(qs, user)
+
+
+def _contratos_casa_venta_queryset(user):
+    """Compat: casas de venta; el listado principal usa todos los de venta."""
+    return _contratos_venta_queryset(user).filter(
+        inmueble__tipo__in=(Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA),
+    )
+
+
+def _cancel_url_recibo_comision(contrato: Contrato) -> tuple[str, str]:
+    return reverse("app:recibo_comision_hub"), "Recibos de comisión al vendedor"
+
+
+@login_required
+def recibo_comision_casa_venta_elegir(request: HttpRequest) -> HttpResponse:
+    """Elige contrato de venta para emitir recibo de comisión al vendedor."""
+    from inmobiliaria.comision_vendedor import (
+        prefetch_pagos_para_comision,
+        requisitos_comision_venta,
+    )
+
+    qs = prefetch_pagos_para_comision(_contratos_venta_queryset(request.user))
+    paginator = Paginator(qs, 25)
+    page = paginator.get_page(request.GET.get("page"))
+    for contrato in page:
+        contrato.monto_comision_ref = contrato.monto_comision_efectivo()
+        contrato.req_comision = requisitos_comision_venta(contrato)
+    return render(
+        request,
+        "app/recibo_comision_casa_venta_elegir.html",
+        {
+            "items": page,
+            "page_obj": page,
+            "page_title": "Recibo de comisión — venta",
+            "page_meta": (
+                "1) Vendedor con su comisión en el contrato · "
+                "2) Reserva y prima pagadas y validadas en cuenta · "
+                "3) Generar el recibo de comisión de venta."
+            ),
+        },
+    )
+
+
+@login_required
+def emitir_recibo_comision(request: HttpRequest, contrato_id: int) -> HttpResponse:
+    from inmobiliaria.comision_vendedor import requisitos_comision_venta
+
+    contrato = _contrato_para_recibo_comision(contrato_id, request.user)
+    req = requisitos_comision_venta(contrato)
+    nombre_v = req.vendedor_nombre
+
+    if request.method == "POST":
+        if not req.puede_emitir:
+            messages.error(
+                request,
+                "Aún no se puede generar la comisión: " + " ".join(req.motivos),
+            )
+            return redirect("app:emitir_recibo_comision", contrato_id=contrato.pk)
+        form = ReciboComisionVendedorForm(request.POST, contrato=contrato)
+        if form.is_valid():
+            try:
+                doc = emitir_recibo_comision_vendedor(
+                    contrato=contrato,
+                    emitido_por=request.user,
+                    monto_comision=form.cleaned_data["monto_comision"],
+                    comision_porcentaje=form.cleaned_data.get("comision_porcentaje"),
+                    concepto=form.cleaned_data.get("concepto") or "",
+                )
+            except ValueError as exc:
+                messages.error(request, str(exc))
+                return redirect("app:emitir_recibo_comision", contrato_id=contrato.pk)
+            url_pdf = reverse("app:doc_download", args=[doc.id])
+            messages.success(
+                request,
+                format_html(
+                    'Recibo de comisión al vendedor <strong>{}</strong> generado. '
+                    '<a href="{}">Descargar PDF</a>.',
+                    doc.numero,
+                    url_pdf,
+                ),
+                extra_tags="allow_html",
+            )
+            return redirect("app:doc_download", doc_id=doc.id)
+    else:
+        form = ReciboComisionVendedorForm(contrato=contrato)
+
+    monto_sugerido = contrato.monto_comision_efectivo()
+    cancel_url, cancel_label = _cancel_url_recibo_comision(contrato)
+    return render(
+        request,
+        "app/recibo_comision_preparar.html",
+        {
+            "form": form,
+            "contrato": contrato,
+            "vendedor_nombre": nombre_v or "— (sin vendedor)",
+            "monto_sugerido": monto_sugerido,
+            "precio_final": contrato.precio_final,
+            "form_title": "Recibo de comisión al vendedor",
+            "cancel_url": cancel_url,
+            "cancel_label": cancel_label,
+            "req_comision": req,
+            "puede_emitir_comision": req.puede_emitir,
+        },
+    )
 
 
 @login_required
@@ -199,6 +305,19 @@ def emitir_recibo(request: HttpRequest, pago_id: int) -> HttpResponse:
     )
     if not usuario_puede_ver_contrato(request.user, pago.contrato):
         raise Http404("Pago no disponible")
+    if pago.pendiente_validacion_gerente:
+        messages.error(
+            request,
+            "Este abono (reserva, prima, cuota o abono a capital) aún no está validado por gerencia. "
+            "No se puede emitir el recibo ni notificar al cliente hasta confirmar el depósito en cuenta.",
+        )
+        return redirect("app:pago_list")
+    if pago.validacion_abono == Pago.ValidacionAbono.RECHAZADO:
+        messages.error(
+            request,
+            "Este abono fue rechazado por gerencia. No se emite recibo al cliente.",
+        )
+        return redirect("app:pago_list")
     doc, notif = emitir_recibo_ingreso(pago=pago, emitido_por=request.user)
     wa = construir_url_whatsapp_recibo(pago.contrato.cliente, doc, pago)
     url_pdf = reverse("app:doc_download", args=[doc.id])
@@ -210,6 +329,7 @@ def emitir_recibo(request: HttpRequest, pago_id: int) -> HttpResponse:
             wa_url=wa,
             notif=notif,
         ),
+        extra_tags="allow_html",
     )
     return redirect("app:docs_list")
 

@@ -203,6 +203,19 @@
     if (elM) elM.textContent = pm ? "$" + pm : "—";
     if (elN) elN.textContent = pn || "—";
 
+    var elRecargo = document.getElementById("pago-hint-recargo");
+    if (elRecargo) {
+      var rNota = opt.getAttribute("data-recargo-nota") || "";
+      var rCant = parseInt10(opt.getAttribute("data-recargo-cantidad"));
+      if (rCant > 0 && rNota) {
+        elRecargo.style.display = "block";
+        elRecargo.textContent = rNota + ". Al cobrar, registre la cuota y, aparte, el concepto «Recargo administrativo» (o incluya el total según su política).";
+      } else {
+        elRecargo.style.display = "none";
+        elRecargo.textContent = "";
+      }
+    }
+
     populateFormato(opt);
 
     var aplic = document.getElementById("pago-hint-aplicacion-cuota");
@@ -258,7 +271,7 @@
 
     if (useTablaCuotas) {
       aplic.innerHTML =
-        "Concepto «Cuota»: use la <strong>tabla de cuotas</strong> debajo para marcar la(s) que liquida este pago (consecutivas desde la primera pendiente). El monto y la fecha se ajustan al grupo marcado.";
+        "Concepto «Cuota»: marque la(s) cuota(s). El monto puede ser mayor: el excedente va a capital en el <strong>mismo recibo</strong> (ej. cuota $200 + $50 capital = $250).";
       aplic.style.color = "#0f766e";
       primeraEjecucion = false;
       return;

@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import logging
 import os
 import re
+import sys
 from pathlib import Path
 from urllib.parse import parse_qs, unquote_plus, urlparse
 
@@ -30,6 +31,84 @@ env = environ.Env(
 # En App Platform / PaaS no debe existir .env en el repo; las credenciales van en el panel.
 # Si hay .env local, no debe pisar variables ya definidas en el entorno del despliegue.
 environ.Env.read_env(BASE_DIR / ".env", overwrite=False)
+
+
+def _fill_postgres_from_dotenv_if_system_empty() -> None:
+    """En Windows a veces hay POSTGRES_PASSWORD= (vacío) a nivel de usuario; read_env(overwrite=False) no lo pisa.
+
+    Si el proceso tiene la clave vacía o ausente pero el .env define un valor, lo aplicamos desde el archivo.
+    """
+    path = BASE_DIR / ".env"
+    if not path.is_file():
+        return
+    keys = frozenset(
+        {
+            "POSTGRES_DB",
+            "POSTGRES_USER",
+            "POSTGRES_PASSWORD",
+            "POSTGRES_HOST",
+            "POSTGRES_PORT",
+            "POSTGRES_SSLMODE",
+        }
+    )
+    try:
+        raw = path.read_text(encoding="utf-8-sig")
+    except OSError:
+        return
+    for line in raw.splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        if "=" not in s:
+            continue
+        k, _, rest = s.partition("=")
+        k = k.strip()
+        if k not in keys:
+            continue
+        v = rest.strip()
+        if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+            v = v[1:-1]
+        if (os.environ.get(k) or "").strip():
+            continue
+        os.environ[k] = v
+
+
+_fill_postgres_from_dotenv_if_system_empty()
+
+
+def _env_flag_true(val: str | None) -> bool:
+    return (val or "").strip().lower() in ("1", "true", "yes", "on")
+
+
+# Windows / IDEs a veces exportan DATABASE_URL o PGHOST hacia la nube antes que el .env.
+# Con overwrite=False esas claves ganan y el .env nunca las corrige. Si el desarrollador pide
+# modo local (DJANGO_IGNORE_DATABASE_URL=1), quitamos esas claves y releemos .env con prioridad.
+_dotenv_path = BASE_DIR / ".env"
+_cloud_db_url_keys = (
+    "DATABASE_URL",
+    "POSTGRES_URL",
+    "POSTGRESQL_URL",
+    "POSTGRES_DATABASE_URL",
+)
+_cloud_pg_keys = (
+    "PGHOST",
+    "PGUSER",
+    "PGPASSWORD",
+    "PGDATABASE",
+    "PGPORT",
+    "DB_HOST",
+    "DB_USER",
+    "DB_PASSWORD",
+    "DB_NAME",
+    "DB_PORT",
+)
+if _dotenv_path.is_file() and _env_flag_true(os.environ.get("DJANGO_IGNORE_DATABASE_URL")):
+    for _k in _cloud_db_url_keys + _cloud_pg_keys:
+        os.environ.pop(_k, None)
+    environ.Env.read_env(_dotenv_path, overwrite=True)
+    # Aunque el .env defina DATABASE_URL, en este modo solo deben valer POSTGRES_*.
+    for _k in _cloud_db_url_keys:
+        os.environ.pop(_k, None)
 
 
 # Quick-start development settings - unsuitable for production
@@ -118,6 +197,7 @@ def _build_middleware():
             "django.middleware.csrf.CsrfViewMiddleware",
             "django.contrib.auth.middleware.AuthenticationMiddleware",
             "usuarios.middleware.AppUsuarioActivoMiddleware",
+            "inmobiliaria.middleware.VendedorFlujoMiddleware",
             "django.contrib.messages.middleware.MessageMiddleware",
             "django.middleware.clickjacking.XFrameOptionsMiddleware",
             "audit.middleware.AuditContextMiddleware",
@@ -155,6 +235,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'usuarios.context_processors.perfil_app',
+                'core.context_processors.sidebar_context',
             ],
         },
     },
@@ -172,6 +253,13 @@ _pg_options = {"connect_timeout": 10}
 _postgres_sslmode = env.str("POSTGRES_SSLMODE", default="").strip()
 if _postgres_sslmode:
     _pg_options["sslmode"] = _postgres_sslmode
+
+
+def _pbr_local_db_warnings_enabled() -> bool:
+    """El padre de `runserver` importa settings antes que el hijo; sin esto los avisos PBR salen duplicados."""
+    if "runserver" in sys.argv and os.environ.get("RUN_MAIN") != "true":
+        return False
+    return True
 
 
 def _first_database_url_raw() -> str:
@@ -269,9 +357,17 @@ def _database_from_db_prefix() -> dict | None:
     }
 
 
-_db_url = _database_from_url()
-_db_pg = _database_from_pg_env()
-_db_alt = _database_from_db_prefix()
+# Modo local: ignore DATABASE_URL, PGHOST, DB_HOST, etc. (a menudo heredados de la nube / variables
+# de sistema en Windows) y use solo POSTGRES_* del .env — ver DJANGO_IGNORE_DATABASE_URL en .env.example.
+_use_only_postgres_env_file = env.bool("DJANGO_IGNORE_DATABASE_URL", default=False)
+if _use_only_postgres_env_file:
+    _db_url = None
+    _db_pg = None
+    _db_alt = None
+else:
+    _db_url = _database_from_url()
+    _db_pg = _database_from_pg_env()
+    _db_alt = _database_from_db_prefix()
 if _db_url:
     DATABASES = {"default": _db_url}
 elif _db_pg:
@@ -279,17 +375,90 @@ elif _db_pg:
 elif _db_alt:
     DATABASES = {"default": _db_alt}
 else:
+    _pg_host = env.str("POSTGRES_HOST", default="localhost").strip() or "localhost"
+    if _use_only_postgres_env_file and "ondigitalocean.com" in _pg_host.lower():
+        if _pbr_local_db_warnings_enabled():
+            logging.getLogger(__name__).warning(
+                "PBR: POSTGRES_HOST apunta a DigitalOcean (%s); en modo local se usa localhost. "
+                "Corrija su .env si necesita otro host.",
+                _pg_host,
+            )
+        _pg_host = "localhost"
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
             "NAME": env.str("POSTGRES_DB", default="paredes_bienes"),
             "USER": env.str("POSTGRES_USER", default="postgres"),
             "PASSWORD": env.str("POSTGRES_PASSWORD", default=""),
-            "HOST": env.str("POSTGRES_HOST", default="localhost"),
+            "HOST": _pg_host,
             "PORT": env.str("POSTGRES_PORT", default="5432"),
             "OPTIONS": dict(_pg_options),
         }
     }
+
+
+def _normalize_db_for_local_dev(db: dict) -> None:
+    """Evita fallos típicos en Windows con un .env copiado de DigitalOcean.
+
+    - Host *.ondigitalocean.com no resuelve sin red/VPN → localhost.
+    - Tras localhost suelen quedar POSTGRES_PORT=25060 y sslmode=require (DO), incompatibles con Postgres local.
+
+    No aplica en PaaS (PORT en el entorno). Para usar el host remoto desde su PC: DJANGO_ALLOW_REMOTE_DO_DB=1.
+    """
+    if os.environ.get("PORT") or env.bool("DJANGO_ALLOW_REMOTE_DO_DB", default=False):
+        return
+    log = logging.getLogger(__name__)
+    _say = _pbr_local_db_warnings_enabled()
+    host = (db.get("HOST") or "").strip()
+    host_l = host.lower()
+    try:
+        p = int(str(db.get("PORT") or "5432").strip() or "5432")
+    except ValueError:
+        p = 5432
+    opts = db.get("OPTIONS") if isinstance(db.get("OPTIONS"), dict) else {}
+    ssl_require = (opts.get("sslmode") or "").lower() == "require"
+
+    coerced_host = False
+    coerced_port = False
+    if host_l and "ondigitalocean.com" in host_l:
+        if _say:
+            log.warning(
+                "PBR: desarrollo local: host «%s» (DigitalOcean) → localhost. "
+                "Defina POSTGRES_* para su Postgres local o DJANGO_ALLOW_REMOTE_DO_DB=1 para forzar remoto.",
+                host,
+            )
+        db["HOST"] = "localhost"
+        coerced_host = True
+        host_l = "localhost"
+
+    is_loopback = host_l in ("localhost", "127.0.0.1", "::1") or host_l.startswith("[::1]")
+    if is_loopback and p > 10000:
+        if _say:
+            log.warning(
+                "PBR: puerto %s (típico de BD en la nube) → 5432 para Postgres local.",
+                db.get("PORT"),
+            )
+        db["PORT"] = "5432"
+        coerced_port = True
+
+    if is_loopback and ssl_require and (coerced_host or coerced_port):
+        db["OPTIONS"] = {k: v for k, v in opts.items() if k != "sslmode"}
+        if coerced_port and not coerced_host and _say:
+            log.warning(
+                "PBR: sslmode=require omitido para Postgres local (defina POSTGRES_SSLMODE si usa TLS en local)."
+            )
+
+    if (coerced_host or coerced_port) and is_loopback:
+        u = (db.get("USER") or "").strip().lower()
+        if u == "doadmin" and _say:
+            log.warning(
+                "PBR: POSTGRES_USER es «doadmin» (DigitalOcean) pero la conexión va a localhost; fallará la "
+                "autenticación hasta que en .env ponga POSTGRES_USER, POSTGRES_PASSWORD y POSTGRES_DB de su Postgres "
+                "local, o DJANGO_ALLOW_REMOTE_DO_DB=1 si usa la BD en la nube."
+            )
+
+
+_normalize_db_for_local_dev(DATABASES["default"])
 
 # Gunicorn en App Platform define PORT; no forzar fallo al arrancar si aún no hay DATABASE_URL
 # (un raise aquí tumba Gunicorn y el health check). Solo avisar en logs.
@@ -561,7 +730,7 @@ PBR_SENSITIVE_REAUTH_TTL = env.int("PBR_SENSITIVE_REAUTH_TTL", default=900)
 GOOGLE_MAPS_API_KEY = env.str("GOOGLE_MAPS_API_KEY", default="").strip()
 
 LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/dashboard/'
+LOGIN_REDIRECT_URL = '/elegir/'
 LOGOUT_REDIRECT_URL = '/login/'
 
 # Sesiones: evita TypeError "datetime is not JSON serializable" al guardar la sesión.

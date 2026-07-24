@@ -1,0 +1,46 @@
+{% extends "app/base_app.html" %}
+{% block title %}Asesores de alquiler | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Asesores de alquiler</h1>
+    <p class="page-toolbar__meta">Catálogo independiente del módulo de arrendamientos. No es el mismo listado que vendedores de proyectos en venta.</p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:asesor_alquiler_create' %}" class="btn-primary btn-sm">Nuevo asesor</a>
+  </div>
+</header>
+<div class="data-panel">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Nombres</th>
+      <th>Apellidos</th>
+      <th>DUI</th>
+      <th>Teléfono</th>
+      <th class="right">% sobre renta</th>
+      <th>Activo</th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for v in items %}
+    <tr>
+      <td>{{ v.nombres }}</td>
+      <td>{{ v.apellidos }}</td>
+      <td>{{ v.dui|default:"—" }}</td>
+      <td>{{ v.telefono|default:"—" }}</td>
+      <td class="right">{{ v.comision_arrendamiento_pct }} %</td>
+      <td>{% if v.activo %}Sí{% else %}No{% endif %}</td>
+      <td><a href="{% url 'app:asesor_alquiler_update' v.pk %}" class="link-action">Editar</a></td>
+      <td><a href="{% url 'app:asesor_alquiler_delete' v.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="8" class="muted">No hay asesores de alquiler registrados.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "app/pagination.html" %}
+{% endblock %}

@@ -10,7 +10,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, Prefetch, Q, Sum
 from django.forms import BaseInlineFormSet, inlineformset_factory
 from django.urls import reverse
 
@@ -38,6 +38,17 @@ from .models import (
 )
 
 M2_POR_V2 = Decimal("0.698896")  # 1 v² ≈ 0.698896 m² (vara salvadoreña ~0.835905 m)
+
+PROYECTO_CONTENEDOR_CASA_VENTA = "Casas en venta"
+
+
+def proyecto_contenedor_casa_venta() -> Proyecto:
+    """Proyecto técnico para casas sueltas en venta (sin elegir lotificación en el alta)."""
+    proyecto, _ = Proyecto.objects.get_or_create(
+        nombre=PROYECTO_CONTENEDOR_CASA_VENTA,
+        defaults={"activo": True},
+    )
+    return proyecto
 
 # IVA estimado en formulario web (referencia; asesoría contable puede variar).
 IVA_TASA_SOBRE_PRECIO = Decimal("0.13")
@@ -170,12 +181,37 @@ def _montos_calculados_contrato(data: dict) -> None:
 class ProyectoForm(forms.ModelForm):
     class Meta:
         model = Proyecto
-        fields = "__all__"
+        fields = [
+            "nombre",
+            "municipio",
+            "departamento",
+            "direccion",
+            "logo",
+            "plano_maestro",
+            "permisos_notas",
+            "activo",
+        ]
         widgets = {
-            "plano_maestro": forms.ClearableFileInput(
-                attrs={"accept": ".pdf,.png,.jpg,.jpeg,.webp,image/*"}
+            "logo": forms.ClearableFileInput(
+                attrs={"accept": ".png,.jpg,.jpeg,.webp,image/*"}
             ),
+            "plano_maestro": forms.ClearableFileInput(
+                attrs={"accept": ".pdf,.png,.jpg,.jpeg,.webp,image/*,application/pdf"}
+            ),
+            "direccion": forms.Textarea(attrs={"rows": 2}),
+            "permisos_notas": forms.Textarea(attrs={"rows": 3}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["logo"].label = "Logo del proyecto"
+        self.fields["logo"].help_text = (
+            "Imagen del logo (PNG o JPG). Aparece en recibos y documentos PDF de este proyecto."
+        )
+        self.fields["plano_maestro"].label = "Plano del proyecto"
+        self.fields["plano_maestro"].help_text = (
+            "Plano completo (PDF o imagen). Se usa en el mapa de lotes y polígonos."
+        )
 
 
 class PoligonoForm(forms.ModelForm):
@@ -246,6 +282,21 @@ class InmuebleForm(forms.ModelForm):
         """
         self.modo_tipo = modo_tipo or ""
         super().__init__(*args, **kwargs)
+        inv = self.instance
+        if (
+            inv.pk
+            and inv.tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA)
+            and not inv.en_alquiler
+        ):
+            for nombre in (
+                "en_alquiler",
+                "proyecto",
+                "poligono",
+                "geometria_json",
+                "geometria_catastral_geojson",
+                "inmueble_padre",
+            ):
+                self.fields.pop(nombre, None)
         tf = self.fields.get("tipo")
         if not tf:
             return
@@ -294,15 +345,13 @@ class InmuebleForm(forms.ModelForm):
 
 
 class InmuebleCasaAltaForm(InmuebleForm):
-    """Alta de casa: inventario mínimo; tipo de construcción, distribución y documentos van en InmuebleDetalleCasa."""
+    """Alta de casa en venta: sin proyecto ni alquiler (módulo independiente de lotes y arrendamiento)."""
 
     class Meta(InmuebleForm.Meta):
         fields = [
-            "proyecto",
             "tipo",
             "codigo",
             "precio_lista",
-            "en_alquiler",
         ]
 
     def __init__(self, *args, modo_tipo: str = "casa", **kwargs):
@@ -317,6 +366,15 @@ class InmuebleCasaAltaForm(InmuebleForm):
         if pf:
             pf.widget.attrs.setdefault("step", "0.01")
             pf.widget.attrs.setdefault("min", "0")
+
+    def save(self, commit=True):
+        inmueble = super().save(commit=False)
+        inmueble.proyecto = proyecto_contenedor_casa_venta()
+        inmueble.en_alquiler = False
+        inmueble.estado = Inmueble.Estado.DISPONIBLE
+        if commit:
+            inmueble.save()
+        return inmueble
 
 
 class InmuebleDetalleCasaForm(forms.ModelForm):
@@ -393,6 +451,12 @@ class InmuebleDetalleLocalAlquilerForm(forms.ModelForm):
                 f.widget.attrs.setdefault("step", "0.01")
                 f.widget.attrs.setdefault("min", "0")
                 f.widget.attrs.setdefault("placeholder", "ej. 500.00")
+        inq = self.fields.get("inquilino")
+        if inq:
+            inq.queryset = Cliente.objects.order_by("apellidos", "nombres")
+            inq.required = False
+            inq.empty_label = "— Sin asignar —"
+            inq.help_text = "Cliente que arrendará este local (independiente del módulo de ventas)."
         inc = self.fields.get("incremento_anual_pct")
         if inc:
             inc.widget.attrs.setdefault("step", "0.01")
@@ -434,6 +498,12 @@ class InmuebleDetalleCasaAlquilerForm(forms.ModelForm):
         if mx:
             mx.widget.attrs.setdefault("min", "1")
             mx.widget.attrs.setdefault("placeholder", "ej. 4")
+        inq = self.fields.get("inquilino")
+        if inq:
+            inq.queryset = Cliente.objects.order_by("apellidos", "nombres")
+            inq.required = False
+            inq.empty_label = "— Sin asignar —"
+            inq.help_text = "Cliente que arrendará esta casa (independiente del módulo de ventas)."
 
     def clean(self):
         cleaned = super().clean()
@@ -493,6 +563,11 @@ class VendedorForm(forms.ModelForm):
         self.fields["porcentaje_comision_default"].widget.attrs.setdefault("step", "0.01")
         self.fields["porcentaje_comision_default"].widget.attrs.setdefault("min", "0")
         self.fields["porcentaje_comision_default"].widget.attrs.setdefault("max", "100")
+        self.fields["porcentaje_comision_default"].label = "Comisión de venta (%)"
+        self.fields["porcentaje_comision_default"].help_text = (
+            "Cuánto % le corresponde sobre el precio de venta. Se usa al asignarlo en un contrato "
+            "y al generar el recibo de comisión (después de validar reserva y prima)."
+        )
         vt = self.fields.get("telefono")
         if vt:
             vt.widget.attrs.setdefault("maxlength", "40")
@@ -551,6 +626,10 @@ def _pago_contrato_catalog_option_attrs(c: dict) -> dict[str, str]:
         "data-formato-num-cuotas": c.get("formato_num_cuota_txt", ""),
         "data-formato-interes": c.get("formato_interes_txt", ""),
         "data-cuotas-todas-json": c.get("cuotas_todas_json", "[]"),
+        "data-recargo-monto": c.get("recargo_monto", "0"),
+        "data-recargo-cantidad": c.get("recargo_cantidad", "0"),
+        "data-recargo-total-mes": c.get("recargo_total_mes", ""),
+        "data-recargo-nota": c.get("recargo_nota", ""),
     }
 
 
@@ -617,15 +696,46 @@ class ContratoForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.filtro_proyecto_id = kwargs.pop("filtro_proyecto_id", None)
         self.filtro_poligono_id = kwargs.pop("filtro_poligono_id", None)
+        self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         self.fields["vendedor_perfil"].queryset = Vendedor.objects.filter(activo=True).order_by(
             "apellidos", "nombres"
         )
         self.fields["vendedor_perfil"].required = False
-        self.fields["vendedor_perfil"].label = "Vendedor"
+        self.fields["vendedor_perfil"].label = "Vendedor (catálogo)"
+        self.fields["vendedor_perfil"].help_text = (
+            "Obligatorio para comisión de venta. Al elegirlo se copia su % de comisión. "
+            "El recibo de comisión solo se emite cuando reserva y prima estén validadas."
+        )
         self.fields["vendedor_nombre"].help_text = (
             "Opcional si elige vendedor del catálogo; use este campo para un nombre libre en documentos."
         )
+        # Vendedor de campo: el contrato queda siempre a su nombre en catálogo.
+        if self.user is not None:
+            from inmobiliaria.contratos_acceso import vendedor_catalogo_activo_vinculado
+            from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
+            if es_vendedor_restringido(self.user):
+                vc = vendedor_catalogo_activo_vinculado(self.user)
+                if vc is not None:
+                    self.fields["vendedor_perfil"].queryset = Vendedor.objects.filter(pk=vc.pk)
+                    self.fields["vendedor_perfil"].initial = vc.pk
+                    self.fields["vendedor_perfil"].required = True
+                    self.fields["vendedor_perfil"].help_text = (
+                        "Asignado automáticamente a su registro de vendedor."
+                    )
+                    if not getattr(self.instance, "pk", None):
+                        self.initial.setdefault("vendedor_perfil", vc.pk)
+        if "comision_porcentaje" in self.fields:
+            self.fields["comision_porcentaje"].label = "Comisión del vendedor (%)"
+            self.fields["comision_porcentaje"].help_text = (
+                "Porcentaje sobre el precio final. Se rellena al elegir vendedor; puede ajustarlo."
+            )
+        if "comision_monto" in self.fields:
+            self.fields["comision_monto"].label = "Comisión del vendedor (monto fijo USD)"
+            self.fields["comision_monto"].help_text = (
+                "Si define monto fijo, tiene prioridad sobre el % al calcular el recibo de comisión."
+            )
 
         qs = Inmueble.objects.select_related("proyecto", "poligono").order_by(
             "proyecto__nombre", "poligono__orden", "poligono__nombre", "codigo"
@@ -770,6 +880,14 @@ class ContratoForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        if self.user is not None:
+            from inmobiliaria.contratos_acceso import vendedor_catalogo_activo_vinculado
+            from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
+            if es_vendedor_restringido(self.user):
+                vc = vendedor_catalogo_activo_vinculado(self.user)
+                if vc is not None:
+                    cleaned_data["vendedor_perfil"] = vc
         vp = cleaned_data.get("vendedor_perfil")
         pct = cleaned_data.get("comision_porcentaje")
         if vp is not None and pct in (None, ""):
@@ -839,18 +957,19 @@ class PagoForm(forms.ModelForm):
             ff.input_formats = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"]
             ff.help_text = (
                 "Día en que usted recibe o registra este dinero (ingreso real en el sistema). "
-                "El vencimiento de cada cuota está en las cuotas programadas del contrato; "
-                "para aplicar mora se razona comparando ese vencimiento con la fecha efectiva de pago "
-                "y los parámetros de mora configurados. No es la fecha de vencimiento de la cuota."
+                "El vencimiento de cada cuota está en las cuotas programadas del contrato. "
+                "Si no pagan un mes y pasan los días de gracia, al siguiente mes corresponde "
+                "cuota + recargo administrativo (Parámetros de recargo). "
+                "La fecha de este movimiento es cuando se recibió el dinero, no el vencimiento."
             )
 
         m = self.fields.get("monto")
         if m:
             m.label = "Monto total del pago"
             m.help_text = (
-                "Un solo número con el importe completo de este ingreso: incluye todo lo que corresponda "
-                "a este movimiento según el concepto (prima, cuota, mantenimiento, mora u otro), sin dividir en varias líneas. "
-                "Puede usar coma o punto como decimal (ej. 333,82 o 333.82)."
+                "Importe total recibido. Ejemplo: cuota $200 y abona $250 → ponga $250. "
+                "En el recibo saldrá la cuota y el excedente como abono a capital; "
+                "el total ($250) se descuenta del saldo. Use coma o punto decimal."
             )
             self.fields["monto"] = MontoDecimalFormField(
                 label=m.label,
@@ -870,9 +989,33 @@ class PagoForm(forms.ModelForm):
                 ),
             )
 
+        n = self.fields.get("notas")
+        if n:
+            n.label = "Notas (salen en el recibo)"
+            n.help_text = (
+                "Opcional. Sale en el recibo. Si hay excedente a capital, el PDF ya lo desglosa solo."
+            )
+
         c = self.fields.get("concepto")
         if c:
-            c.help_text = "Tipo de ingreso; el monto de arriba debe ser el total de esta operación."
+            c.label = "Concepto del recibo"
+            c.help_text = (
+                "Orden: 1) Reserva → 2) Prima → 3) Cuotas. "
+                "Si paga más que la cuota, deje concepto «Cuota de financiamiento» y el monto total: "
+                "un solo recibo con cuota + abono a capital. "
+                "«Abono a capital» solo si abona a capital sin liquidar cuota del mes."
+            )
+            # Orden comercial preferido en el desplegable.
+            orden = [
+                Pago.Concepto.RESERVA,
+                Pago.Concepto.PRIMA,
+                Pago.Concepto.CUOTA,
+                Pago.Concepto.MANTENIMIENTO,
+                Pago.Concepto.ABONO_CAPITAL,
+                Pago.Concepto.MORA,
+                Pago.Concepto.OTRO,
+            ]
+            c.choices = [(x.value, x.label) for x in orden]
 
         r = self.fields.get("referencia")
         if r:
@@ -900,6 +1043,31 @@ class PagoForm(forms.ModelForm):
             pks = list(ct.queryset.values_list("pk", flat=True))
             catalog: dict[str, dict[str, str]] = {}
             if pks:
+                from django.utils import timezone as dj_tz
+
+                from inmobiliaria.recargo_administrativo import (
+                    cuota_genera_recargo,
+                    parametro_recargo_activo,
+                )
+
+                param_recargo = parametro_recargo_activo()
+                dias_gracia_r = int(param_recargo.dias_gracia) if param_recargo else 0
+                unitario_r = (
+                    (param_recargo.monto_recargo or Decimal("0"))
+                    if param_recargo
+                    else Decimal("0")
+                )
+                hoy_r = dj_tz.localdate()
+                mora_pagado_por_ct = {
+                    r["contrato_id"]: r["t"] or Decimal("0")
+                    for r in Pago.objects.filter(
+                        contrato_id__in=pks,
+                        concepto=Pago.Concepto.MORA,
+                    )
+                    .exclude(validacion_abono=Pago.ValidacionAbono.RECHAZADO)
+                    .values("contrato_id")
+                    .annotate(t=Sum("monto"))
+                }
                 stats_rows = (
                     CuotaProgramada.objects.filter(contrato_id__in=pks)
                     .values("contrato_id")
@@ -997,6 +1165,35 @@ class PagoForm(forms.ModelForm):
                     elif cm is not None:
                         cuota_ref = str(cm.quantize(Decimal("0.01")))
                         cuota_fuente = "contrato"
+                    generadoras_r = [
+                        x
+                        for x in todas
+                        if cuota_genera_recargo(
+                            x, hoy=hoy_r, dias_gracia=dias_gracia_r
+                        )
+                    ]
+                    pagado_r = mora_pagado_por_ct.get(c.pk, Decimal("0"))
+                    if unitario_r > 0:
+                        cubiertos_r = int(pagado_r // unitario_r)
+                        n_recargos = max(0, len(generadoras_r) - cubiertos_r)
+                        monto_recargos = (unitario_r * n_recargos).quantize(
+                            Decimal("0.01")
+                        )
+                    else:
+                        n_recargos = 0
+                        monto_recargos = Decimal("0.00")
+                    total_mes = (
+                        (first.monto + monto_recargos).quantize(Decimal("0.01"))
+                        if first
+                        else monto_recargos
+                    )
+                    nota_r = ""
+                    if n_recargos and first:
+                        nota_r = (
+                            f"Cuota #{first.numero} (${first.monto.quantize(Decimal('0.01'))}) "
+                            f"+ {n_recargos} recargo(s) administrativo(s) (${monto_recargos}) "
+                            f"= ${total_mes}"
+                        )
                     catalog[str(c.pk)] = {
                         "contrato_id": str(c.pk),
                         "cliente": cliente_display,
@@ -1024,6 +1221,10 @@ class PagoForm(forms.ModelForm):
                         "cuotas_todas_json": json.dumps(
                             todas_payload, separators=(",", ":")
                         ),
+                        "recargo_monto": str(monto_recargos),
+                        "recargo_cantidad": str(n_recargos),
+                        "recargo_total_mes": str(total_mes) if first else "",
+                        "recargo_nota": nota_r,
                     }
             ct.widget = ContratoPagoSelect(catalog=catalog)
             ct.widget.choices = ct.choices
@@ -1168,12 +1369,14 @@ class PagoForm(forms.ModelForm):
                 esperado = sum((c.monto for c in vinculadas), Decimal("0")).quantize(
                     Decimal("0.01")
                 )
-                if monto_q is not None and monto_q != esperado:
+                if monto_q is not None and monto_q < esperado:
                     nums = ", ".join(str(c.numero) for c in vinculadas)
                     raise ValidationError(
                         {
                             "monto": (
-                                f"El monto debe ser ${esperado} (suma de las cuotas ya vinculadas a este pago: n.º {nums})."
+                                f"El monto no puede ser menor a ${esperado} "
+                                f"(suma de las cuotas vinculadas: n.º {nums}). "
+                                "Si abona de más, ese excedente va a capital en el mismo recibo."
                             )
                         }
                     )
@@ -1240,12 +1443,15 @@ class PagoForm(forms.ModelForm):
                 }
             )
         esperado = sum((c.monto for c in pend), Decimal("0")).quantize(Decimal("0.01"))
-        if monto_q is not None and monto_q != esperado:
+        if monto_q is not None and monto_q < esperado:
             raise ValidationError(
                 {
                     "monto": (
-                        f"Para {n} cuota(s) el monto debe ser exactamente ${esperado} "
-                        f"(suma de las cuotas n.º {pend[0].numero} al {pend[-1].numero})."
+                        f"Para {n} cuota(s) el monto mínimo es ${esperado} "
+                        f"(cuotas n.º {pend[0].numero} al {pend[-1].numero}). "
+                        "Si el cliente abona de más (ej. cuota $200 y paga $250), "
+                        "registre $250: el excedente sale como abono a capital en el mismo recibo "
+                        "y se descuenta del saldo."
                     )
                 }
             )
@@ -1333,7 +1539,34 @@ CuotaProgramadaFormSet = inlineformset_factory(
 class ParametroMoraForm(forms.ModelForm):
     class Meta:
         model = ParametroMora
-        fields = "__all__"
+        fields = ("nombre", "monto_recargo", "dias_gracia", "activo")
+        labels = {
+            "nombre": "Nombre de la política",
+            "monto_recargo": "Monto del recargo administrativo ($)",
+            "dias_gracia": "Días de gracia tras la fecha de pago",
+            "activo": "Activo",
+        }
+        help_texts = {
+            "monto_recargo": (
+                "Cantidad fija que define la empresa. Si no pagan un mes "
+                "(después de la gracia), al siguiente mes sale la cuota + este recargo."
+            ),
+            "dias_gracia": (
+                "Días después del vencimiento de la cuota antes de que aplique el recargo. "
+                "Ejemplo: vencimiento día 5, gracia 5 → aplica desde el día 11."
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        m = self.fields.get("monto_recargo")
+        if m:
+            m.widget.attrs.setdefault("inputmode", "decimal")
+            m.widget.attrs.setdefault("placeholder", "0.00")
+        g = self.fields.get("dias_gracia")
+        if g:
+            g.widget.attrs.setdefault("min", "0")
+            g.widget.attrs.setdefault("max", "90")
 
 
 _FORMATO_ACEPTACION_EXCLUDE = (

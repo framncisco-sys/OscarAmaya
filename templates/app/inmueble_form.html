@@ -17,9 +17,6 @@
   <p class="muted" style="margin:0 0 0.75rem;font-size:0.9rem;">
     {% if object.tipo == "CASA_NUEVA" or object.tipo == "CASA_SEGUNDA" %}
     <a href="{% url 'app:inmueble_casa_galeria' object.pk %}" class="link-action">Casa y fotos (venta)</a>
-    {% if object.en_alquiler %}<span class="muted"> · </span><a href="{% url 'app:casa_alquiler_ficha' object.pk %}" class="link-action">Casa en alquiler</a>{% endif %}
-    {% elif object.tipo == "LOCAL" and object.en_alquiler %}
-    <a href="{% url 'app:local_alquiler_ficha' object.pk %}" class="link-action">Local en alquiler</a>
     {% endif %}
     <span class="muted"> — Abajo: portada, descripción o eliminar (cada acción pide superusuario). Para subir varias fotos use el enlace de la ficha.</span>
   </p>

@@ -1,0 +1,55 @@
+{% extends "app/base_app.html" %}
+{% block title %}{{ page_title }} | {{ marca_portal.nombre }}{% endblock %}
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">{{ page_title }}</h1>
+    <p class="page-toolbar__meta">{{ page_meta }}</p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:vendedor_list' %}" class="btn-secondary">Vendedores</a>
+    <a href="{% url 'app:recibo_comision_hub' %}" class="btn-secondary">← Recibos de comisión</a>
+  </div>
+</header>
+<div class="data-panel">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Contrato</th>
+      <th>Cliente</th>
+      <th>Inmueble</th>
+      <th>Vendedor / comisión</th>
+      <th>Reserva</th>
+      <th>Prima</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in items %}
+    <tr>
+      <td><strong>{{ c.numero }}</strong></td>
+      <td>{{ c.cliente }}</td>
+      <td>{{ c.inmueble.codigo }} — {{ c.inmueble.proyecto.nombre }}</td>
+      <td>
+        {{ c.nombre_vendedor_documentos|default:"—" }}
+        {% if c.monto_comision_ref %}<br><span class="muted">${{ c.monto_comision_ref|floatformat:2 }}</span>{% endif %}
+      </td>
+      <td>{% if c.req_comision.reserva.validado %}<span style="color:#15803d;">OK</span>{% elif c.req_comision.reserva.registrado %}<span style="color:#b45309;">Pendiente validar</span>{% else %}<span class="muted">Sin pago</span>{% endif %}</td>
+      <td>{% if c.req_comision.prima.validado %}<span style="color:#15803d;">OK</span>{% elif c.req_comision.prima.registrado %}<span style="color:#b45309;">Pendiente validar</span>{% else %}<span class="muted">Sin pago</span>{% endif %}</td>
+      <td>
+        {% if c.req_comision.puede_emitir %}
+        <a href="{% url 'app:emitir_recibo_comision' c.pk %}" class="link-action">Generar comisión</a>
+        {% else %}
+        <a href="{% url 'app:emitir_recibo_comision' c.pk %}" class="link-action">Revisar requisitos</a>
+        {% endif %}
+        <a href="{% url 'app:contrato_update' c.pk %}" class="link-action">Contrato</a>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="muted">No hay contratos de venta. Cree el contrato, asigne vendedor y registre reserva/prima.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "app/pagination.html" %}
+{% endblock %}

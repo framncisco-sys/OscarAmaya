@@ -1,0 +1,30 @@
+# Imagen solo para desarrollo local (docker-compose.dev.yml).
+# Python 3.12+ requerido por Django 6.
+FROM python:3.12-slim-bookworm
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+# Librerías del sistema: cliente PostgreSQL y dependencias típicas de WeasyPrint (PDF).
+# Si WeasyPrint fallara en su máquina, el proyecto puede usar xhtml2pdf (ya en requirements.txt).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
+    libffi8 \
+    shared-mime-info \
+    fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /app/
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# El código se monta por volumen en compose; no COPY . aquí para hot-reload.
+
+EXPOSE 8000
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

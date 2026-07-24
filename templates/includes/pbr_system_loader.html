@@ -1,0 +1,23 @@
+{# Barra de progreso al cargar el sistema — Paredes (azul/café) + Sistema A&Z (naranja/morado) #}
+<div id="pbr-system-loader" class="pbr-system-loader" role="dialog" aria-modal="true" aria-labelledby="pbr-loader-title" aria-describedby="pbr-loader-desc">
+  <div class="pbr-system-loader__backdrop" aria-hidden="true"></div>
+  <div class="pbr-system-loader__card">
+    <p id="pbr-loader-title" class="pbr-system-loader__paredes">
+      <span class="pbr-c-blue">PAREDES</span>
+      <span class="pbr-c-cafe"> DESARROLLO</span>
+      <span class="pbr-c-blue"> INMOBILIARIO</span>
+    </p>
+    <div class="pbr-system-loader__track" aria-hidden="true">
+      <div id="pbr-system-loader-fill" class="pbr-system-loader__fill"></div>
+    </div>
+    <p id="pbr-loader-desc" class="pbr-system-loader__proyecto" aria-label="Un proyecto de A y Z">
+      <span class="pbr-system-loader__proyecto-intro">Un proyecto de</span>
+      <span class="pbr-system-loader__proyecto-brand">
+        <span class="pbr-c-orange">A</span>
+        <span class="pbr-c-amp">&amp;</span>
+        <span class="pbr-c-purple">Z</span>
+      </span>
+    </p>
+    <p class="pbr-system-loader__pct muted" id="pbr-system-loader-pct" aria-live="polite">0%</p>
+  </div>
+</div>

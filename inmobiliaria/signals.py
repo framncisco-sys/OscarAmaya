@@ -41,40 +41,106 @@ def _historial_precio_inmueble(sender, instance: Inmueble, created: bool, **kwar
 
 @receiver(post_save, sender=Pago)
 def aplicar_pago_a_cuota_programada(sender, instance: Pago, created: bool, **kwargs):
-    if not created:
-        return
+    """Marca cuotas del calendario solo cuando el abono ya puede contar (validado o sin validación)."""
     if instance.concepto != Pago.Concepto.CUOTA:
         return
-
-    n = max(1, min(int(instance.cuotas_incluidas or 1), 200))
+    if not instance.puede_emitir_recibo_cliente:
+        return
+    # Alta pendiente: no aplicar. Tras validar (update a VALIDADO): aplicar.
+    if created and instance.pendiente_validacion_gerente:
+        return
+    if not created and instance.validacion_abono != Pago.ValidacionAbono.VALIDADO:
+        return
 
     def _apply():
-        with transaction.atomic():
-            qs = (
-                CuotaProgramada.objects.select_for_update()
-                .filter(
-                    contrato=instance.contrato,
-                    estado__in=[
-                        CuotaProgramada.Estado.PENDIENTE,
-                        CuotaProgramada.Estado.VENCIDA,
-                    ],
-                    pago__isnull=True,
-                )
-                .order_by("vence_en", "numero", "id")
-            )
-            cuotas = list(qs[:n])
-            if len(cuotas) < n:
-                return
-            suma = sum((c.monto for c in cuotas), Decimal("0")).quantize(Decimal("0.01"))
-            if instance.monto != suma:
-                return
-            for cuota in cuotas:
-                cuota.pago = instance
-                cuota.estado = CuotaProgramada.Estado.PAGADA
-                cuota.pagado_en = instance.fecha
-                cuota.save(update_fields=["pago", "estado", "pagado_en"])
+        aplicar_cuotas_programadas_del_pago(instance)
 
     transaction.on_commit(_apply)
+
+
+def aplicar_cuotas_programadas_del_pago(pago: Pago) -> list:
+    """
+    Liquida las N primeras cuotas pendientes.
+    El monto del pago puede ser mayor (excedente = abono a capital en el mismo recibo).
+    """
+    if pago.concepto != Pago.Concepto.CUOTA or not pago.contrato_id:
+        return []
+    if not pago.puede_emitir_recibo_cliente:
+        return []
+    n = max(1, min(int(pago.cuotas_incluidas or 1), 200))
+    aplicadas = []
+    with transaction.atomic():
+        qs = (
+            CuotaProgramada.objects.select_for_update()
+            .filter(
+                contrato=pago.contrato,
+                estado__in=[
+                    CuotaProgramada.Estado.PENDIENTE,
+                    CuotaProgramada.Estado.VENCIDA,
+                ],
+                pago__isnull=True,
+            )
+            .order_by("vence_en", "numero", "id")
+        )
+        cuotas = list(qs[:n])
+        if len(cuotas) < n:
+            return []
+        suma = sum((c.monto for c in cuotas), Decimal("0")).quantize(Decimal("0.01"))
+        if pago.monto < suma:
+            return []
+        for cuota in cuotas:
+            cuota.pago = pago
+            cuota.estado = CuotaProgramada.Estado.PAGADA
+            cuota.pagado_en = pago.fecha
+            cuota.save(update_fields=["pago", "estado", "pagado_en"])
+            aplicadas.append(cuota)
+    return aplicadas
+
+
+@receiver(post_save, sender=Pago)
+def avanzar_etapa_comercial_por_pago(sender, instance: Pago, created: bool, **kwargs):
+    """Reserva/prima solo avanzan etapa cuando gerencia valida el abono."""
+    if not instance.contrato_id:
+        return
+    if instance.pendiente_validacion_gerente:
+        return
+    if instance.validacion_abono == Pago.ValidacionAbono.RECHAZADO:
+        return
+    # Alta de cuota/otros: en create. Reserva/prima: al validar (update a VALIDADO).
+    if created and instance.requiere_validacion_gerente:
+        return
+    if not created and instance.validacion_abono != Pago.ValidacionAbono.VALIDADO:
+        return
+    if not created and not instance.requiere_validacion_gerente:
+        return
+
+    _aplicar_efectos_comerciales_pago(instance)
+
+
+def _aplicar_efectos_comerciales_pago(instance: Pago) -> None:
+    contrato = instance.contrato
+    etapa = contrato.etapa_comercial
+    nueva = None
+    if instance.concepto == Pago.Concepto.RESERVA:
+        if etapa in (
+            Contrato.EtapaComercial.CONVERSACION,
+            Contrato.EtapaComercial.RESERVA,
+        ):
+            nueva = Contrato.EtapaComercial.RESERVA
+    elif instance.concepto == Pago.Concepto.PRIMA:
+        if etapa != Contrato.EtapaComercial.CIERRE:
+            nueva = Contrato.EtapaComercial.DOCUMENTOS
+
+    if nueva and nueva != etapa:
+        Contrato.objects.filter(pk=contrato.pk).update(etapa_comercial=nueva)
+
+    if instance.concepto == Pago.Concepto.RESERVA:
+        inm = contrato.inmueble
+        if inm and inm.estado == Inmueble.Estado.DISPONIBLE:
+            Inmueble.objects.filter(pk=inm.pk).update(
+                estado=Inmueble.Estado.RESERVADO,
+                cliente_reserva_id=contrato.cliente_id,
+            )
 
 
 @receiver(pre_save, sender=Contrato)

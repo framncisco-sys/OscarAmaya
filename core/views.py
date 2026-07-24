@@ -1,45 +1,78 @@
 import json
 import os
-from datetime import timedelta
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import LoginView
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
-from django.db.models import Count, Q
-from django.utils import timezone
 
-from inmobiliaria.contratos_acceso import (
-    aplica_restriccion_contratos_por_vendedor,
-    filtrar_contratos_queryset_por_vendedor,
-    totales_comision_contratos,
-)
-from inmobiliaria.models import Contrato, Inmueble, Poligono, Proyecto, Vendedor
-
+from inmobiliaria.contratos_acceso import aplica_restriccion_contratos_por_vendedor
 from usuarios.roles import puede_gestionar_vendedores
+
+from .dashboard_data import build_dashboard_bienes_raices_context, build_dashboard_context
+from .forms import LoginForm
+from .marcas import MARCAS, SESSION_KEY, es_bienes_raices, marca_from_session, set_marca
+
+
+class PortalLoginView(LoginView):
+    """Tras Entrar, siempre pasa por la elección de marca (no al dashboard directo)."""
+
+    template_name = "core/login.html"
+    authentication_form = LoginForm
+    redirect_authenticated_user = True
+
+    def form_valid(self, form):
+        # Nueva sesión de trabajo: debe elegir marca otra vez.
+        self.request.session.pop(SESSION_KEY, None)
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("elegir_marca")
 
 
 def home(request: HttpRequest) -> HttpResponse:
     if request.user.is_authenticated:
+        if marca_from_session(request) is None:
+            return redirect("elegir_marca")
         return redirect("dashboard")
-    # Pagina de entrada con enlaces claros (evita pegar texto extra en la URL).
     return render(request, "core/entrada.html")
+
+
+@login_required
+def elegir_marca(request: HttpRequest) -> HttpResponse:
+    """Después del login: elegir Paredes Bienes Raíces o Paredes Desarrollos Inmobiliarios."""
+    return render(
+        request,
+        "core/elegir_marca.html",
+        {"marcas": list(MARCAS.values())},
+    )
+
+
+@login_required
+def portal_marca(request: HttpRequest, slug: str) -> HttpResponse:
+    """Guarda la marca elegida y entra al sistema."""
+    marca = set_marca(request, slug)
+    if marca is None:
+        return redirect("elegir_marca")
+    return redirect("dashboard")
 
 
 def admin_login_to_web(request: HttpRequest) -> HttpResponse:
     """Bookmarks viejos: /admin/login/ -> nuestro /login/ (no el login del admin)."""
-    url = f"{reverse('login')}?next=/dashboard/"
+    url = f"{reverse('login')}?next={reverse('elegir_marca')}"
     return redirect(url)
-
 
 def admin_legacy_redirect(request: HttpRequest) -> HttpResponse:
     """Cualquier otra ruta bajo /admin/... -> app web o login."""
     if request.user.is_authenticated:
+        if marca_from_session(request) is None:
+            return redirect("elegir_marca")
         return redirect("dashboard")
-    return redirect(f"{reverse('login')}?next=/dashboard/")
+    return redirect(f"{reverse('login')}?next={reverse('elegir_marca')}")
 
 
 def ping(request: HttpRequest) -> HttpResponse:
@@ -78,56 +111,26 @@ def ping(request: HttpRequest) -> HttpResponse:
 
 @login_required
 def dashboard(request: HttpRequest) -> HttpResponse:
-    poligonos = (
-        Poligono.objects.select_related("proyecto")
-        .annotate(
-            total_lotes=Count("lotes", distinct=True),
-            vendidos=Count("lotes", filter=Q(lotes__estado=Inmueble.Estado.VENDIDO), distinct=True),
-            reservados=Count("lotes", filter=Q(lotes__estado=Inmueble.Estado.RESERVADO), distinct=True),
-            disponibles=Count("lotes", filter=Q(lotes__estado=Inmueble.Estado.DISPONIBLE), distinct=True),
-        )
-        .order_by("-vendidos", "-reservados", "proyecto__nombre", "orden", "nombre")[:20]
-    )
-    hoy = timezone.localdate()
-    limite = hoy + timedelta(days=7)
-    reservas_por_vencer = (
-        Inmueble.objects.filter(
-            estado=Inmueble.Estado.RESERVADO,
-            reserva_hasta__gte=hoy,
-            reserva_hasta__lte=limite,
-        )
-        .select_related("proyecto", "cliente_reserva")
-        .order_by("reserva_hasta")[:12]
-    )
-    reservas_vencidas_ct = Inmueble.objects.filter(
-        estado=Inmueble.Estado.RESERVADO,
-        reserva_hasta__isnull=False,
-        reserva_hasta__lt=hoy,
-    ).count()
+    from inmobiliaria.vendedor_acceso import es_vendedor_restringido
 
-    context = {
-        "total_proyectos": Proyecto.objects.count(),
-        "total_inmuebles": Inmueble.objects.count(),
-        "ultimos_inmuebles": Inmueble.objects.select_related("proyecto").order_by("-id")[:8],
-        "poligono_stats": poligonos,
-        "reservas_por_vencer": reservas_por_vencer,
-        "reservas_vencidas_ct": reservas_vencidas_ct,
-    }
-    if puede_gestionar_vendedores(request.user):
-        context["total_vendedores"] = Vendedor.objects.count()
-    if aplica_restriccion_contratos_por_vendedor(request.user):
-        resumen_qs = filtrar_contratos_queryset_por_vendedor(
-            Contrato.objects.only(
-                "id", "comision_monto", "comision_porcentaje", "precio_final"
-            ),
-            request.user,
-        )
-        total_com, con_m, n_ct = totales_comision_contratos(resumen_qs)
-        context["dashboard_mis_contratos"] = {
-            "count": n_ct,
-            "comision_total": total_com,
-            "con_comision": con_m,
-        }
+    marca = marca_from_session(request)
+    if marca is None:
+        return redirect("elegir_marca")
+
+    # Vendedor de campo: no ve el dashboard completo, solo el flujo de venta.
+    if es_vendedor_restringido(request.user):
+        return redirect("app:index")
+
+    kwargs = dict(
+        user=request.user,
+        incluir_vendedores=puede_gestionar_vendedores(request.user),
+        contratos_restringidos=aplica_restriccion_contratos_por_vendedor(request.user),
+    )
+    if es_bienes_raices(marca):
+        context = build_dashboard_bienes_raices_context(**kwargs)
+        return render(request, "core/dashboard_bienes_raices.html", context)
+
+    context = build_dashboard_context(**kwargs)
     return render(request, "core/dashboard.html", context)
 
 

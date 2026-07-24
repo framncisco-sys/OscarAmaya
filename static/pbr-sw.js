@@ -1,11 +1,17 @@
-/* PBR — Service Worker: caché de estáticos, página sin conexión y refresco al volver online.
- * Versión de caché: subir el sufijo tras cambios importantes en estáticos precargados. */
-const CACHE_STATIC = "pbr-static-v1";
+/* PBR — Service Worker: caché de estáticos + páginas visitadas para modo sin conexión.
+ * Versión de caché: subir el sufijo tras cambios importantes. */
+const CACHE_STATIC = "pbr-static-v2";
+const CACHE_PAGES = "pbr-pages-v2";
 
 const PRECACHE_URLS = [
   "/static/offline.html",
   "/static/theme.css",
   "/static/favicon.svg",
+  "/static/js/pbr-viewport.js",
+  "/static/js/pbr-offline.js",
+  "/static/js/pbr-loader.js",
+  "/static/js/pbr-header.js",
+  "/static/js/pbr-sidebar.js",
 ];
 
 function isSameOrigin(url) {
@@ -39,10 +45,9 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
+      const keep = new Set([CACHE_STATIC, CACHE_PAGES]);
       const keys = await caches.keys();
-      await Promise.all(
-        keys.filter((k) => k !== CACHE_STATIC).map((k) => caches.delete(k))
-      );
+      await Promise.all(keys.filter((k) => !keep.has(k)).map((k) => caches.delete(k)));
       await self.clients.claim();
     })()
   );
@@ -60,12 +65,23 @@ self.addEventListener("fetch", (event) => {
       (async () => {
         try {
           const fresh = await fetch(request);
+          if (fresh && fresh.ok) {
+            const copy = fresh.clone();
+            const pages = await caches.open(CACHE_PAGES);
+            await pages.put(request, copy);
+          }
           return fresh;
         } catch (_) {
-          const cached = await caches.match("/static/offline.html");
-          if (cached) return cached;
+          const cachedPage =
+            (await caches.match(request)) ||
+            (await caches.match(request, { ignoreSearch: true }));
+          if (cachedPage) return cachedPage;
+          const offline = await caches.match("/static/offline.html");
+          if (offline) return offline;
           return new Response(
-            "<!DOCTYPE html><html lang='es'><meta charset='utf-8'><title>Sin conexión</title><p>Sin conexión a Internet.</p>",
+            "<!DOCTYPE html><html lang='es'><meta charset='utf-8'><title>Sin conexión</title>" +
+              "<body style='font-family:system-ui;padding:2rem'><h1>Sin conexión a Internet</h1>" +
+              "<p>Puede seguir trabajando cuando recupere páginas ya visitadas. Al volver la red se sincronizarán los cambios.</p></body>",
             {
               status: 503,
               headers: { "Content-Type": "text/html; charset=utf-8" },
@@ -105,5 +121,10 @@ self.addEventListener("fetch", (event) => {
 self.addEventListener("message", (event) => {
   if (event.data === "SKIP_WAITING") {
     self.skipWaiting();
+  }
+  if (event.data === "SYNC_NOW") {
+    self.clients.matchAll({ type: "window" }).then((clients) => {
+      clients.forEach((c) => c.postMessage({ type: "PBR_SYNC_NOW" }));
+    });
   }
 });

@@ -7,22 +7,40 @@
   <title>Sin conexión | Paredes Bienes Raíces</title>
   <link rel="stylesheet" href="/static/theme.css">
   <style>
-    .pbr-offline-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; box-sizing: border-box; background: #f1f5f9; }
-    .pbr-offline-card { max-width: 28rem; background: #fff; border-radius: 12px; padding: 1.75rem 1.5rem; box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0; }
-    .pbr-offline-card h1 { margin: 0 0 0.5rem; font-size: 1.25rem; color: #0f172a; }
+    .pbr-offline-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; box-sizing: border-box; background: #e8edf5; }
+    .pbr-offline-card { max-width: 30rem; background: #fff; border-radius: 14px; padding: 1.75rem 1.5rem; box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0; }
+    .pbr-offline-card h1 { margin: 0 0 0.5rem; font-size: 1.3rem; color: #003366; }
     .pbr-offline-card p { margin: 0 0 0.75rem; color: #475569; line-height: 1.5; font-size: 0.95rem; }
     .pbr-offline-card p:last-child { margin-bottom: 0; }
-    .pbr-offline-hint { font-size: 0.85rem; color: #64748b; }
+    .pbr-offline-hint { font-size: 0.88rem; color: #64748b; }
+    .pbr-offline-ok { color: #166534; font-weight: 600; }
+    .pbr-offline-actions { margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .pbr-offline-actions a, .pbr-offline-actions button {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 40px; padding: 0.45rem 1rem; border-radius: 999px;
+      font-weight: 600; font-size: 0.9rem; text-decoration: none; border: none; cursor: pointer;
+    }
+    .pbr-offline-actions a { background: #003366; color: #fff; }
+    .pbr-offline-actions button { background: #e2e8f0; color: #0f172a; }
   </style>
 </head>
 <body class="app-body">
   <div class="pbr-offline-page">
     <div class="pbr-offline-card">
       <h1>Sin conexión a Internet</h1>
-      <p>No se pudo cargar esta página. Compruebe la red o intente de nuevo en unos segundos.</p>
-      <p class="pbr-offline-hint">Los estilos y recursos ya guardados en el dispositivo pueden seguir disponibles. Cuando vuelva la conexión, la aplicación se actualizará al recargar.</p>
-      <p class="pbr-offline-hint"><strong>Nota:</strong> guardar formularios, PDFs y datos en el servidor requiere estar en línea.</p>
+      <p class="pbr-offline-ok">Puede seguir trabajando.</p>
+      <p>Use las pantallas que ya visitó en este dispositivo. Si guarda un formulario sin red, quedará en cola y se enviará al servidor cuando vuelva Internet.</p>
+      <p class="pbr-offline-hint">Al reconectar, el sistema subirá automáticamente los cambios pendientes y mostrará un aviso.</p>
+      <div class="pbr-offline-actions">
+        <a href="/">Ir al inicio</a>
+        <button type="button" onclick="location.reload()">Reintentar</button>
+      </div>
     </div>
   </div>
+  <script>
+    window.addEventListener("online", function () {
+      location.href = "/";
+    });
+  </script>
 </body>
 </html>

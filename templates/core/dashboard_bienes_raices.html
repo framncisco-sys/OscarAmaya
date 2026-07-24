@@ -1,0 +1,156 @@
+{% extends "app/base_app.html" %}
+{% load static %}
+
+{% block title %}Dashboard | {{ marca_portal.nombre }}{% endblock %}
+
+{% block app_content %}
+<header class="dash-header">
+  <div>
+    <p class="dash-header__eyebrow">{{ marca_portal.nombre }}</p>
+    <h1 class="page-title dash-header__title">Dashboard</h1>
+    <p class="page-lead dash-header__lead">
+      Sistema de intermediación: clientes, inmuebles, vendedores y asesores de alquiler.
+    </p>
+  </div>
+  <p class="dash-meta muted">
+    Actualizado {{ dashboard_actualizado|date:"d/m/Y H:i" }}
+  </p>
+</header>
+
+<section class="grid-kpis dash-kpis" aria-label="Indicadores Bienes Raíces">
+  <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:cliente_list' %}">
+    <span class="dash-kpi__icon" aria-hidden="true">👥</span>
+    <h3>Clientes</h3>
+    <p>{{ br_clientes }}</p>
+    <span class="dash-kpi__hint">Expedientes registrados</span>
+  </a>
+  <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:inmuebles_alquiler_hub' %}">
+    <span class="dash-kpi__icon" aria-hidden="true">🔑</span>
+    <h3>Alquileres</h3>
+    <p>{{ br_alquiler_total }}</p>
+    <span class="dash-kpi__hint">{{ br_alquiler_locales }} loc. · {{ br_alquiler_casas }} casas</span>
+  </a>
+  <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:inmuebles_venta_hub' %}">
+    <span class="dash-kpi__icon" aria-hidden="true">🏡</span>
+    <h3>Venta</h3>
+    <p>{{ br_venta_total }}</p>
+    <span class="dash-kpi__hint">{{ br_casas_venta }} casas · {{ br_lotes_venta }} lotes · {{ br_disponibles_venta }} disp.</span>
+  </a>
+  <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:contrato_list' %}">
+    <span class="dash-kpi__icon" aria-hidden="true">📄</span>
+    <h3>Contratos activos</h3>
+    <p>{{ br_contratos_activos }}</p>
+    <span class="dash-kpi__hint">Cartera formal</span>
+  </a>
+  {% if puede_gestionar_vendedores_app %}
+  <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:vendedor_list' %}">
+    <span class="dash-kpi__icon" aria-hidden="true">👤</span>
+    <h3>Vendedores</h3>
+    <p>{{ br_vendedores }}</p>
+    <span class="dash-kpi__hint">Ventas y comisiones</span>
+  </a>
+  <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:asesor_alquiler_list' %}">
+    <span class="dash-kpi__icon" aria-hidden="true">🔑</span>
+    <h3>Asesores alquiler</h3>
+    <p>{{ br_asesores_alquiler }}</p>
+    <span class="dash-kpi__hint">Arrendamientos</span>
+  </a>
+  {% endif %}
+</section>
+
+<section class="grid-modulos dash-modulos" aria-label="Módulos del sistema">
+  <a class="card modulo dash-modulo" href="{% url 'app:cliente_list' %}">
+    <span class="dash-modulo__icon">👥</span>
+    <h3>Clientes</h3>
+    <p>Listado, alta y documentos del expediente.</p>
+  </a>
+  <a class="card modulo dash-modulo" href="{% url 'app:cliente_create' %}">
+    <span class="dash-modulo__icon">➕</span>
+    <h3>Nuevo cliente</h3>
+    <p>Alta con documentos del expediente.</p>
+  </a>
+  {% if puede_gestionar_vendedores_app %}
+  <a class="card modulo dash-modulo" href="{% url 'app:vendedor_list' %}">
+    <span class="dash-modulo__icon">👤</span>
+    <h3>Vendedores</h3>
+    <p>Catálogo para ventas y contratos.</p>
+  </a>
+  <a class="card modulo dash-modulo" href="{% url 'app:asesor_alquiler_list' %}">
+    <span class="dash-modulo__icon">🔑</span>
+    <h3>Asesores alquiler</h3>
+    <p>Independiente de vendedores de proyectos.</p>
+  </a>
+  {% endif %}
+  <a class="card modulo dash-modulo" href="{% url 'app:inmuebles_alquiler_hub' %}">
+    <span class="dash-modulo__icon">🔑</span>
+    <h3>Alquileres</h3>
+    <p>Locales y casas en cartera.</p>
+  </a>
+  <a class="card modulo dash-modulo" href="{% url 'app:inmuebles_venta_hub' %}">
+    <span class="dash-modulo__icon">🏡</span>
+    <h3>Venta</h3>
+    <p>Casas y lotes en inventario.</p>
+  </a>
+  <a class="card modulo dash-modulo" href="{% url 'catalogo:list' %}" target="_blank" rel="noopener">
+    <span class="dash-modulo__icon">📷</span>
+    <h3>Catálogo para clientes</h3>
+    <p>Copiar / enviar fotos del catálogo de Bienes Raíces (sin login).</p>
+  </a>
+</section>
+
+<div class="dash-grid-2">
+  <section class="card dash-panel">
+    <h2>Últimos clientes</h2>
+    {% if br_ultimos_clientes %}
+    <div class="data-panel">
+      <table class="table dash-table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in br_ultimos_clientes %}
+          <tr>
+            <td><strong>{{ c }}</strong></td>
+            <td><a href="{% url 'app:cliente_update' c.pk %}" class="link-action">Abrir</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="muted">Aún no hay clientes. Use <a href="{% url 'app:cliente_create' %}">Nuevo cliente</a>.</p>
+    {% endif %}
+  </section>
+
+  <section class="card dash-panel">
+    <h2>Últimos alquileres</h2>
+    {% if br_ultimos_alquiler %}
+    <div class="data-panel">
+      <table class="table dash-table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Tipo</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in br_ultimos_alquiler %}
+          <tr>
+            <td><strong>{{ i.codigo }}</strong></td>
+            <td>{{ i.get_tipo_display }}</td>
+            <td><a href="{% url 'app:inmueble_update' i.pk %}" class="link-action">Ver</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="muted">Sin inmuebles en alquiler. Vaya a <a href="{% url 'app:inmuebles_alquiler_hub' %}">Alquileres</a>.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

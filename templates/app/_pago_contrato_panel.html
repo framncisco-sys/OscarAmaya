@@ -17,9 +17,12 @@
   <p id="pago-hint-aplicacion-cuota" class="field__help" style="margin:0.75rem 0 0;padding:0.5rem 0.65rem;background:#f1f5f9;border-radius:6px;font-size:0.9rem;" role="status"></p>
   <p class="field__help muted" style="margin-bottom:0;margin-top:0.65rem;">
     La <strong>fecha del pago</strong> (campo siguiente) es cuándo ingresa el dinero.
-    La mora se evalúa frente a la <strong>fecha de vencimiento</strong> de cada cuota programada y a
-    <a href="{% url 'app:parametro_mora_list' %}">Parámetros de mora</a>.
+    Si no pagaron un mes (tras los días de gracia), al siguiente corresponde
+    <strong>cuota + recargo administrativo</strong>.
+    <a href="{% url 'app:parametro_mora_list' %}">Configurar recargo</a>.
   </p>
+  <p id="pago-hint-recargo" class="field__help" style="margin:0.5rem 0 0;padding:0.5rem 0.65rem;background:#fff7ed;border-radius:6px;font-size:0.9rem;display:none;" role="status"></p>
+  <p id="pago-hint-excedente-capital" class="field__help" style="margin:0.5rem 0 0;padding:0.5rem 0.65rem;background:#ecfdf5;border-radius:6px;font-size:0.9rem;display:none;" role="status"></p>
   <div id="pago-formato-aceptacion" class="card cliente-docs-card" style="margin-top:0.85rem;display:none;border-style:dashed;" aria-live="polite">
     <p class="field__label" style="margin-top:0;">Documento de aceptación</p>
     <p class="muted" style="margin:0 0 0.5rem;font-size:0.9rem;line-height:1.45;">

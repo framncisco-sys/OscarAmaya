@@ -3,13 +3,17 @@
 from django.urls import include, path
 from django.views.generic import RedirectView
 
-from . import views_web as views
+from docs import views_web as docs_views
+
+from . import views_asesor_alquiler, views_recibo_alquiler, views_web as views
 
 app_name = "app"
 
 urlpatterns = [
     path("", views.AppIndexView.as_view(), name="index"),
     path("confirmar-acceso/", views.sensitive_reauth, name="sensitive_reauth"),
+    path("inmuebles/alquileres/", views.inmuebles_alquiler_hub, name="inmuebles_alquiler_hub"),
+    path("inmuebles/venta/", views.inmuebles_venta_hub, name="inmuebles_venta_hub"),
     path("mapa/", views.MapaEditorView.as_view(), name="mapa_editor"),
     path("mapa/catastral/", views.MapaCatastralView.as_view(), name="mapa_catastral"),
     path("proyectos/", views.ProyectoListView.as_view(), name="proyecto_list"),
@@ -45,6 +49,41 @@ urlpatterns = [
         "inmuebles/arrendamientos/casas/",
         views.ArrendamientoCasasListView.as_view(),
         name="arrendamiento_casas_list",
+    ),
+    path(
+        "inmuebles/recibo-comision-vendedor/",
+        views_recibo_alquiler.recibo_comision_hub,
+        name="recibo_comision_hub",
+    ),
+    path(
+        "inmuebles/locales/recibo-comision/",
+        RedirectView.as_view(
+            pattern_name="app:recibo_comision_alquiler_local",
+            permanent=False,
+        ),
+        name="recibo_comision_alquiler_local_legacy",
+    ),
+    path(
+        "inmuebles/casas/recibo-comision/",
+        docs_views.recibo_comision_casa_venta_elegir,
+        name="recibo_comision_casa_venta",
+    ),
+    path(
+        "inmuebles/arrendamientos/locales/recibo-comision/",
+        views_recibo_alquiler.recibo_comision_alquiler_elegir,
+        {"segmento": "local"},
+        name="recibo_comision_alquiler_local",
+    ),
+    path(
+        "inmuebles/arrendamientos/casas/recibo-comision/",
+        views_recibo_alquiler.recibo_comision_alquiler_elegir,
+        {"segmento": "casa"},
+        name="recibo_comision_alquiler_casa",
+    ),
+    path(
+        "inmuebles/arrendamientos/<int:inmueble_id>/recibo-comision/",
+        views_recibo_alquiler.emitir_recibo_comision_alquiler_view,
+        name="emitir_recibo_comision_alquiler",
     ),
     path("inmuebles/nuevo/", views.InmuebleCreateLoteView.as_view(), name="inmueble_create"),
     path("inmuebles/", views.InmuebleLoteListView.as_view(), name="inmueble_list"),
@@ -98,6 +137,10 @@ urlpatterns = [
     path("vendedores/nuevo/", views.VendedorCreateView.as_view(), name="vendedor_create"),
     path("vendedores/<int:pk>/editar/", views.VendedorUpdateView.as_view(), name="vendedor_update"),
     path("vendedores/<int:pk>/eliminar/", views.VendedorDeleteView.as_view(), name="vendedor_delete"),
+    path("asesores-alquiler/", views_asesor_alquiler.AsesorAlquilerListView.as_view(), name="asesor_alquiler_list"),
+    path("asesores-alquiler/nuevo/", views_asesor_alquiler.AsesorAlquilerCreateView.as_view(), name="asesor_alquiler_create"),
+    path("asesores-alquiler/<int:pk>/editar/", views_asesor_alquiler.AsesorAlquilerUpdateView.as_view(), name="asesor_alquiler_update"),
+    path("asesores-alquiler/<int:pk>/eliminar/", views_asesor_alquiler.AsesorAlquilerDeleteView.as_view(), name="asesor_alquiler_delete"),
     path("contratos/", views.ContratoListView.as_view(), name="contrato_list"),
     path("contratos/nuevo/", views.ContratoCreateView.as_view(), name="contrato_create"),
     path("contratos/<int:pk>/editar/", views.ContratoUpdateView.as_view(), name="contrato_update"),
@@ -163,8 +206,19 @@ urlpatterns = [
     path("reportes/pagos.csv", views.export_pagos_csv, name="export_pagos_csv"),
     path("pagos/", views.PagoListView.as_view(), name="pago_list"),
     path("pagos/nuevo/", views.PagoCreateView.as_view(), name="pago_create"),
+    path(
+        "pagos/<int:pk>/validar-abono/",
+        views.pago_validar_abono,
+        name="pago_validar_abono",
+    ),
+    path(
+        "pagos/<int:pk>/rechazar-abono/",
+        views.pago_rechazar_abono,
+        name="pago_rechazar_abono",
+    ),
     path("pagos/<int:pk>/editar/", views.PagoUpdateView.as_view(), name="pago_update"),
     path("pagos/<int:pk>/eliminar/", views.PagoDeleteView.as_view(), name="pago_delete"),
+    path("avisos-cobro/", views.aviso_cobro_list, name="aviso_cobro_list"),
     path("parametros-mora/", views.ParametroMoraListView.as_view(), name="parametro_mora_list"),
     path("parametros-mora/nuevo/", views.ParametroMoraCreateView.as_view(), name="parametro_mora_create"),
     path(

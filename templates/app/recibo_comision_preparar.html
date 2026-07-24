@@ -1,0 +1,120 @@
+{% extends "app/base_app.html" %}
+{% block title %}{{ form_title }} | {{ marca_portal.nombre }}{% endblock %}
+
+{% block app_content %}
+<h1 class="page-title">{{ form_title }}</h1>
+
+<section class="card" style="margin-bottom:1rem;border-left:4px solid {% if puede_emitir_comision %}#15803d{% else %}#b45309{% endif %};">
+  <h2 style="font-size:1.05rem;margin:0 0 0.65rem;">Checklist para comisión de venta</h2>
+  <ul style="margin:0;padding-left:1.2rem;line-height:1.55;font-size:0.95rem;">
+    <li>{% if req_comision.vendedor_ok %}✓{% else %}○{% endif %}
+      <strong>Vendedor:</strong> {{ req_comision.vendedor_nombre|default:"sin asignar" }}
+      {% if not req_comision.vendedor_ok %}
+      — <a href="{% url 'app:contrato_update' contrato.pk %}">Asignar en el contrato</a>
+      · <a href="{% url 'app:vendedor_list' %}">Catálogo de vendedores</a>
+      {% endif %}
+    </li>
+    <li>{% if req_comision.comision_ok %}✓{% else %}○{% endif %}
+      <strong>Comisión del vendedor:</strong>
+      {% if req_comision.comision_monto %}${{ req_comision.comision_monto }}{% else %}no definida{% endif %}
+      {% if contrato.comision_porcentaje %} ({{ contrato.comision_porcentaje }} %){% endif %}
+      {% if not req_comision.comision_ok %}
+      — <a href="{% url 'app:contrato_update' contrato.pk %}">Definir % o monto en el contrato</a>
+      {% endif %}
+    </li>
+    <li>{% if req_comision.reserva.validado %}✓{% else %}○{% endif %}
+      {{ req_comision.reserva.detalle }}
+      {% if not req_comision.reserva.validado %}
+      — <a href="{% url 'app:pago_list' %}?contrato={{ contrato.pk }}">Pagos</a>
+      {% if req_comision.reserva.registrado %}
+      · <a href="{% url 'app:pago_list' %}?validacion=pendiente">Validar abonos</a>
+      {% endif %}
+      {% endif %}
+    </li>
+    <li>{% if req_comision.prima.validado %}✓{% else %}○{% endif %}
+      {{ req_comision.prima.detalle }}
+      {% if not req_comision.prima.validado %}
+      — <a href="{% url 'app:pago_list' %}?contrato={{ contrato.pk }}">Pagos</a>
+      {% if req_comision.prima.registrado %}
+      · <a href="{% url 'app:pago_list' %}?validacion=pendiente">Validar abonos</a>
+      {% endif %}
+      {% endif %}
+    </li>
+  </ul>
+  {% if not puede_emitir_comision %}
+  <p class="muted" style="margin:0.85rem 0 0;font-size:0.9rem;">
+    Complete los puntos pendientes. La comisión de venta solo se genera cuando reserva y prima
+    ya están pagadas y confirmadas en cuenta.
+  </p>
+  {% endif %}
+</section>
+
+<section class="card pbr-card--info" style="margin-bottom:1rem;">
+  <h2 class="page-title" style="font-size:1.05rem;margin:0 0 0.5rem;">Contrato {{ contrato.numero }}</h2>
+  <p class="muted" style="margin:0;">
+    <strong>Vendedor:</strong> {{ vendedor_nombre }}<br>
+    <strong>Cliente:</strong> {{ contrato.cliente }}<br>
+    <strong>Inmueble:</strong> {{ contrato.inmueble.codigo }} — {{ contrato.inmueble.proyecto.nombre }}<br>
+    <strong>Precio de venta:</strong> ${{ precio_final|floatformat:2 }} USD
+    {% if monto_sugerido %}
+      · <strong>Comisión sugerida:</strong> ${{ monto_sugerido|floatformat:2 }} USD
+    {% endif %}
+  </p>
+</section>
+
+{% if puede_emitir_comision %}
+<p class="muted page-lead" style="max-width:42rem;margin-bottom:1rem;">
+  Requisitos cumplidos. Revise el monto y genere el PDF de comisión al vendedor
+  (distinto al recibo de ingreso del cliente).
+</p>
+
+<form method="post" class="form-stack">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+    <div class="alert" role="alert">{{ form.non_field_errors }}</div>
+  {% endif %}
+  {% for field in form %}
+    <div class="field">
+      <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      <div class="field__control">{{ field }}</div>
+      {% if field.help_text %}
+        <div class="field__help muted">{{ field.help_text|safe }}</div>
+      {% endif %}
+      {% if field.errors %}
+        <div class="field__error" role="alert">{{ field.errors }}</div>
+      {% endif %}
+    </div>
+  {% endfor %}
+  <div class="form-actions">
+    <button type="submit" class="btn-primary">Generar PDF del recibo de comisión</button>
+    <a href="{{ cancel_url }}" class="btn-secondary">{{ cancel_label }}</a>
+  </div>
+</form>
+{% else %}
+<div class="form-actions">
+  <a href="{% url 'app:contrato_update' contrato.pk %}" class="btn-primary">Completar contrato / vendedor</a>
+  <a href="{% url 'app:pago_list' %}?contrato={{ contrato.pk }}" class="btn-secondary">Ver pagos</a>
+  <a href="{{ cancel_url }}" class="btn-secondary">{{ cancel_label }}</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+{% if puede_emitir_comision %}
+<script>
+(function () {
+  var pct = document.getElementById("id_comision_porcentaje");
+  var monto = document.getElementById("id_monto_comision");
+  var precio = {{ precio_final|default:"0" }};
+  if (!pct || !monto || !precio) return;
+  pct.addEventListener("change", function () {
+    var p = parseFloat(pct.value);
+    if (!isFinite(p) || p < 0) return;
+    var calc = Math.round(precio * p / 100 * 100) / 100;
+    monto.value = calc.toFixed(2);
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

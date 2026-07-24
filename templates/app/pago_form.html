@@ -1,4 +1,15 @@
 {% extends "app/object_form.html" %}
 {% block before_form %}
 <div id="pago-form-flags" data-ocultar-contrato="{% if pago_ocultar_contrato %}1{% else %}0{% endif %}" hidden></div>
+<div class="card" style="margin-bottom:1rem;max-width:42rem;border-left:4px solid #1e3a5f;">
+  <p style="margin:0 0 0.5rem;font-weight:600;">Si la cuota es $200 y abona $250</p>
+  <ol class="muted" style="margin:0;padding-left:1.2rem;font-size:0.9rem;line-height:1.45;">
+    <li>Concepto: <strong>Cuota de financiamiento</strong> (marque la cuota del mes).</li>
+    <li>Monto: <strong>$250</strong> (el total que depositó).</li>
+    <li>Gerencia valida → <strong>un solo recibo</strong> con: cuota $200 + abono a capital $50 = $250.</li>
+  </ol>
+  <p class="muted" style="margin:0.65rem 0 0;font-size:0.875rem;">
+    El $250 completo se descuenta del saldo del contrato. No registre dos pagos separados.
+  </p>
+</div>
 {% endblock %}

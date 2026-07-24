@@ -1,0 +1,88 @@
+{% if cliente_pk %}
+<section class="card cliente-inmuebles-panel" aria-label="Inmuebles vinculados al cliente">
+  <header class="cliente-inmuebles-panel__head">
+    <div>
+      <h2 class="cliente-inmuebles-panel__title">Inmuebles vinculados</h2>
+      <p class="muted cliente-inmuebles-panel__lead">
+        Dos caminos en <strong>Inmuebles</strong> (alquiler o venta/apartado) y el contrato formal en <strong>Gestión</strong>.
+      </p>
+    </div>
+  </header>
+
+  <div class="cliente-inmuebles-panel__routes">
+    <article class="cliente-inmuebles-panel__route cliente-inmuebles-panel__route--inmuebles">
+      <h3 class="cliente-inmuebles-panel__route-title">Inmuebles · Alquiler</h3>
+      <p class="muted cliente-inmuebles-panel__route-desc">Asigne este cliente como <strong>inquilino</strong> en la ficha del local o casa.</p>
+      <a href="{% url 'app:inmuebles_alquiler_hub' %}" class="btn-secondary btn-sm">Ir a Alquileres</a>
+      {% if cliente_alquileres_local or cliente_alquileres_casa %}
+      <ul class="cliente-inmuebles-panel__list">
+        {% for i in cliente_alquileres_local %}
+        <li>
+          <a href="{% url 'app:local_alquiler_ficha' i.pk %}" class="link-action"><strong>{{ i.codigo }}</strong></a> — local
+          {% if i.detalle_local_alquiler.renta_mensual %} · ${{ i.detalle_local_alquiler.renta_mensual|floatformat:2 }}/mes{% endif %}
+        </li>
+        {% endfor %}
+        {% for i in cliente_alquileres_casa %}
+        <li>
+          <a href="{% url 'app:casa_alquiler_ficha' i.pk %}" class="link-action"><strong>{{ i.codigo }}</strong></a> — casa
+          {% if i.detalle_casa_alquiler.arrendamiento_mensual %} · ${{ i.detalle_casa_alquiler.arrendamiento_mensual|floatformat:2 }}/mes{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </article>
+
+    <article class="cliente-inmuebles-panel__route cliente-inmuebles-panel__route--inmuebles">
+      <h3 class="cliente-inmuebles-panel__route-title">Inmuebles · Venta</h3>
+      <p class="muted cliente-inmuebles-panel__route-desc">Marque <strong>cliente reserva</strong> en casa, lote o local en inventario de venta.</p>
+      <a href="{% url 'app:inmuebles_venta_hub' %}" class="btn-secondary btn-sm">Ir a Venta</a>
+      {% if cliente_reservas %}
+      <ul class="cliente-inmuebles-panel__list">
+        {% for i in cliente_reservas %}
+        <li>
+          <strong>{{ i.codigo }}</strong> — {{ i.get_tipo_display }}
+          {% if i.proyecto %} · {{ i.proyecto.nombre }}{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </article>
+
+    <article class="cliente-inmuebles-panel__route cliente-inmuebles-panel__route--gestion">
+      <h3 class="cliente-inmuebles-panel__route-title">Gestión · Contratos</h3>
+      <p class="muted cliente-inmuebles-panel__route-desc">Vincula cliente e inmueble en la venta formal (precio, cuotas, documentos).</p>
+      <a href="{% url 'app:contrato_create' %}?cliente={{ cliente_pk }}" class="btn-primary btn-sm">+ Contrato con este cliente</a>
+      {% if cliente_contratos %}
+      <div class="data-panel" style="margin-top:0.75rem;">
+        <table class="table table--compact">
+          <thead>
+            <tr>
+              <th>Contrato</th>
+              <th>Inmueble</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in cliente_contratos %}
+            <tr>
+              <td><strong>{{ c.numero }}</strong></td>
+              <td>{{ c.inmueble.codigo }}</td>
+              <td>{{ c.get_estado_display }}</td>
+              <td><a href="{% url 'app:contrato_update' c.pk %}" class="link-action">Ver</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </article>
+  </div>
+
+  {% if not cliente_tiene_inmuebles %}
+  <p class="muted cliente-inmuebles-panel__empty">
+    Sin inmuebles aún. Use <strong>Alquileres</strong> o <strong>Venta</strong> en el menú Inmuebles, o cree un contrato en Gestión.
+  </p>
+  {% endif %}
+</section>
+{% endif %}

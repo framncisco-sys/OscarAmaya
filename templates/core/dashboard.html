@@ -1,164 +1,231 @@
-{% extends "base.html" %}
+{% extends "app/base_app.html" %}
+{% load static %}
 
-{% block title %}Dashboard | Paredes Bienes Raíces{% endblock %}
+{% block title %}Dashboard | {{ marca_portal.nombre }}{% endblock %}
 
-{% block content %}
-<div class="app-wrap">
-  <h1 class="page-title">Dashboard</h1>
-  <p class="page-lead">Indicadores rápidos. La gestión diaria está en <a href="{% url 'app:index' %}">Gestión</a>.</p>
+{% block app_content %}
+<div class="dash">
+  <header class="dash-header">
+    <div>
+    <p class="dash-header__eyebrow">{{ marca_portal.nombre }}</p>
+    <h1 class="page-title dash-header__title">Dashboard</h1>
+      <p class="page-lead dash-header__lead">
+        Lotificación y cartera en tiempo real (solo lotes de proyecto).
+        Gestión diaria en <a href="{% url 'app:index' %}">Gestión</a>.
+      </p>
+    </div>
+    <p class="dash-meta muted">
+      Actualizado {{ dashboard_actualizado|date:"d/m/Y H:i" }}
+    </p>
+  </header>
 
-  <section class="grid-kpis" aria-label="Indicadores">
-    <article class="card kpi">
-      <h3>Proyectos</h3>
+  <section class="grid-kpis dash-kpis" aria-label="Indicadores">
+    <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:proyecto_list' %}">
+      <span class="dash-kpi__icon" aria-hidden="true">🏗</span>
+      <h3>Proyectos activos</h3>
       <p>{{ total_proyectos }}</p>
+      <span class="dash-kpi__hint">Lotificaciones</span>
+    </a>
+    <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:inmueble_list' %}">
+      <span class="dash-kpi__icon" aria-hidden="true">📦</span>
+      <h3>Lotes en inventario</h3>
+      <p>{{ total_inventario_venta }}</p>
+      <span class="dash-kpi__hint">Lotificación</span>
+    </a>
+    <article class="card kpi dash-kpi dash-kpi--ok">
+      <span class="dash-kpi__icon" aria-hidden="true">✓</span>
+      <h3>Disponibles</h3>
+      <p>{{ disponibles }}</p>
+      <span class="dash-kpi__hint">${{ valor_inventario_disponible|floatformat:0 }} USD en lista</span>
     </article>
-    <article class="card kpi">
-      <h3>Inmuebles</h3>
-      <p>{{ total_inmuebles }}</p>
+    <article class="card kpi dash-kpi dash-kpi--warn">
+      <span class="dash-kpi__icon" aria-hidden="true">⏳</span>
+      <h3>Reservados</h3>
+      <p>{{ reservados }}</p>
+      <span class="dash-kpi__hint">Apartados activos</span>
     </article>
-    {% if puede_gestionar_vendedores_app %}
-    <article class="card kpi">
-      <h3>Vendedores</h3>
-      <p>{{ total_vendedores }}</p>
+    <article class="card kpi dash-kpi dash-kpi--sold">
+      <span class="dash-kpi__icon" aria-hidden="true">🏠</span>
+      <h3>Vendidos</h3>
+      <p>{{ vendidos }}</p>
+      <span class="dash-kpi__hint">Cerrados en inventario</span>
     </article>
-    {% endif %}
+    <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:contrato_list' %}">
+      <span class="dash-kpi__icon" aria-hidden="true">📄</span>
+      <h3>Contratos activos</h3>
+      <p>{{ total_contratos_activos }}</p>
+      <span class="dash-kpi__hint">En cartera</span>
+    </a>
     {% if dashboard_mis_contratos %}
-    <article class="card kpi">
+    <article class="card kpi dash-kpi">
+      <span class="dash-kpi__icon" aria-hidden="true">📋</span>
       <h3>Mis contratos</h3>
       <p>{{ dashboard_mis_contratos.count }}</p>
-    </article>
-    <article class="card kpi">
-      <h3>Comisión estimada (USD)</h3>
-      <p>${{ dashboard_mis_contratos.comision_total|floatformat:2 }}</p>
+      <span class="dash-kpi__hint">${{ dashboard_mis_contratos.comision_total|floatformat:2 }} comisión est.</span>
     </article>
     {% endif %}
   </section>
 
   {% if reservas_vencidas_ct or reservas_por_vencer %}
-  <section class="card" style="border-left:3px solid var(--pbr-accent);">
+  <section class="card dash-alert">
     <h2>Reservas</h2>
     {% if reservas_vencidas_ct %}
     <p class="alert" role="alert" style="margin-top:0;">
-      Hay <strong>{{ reservas_vencidas_ct }}</strong> reserva(s) con fecha vencida.
-      Ejecute <code>python manage.py expirar_reservas</code> o libere manualmente en Inmuebles.
+      <strong>{{ reservas_vencidas_ct }}</strong> reserva(s) con fecha vencida.
+      Ejecute <code>python manage.py expirar_reservas</code> o libere el lote en inventario.
     </p>
     {% endif %}
     {% if reservas_por_vencer %}
-    <p class="muted" style="margin:0 0 0.5rem;">Próximos 7 días (fecha límite):</p>
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Código</th>
-          <th>Proyecto</th>
-          <th>Cliente</th>
-          <th>Vence</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for i in reservas_por_vencer %}
-        <tr>
-          <td>{{ i.codigo }}</td>
-          <td>{{ i.proyecto.nombre }}</td>
-          <td>{% if i.cliente_reserva %}{{ i.cliente_reserva }}{% else %}—{% endif %}</td>
-          <td>{{ i.reserva_hasta }}</td>
-          <td><a href="{% url 'app:inmueble_update' i.pk %}">Editar</a></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <p class="muted" style="margin:0 0 0.5rem;">Vencen en los próximos 7 días:</p>
+    <div class="data-panel">
+      <table class="table dash-table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Proyecto</th>
+            <th>Cliente</th>
+            <th>Vence</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in reservas_por_vencer %}
+          <tr>
+            <td><strong>{{ i.codigo }}</strong></td>
+            <td>{{ i.proyecto.nombre }}</td>
+            <td>{% if i.cliente_reserva %}{{ i.cliente_reserva }}{% else %}—{% endif %}</td>
+            <td><span class="badge badge--reservado">{{ i.reserva_hasta|date:"d/m/Y" }}</span></td>
+            <td><a href="{% url 'app:inmueble_update' i.pk %}" class="link-action">Ver</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% endif %}
   </section>
   {% endif %}
 
-  <section class="grid-modulos" aria-label="Accesos">
-    <a class="card modulo" href="{% url 'app:proyecto_list' %}">
+  <section class="grid-modulos dash-modulos" aria-label="Accesos rápidos">
+    <a class="card modulo dash-modulo" href="{% url 'app:proyecto_list' %}">
+      <span class="dash-modulo__icon">🏗</span>
       <h3>Proyectos</h3>
-      <p>Ver y editar proyectos.</p>
+      <p>Lotificaciones y planos maestros.</p>
     </a>
-    <a class="card modulo" href="{% url 'app:poligono_list' %}">
+    <a class="card modulo dash-modulo" href="{% url 'app:poligono_list' %}">
+      <span class="dash-modulo__icon">🗺</span>
       <h3>Polígonos</h3>
-      <p>Etapas y lotes.</p>
+      <p>Etapas y agrupación de lotes.</p>
     </a>
-    <a class="card modulo" href="{% url 'app:inmueble_list' %}">
-      <h3>Inmuebles</h3>
-      <p>Inventario.</p>
+    <a class="card modulo dash-modulo" href="{% url 'app:inmueble_list' %}">
+      <span class="dash-modulo__icon">📦</span>
+      <h3>Lotes</h3>
+      <p>Inventario de lotificación por proyecto.</p>
     </a>
-    <a class="card modulo" href="{% url 'app:contrato_list' %}">
+    <a class="card modulo dash-modulo" href="{% url 'app:contrato_list' %}">
+      <span class="dash-modulo__icon">📄</span>
       <h3>{% if contratos_restriccion_vendedor %}Mis contratos{% else %}Contratos{% endif %}</h3>
-      <p>{% if contratos_restriccion_vendedor %}Ventas y comisiones asignadas a usted.{% else %}Operaciones y documentos por venta.{% endif %}</p>
+      <p>Ventas de lotes, promesas y comisiones.</p>
     </a>
-    {% if puede_gestionar_vendedores_app %}
-    <a class="card modulo" href="{% url 'app:vendedor_list' %}">
-      <h3>Vendedores</h3>
-      <p>Asesores, comisiones y catálogo de ventas.</p>
-    </a>
-    {% endif %}
-    <a class="card modulo" href="{% url 'app:pago_list' %}">
+    <a class="card modulo dash-modulo" href="{% url 'app:pago_list' %}">
+      <span class="dash-modulo__icon">💵</span>
       <h3>Pagos</h3>
-      <p>Cobros y cuotas.</p>
+      <p>Cobros y cuotas de cartera.</p>
     </a>
   </section>
 
-  <section class="card">
-    <h2>Últimos inmuebles</h2>
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Código</th>
-          <th>Proyecto</th>
-          <th>Tipo</th>
-          <th>Estado</th>
-          <th>Precio</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for i in ultimos_inmuebles %}
-        <tr>
-          <td><a href="{% url 'app:inmueble_update' i.pk %}">{{ i.codigo }}</a></td>
-          <td>{{ i.proyecto.nombre }}</td>
-          <td>{{ i.get_tipo_display }}</td>
-          <td>{{ i.get_estado_display }}</td>
-          <td>${{ i.precio_lista }}</td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="5" class="muted">No hay inmuebles aún.</td>
-        </tr>
+  <div class="dash-grid-2">
+    <section class="card dash-panel">
+      <h2>Estado del inventario (lotes)</h2>
+      <p class="muted dash-panel__sub">Solo lotes de lotificación (sistema Desarrollos).</p>
+      {% if estado_breakdown %}
+      <ul class="dash-bars" aria-label="Distribución por estado">
+        {% for e in estado_breakdown %}
+        <li class="dash-bars__row">
+          <span class="dash-bars__label">
+            <span class="badge badge--{{ e.key|lower }}">{{ e.label }}</span>
+          </span>
+          <div class="dash-bars__track" role="presentation">
+            <div class="dash-bars__fill dash-bars__fill--{{ e.key|lower }}" style="width: {{ e.pct }}%;"></div>
+          </div>
+          <span class="dash-bars__value">{{ e.count }} <span class="muted">({{ e.pct }}%)</span></span>
+        </li>
         {% endfor %}
-      </tbody>
-    </table>
-  </section>
+      </ul>
+      {% else %}
+      <p class="muted">Sin lotes en inventario.</p>
+      {% endif %}
 
-  <section class="card">
-    <h2>Mapa de calor (por polígono)</h2>
-    <p class="muted" style="margin-top:-6px;">Más vendidos y reservados (MVP sin mapa). Para mapa real, luego se agrega geometría.</p>
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Proyecto</th>
-          <th>Polígono</th>
-          <th class="right">Total</th>
-          <th class="right">Vendidos</th>
-          <th class="right">Reservados</th>
-          <th class="right">Disponibles</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in poligono_stats %}
-        <tr>
-          <td>{{ p.proyecto.nombre }}</td>
-          <td>{{ p.nombre }}</td>
-          <td class="right">{{ p.total_lotes }}</td>
-          <td class="right">{{ p.vendidos }}</td>
-          <td class="right">{{ p.reservados }}</td>
-          <td class="right">{{ p.disponibles }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6" class="muted">No hay polígonos.</td></tr>
+      <h2 style="margin-top:1.25rem;">Últimos registros</h2>
+      <div class="data-panel">
+        <table class="table dash-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Proyecto</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th class="right">Precio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for i in ultimos_inmuebles %}
+            <tr>
+              <td>
+                <a href="{% url 'app:inmueble_update' i.pk %}" class="link-action"><strong>{{ i.codigo }}</strong></a>
+              </td>
+              <td>{{ i.proyecto.nombre }}</td>
+              <td>{% if i.tipo == "LOTE" %}Lote{% else %}{{ i.get_tipo_display }}{% endif %}</td>
+              <td><span class="badge badge--{{ i.estado|lower }}">{{ i.get_estado_display }}</span></td>
+              <td class="right">${{ i.precio_lista|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="muted">No hay lotes en inventario.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card dash-panel">
+      <h2>Ocupación por polígono</h2>
+      <p class="muted dash-panel__sub">Solo lotes de venta con inventario asignado. Ordenado por más vendidos.</p>
+      {% if poligono_rows %}
+      <ul class="dash-heat">
+        {% for row in poligono_rows %}
+        <li class="dash-heat__item">
+          <div class="dash-heat__head">
+            <strong>{{ row.obj.nombre }}</strong>
+            <span class="muted">{{ row.obj.proyecto.nombre }}</span>
+            <span class="dash-heat__pct">{{ row.ocupacion_pct }}% vendido/reservado</span>
+          </div>
+          <div class="dash-heat__stack" role="presentation" title="{{ row.vendidos }} vendidos, {{ row.reservados }} reservados, {{ row.disponibles }} disponibles">
+            {% if row.vendidos_pct %}<span class="dash-heat__seg dash-heat__seg--vendido" style="width:{{ row.vendidos_pct }}%;"></span>{% endif %}
+            {% if row.reservados_pct %}<span class="dash-heat__seg dash-heat__seg--reservado" style="width:{{ row.reservados_pct }}%;"></span>{% endif %}
+            {% if row.disponibles_pct %}<span class="dash-heat__seg dash-heat__seg--disponible" style="width:{{ row.disponibles_pct }}%;"></span>{% endif %}
+          </div>
+          <div class="dash-heat__legend muted">
+            <span>{{ row.total }} lotes</span>
+            <span>· {{ row.vendidos }} vend.</span>
+            <span>· {{ row.reservados }} res.</span>
+            <span>· {{ row.disponibles }} disp.</span>
+          </div>
+        </li>
         {% endfor %}
-      </tbody>
-    </table>
-  </section>
+      </ul>
+      <p class="dash-heat__note muted">
+        <span class="dash-heat__dot dash-heat__dot--vendido"></span> Vendido
+        <span class="dash-heat__dot dash-heat__dot--reservado"></span> Reservado
+        <span class="dash-heat__dot dash-heat__dot--disponible"></span> Disponible
+      </p>
+      {% else %}
+      <p class="muted">No hay polígonos con lotes registrados.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <p class="dash-foot muted">
+    Los totales son de lotes de lotificación. Alquileres y venta de casas pertenecen a Bienes Raíces.
+    Polígonos sin lotes no se listan.
+  </p>
 </div>
 {% endblock %}

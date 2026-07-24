@@ -101,6 +101,7 @@ from .models import (
     ParametroMora,
     Poligono,
     Proyecto,
+    RecordatorioPago,
     Vendedor,
 )
 
@@ -345,6 +346,9 @@ def _generar_pdf_formato_aceptacion_bytes(formato: FormatoAceptacion) -> bytes:
             "formato_pdf_credito_extra_bd": formato_aceptacion_credito_extra_columns_ready(),
             "formato_listado_cuotas": filas_listado_cuotas_formato_aceptacion(formato),
         }
+        from docs.services import _proyecto_logo_src_para_pdf
+
+        ctx["proyecto_logo_src"] = _proyecto_logo_src_para_pdf(ctx["proyecto"])
         return generar_pdf_desde_plantilla(
             template_name="docs/formato_aceptacion_pdf.html",
             context=ctx,
@@ -525,6 +529,32 @@ def _mapa_planos_proyectos():
 class AppLoginRequiredMixin(LoginRequiredMixin):
     login_url = reverse_lazy("login")
 
+    def dispatch(self, request: HttpRequest, *args, **kwargs):
+        if request.user.is_authenticated:
+            from core.marcas import (
+                es_desarrollos,
+                marca_from_session,
+                ruta_solo_bienes_raices,
+            )
+            from inmobiliaria.vendedor_acceso import redirigir_vendedor_si_fuera_de_flujo
+
+            marca = marca_from_session(request)
+            if marca is None:
+                return HttpResponseRedirect(reverse("elegir_marca"))
+            match = getattr(request, "resolver_match", None)
+            url_name = getattr(match, "url_name", None) if match else None
+            if es_desarrollos(marca) and ruta_solo_bienes_raices(url_name):
+                messages.warning(
+                    request,
+                    "Ese módulo pertenece a Paredes Bienes Raíces (alquileres / venta de casas e inmuebles). "
+                    "Cambie de empresa o use Gestión de Desarrollos (proyectos y lotes).",
+                )
+                return HttpResponseRedirect(reverse("dashboard"))
+            blocked = redirigir_vendedor_si_fuera_de_flujo(request)
+            if blocked is not None:
+                return blocked
+        return super().dispatch(request, *args, **kwargs)
+
 
 class FormatoSuperuserGateMixin:
     """
@@ -593,9 +623,46 @@ def formato_superuser_gate(request: HttpRequest) -> HttpResponse:
 
 
 class AppIndexView(AppLoginRequiredMixin, TemplateView):
-    """Hub de módulos (menú de gestión)."""
+    """Hub de módulos (menú de gestión) con resumen de datos confiables."""
 
     template_name = "app/index.html"
+
+    def dispatch(self, request: HttpRequest, *args, **kwargs):
+        from core.marcas import es_bienes_raices, marca_from_session
+        from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
+        # Vendedor: solo su hub de flujo (también en Bienes Raíces).
+        if request.user.is_authenticated and es_vendedor_restringido(request.user):
+            return super().dispatch(request, *args, **kwargs)
+        # Bienes Raíces es un sistema aparte: entra por su dashboard, no por Gestión.
+        if request.user.is_authenticated and es_bienes_raices(marca_from_session(request)):
+            return HttpResponseRedirect(reverse("dashboard"))
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_template_names(self):
+        from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
+        if es_vendedor_restringido(self.request.user):
+            return ["app/index_vendedor.html"]
+        return [self.template_name]
+
+    def get_context_data(self, **kwargs):
+        from core.dashboard_data import build_gestion_hub_context
+        from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
+        ctx = super().get_context_data(**kwargs)
+        if es_vendedor_restringido(self.request.user):
+            return ctx
+        ctx.update(
+            build_gestion_hub_context(
+                user=self.request.user,
+                incluir_vendedores=puede_gestionar_vendedores(self.request.user),
+                contratos_restringidos=aplica_restriccion_contratos_por_vendedor(
+                    self.request.user
+                ),
+            )
+        )
+        return ctx
 
 
 class MapaEditorView(AppLoginRequiredMixin, TemplateView):
@@ -621,7 +688,7 @@ class ProyectoListView(AppLoginRequiredMixin, ListView):
 class ProyectoCreateView(AppLoginRequiredMixin, CreateView):
     model = Proyecto
     form_class = forms.ProyectoForm
-    template_name = "app/object_form.html"
+    template_name = "app/proyecto_form.html"
     success_url = reverse_lazy("app:proyecto_list")
 
     def get_context_data(self, **kwargs):
@@ -635,7 +702,7 @@ class ProyectoCreateView(AppLoginRequiredMixin, CreateView):
 class ProyectoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
     model = Proyecto
     form_class = forms.ProyectoForm
-    template_name = "app/object_form.html"
+    template_name = "app/proyecto_form.html"
     success_url = reverse_lazy("app:proyecto_list")
 
     def get_context_data(self, **kwargs):
@@ -687,10 +754,80 @@ class PoligonoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
 
 
 # ——— Inmuebles ———
-def _inmueble_url_listado_tras_tipo(tipo: str) -> str:
+def _bloquear_si_desarrollos(request: HttpRequest) -> HttpResponse | None:
+    """Alquileres y venta de casas/inmuebles no existen en Desarrollos."""
+    from core.marcas import es_desarrollos, marca_from_session
+
+    marca = marca_from_session(request)
+    if marca is None:
+        return HttpResponseRedirect(reverse("elegir_marca"))
+    if es_desarrollos(marca):
+        messages.warning(
+            request,
+            "Ese módulo pertenece a Paredes Bienes Raíces. "
+            "En Desarrollos use proyectos, lotes, contratos y cartera.",
+        )
+        return HttpResponseRedirect(reverse("dashboard"))
+    return None
+
+
+@login_required
+def inmuebles_alquiler_hub(request: HttpRequest) -> HttpResponse:
+    """Centro de alquileres: locales, casas e inquilino por ficha."""
+    bloqueo = _bloquear_si_desarrollos(request)
+    if bloqueo:
+        return bloqueo
+    return render(
+        request,
+        "app/inmuebles_alquiler_hub.html",
+        {
+            "page_title": "Alquileres",
+            "page_meta": (
+                "Locales y casas en arrendamiento. Asigne al cliente como "
+                "inquilino en la ficha de cada inmueble."
+            ),
+        },
+    )
+
+
+@login_required
+def inmuebles_venta_hub(request: HttpRequest) -> HttpResponse:
+    """Centro de venta: casas, lotes, reservas y comisión al vendedor."""
+    bloqueo = _bloquear_si_desarrollos(request)
+    if bloqueo:
+        return bloqueo
+    return render(
+        request,
+        "app/inmuebles_venta_hub.html",
+        {
+            "page_title": "Venta de inmuebles",
+            "page_meta": (
+                "Inventario de casas y lotes. Marque apartado con cliente reserva; "
+                "el contrato formal se crea en Gestión."
+            ),
+        },
+    )
+
+
+def _inmueble_url_listado_tras_tipo(tipo: str, *, en_alquiler: bool = False) -> str:
+    if en_alquiler:
+        if tipo == Inmueble.Tipo.LOCAL:
+            return reverse("app:arrendamiento_locales_list")
+        if tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
+            return reverse("app:arrendamiento_casas_list")
     if tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
         return reverse("app:inmueble_casa_list")
     return reverse("app:inmueble_list")
+
+
+def _inmueble_ficha_alquiler_url(inmueble: Inmueble) -> str | None:
+    if not inmueble.en_alquiler:
+        return None
+    if inmueble.tipo == Inmueble.Tipo.LOCAL:
+        return reverse("app:local_alquiler_ficha", args=[inmueble.pk])
+    if inmueble.tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
+        return reverse("app:casa_alquiler_ficha", args=[inmueble.pk])
+    return None
 
 
 class InmuebleLoteListView(AppLoginRequiredMixin, ListView):
@@ -702,26 +839,40 @@ class InmuebleLoteListView(AppLoginRequiredMixin, ListView):
     paginate_by = 25
 
     def get_queryset(self):
-        return (
+        qs = (
             Inmueble.objects.select_related("proyecto", "poligono")
+            .filter(en_alquiler=False)
             .exclude(
                 tipo__in=(Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA),
             )
             .order_by("proyecto__nombre", "poligono__orden", "codigo")
         )
+        from core.marcas import es_desarrollos, marca_from_session
+
+        # Desarrollos: solo lotes de lotificación (sin locales ni casas).
+        if es_desarrollos(marca_from_session(self.request)):
+            qs = qs.filter(tipo=Inmueble.Tipo.LOTE)
+        return qs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["listado_page_title"] = "Inmueble lote"
-        ctx["listado_meta"] = "Lotes y locales comerciales por proyecto y polígono (sin casas)."
+        from core.marcas import es_desarrollos, marca_from_session
+
+        if es_desarrollos(marca_from_session(self.request)):
+            ctx["listado_page_title"] = "Lotes de lotificación"
+            ctx["listado_meta"] = "Inventario de lotes por proyecto y polígono (sistema Desarrollos)."
+            ctx["nuevo_boton_label"] = "Nuevo lote"
+        else:
+            ctx["listado_page_title"] = "Inmueble lote"
+            ctx["listado_meta"] = "Lotes y locales comerciales por proyecto y polígono (sin casas)."
+            ctx["nuevo_boton_label"] = "Nuevo lote o local"
         ctx["nuevo_url"] = reverse("app:inmueble_create")
-        ctx["nuevo_boton_label"] = "Nuevo lote o local"
         ctx["es_listado_casas"] = False
         return ctx
 
 
 class InmuebleCasaListView(AppLoginRequiredMixin, ListView):
-    """Solo casas nuevas o de segunda."""
+    """Solo casas nuevas o de segunda en venta (excluye módulo de alquiler)."""
 
     model = Inmueble
     template_name = "app/inmueble_list.html"
@@ -731,7 +882,10 @@ class InmuebleCasaListView(AppLoginRequiredMixin, ListView):
     def get_queryset(self):
         return (
             Inmueble.objects.select_related("proyecto", "poligono")
-            .filter(tipo__in=(Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA))
+            .filter(
+                tipo__in=(Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA),
+                en_alquiler=False,
+            )
             .order_by("proyecto__nombre", "codigo")
         )
 
@@ -848,7 +1002,7 @@ class InmuebleCreateLoteView(AppLoginRequiredMixin, CreateView):
 
 
 class InmuebleCreateCasaView(AppLoginRequiredMixin, View):
-    """Alta de casa: datos mínimos de inventario + ficha de venta (detalle) en un solo envío."""
+    """Alta de casa en venta: tipo, código, precio y ficha (sin proyecto ni alquiler)."""
 
     template_name = "app/inmueble_casa_alta.html"
 
@@ -892,13 +1046,28 @@ class InmuebleUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
     form_class = forms.InmuebleForm
     template_name = "app/inmueble_form.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        ficha_url = _inmueble_ficha_alquiler_url(self.object)
+        if ficha_url is not None:
+            messages.info(
+                request,
+                "Este inmueble pertenece al módulo de alquileres. Use la ficha de arrendamiento.",
+            )
+            return HttpResponseRedirect(ficha_url)
+        return super().dispatch(request, *args, **kwargs)
+
     def get_success_url(self) -> str:
-        return _inmueble_url_listado_tras_tipo(self.object.tipo)
+        return _inmueble_url_listado_tras_tipo(
+            self.object.tipo, en_alquiler=self.object.en_alquiler
+        )
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["form_title"] = "Editar inmueble"
-        ctx["cancel_url"] = _inmueble_url_listado_tras_tipo(self.object.tipo)
+        ctx["cancel_url"] = _inmueble_url_listado_tras_tipo(
+            self.object.tipo, en_alquiler=self.object.en_alquiler
+        )
         ctx["historial_precios"] = self.object.historial_precios.all()[:50]
         if self.object.pk:
             ctx["inmueble_imagenes"] = _inmueble_imagenes_ordenadas(self.object)
@@ -935,6 +1104,14 @@ class InmuebleCasaGaleriaView(AppLoginRequiredMixin, SensitiveEditSessionMixin, 
                 "«Casa y fotos» solo aplica a inmuebles tipo casa nueva o casa segunda.",
             )
             return HttpResponseRedirect(reverse("app:inmueble_casa_list"))
+        if self.inmueble.en_alquiler:
+            messages.info(
+                request,
+                "Esta casa está en el módulo de alquileres. Use la ficha de arrendamiento.",
+            )
+            return HttpResponseRedirect(
+                reverse("app:casa_alquiler_ficha", args=[self.inmueble.pk])
+            )
         return super().dispatch(request, *args, **kwargs)
 
     def _detalle_instance(self):
@@ -1090,17 +1267,23 @@ class LocalAlquilerCreateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, 
         local_form = forms.InmuebleDetalleLocalAlquilerForm(request.POST)
         if not local_form.is_valid():
             return render(request, self.template_name, self._ctx(local_form))
-        inv = _crear_inmueble_local_para_ficha_alquiler()
-        if not inv:
+        if not Proyecto.objects.exists():
             messages.error(
                 request,
                 "No hay ningún proyecto creado. Cree al menos un proyecto en la app y vuelva a intentar.",
             )
             return render(request, self.template_name, self._ctx(local_form))
-        with transaction.atomic():
-            det = local_form.save(commit=False)
-            det.inmueble = inv
-            det.save()
+        try:
+            with transaction.atomic():
+                inv = _crear_inmueble_local_para_ficha_alquiler()
+                if not inv:
+                    raise RuntimeError("No se pudo generar código de local.")
+                det = local_form.save(commit=False)
+                det.inmueble = inv
+                det.save()
+        except Exception:
+            messages.error(request, "No se pudo guardar el alquiler de local. Intente de nuevo.")
+            return render(request, self.template_name, self._ctx(local_form))
         messages.success(
             request,
             "Alquiler de local guardado. Puede seguir editando la ficha o subir fotos.",
@@ -1244,17 +1427,23 @@ class CasaAlquilerCreateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, V
         casa_alquiler_form = forms.InmuebleDetalleCasaAlquilerForm(request.POST)
         if not casa_alquiler_form.is_valid():
             return render(request, self.template_name, self._ctx(casa_alquiler_form))
-        inv = _crear_inmueble_casa_para_ficha_alquiler()
-        if not inv:
+        if not Proyecto.objects.exists():
             messages.error(
                 request,
                 "No hay ningún proyecto creado. Cree al menos un proyecto en la app y vuelva a intentar.",
             )
             return render(request, self.template_name, self._ctx(casa_alquiler_form))
-        with transaction.atomic():
-            det = casa_alquiler_form.save(commit=False)
-            det.inmueble = inv
-            det.save()
+        try:
+            with transaction.atomic():
+                inv = _crear_inmueble_casa_para_ficha_alquiler()
+                if not inv:
+                    raise RuntimeError("No se pudo generar código de casa.")
+                det = casa_alquiler_form.save(commit=False)
+                det.inmueble = inv
+                det.save()
+        except Exception:
+            messages.error(request, "No se pudo guardar el alquiler de casa. Intente de nuevo.")
+            return render(request, self.template_name, self._ctx(casa_alquiler_form))
         messages.success(
             request,
             "Alquiler de casa guardado. Puede seguir editando la ficha o subir fotos.",
@@ -1364,6 +1553,19 @@ class ClienteListView(AppLoginRequiredMixin, ListView):
     context_object_name = "items"
     paginate_by = 30
 
+    def get_queryset(self):
+        from django.db.models import Count
+
+        return (
+            Cliente.objects.annotate(
+                num_contratos=Count("contratos", distinct=True),
+                num_alquileres_local=Count("alquileres_local", distinct=True),
+                num_alquileres_casa=Count("alquileres_casa", distinct=True),
+                num_reservas=Count("inmuebles_reservados", distinct=True),
+            )
+            .order_by("apellidos", "nombres")
+        )
+
 
 def _guardar_documentos_cliente_upload(request, cliente: Cliente) -> None:
     desc = (request.POST.get("documento_descripcion_cliente") or "").strip()[:200]
@@ -1374,13 +1576,22 @@ def _guardar_documentos_cliente_upload(request, cliente: Cliente) -> None:
 class ClienteCreateView(AppLoginRequiredMixin, CreateView):
     model = Cliente
     form_class = forms.ClienteForm
-    template_name = "app/object_form.html"
+    template_name = "app/cliente_form.html"
     success_url = reverse_lazy("app:cliente_list")
 
     def form_valid(self, form):
-        resp = super().form_valid(form)
-        _guardar_documentos_cliente_upload(self.request, self.object)
-        return resp
+        try:
+            with transaction.atomic():
+                self.object = form.save()
+                _guardar_documentos_cliente_upload(self.request, self.object)
+        except Exception:
+            messages.error(
+                self.request,
+                "No se pudieron guardar el cliente ni sus documentos. Revise los archivos e intente de nuevo.",
+            )
+            return self.form_invalid(form)
+        messages.success(self.request, "Cliente guardado correctamente.")
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -1396,13 +1607,22 @@ class ClienteCreateView(AppLoginRequiredMixin, CreateView):
 class ClienteUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
     model = Cliente
     form_class = forms.ClienteForm
-    template_name = "app/object_form.html"
+    template_name = "app/cliente_form.html"
     success_url = reverse_lazy("app:cliente_list")
 
     def form_valid(self, form):
-        resp = super().form_valid(form)
-        _guardar_documentos_cliente_upload(self.request, self.object)
-        return resp
+        try:
+            with transaction.atomic():
+                self.object = form.save()
+                _guardar_documentos_cliente_upload(self.request, self.object)
+        except Exception:
+            messages.error(
+                self.request,
+                "No se pudieron guardar los cambios del cliente ni los documentos nuevos.",
+            )
+            return self.form_invalid(form)
+        messages.success(self.request, "Cliente actualizado correctamente.")
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -1418,6 +1638,9 @@ class ClienteUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
             ctx["documentos_cliente"] = []
             ctx["cliente_pk"] = None
         ctx["pdf_report_url"] = reverse("app:cliente_reporte_pdf", args=[self.object.pk])
+        from inmobiliaria.cliente_inmuebles import build_cliente_inmuebles_context
+
+        ctx.update(build_cliente_inmuebles_context(self.object))
         return ctx
 
 
@@ -1580,10 +1803,23 @@ class ContratoCreateView(AppLoginRequiredMixin, CreateView):
     template_name = "app/contrato_form.html"
     success_url = reverse_lazy("app:contrato_list")
 
+    def get_initial(self):
+        initial = super().get_initial()
+        raw = self.request.GET.get("cliente")
+        if raw:
+            try:
+                cid = int(raw)
+                if Cliente.objects.filter(pk=cid).exists():
+                    initial["cliente"] = cid
+            except (TypeError, ValueError):
+                pass
+        return initial
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["filtro_proyecto_id"] = self.request.GET.get("proyecto") or None
         kwargs["filtro_poligono_id"] = self.request.GET.get("poligono") or None
+        kwargs["user"] = self.request.user
         return kwargs
 
     def get_context_data(self, **kwargs):
@@ -1599,6 +1835,15 @@ class ContratoCreateView(AppLoginRequiredMixin, CreateView):
         ctx["filtro_get_poligono"] = self.request.GET.get("poligono") or ""
         ctx["form_contrato_autocomplete_off"] = True
         return ctx
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            "Paso 2 listo: contrato guardado. Siguiente: el vendedor registra la reserva pagada "
+            f"(Pagos → Nuevo, concepto Reserva, o use el enlace del contrato #{self.object.numero}).",
+        )
+        return response
 
 
 class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, UpdateView):
@@ -1622,6 +1867,7 @@ class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Updat
         kwargs = super().get_form_kwargs()
         kwargs["filtro_proyecto_id"] = self.request.GET.get("proyecto") or None
         kwargs["filtro_poligono_id"] = self.request.GET.get("poligono") or None
+        kwargs["user"] = self.request.user
         return kwargs
 
     def get_context_data(self, **kwargs):
@@ -1804,7 +2050,10 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
         form.instance.creado_por = self.request.user
         prev_firmas = False
         response = super().form_valid(form)
-        messages.success(self.request, "Formato de aceptación guardado.")
+        messages.success(
+            self.request,
+            "Paso 1 listo: formato de aceptación guardado. Siguiente: llenar el contrato (Gestión → Flujo de venta → Contrato).",
+        )
         _formato_aceptacion_tras_guardado_notificar(self.request, self.object, prev_firmas)
         return response
 
@@ -1867,12 +2116,17 @@ class FormatoAceptacionListView(AppLoginRequiredMixin, ListView):
     paginate_by = 30
 
     def get_queryset(self):
+        from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
         qs = FormatoAceptacion.objects.order_by("-numero_formulario", "-id").select_related(
             "contrato",
             "contrato__inmueble",
             "contrato__inmueble__proyecto",
         )
-        return formato_aceptacion_defer_missing_columns(qs)
+        qs = formato_aceptacion_defer_missing_columns(qs)
+        if es_vendedor_restringido(self.request.user):
+            qs = qs.filter(creado_por_id=self.request.user.pk)
+        return qs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -2115,6 +2369,12 @@ def formato_aceptacion_promesa_descargar(request: HttpRequest, pk: int) -> HttpR
 
 @login_required
 def contrato_estado_cuenta(request: HttpRequest, pk: int) -> HttpResponse:
+    from inmobiliaria.recargo_administrativo import (
+        detalle_recargo_por_cuota,
+        parametro_recargo_activo,
+        resumen_cobro_contrato,
+    )
+
     base = Contrato.objects.select_related("cliente", "inmueble", "inmueble__proyecto")
     contrato = get_object_or_404(
         filtrar_contratos_queryset_por_vendedor(base, request.user),
@@ -2125,6 +2385,11 @@ def contrato_estado_cuenta(request: HttpRequest, pk: int) -> HttpResponse:
         contrato.cuotas_programadas.select_related("pago").order_by("numero")
     )
     hoy = timezone.localdate()
+    param = parametro_recargo_activo()
+    dias_gracia = int(param.dias_gracia) if param else 0
+    monto_unitario = (param.monto_recargo if param else None) or Decimal("0")
+    cobro = resumen_cobro_contrato(contrato, hoy=hoy)
+
     filas_cuotas: list[dict] = []
     for c in cuotas_qs:
         liquidada = (
@@ -2147,6 +2412,13 @@ def contrato_estado_cuenta(request: HttpRequest, pk: int) -> HttpResponse:
         if c.pago_id:
             ref = (c.pago.referencia or "").strip()
             pago_referencia = ref or None
+        det = detalle_recargo_por_cuota(
+            c,
+            hoy=hoy,
+            dias_gracia=dias_gracia,
+            monto_unitario=monto_unitario,
+        )
+        es_proxima = cobro.cuota is not None and cobro.cuota.pk == c.pk
         filas_cuotas.append(
             {
                 "cuota": c,
@@ -2155,6 +2427,11 @@ def contrato_estado_cuenta(request: HttpRequest, pk: int) -> HttpResponse:
                 "dias_impago_tras_venc": dias_impago_tras_venc,
                 "pago_monto": pago_monto,
                 "pago_referencia": pago_referencia,
+                "genera_recargo": det["genera_recargo"],
+                "fecha_limite_gracia": det["fecha_limite_gracia"],
+                "es_proxima": es_proxima,
+                "a_cobrar_total": cobro.monto_total if es_proxima else None,
+                "a_cobrar_recargo": cobro.monto_recargo if es_proxima else None,
             }
         )
 
@@ -2185,6 +2462,8 @@ def contrato_estado_cuenta(request: HttpRequest, pk: int) -> HttpResponse:
         "hoy": hoy,
         "total_pagado": total_pagado,
         "saldo_estimado": saldo_estimado,
+        "cobro_mes": cobro,
+        "param_recargo": param,
     }
     return render(request, "app/contrato_estado_cuenta.html", context)
 
@@ -2230,11 +2509,20 @@ class PagoListView(AppLoginRequiredMixin, ListView):
     paginate_by = 40
 
     def get_queryset(self):
-        qs = Pago.objects.select_related("contrato", "contrato__cliente")
+        qs = Pago.objects.select_related(
+            "contrato",
+            "contrato__cliente",
+            "validado_por",
+        )
         qs = filtrar_pagos_queryset_por_vendedor(qs, self.request.user)
         cid = (self.request.GET.get("contrato") or "").strip()
         if cid.isdigit():
             qs = qs.filter(contrato_id=int(cid))
+        estado = (self.request.GET.get("validacion") or "").strip().upper()
+        if estado == "PENDIENTE":
+            qs = qs.filter(validacion_abono=Pago.ValidacionAbono.PENDIENTE)
+        elif estado == "VALIDADO":
+            qs = qs.filter(validacion_abono=Pago.ValidacionAbono.VALIDADO)
         return qs
 
     def get_context_data(self, **kwargs):
@@ -2243,6 +2531,12 @@ class PagoListView(AppLoginRequiredMixin, ListView):
         ctx["contrato_filtro"] = None
         if cid.isdigit():
             ctx["contrato_filtro"] = Contrato.objects.filter(pk=int(cid)).first()
+        ctx["filtro_validacion"] = (self.request.GET.get("validacion") or "").strip().lower()
+        pendientes = Pago.objects.filter(
+            validacion_abono=Pago.ValidacionAbono.PENDIENTE
+        )
+        pendientes = filtrar_pagos_queryset_por_vendedor(pendientes, self.request.user)
+        ctx["pagos_pendientes_validacion_ct"] = pendientes.count()
         return ctx
 
 
@@ -2263,25 +2557,193 @@ class PagoCreateView(AppLoginRequiredMixin, CreateView):
         fid = (self.request.GET.get("formato") or "").strip()
         if fid.isdigit():
             initial["formato_aceptacion"] = int(fid)
+        concepto = (self.request.GET.get("concepto") or "").strip().upper()
+        if concepto in {c.value for c in Pago.Concepto}:
+            initial["concepto"] = concepto
+        cid = (self.request.GET.get("contrato") or "").strip()
+        if cid.isdigit():
+            initial["contrato"] = int(cid)
         return initial
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["form_title"] = "Nuevo pago"
+        concepto = (self.request.GET.get("concepto") or "").strip().upper()
+        titulos = {
+            "RESERVA": "Paso 3 · Reserva pagada (recibo)",
+            "PRIMA": "Paso 4 · Prima pagada (recibo)",
+            "CUOTA": "Paso 5 · Recibo a plazos (cuota)",
+        }
+        ctx["form_title"] = titulos.get(concepto, "Nuevo pago / recibo")
         ctx["cancel_url"] = reverse_lazy("app:pago_list")
         ctx["pago_contrato_panel"] = True
         ctx["pago_cuotas_checkboxes"] = True
         ctx["pago_ocultar_contrato"] = True
         ctx["pago_panel_debajo_formato"] = True
+        ctx["pago_flujo_concepto"] = concepto
         return ctx
 
     def form_valid(self, form):
-        messages.success(
-            self.request,
-            "Pago registrado. El recibo de ingreso se genera automáticamente al guardar; el envío por correo y WhatsApp "
-            "depende de la configuración del servidor (correo SMTP y proveedor de mensajería en variables de entorno).",
+        response = super().form_valid(form)
+        concepto = form.cleaned_data.get("concepto")
+        if concepto in Pago.CONCEPTOS_CON_VALIDACION:
+            messages.success(
+                self.request,
+                f"{self.object.get_concepto_display()} registrado. "
+                "Queda pendiente de validación de gerencia: no se genera recibo ni se envía "
+                "correo/WhatsApp al cliente hasta que confirmen el abono en la cuenta.",
+            )
+            messages.info(
+                self.request,
+                "Gerencia: Pagos → Pendientes de validación → Confirmar abono en cuenta.",
+            )
+        else:
+            messages.success(
+                self.request,
+                "Pago registrado. El recibo de ingreso se genera automáticamente al guardar.",
+            )
+        return response
+
+
+@login_required
+def pago_validar_abono(request: HttpRequest, pk: int) -> HttpResponse:
+    """Gerencia confirma depósito en cuenta → genera recibo PDF y notifica (correo/WhatsApp)."""
+    from usuarios.roles import puede_validar_abonos
+
+    if not puede_validar_abonos(request.user):
+        messages.error(
+            request,
+            "Solo gerencia o administrador puede validar abonos (reserva, prima, cuota o abono a capital).",
         )
-        return super().form_valid(form)
+        return HttpResponseRedirect(reverse("app:pago_list"))
+
+    pago = get_object_or_404(
+        filtrar_pagos_queryset_por_vendedor(
+            Pago.objects.select_related(
+                "contrato",
+                "contrato__cliente",
+                "contrato__inmueble",
+                "contrato__inmueble__proyecto",
+            ),
+            request.user,
+        ),
+        pk=pk,
+    )
+    if not pago.pendiente_validacion_gerente:
+        messages.warning(request, "Este pago no está pendiente de validación.")
+        return HttpResponseRedirect(reverse("app:pago_list") + "?validacion=pendiente")
+
+    if request.method != "POST":
+        return render(
+            request,
+            "app/pago_validar_abono.html",
+            {"pago": pago, "accion": "validar"},
+        )
+
+    nota = (request.POST.get("validacion_nota") or "").strip()[:255]
+    if not nota:
+        nota = "Abono confirmado en cuenta"
+    pago.validacion_abono = Pago.ValidacionAbono.VALIDADO
+    pago.validado_por = request.user
+    pago.validado_en = timezone.localtime()
+    pago.validacion_nota = nota
+    pago.save(
+        update_fields=[
+            "validacion_abono",
+            "validado_por",
+            "validado_en",
+            "validacion_nota",
+        ]
+    )
+
+    from docs.recibo_notificacion import construir_url_whatsapp_recibo
+    from docs.services import emitir_recibo_ingreso
+    from docs.views_web import _alerta_html_recibo_emitido
+
+    try:
+        doc, notif = emitir_recibo_ingreso(pago=pago, emitido_por=request.user)
+        wa = construir_url_whatsapp_recibo(pago.contrato.cliente, doc, pago)
+        url_pdf = reverse("app:doc_download", args=[doc.id])
+        messages.success(
+            request,
+            _alerta_html_recibo_emitido(
+                doc_numero=doc.numero,
+                url_pdf=url_pdf,
+                wa_url=wa,
+                notif=notif,
+            ),
+            extra_tags="allow_html",
+        )
+        messages.info(
+            request,
+            f"Validación OK ({nota}). Recibo {doc.numero} generado y enviado al cliente.",
+        )
+        return HttpResponseRedirect(reverse("app:docs_list"))
+    except Exception:
+        logger.exception("Error al emitir recibo tras validar pago id=%s", pago.pk)
+        messages.warning(
+            request,
+            "Abono validado en cuenta, pero no se pudo emitir el recibo automáticamente. "
+            "Intente «Recibo PDF» desde el listado de pagos.",
+        )
+        return HttpResponseRedirect(reverse("app:pago_list") + "?validacion=pendiente")
+
+
+@login_required
+def pago_rechazar_abono(request: HttpRequest, pk: int) -> HttpResponse:
+    """Gerencia rechaza el abono: no se emite recibo ni notificaciones."""
+    from usuarios.roles import puede_validar_abonos
+
+    if not puede_validar_abonos(request.user):
+        messages.error(
+            request,
+            "Solo gerencia o administrador puede rechazar abonos (reserva, prima, cuota o abono a capital).",
+        )
+        return HttpResponseRedirect(reverse("app:pago_list"))
+
+    pago = get_object_or_404(
+        filtrar_pagos_queryset_por_vendedor(
+            Pago.objects.select_related("contrato"),
+            request.user,
+        ),
+        pk=pk,
+    )
+    if not pago.pendiente_validacion_gerente:
+        messages.warning(request, "Este pago no está pendiente de validación.")
+        return HttpResponseRedirect(reverse("app:pago_list") + "?validacion=pendiente")
+
+    if request.method != "POST":
+        return render(
+            request,
+            "app/pago_validar_abono.html",
+            {"pago": pago, "accion": "rechazar"},
+        )
+
+    nota = (request.POST.get("validacion_nota") or "").strip()[:255]
+    if not nota:
+        messages.error(request, "Indique el motivo del rechazo.")
+        return render(
+            request,
+            "app/pago_validar_abono.html",
+            {"pago": pago, "accion": "rechazar"},
+        )
+
+    pago.validacion_abono = Pago.ValidacionAbono.RECHAZADO
+    pago.validado_por = request.user
+    pago.validado_en = timezone.localtime()
+    pago.validacion_nota = nota
+    pago.save(
+        update_fields=[
+            "validacion_abono",
+            "validado_por",
+            "validado_en",
+            "validacion_nota",
+        ]
+    )
+    messages.success(
+        request,
+        "Abono rechazado. No se generó recibo ni se notificó al cliente.",
+    )
+    return HttpResponseRedirect(reverse("app:pago_list") + "?validacion=pendiente")
 
 
 class PagoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
@@ -2310,7 +2772,59 @@ class PagoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
         return ctx
 
 
-# ——— Parámetros mora ———
+@login_required
+def aviso_cobro_list(request: HttpRequest) -> HttpResponse:
+    """Lista avisos de cobro (5 días antes) y permite generarlos."""
+    from datetime import timedelta
+
+    from inmobiliaria.recordatorios_cobro import generar_avisos_cobro
+
+    dias = 5
+    raw_dias = (request.GET.get("dias") or request.POST.get("dias") or "5").strip()
+    if raw_dias.isdigit():
+        dias = max(0, min(int(raw_dias), 60))
+
+    if request.method == "POST":
+        enviar_email = request.POST.get("enviar_email") == "1"
+        resultado = generar_avisos_cobro(dias=dias, enviar_email=enviar_email)
+        messages.success(
+            request,
+            f"Avisos generados para cuotas que vencen el {resultado['objetivo']:%d/%m/%Y}: "
+            f"{resultado['cuotas']} cuota(s), {resultado['creados']} recordatorio(s) nuevo(s)"
+            + (f", {resultado['emails']} correo(s) enviado(s)." if enviar_email else "."),
+        )
+        return HttpResponseRedirect(f"{reverse('app:aviso_cobro_list')}?dias={dias}")
+
+    hoy = timezone.localdate()
+    objetivo = hoy + timedelta(days=dias)
+    items = (
+        RecordatorioPago.objects.select_related(
+            "cuota",
+            "cuota__contrato",
+            "cuota__contrato__cliente",
+        )
+        .filter(programado_para=objetivo)
+        .order_by("-id")
+    )
+    cuotas_proximas = (
+        CuotaProgramada.objects.select_related("contrato", "contrato__cliente")
+        .filter(estado=CuotaProgramada.Estado.PENDIENTE, vence_en=objetivo)
+        .order_by("contrato__numero", "numero")
+    )
+    return render(
+        request,
+        "app/aviso_cobro_list.html",
+        {
+            "dias": dias,
+            "objetivo": objetivo,
+            "items": items,
+            "cuotas_proximas": cuotas_proximas,
+            "cuotas_proximas_ct": cuotas_proximas.count(),
+        },
+    )
+
+
+# ——— Recargo administrativo ———
 class ParametroMoraListView(AppLoginRequiredMixin, ListView):
     model = ParametroMora
     template_name = "app/parametro_mora_list.html"
@@ -2326,7 +2840,7 @@ class ParametroMoraCreateView(AppLoginRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["form_title"] = "Nuevo parámetro de mora"
+        ctx["form_title"] = "Nuevo recargo administrativo"
         ctx["cancel_url"] = reverse_lazy("app:parametro_mora_list")
         return ctx
 
@@ -2339,7 +2853,7 @@ class ParametroMoraUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateV
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["form_title"] = "Editar parámetro de mora"
+        ctx["form_title"] = "Editar recargo administrativo"
         ctx["cancel_url"] = reverse_lazy("app:parametro_mora_list")
         return ctx
 
@@ -2376,7 +2890,9 @@ class InmuebleDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, DeleteView
     template_name = "app/confirm_delete.html"
 
     def get_success_url(self) -> str:
-        return _inmueble_url_listado_tras_tipo(self.object.tipo)
+        return _inmueble_url_listado_tras_tipo(
+            self.object.tipo, en_alquiler=self.object.en_alquiler
+        )
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -2387,6 +2903,9 @@ class InmuebleDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, DeleteView
 
 def _redirect_tras_accion_imagen(inmueble_pk: int) -> HttpResponseRedirect:
     inv = get_object_or_404(Inmueble, pk=inmueble_pk)
+    ficha_url = _inmueble_ficha_alquiler_url(inv)
+    if ficha_url is not None:
+        return HttpResponseRedirect(ficha_url)
     if inv.tipo in (Inmueble.Tipo.CASA_NUEVA, Inmueble.Tipo.CASA_SEGUNDA):
         return HttpResponseRedirect(reverse("app:inmueble_casa_galeria", args=[inmueble_pk]))
     return HttpResponseRedirect(reverse("app:inmueble_update", args=[inmueble_pk]))
@@ -2488,8 +3007,8 @@ class ParametroMoraDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, Delet
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["delete_title"] = "Eliminar parámetro de mora"
-        ctx["delete_blurb"] = "Quita esta configuración del sistema."
+        ctx["delete_title"] = "Eliminar recargo administrativo"
+        ctx["delete_blurb"] = "Quita esta política de recargo del sistema."
         return ctx
 
 

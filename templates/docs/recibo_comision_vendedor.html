@@ -1,126 +1,311 @@
-{% extends "docs/recibo_ingreso.html" %}
-{# Misma hoja de estilos y cabecera PDF que el recibo de ingreso #}
-{% block content %}
-<div class="rec-wrap">
-
-<div class="rec-hero">
-  <h1>Recibo de comisión por venta</h1>
-  <p class="sub">
-    El Salvador · N.º <strong>{{ doc.numero }}</strong>
-    · Emitido {{ doc.emitido_en|date:"d/m/Y H:i" }}
-    {% if lugar_emision %}<br>{{ lugar_emision }}{% endif %}
-  </p>
-</div>
-
-<table class="rec-context">
-  <tr>
-    <td>
-      <span class="ctx-k">Proyecto</span>
-      <span class="ctx-n">{{ proyecto.nombre|title }}</span>
-      {% if proyecto.direccion or proyecto.municipio or proyecto.departamento %}
-      <p class="ctx-m">
-        {% if proyecto.direccion %}{{ proyecto.direccion }}{% endif %}
-        {% if proyecto.municipio %}{% if proyecto.direccion %} · {% endif %}{{ proyecto.municipio|title }}{% endif %}
-        {% if proyecto.departamento %}{% if proyecto.direccion or proyecto.municipio %} · {% endif %}Dpto. {{ proyecto.departamento|title }}{% endif %}
-      </p>
-      {% endif %}
-    </td>
-    <td class="rec-context__inmo">
-      <span class="ctx-k">Inmobiliaria</span>
-      <span class="ctx-n">{{ razon_social_receptor }}</span>
-      {% if emisor_nit %}<p class="ctx-m"><strong style="color:#52525b;">NIT</strong> {{ emisor_nit }}</p>{% endif %}
-      <p class="ctx-m">Liquidación de comisión por operación inmobiliaria</p>
-    </td>
-  </tr>
-</table>
-
-<div class="rec-amount-block">
-  <p class="who"><strong>Comisión a favor de:</strong> {{ vendedor_nombre }}
-    {% if contrato.vendedor_perfil %}
-      {% if contrato.vendedor_perfil.dui %}<span class="ids"> · DUI {{ contrato.vendedor_perfil.dui }}</span>{% endif %}
-      {% if contrato.vendedor_perfil.telefono %}<span class="ids"> · Tel. {{ contrato.vendedor_perfil.telefono }}</span>{% endif %}
-    {% endif %}
-  </p>
-  <p class="monto">{{ monto_letras }} · <strong>{{ monto_fmt }} USD</strong></p>
-</div>
-
-<table class="rec-pair">
-  <tr>
-    <td>
-      <p class="sec">Vendedor / asesor</p>
-      <p><strong>{{ vendedor_nombre }}</strong></p>
-      {% if contrato.vendedor_perfil %}
-        {% if contrato.vendedor_perfil.email %}<p>{{ contrato.vendedor_perfil.email }}</p>{% endif %}
-      {% else %}
-        <p style="color:#94a3b8;font-size:10px;">Sin ficha en catálogo (nombre según contrato).</p>
-      {% endif %}
-    </td>
-    <td>
-      <p class="sec">Contrato e inmueble</p>
-      <p>N.º <strong>{{ contrato.numero }}</strong> · Firma {{ contrato.fecha_firma|date:"d/m/Y" }} · {{ contrato.get_estado_display }}</p>
-      <p>{{ inmueble.get_tipo_display }} <strong>{{ inmueble.codigo }}</strong> — {{ proyecto.nombre|title }}</p>
-      <p>Comprador: {{ cliente.nombres }} {{ cliente.apellidos }}</p>
-    </td>
-  </tr>
-</table>
-
-<p class="rec-h2">Detalle de la comisión</p>
-<div class="rec-table-wrap">
-<table class="rec-table">
-  <colgroup>
-    <col style="width: 16%;">
-    <col style="width: 38%;">
-    <col style="width: 20%;">
-    <col style="width: 26%;">
-  </colgroup>
-  <thead>
+{% extends "docs/_base_pdf.html" %}
+{% block pdf_body_class %} class="pdf-comision-vendedor"{% endblock %}
+{% block pdf_header %}
+<div class="pdf-header pdf-header--pbr-br">
+  <table class="pdf-header-logos">
     <tr>
-      <th>Base</th>
-      <th>Concepto</th>
-      <th>Referencia</th>
-      <th class="rec-col-monto">Monto</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>{{ contrato.fecha_firma|date:"d/m/Y" }}</td>
       <td>
-        {% if contrato.comision_monto %}
-          Comisión acordada (monto fijo) por intermediación en la venta del inmueble.
-        {% else %}
-          Comisión del {{ comision_porcentaje_txt }} sobre el precio de venta ({{ precio_final_fmt }} USD).
-        {% endif %}
+        <img src="{% firstof proyecto_logo_src 'logo_valle_alegre.png' %}" alt="Logo del proyecto" class="pdf-logo pdf-logo--proyecto">
       </td>
-      <td>Contrato {{ contrato.numero }}</td>
-      <td class="rec-monto-celda">{{ monto_fmt }}</td>
+      <td>
+        <img src="logo_paredes_bienes_raices.png" alt="Paredes Bienes Raíces" class="pdf-logo pdf-logo--pbr-br">
+      </td>
     </tr>
-    <tr class="rec-total-row">
-      <td colspan="3" class="rec-total-lbl">Total comisión (USD)</td>
-      <td class="rec-total-val">{{ monto_fmt }}</td>
-    </tr>
-  </tbody>
-</table>
+  </table>
+</div>
+{% endblock %}
+{% block pdf_extra_styles %}
+    body.pdf-comision-vendedor {
+      margin: 0;
+      padding: 0;
+      color: #1e293b;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    body.pdf-comision-vendedor .pdf-header--pbr-br {
+      margin: 0 0 12px;
+      padding: 0 0 10px;
+      border-bottom: 2px solid #003366;
+    }
+    body.pdf-comision-vendedor .pdf-header-logos td {
+      height: 168px;
+      min-height: 168px;
+      padding: 6px 10px 8px;
+      vertical-align: middle;
+    }
+    body.pdf-comision-vendedor .pdf-logo--proyecto,
+    body.pdf-comision-vendedor .pdf-logo--pbr-br {
+      height: 136px;
+      max-height: 136px;
+      width: auto;
+      max-width: 280px;
+      object-fit: contain;
+    }
+
+    .cv-band {
+      background: linear-gradient(135deg, #0f3d2e 0%, #1b5e3b 55%, #2d7a52 100%);
+      color: #fff;
+      padding: 14px 16px 12px;
+      border-radius: 6px 6px 0 0;
+      text-align: center;
+    }
+    .cv-band__kicker {
+      margin: 0 0 4px;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      opacity: 0.9;
+    }
+    .cv-band h1 {
+      margin: 0 0 6px;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .cv-band__meta {
+      margin: 0;
+      font-size: 10px;
+      opacity: 0.92;
+    }
+
+    .cv-shell {
+      border: 2px solid #1b5e3b;
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+      overflow: hidden;
+    }
+
+    .cv-payee {
+      background: #f0fdf4;
+      border-bottom: 1px dashed #86efac;
+      padding: 12px 14px;
+      text-align: center;
+    }
+    .cv-payee__lbl {
+      margin: 0 0 4px;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #166534;
+      font-weight: 700;
+    }
+    .cv-payee__name {
+      margin: 0 0 6px;
+      font-size: 16px;
+      font-weight: 800;
+      color: #14532d;
+    }
+    .cv-payee__ids {
+      margin: 0;
+      font-size: 9.5px;
+      color: #4b5563;
+    }
+
+    .cv-amount {
+      background: #fffbeb;
+      border-bottom: 2px solid #f59e0b;
+      padding: 14px;
+      text-align: center;
+    }
+    .cv-amount__words {
+      margin: 0 0 6px;
+      font-size: 11px;
+      color: #92400e;
+      font-style: italic;
+    }
+    .cv-amount__value {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 800;
+      color: #b45309;
+      letter-spacing: -0.02em;
+    }
+    .cv-amount__ccy {
+      font-size: 14px;
+      font-weight: 700;
+      color: #78350f;
+    }
+
+    .cv-grid {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .cv-grid td {
+      width: 50%;
+      vertical-align: top;
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 10px;
+    }
+    .cv-grid td:first-child { border-right: 1px solid #e2e8f0; }
+    .cv-sec {
+      margin: 0 0 5px;
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #64748b;
+      font-weight: 700;
+    }
+    .cv-grid p { margin: 0 0 3px; }
+
+    .cv-detail {
+      padding: 10px 12px 8px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .cv-detail table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+    }
+    .cv-detail th {
+      text-align: left;
+      padding: 5px 8px;
+      background: #e2e8f0;
+      color: #334155;
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .cv-detail td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+    .cv-detail .cv-total td {
+      font-weight: 800;
+      background: #ecfdf5;
+      color: #14532d;
+      border-bottom: none;
+    }
+    .cv-detail .cv-monto { text-align: right; font-weight: 700; white-space: nowrap; }
+
+    .cv-firmas {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4px;
+    }
+    .cv-firmas td {
+      width: 50%;
+      text-align: center;
+      padding: 8px 10px 4px;
+      font-size: 9px;
+      color: #64748b;
+    }
+    .cv-firmas .cv-line {
+      border-top: 1px solid #94a3b8;
+      margin: 22px 10px 0;
+      padding-top: 5px;
+    }
+
+    .cv-pie {
+      margin: 8px 0 0;
+      padding: 8px 10px;
+      font-size: 8.5px;
+      color: #94a3b8;
+      text-align: center;
+      line-height: 1.5;
+      border-top: 1px solid #e2e8f0;
+    }
+{% endblock %}
+
+{% block content %}
+<div class="cv-band">
+  <p class="cv-band__kicker">Liquidación de comisión · documento al vendedor</p>
+  <h1>Recibo de comisión</h1>
+  <p class="cv-band__meta">
+    N.º <strong>{{ doc.numero }}</strong>
+    · {{ doc.emitido_en|date:"d/m/Y H:i" }}
+    {% if lugar_emision %} · {{ lugar_emision }}{% endif %}
+  </p>
 </div>
 
-{% if contrato.notas %}
-<p class="rec-h2">Observaciones del contrato</p>
-<div class="box">{{ contrato.notas }}</div>
-{% endif %}
+<div class="cv-shell">
+  <div class="cv-payee">
+    <p class="cv-payee__lbl">Beneficiario / vendedor</p>
+    <p class="cv-payee__name">{{ vendedor_nombre }}</p>
+    <p class="cv-payee__ids">
+      {% if contrato.vendedor_perfil %}
+        {% if contrato.vendedor_perfil.dui %}DUI {{ contrato.vendedor_perfil.dui }}{% endif %}
+        {% if contrato.vendedor_perfil.telefono %}{% if contrato.vendedor_perfil.dui %} · {% endif %}Tel. {{ contrato.vendedor_perfil.telefono }}{% endif %}
+        {% if contrato.vendedor_perfil.email %}{% if contrato.vendedor_perfil.dui or contrato.vendedor_perfil.telefono %} · {% endif %}{{ contrato.vendedor_perfil.email }}{% endif %}
+      {% else %}
+        Sin ficha en catálogo (nombre según contrato).
+      {% endif %}
+    </p>
+  </div>
 
-<table class="rec-firma">
-  <tr>
-    <td>
-      <div class="rec-line">Firma y sello — {{ razon_social_receptor }}</div>
-    </td>
-    <td>
-      <div class="rec-line">Firma — vendedor / beneficiario</div>
-    </td>
-  </tr>
-</table>
+  <div class="cv-amount">
+    <p class="cv-amount__words">{{ monto_letras }}</p>
+    <p class="cv-amount__value">{{ monto_fmt }} <span class="cv-amount__ccy">USD</span></p>
+  </div>
 
-<p class="rec-pie">
-  Comprobante de comisión por venta en USD. Conserve este documento. Ref. <strong>{{ doc.numero }}</strong>.
+  <table class="cv-grid">
+    <tr>
+      <td>
+        <p class="cv-sec">Empresa emisora</p>
+        <p><strong>{{ razon_social_emisor }}</strong></p>
+        {% if emisor_nit %}<p>NIT {{ emisor_nit }}</p>{% endif %}
+        <p>Liquidación de comisión por operación inmobiliaria</p>
+      </td>
+      <td>
+        <p class="cv-sec">Operación de referencia</p>
+        <p>Contrato <strong>{{ contrato.numero }}</strong> · {{ contrato.fecha_firma|date:"d/m/Y" }}</p>
+        <p>{{ inmueble.get_tipo_display }} <strong>{{ inmueble.codigo }}</strong> — {{ proyecto.nombre|title }}</p>
+        <p>Comprador: {{ cliente.nombres }} {{ cliente.apellidos }}</p>
+        <p>Precio venta: <strong>{{ precio_final_fmt }} USD</strong></p>
+      </td>
+    </tr>
+  </table>
+
+  <div class="cv-detail">
+    <p class="cv-sec" style="margin-bottom:6px;">Detalle de la comisión</p>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:14%;">Fecha</th>
+          <th style="width:46%;">Concepto</th>
+          <th style="width:22%;">Referencia</th>
+          <th style="width:18%;text-align:right;">Monto USD</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{ contrato.fecha_firma|date:"d/m/Y" }}</td>
+          <td>
+            {{ comision_concepto }}
+            {% if comision_porcentaje_txt %}
+              <br><span style="color:#64748b;font-size:9px;">Referencia: {{ comision_porcentaje_txt }} sobre {{ precio_final_fmt }} USD.</span>
+            {% endif %}
+          </td>
+          <td>Contrato {{ contrato.numero }}</td>
+          <td class="cv-monto">{{ monto_fmt }}</td>
+        </tr>
+        <tr class="cv-total">
+          <td colspan="3">Total comisión liquidada</td>
+          <td class="cv-monto">{{ monto_fmt }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  {% if contrato.notas %}
+  <div style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">
+    <p class="cv-sec">Observaciones del contrato</p>
+    <p style="margin:0;font-size:10px;color:#475569;">{{ contrato.notas }}</p>
+  </div>
+  {% endif %}
+
+  <table class="cv-firmas">
+    <tr>
+      <td><div class="cv-line">Autorizado — {{ razon_social_emisor }}</div></td>
+      <td><div class="cv-line">Recibí conforme — {{ vendedor_nombre }}</div></td>
+    </tr>
+  </table>
+</div>
+
+<p class="cv-pie">
+  Comprobante de liquidación de comisión al vendedor en USD. No sustituye al recibo de ingreso del cliente.
+  Ref. <strong>{{ doc.numero }}</strong>.
 </p>
-
-</div>
 {% endblock %}

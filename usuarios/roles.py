@@ -33,7 +33,7 @@ def es_superusuario_o_admin_app(user: AbstractUser | None) -> bool:
 
 
 def puede_gestionar_vendedores(user: AbstractUser | None) -> bool:
-    """Alta/edición/baja del catálogo de vendedores y comisiones."""
+    """Alta/edición/baja del catálogo de vendedores y comisiones (no el vendedor de campo)."""
     if not user or not user.is_authenticated:
         return False
     if user.is_superuser:
@@ -44,8 +44,19 @@ def puede_gestionar_vendedores(user: AbstractUser | None) -> bool:
     return p.rol in (
         p.Rol.ADMINISTRADOR,
         p.Rol.GERENCIA,
-        p.Rol.VENTAS,
     )
+
+
+def puede_validar_abonos(user: AbstractUser | None) -> bool:
+    """Confirmar en cuenta reserva, prima, cuotas y abono a capital antes de emitir recibo."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    p = obtener_perfil(user)
+    if not p or not p.activo_en_app:
+        return False
+    return p.rol in (p.Rol.ADMINISTRADOR, p.Rol.GERENCIA)
 
 
 def puede_gestionar_usuarios(user: AbstractUser | None) -> bool:
@@ -93,11 +104,13 @@ def descripcion_roles_para_manual() -> list[tuple[str, str]]:
         ),
         (
             "Gerencia",
-            "Puede gestionar usuarios, ve todo el negocio y no pide contraseña de confirmación al editar.",
+            "Puede gestionar usuarios, ve todo el negocio y no pide contraseña de confirmación al editar. "
+            "Valida reservas, primas y cuotas a plazos en cuenta antes de emitir recibo al cliente (correo/WhatsApp).",
         ),
         (
             "Ventas / comercial",
-            "Clientes, contratos, seguimiento comercial; debe confirmar contraseña para cambios sensibles.",
+            "Acceso solo al flujo de venta: formato de aceptación, contrato, reserva, prima/promesa, "
+            "recibos a plazos y listado de sus contratos. Debe tener usuario vinculado en el catálogo Vendedores.",
         ),
         (
             "Cartera / finanzas",

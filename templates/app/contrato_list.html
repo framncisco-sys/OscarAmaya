@@ -6,9 +6,9 @@
     <h1 class="page-title">{% if contratos_modo_solo_vendedor %}Mis contratos{% else %}Contratos{% endif %}</h1>
     <p class="page-toolbar__meta">
       {% if contratos_modo_solo_vendedor %}
-        Contratos donde figura como vendedor (catálogo o usuario en el contrato). Comisiones según precio y % o monto en cada contrato.
+        Contratos donde figura como vendedor. Flujo: reserva → prima → promesa → plazos.
       {% else %}
-        Ventas, condiciones y documentación asociada.
+        Flujo: formato → contrato → reserva pagada → prima y promesa → recibos a plazos.
       {% endif %}
     </p>
   </div>
@@ -59,9 +59,12 @@
       <td>
         <div class="action-cluster">
           <a href="{% url 'app:contrato_update' c.pk %}" class="link-action">Editar</a>
+          <a href="{% url 'app:pago_create' %}?concepto=RESERVA&amp;contrato={{ c.pk }}" class="link-action">Reserva</a>
+          <a href="{% url 'app:pago_create' %}?concepto=PRIMA&amp;contrato={{ c.pk }}" class="link-action">Prima</a>
+          <a href="{% url 'app:emitir_promesa' c.pk %}" class="link-action">Promesa venta</a>
+          <a href="{% url 'app:pago_create' %}?concepto=CUOTA&amp;contrato={{ c.pk }}" class="link-action">Plazos</a>
           <a href="{% url 'app:contrato_estado_cuenta' c.pk %}" class="link-action">Cuotas</a>
-          <a href="{% url 'app:emitir_promesa' c.pk %}" class="link-action">Promesa PDF</a>
-          <a href="{% url 'app:emitir_recibo_comision' c.pk %}" class="link-action">Recibo comisión</a>
+          <a href="{% url 'app:emitir_recibo_comision' c.pk %}" class="link-action">Comisión</a>
           <a href="{% url 'app:contrato_delete' c.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a>
         </div>
       </td>

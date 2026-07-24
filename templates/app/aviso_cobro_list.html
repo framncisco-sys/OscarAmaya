@@ -1,0 +1,101 @@
+{% extends "app/base_app.html" %}
+{% block title %}Avisos de cobro | {{ marca_portal.nombre }}{% endblock %}
+
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Avisos de cobro</h1>
+    <p class="page-toolbar__meta">
+      Se avisa <strong>{{ dias }} día{{ dias|pluralize }}</strong> antes de la fecha de vencimiento de la cuota.
+      Hoy se generan avisos para cuotas que vencen el <strong>{{ objetivo|date:"d/m/Y" }}</strong>.
+    </p>
+  </div>
+</header>
+
+<section class="card" style="margin-bottom:1.25rem;max-width:40rem;">
+  <form method="post" class="form-stack">
+    {% csrf_token %}
+    <input type="hidden" name="dias" value="{{ dias }}">
+    <p style="margin:0 0 0.75rem;">
+      Cuotas pendientes que vencen ese día: <strong>{{ cuotas_proximas_ct }}</strong>
+    </p>
+    <label style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.85rem;">
+      <input type="checkbox" name="enviar_email" value="1">
+      También enviar correo (si el cliente tiene email y el servidor tiene SMTP)
+    </label>
+    <button type="submit" class="btn-primary">Generar avisos de cobro ({{ dias }} días antes)</button>
+  </form>
+  <p class="muted" style="margin:0.85rem 0 0;font-size:0.88rem;">
+    En el servidor también puede programarse a diario:
+    <code>python manage.py enviar_recordatorios_pago --dias 5 --enviar-email</code>
+  </p>
+</section>
+
+{% if cuotas_proximas %}
+<h2 class="gestion-section-title">Cuotas que vencen el {{ objetivo|date:"d/m/Y" }}</h2>
+<div class="data-panel" style="margin-bottom:1.25rem;">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Contrato</th>
+        <th>Cliente</th>
+        <th>Cuota</th>
+        <th class="right">Monto</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in cuotas_proximas %}
+      <tr>
+        <td><strong>{{ c.contrato.numero }}</strong></td>
+        <td>{{ c.contrato.cliente }}</td>
+        <td>#{{ c.numero }}</td>
+        <td class="right">${{ c.monto }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<h2 class="gestion-section-title">Recordatorios generados ({{ objetivo|date:"d/m/Y" }})</h2>
+<div class="data-panel">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Canal</th>
+        <th>Contrato</th>
+        <th>Cliente</th>
+        <th>Cuota</th>
+        <th>Estado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in items %}
+      <tr>
+        <td>{{ r.get_canal_display }}</td>
+        <td>{{ r.cuota.contrato.numero }}</td>
+        <td>{{ r.cuota.contrato.cliente }}</td>
+        <td>#{{ r.cuota.numero }} · ${{ r.cuota.monto }}</td>
+        <td>
+          {% if r.enviado %}
+          Enviado {{ r.enviado_en|date:"d/m/Y H:i" }}
+          {% elif r.canal == "WHATSAPP_MANUAL" %}
+          Pendiente de enviar
+          {% else %}
+          Pendiente
+          {% endif %}
+        </td>
+        <td>
+          {% if r.wa_link %}
+          <a class="link-action" href="{{ r.wa_link }}" target="_blank" rel="noopener">Abrir WhatsApp</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="muted">Aún no hay avisos para esa fecha. Genere los avisos arriba.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

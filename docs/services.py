@@ -18,7 +18,7 @@ from django.db import IntegrityError, transaction
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from inmobiliaria.models import Contrato
+from inmobiliaria.models import Contrato, Inmueble
 
 from .models import CorrelativoDocumento, DocumentoEmitido, DocumentoTipo
 from .recibo_notificacion import ReciboNotificacionInfo
@@ -92,11 +92,32 @@ def _razon_social_negocio_pdf() -> str:
 
 def _pdf_static_base_url() -> str:
     """Directorio de estáticos donde están los logos (cualquiera sirve como ancla)."""
-    for fname in ("logo_paredes_desarrollos.png", "logo_valle_alegre.png"):
+    for fname in (
+        "logo_paredes_bienes_raices.png",
+        "logo_paredes_desarrollos.png",
+        "logo_valle_alegre.png",
+    ):
         found = finders.find(fname)
         if found:
             return Path(found).parent.as_uri() + "/"
     return Path(settings.BASE_DIR).as_uri() + "/"
+
+
+def _proyecto_logo_src_para_pdf(proyecto) -> str:
+    """
+    Logo del proyecto subido (ruta absoluta) o fallback estático Valle Alegre.
+    WeasyPrint/xhtml2pdf resuelven file: o nombre en STATIC.
+    """
+    if proyecto is not None:
+        logo = getattr(proyecto, "logo", None)
+        if logo and getattr(logo, "name", None):
+            try:
+                path = Path(logo.path)
+                if path.is_file():
+                    return path.as_uri()
+            except (ValueError, OSError):
+                pass
+    return "logo_valle_alegre.png"
 
 
 def _html_to_pdf_bytes_weasyprint(html: str) -> bytes:
@@ -138,6 +159,10 @@ def _xhtml2pdf_resolve_resource(uri: str, rel: str) -> str:
         if len(path) >= 3 and path[0] == "/" and path[2] == ":":
             path = path[1:]
         return path
+    # Media subida (ruta absoluta Windows / Unix)
+    if len(uri) >= 2 and uri[1] == ":" and uri[0].isalpha():
+        if Path(uri).is_file():
+            return uri
     found = finders.find(uri)
     if found:
         return found
@@ -205,7 +230,49 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _contexto_recibo_ingreso(*, doc, pago) -> dict:
+    from inmobiliaria.pago_desglose import desglose_para_recibo
+    from inmobiliaria.signals import aplicar_cuotas_programadas_del_pago
+
+    # Asegura cuotas vinculadas antes del PDF (excedente = abono a capital en el mismo recibo).
+    if pago.concepto == pago.Concepto.CUOTA and pago.puede_emitir_recibo_cliente:
+        if not pago.cuotas_aplicadas.exists():
+            aplicar_cuotas_programadas_del_pago(pago)
+            pago.refresh_from_db()
+
+    proyecto = pago.contrato.inmueble.proyecto
+    desglose = desglose_para_recibo(pago)
+    lineas_fmt = [
+        (etiqueta, format_monto_sv(monto))
+        for etiqueta, monto in desglose.lineas
+    ]
+    return {
+        "doc": doc,
+        "pago": pago,
+        "contrato": pago.contrato,
+        "cliente": pago.contrato.cliente,
+        "proyecto": proyecto,
+        "lugar_emision": _lugar_emision_republica(proyecto),
+        "razon_social_receptor": _razon_social_negocio_pdf(),
+        "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
+        "monto_fmt": format_monto_sv(pago.monto),
+        "monto_letras": monto_usd_letras_es(pago.monto),
+        "desglose": desglose,
+        "desglose_lineas_fmt": lineas_fmt,
+        "monto_abono_capital_fmt": (
+            format_monto_sv(desglose.monto_abono_capital)
+            if desglose.monto_abono_capital > 0
+            else ""
+        ),
+        "proyecto_logo_src": _proyecto_logo_src_para_pdf(proyecto),
+    }
+
+
 def emitir_recibo_ingreso(*, pago, emitido_por=None) -> tuple[DocumentoEmitido, ReciboNotificacionInfo]:
+    if not pago.puede_emitir_recibo_cliente:
+        raise ValueError(
+            "El abono (reserva, prima, cuota o abono a capital) debe ser validado por gerencia antes de emitir el recibo."
+        )
     numero = _next_correlativo(tipo=DocumentoTipo.RECIBO_INGRESO, cfg=CorrelativoConfig())
     doc = DocumentoEmitido.objects.create(
         tipo=DocumentoTipo.RECIBO_INGRESO,
@@ -216,21 +283,9 @@ def emitir_recibo_ingreso(*, pago, emitido_por=None) -> tuple[DocumentoEmitido, 
         emitido_por=emitido_por,
     )
 
-    proyecto = pago.contrato.inmueble.proyecto
     html = render_to_string(
         "docs/recibo_ingreso.html",
-        {
-            "doc": doc,
-            "pago": pago,
-            "contrato": pago.contrato,
-            "cliente": pago.contrato.cliente,
-            "proyecto": proyecto,
-            "lugar_emision": _lugar_emision_republica(proyecto),
-            "razon_social_receptor": _razon_social_negocio_pdf(),
-            "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
-            "monto_fmt": format_monto_sv(pago.monto),
-            "monto_letras": monto_usd_letras_es(pago.monto),
-        },
+        _contexto_recibo_ingreso(doc=doc, pago=pago),
     )
     pdf_bytes = _html_to_pdf_bytes(html)
     doc.hash_sha256 = _sha256(pdf_bytes)
@@ -281,6 +336,7 @@ def emitir_promesa_venta(*, contrato, emitido_por=None) -> DocumentoEmitido:
             "lugar_emision": _lugar_emision_republica(contrato.inmueble.proyecto),
             "razon_social_vendedor": _razon_social_negocio_pdf(),
             "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
+            "proyecto_logo_src": _proyecto_logo_src_para_pdf(contrato.inmueble.proyecto),
         },
     )
     pdf_bytes = _html_to_pdf_bytes(html)
@@ -290,15 +346,86 @@ def emitir_promesa_venta(*, contrato, emitido_por=None) -> DocumentoEmitido:
     return doc
 
 
-def emitir_recibo_comision_vendedor(*, contrato: Contrato, emitido_por=None) -> DocumentoEmitido:
-    """PDF tipo recibo corporativo: comisión al vendedor por la venta (lote, casa, etc.)."""
+def _pct_txt_comision(pct) -> str:
+    if pct is None:
+        return ""
+    return f"{pct.normalize()} %"
+
+
+def _monto_comision_documento(doc: DocumentoEmitido, contrato: Contrato):
     from decimal import Decimal
 
-    monto = contrato.monto_comision_efectivo()
-    if monto is None or monto <= Decimal("0"):
+    if doc.monto_comision_usd is not None and doc.monto_comision_usd > Decimal("0"):
+        return doc.monto_comision_usd
+    return contrato.monto_comision_efectivo()
+
+
+def _contexto_recibo_comision_vendedor(
+    *,
+    doc: DocumentoEmitido,
+    contrato: Contrato,
+    monto,
+    comision_porcentaje=None,
+    concepto: str = "",
+) -> dict:
+    from decimal import Decimal
+
+    nombre_v = contrato.nombre_vendedor_documentos()
+    proyecto = contrato.inmueble.proyecto
+    pct = comision_porcentaje
+    if pct is None and doc.comision_porcentaje_recibo is not None:
+        pct = doc.comision_porcentaje_recibo
+    concepto_txt = (concepto or doc.comision_concepto or "").strip()
+    if not concepto_txt:
+        from .forms import _concepto_comision_default
+
+        concepto_txt = _concepto_comision_default(contrato)
+    return {
+        "doc": doc,
+        "contrato": contrato,
+        "cliente": contrato.cliente,
+        "proyecto": proyecto,
+        "inmueble": contrato.inmueble,
+        "vendedor_nombre": nombre_v,
+        "monto": monto,
+        "monto_fmt": format_monto_sv(monto),
+        "monto_letras": monto_usd_letras_es(monto),
+        "comision_porcentaje": pct,
+        "comision_porcentaje_txt": _pct_txt_comision(pct),
+        "comision_concepto": concepto_txt,
+        "precio_final_fmt": format_monto_sv(contrato.precio_final),
+        "lugar_emision": _lugar_emision_republica(proyecto),
+        "razon_social_emisor": _razon_social_negocio_pdf(),
+        "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
+        "proyecto_logo_src": _proyecto_logo_src_para_pdf(proyecto),
+    }
+
+
+def emitir_recibo_comision_vendedor(
+    *,
+    contrato: Contrato,
+    emitido_por=None,
+    monto_comision=None,
+    comision_porcentaje=None,
+    concepto: str = "",
+) -> DocumentoEmitido:
+    """PDF de liquidación de comisión al vendedor (diseño distinto al recibo de ingreso del cliente)."""
+    from decimal import Decimal
+
+    from inmobiliaria.comision_vendedor import requisitos_comision_venta
+
+    req = requisitos_comision_venta(contrato)
+    if not req.puede_emitir:
         raise ValueError(
-            "No hay monto de comisión: revise precio final y porcentaje o monto fijo en el contrato."
+            "No se puede emitir la comisión de venta todavía: " + " ".join(req.motivos)
         )
+
+    if monto_comision is not None:
+        monto = monto_comision
+    else:
+        monto = contrato.monto_comision_efectivo()
+    if monto is None or monto <= Decimal("0"):
+        raise ValueError("Indique un monto de comisión mayor a cero.")
 
     nombre_v = contrato.nombre_vendedor_documentos()
     if not (nombre_v or "").strip():
@@ -314,37 +441,33 @@ def emitir_recibo_comision_vendedor(*, contrato: Contrato, emitido_por=None) -> 
         inmueble=contrato.inmueble,
         vendedor=contrato.vendedor_perfil,
         emitido_por=emitido_por,
+        monto_comision_usd=monto,
+        comision_porcentaje_recibo=comision_porcentaje,
+        comision_concepto=(concepto or "").strip(),
     )
-
-    proyecto = contrato.inmueble.proyecto
-    pct_txt = ""
-    if contrato.comision_porcentaje is not None:
-        pct_txt = f"{contrato.comision_porcentaje.normalize()} %"
 
     html = render_to_string(
         "docs/recibo_comision_vendedor.html",
-        {
-            "doc": doc,
-            "contrato": contrato,
-            "cliente": contrato.cliente,
-            "proyecto": proyecto,
-            "inmueble": contrato.inmueble,
-            "vendedor_nombre": nombre_v,
-            "monto": monto,
-            "monto_fmt": format_monto_sv(monto),
-            "monto_letras": monto_usd_letras_es(monto),
-            "comision_porcentaje": contrato.comision_porcentaje,
-            "comision_porcentaje_txt": pct_txt,
-            "precio_final_fmt": format_monto_sv(contrato.precio_final),
-            "lugar_emision": _lugar_emision_republica(proyecto),
-            "razon_social_receptor": _razon_social_negocio_pdf(),
-            "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
-        },
+        _contexto_recibo_comision_vendedor(
+            doc=doc,
+            contrato=contrato,
+            monto=monto,
+            comision_porcentaje=comision_porcentaje,
+            concepto=concepto,
+        ),
     )
     pdf_bytes = _html_to_pdf_bytes(html)
     doc.hash_sha256 = _sha256(pdf_bytes)
     doc.pdf_file.save(f"{numero}.pdf", ContentFile(pdf_bytes), save=False)
-    doc.save(update_fields=["hash_sha256", "pdf_file"])
+    doc.save(
+        update_fields=[
+            "hash_sha256",
+            "pdf_file",
+            "monto_comision_usd",
+            "comision_porcentaje_recibo",
+            "comision_concepto",
+        ]
+    )
     if getattr(settings, "VENDEDOR_NOTIFICAR_RECIBO_COMISION_EMAIL", True):
         doc_id = doc.pk
 
@@ -354,6 +477,111 @@ def emitir_recibo_comision_vendedor(*, contrato: Contrato, emitido_por=None) -> 
             enviar_recibo_comision_vendedor_correo(doc_id)
 
         transaction.on_commit(_correo_comision)
+    return doc
+
+
+def _contexto_recibo_comision_alquiler(
+    *,
+    doc: DocumentoEmitido,
+    inmueble: Inmueble,
+    monto,
+    vendedor_nombre: str = "",
+    comision_porcentaje=None,
+    concepto: str = "",
+) -> dict:
+    from inmobiliaria.forms_recibo_alquiler import concepto_comision_alquiler, renta_mensual_alquiler
+
+    proyecto = inmueble.proyecto
+    pct = comision_porcentaje
+    if pct is None and doc.comision_porcentaje_recibo is not None:
+        pct = doc.comision_porcentaje_recibo
+    nombre = (vendedor_nombre or doc.recibo_beneficiario_nombre or "").strip()
+    concepto_txt = (concepto or doc.comision_concepto or "").strip()
+    if not concepto_txt:
+        concepto_txt = concepto_comision_alquiler(inmueble)
+    renta = renta_mensual_alquiler(inmueble)
+    renta_fmt = format_monto_sv(renta) if renta is not None else "—"
+    return {
+        "doc": doc,
+        "inmueble": inmueble,
+        "proyecto": proyecto,
+        "vendedor_nombre": nombre,
+        "monto": monto,
+        "monto_fmt": format_monto_sv(monto),
+        "monto_letras": monto_usd_letras_es(monto),
+        "comision_porcentaje": pct,
+        "comision_porcentaje_txt": _pct_txt_comision(pct),
+        "comision_concepto": concepto_txt,
+        "renta_mensual_fmt": renta_fmt,
+        "lugar_emision": _lugar_emision_republica(proyecto),
+        "razon_social_emisor": _razon_social_negocio_pdf(),
+        "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
+        "proyecto_logo_src": _proyecto_logo_src_para_pdf(proyecto),
+    }
+
+
+def emitir_recibo_comision_alquiler(
+    *,
+    inmueble: Inmueble,
+    emitido_por=None,
+    vendedor_nombre: str,
+    asesor_alquiler=None,
+    monto_comision=None,
+    comision_porcentaje=None,
+    concepto: str = "",
+) -> DocumentoEmitido:
+    """PDF de comisión — solo módulo de alquileres (inmuebles con en_alquiler=True)."""
+    from decimal import Decimal
+
+    monto = monto_comision
+    if monto is None or monto <= Decimal("0"):
+        raise ValueError("Indique un monto de comisión mayor a cero.")
+    nombre = (vendedor_nombre or "").strip()
+    if not nombre:
+        raise ValueError("Indique el nombre del vendedor o asesor beneficiario.")
+
+    numero = _next_correlativo(
+        tipo=DocumentoTipo.RECIBO_COMISION_ARRENDAMIENTO, cfg=CorrelativoConfig()
+    )
+    doc = DocumentoEmitido.objects.create(
+        tipo=DocumentoTipo.RECIBO_COMISION_ARRENDAMIENTO,
+        numero=numero,
+        inmueble=inmueble,
+        asesor_alquiler=asesor_alquiler,
+        emitido_por=emitido_por,
+        monto_comision_usd=monto,
+        comision_porcentaje_recibo=comision_porcentaje,
+        comision_concepto=(concepto or "").strip(),
+        recibo_beneficiario_nombre=nombre,
+    )
+
+    if not inmueble.en_alquiler:
+        raise ValueError("El recibo de alquiler solo aplica a inmuebles marcados en alquiler.")
+
+    html = render_to_string(
+        "docs/recibo_comision_alquiler.html",
+        _contexto_recibo_comision_alquiler(
+            doc=doc,
+            inmueble=inmueble,
+            monto=monto,
+            vendedor_nombre=nombre,
+            comision_porcentaje=comision_porcentaje,
+            concepto=concepto,
+        ),
+    )
+    pdf_bytes = _html_to_pdf_bytes(html)
+    doc.hash_sha256 = _sha256(pdf_bytes)
+    doc.pdf_file.save(f"{numero}.pdf", ContentFile(pdf_bytes), save=False)
+    doc.save(
+        update_fields=[
+            "hash_sha256",
+            "pdf_file",
+            "monto_comision_usd",
+            "comision_porcentaje_recibo",
+            "comision_concepto",
+            "recibo_beneficiario_nombre",
+        ]
+    )
     return doc
 
 
@@ -373,18 +601,7 @@ def regenerar_pdf_documento(doc: DocumentoEmitido) -> bytes:
         proyecto = contrato.inmueble.proyecto
         html = render_to_string(
             "docs/recibo_ingreso.html",
-            {
-                "doc": doc,
-                "pago": pago,
-                "contrato": contrato,
-                "cliente": contrato.cliente,
-                "proyecto": proyecto,
-                "lugar_emision": _lugar_emision_republica(proyecto),
-                "razon_social_receptor": _razon_social_negocio_pdf(),
-                "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
-                "monto_fmt": format_monto_sv(pago.monto),
-                "monto_letras": monto_usd_letras_es(pago.monto),
-            },
+            _contexto_recibo_ingreso(doc=doc, pago=pago),
         )
         return _html_to_pdf_bytes(html)
 
@@ -405,6 +622,7 @@ def regenerar_pdf_documento(doc: DocumentoEmitido) -> bytes:
                 "lugar_emision": _lugar_emision_republica(contrato.inmueble.proyecto),
                 "razon_social_vendedor": _razon_social_negocio_pdf(),
                 "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
+                "proyecto_logo_src": _proyecto_logo_src_para_pdf(contrato.inmueble.proyecto),
             },
         )
         return _html_to_pdf_bytes(html)
@@ -413,37 +631,33 @@ def regenerar_pdf_documento(doc: DocumentoEmitido) -> bytes:
         contrato = doc.contrato
         if contrato is None:
             raise ValueError("Este recibo no tiene contrato; no se puede regenerar el PDF.")
-        monto = contrato.monto_comision_efectivo()
+        monto = _monto_comision_documento(doc, contrato)
         if monto is None or monto <= Decimal("0"):
             raise ValueError(
-                "No hay monto de comisión válido en el contrato; no se puede regenerar este PDF."
+                "No hay monto de comisión guardado en el documento; no se puede regenerar este PDF."
             )
-        nombre_v = contrato.nombre_vendedor_documentos()
-        if not (nombre_v or "").strip():
+        if not (contrato.nombre_vendedor_documentos() or "").strip():
             raise ValueError("Falta el vendedor en el contrato; no se puede regenerar el PDF.")
-        proyecto = contrato.inmueble.proyecto
-        pct_txt = ""
-        if contrato.comision_porcentaje is not None:
-            pct_txt = f"{contrato.comision_porcentaje.normalize()} %"
         html = render_to_string(
             "docs/recibo_comision_vendedor.html",
-            {
-                "doc": doc,
-                "contrato": contrato,
-                "cliente": contrato.cliente,
-                "proyecto": proyecto,
-                "inmueble": contrato.inmueble,
-                "vendedor_nombre": nombre_v,
-                "monto": monto,
-                "monto_fmt": format_monto_sv(monto),
-                "monto_letras": monto_usd_letras_es(monto),
-                "comision_porcentaje": contrato.comision_porcentaje,
-                "comision_porcentaje_txt": pct_txt,
-                "precio_final_fmt": format_monto_sv(contrato.precio_final),
-                "lugar_emision": _lugar_emision_republica(proyecto),
-                "razon_social_receptor": _razon_social_negocio_pdf(),
-                "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
-            },
+            _contexto_recibo_comision_vendedor(doc=doc, contrato=contrato, monto=monto),
+        )
+        return _html_to_pdf_bytes(html)
+
+    if doc.tipo == DocumentoTipo.RECIBO_COMISION_ARRENDAMIENTO:
+        inmueble = doc.inmueble
+        if inmueble is None:
+            raise ValueError("Este recibo no tiene inmueble; no se puede regenerar el PDF.")
+        monto = doc.monto_comision_usd
+        if monto is None or monto <= Decimal("0"):
+            raise ValueError(
+                "No hay monto de comisión guardado; no se puede regenerar este PDF."
+            )
+        if not (doc.recibo_beneficiario_nombre or "").strip():
+            raise ValueError("Falta el beneficiario del recibo; no se puede regenerar el PDF.")
+        html = render_to_string(
+            "docs/recibo_comision_alquiler.html",
+            _contexto_recibo_comision_alquiler(doc=doc, inmueble=inmueble, monto=monto),
         )
         return _html_to_pdf_bytes(html)
 

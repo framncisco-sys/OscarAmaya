@@ -1,0 +1,59 @@
+{% extends "app/base_app.html" %}
+{% block title %}{{ page_title }} | Paredes Bienes Raíces{% endblock %}
+
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">{{ page_title }}</h1>
+    <p class="page-toolbar__meta">{{ page_meta }}</p>
+  </div>
+</header>
+
+<section class="card pbr-card--info" style="margin-bottom:1.25rem;">
+  <h2 class="page-title" style="font-size:1.05rem;margin:0 0 0.5rem;">Vincular cliente (venta)</h2>
+  <p class="muted" style="margin:0;line-height:1.55;">
+    En el inventario, campo <strong>Cliente reserva</strong> para apartado.
+    Para la venta formal use <a href="{% url 'app:contrato_list' %}" class="link-action">Gestión → Contratos</a>.
+  </p>
+</section>
+
+<div class="grid-modulos dash-modulos">
+  <a class="card modulo dash-modulo" href="{% url 'app:inmueble_casa_list' %}">
+    <span class="dash-modulo__icon">🏡</span>
+    <h3>Casas nueva o usada</h3>
+    <p>Inventario{% if sidebar_stats %} · {{ sidebar_stats.casas_venta }} registrada{{ sidebar_stats.casas_venta|pluralize:"s" }}{% endif %}</p>
+  </a>
+  <a class="card modulo dash-modulo" href="{% url 'app:inmueble_casa_create' %}">
+    <span class="dash-modulo__icon">➕</span>
+    <h3>Nueva casa en venta</h3>
+    <p>Alta con ficha, galería y cliente reserva opcional.</p>
+  </a>
+  <a class="card modulo dash-modulo" href="{% url 'app:inmueble_list' %}">
+    <span class="dash-modulo__icon">📦</span>
+    <h3>Lotes y locales (venta)</h3>
+    <p>Por proyecto y polígono{% if sidebar_stats %} · {{ sidebar_stats.lotes_locales }} en inventario{% endif %}</p>
+  </a>
+  <a class="card modulo dash-modulo" href="{% url 'app:inmueble_create' %}">
+    <span class="dash-modulo__icon">➕</span>
+    <h3>Nuevo lote o local</h3>
+    <p>Registro en mapa con reserva de cliente opcional.</p>
+  </a>
+  <a class="card modulo dash-modulo" href="{% url 'app:recibo_comision_casa_venta' %}">
+    <span class="dash-modulo__icon">💰</span>
+    <h3>Comisión · venta de casa</h3>
+    <p>Recibo PDF de comisión al vendedor desde el contrato.</p>
+  </a>
+  <a class="card modulo dash-modulo" href="{% url 'app:recibo_comision_hub' %}">
+    <span class="dash-modulo__icon">📋</span>
+    <h3>Todos los recibos de comisión</h3>
+    <p>Centro unificado: alquiler y venta.</p>
+  </a>
+  {% if puede_gestionar_vendedores_app %}
+  <a class="card modulo dash-modulo" href="{% url 'app:vendedor_list' %}">
+    <span class="dash-modulo__icon">👤</span>
+    <h3>Catálogo de vendedores</h3>
+    <p>Asesores de venta de proyectos; se vinculan en contratos.</p>
+  </a>
+  {% endif %}
+</div>
+{% endblock %}

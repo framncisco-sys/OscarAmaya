@@ -1,0 +1,28 @@
+{% if sidebar_nav and puede_gestionar_vendedores_app %}
+<section class="app-sidebar__hub app-sidebar__hub--vendedores{% if sidebar_nav.vendedores_active %} app-sidebar__hub--active{% endif %}" aria-label="Vendedores de proyectos" data-pbr-sidebar-hub>
+  <header class="app-sidebar__hub-head">
+    <span class="app-sidebar__hub-badge app-sidebar__hub-badge--vendedores" aria-hidden="true">👤</span>
+    <div class="app-sidebar__hub-titles">
+      <span class="app-sidebar__hub-title">Vendedores</span>
+      <span class="app-sidebar__hub-sub">Registro · comisión · contratos de venta</span>
+    </div>
+  </header>
+
+  <div class="app-sidebar__hub-body">
+    <a href="{% url 'app:vendedor_list' %}" class="app-sidebar__quick app-sidebar__quick--solo{% if sidebar_nav.vendedor_list_active %} is-active{% endif %}"{% if sidebar_nav.vendedor_list_active %} aria-current="page"{% endif %}>
+      <span class="app-sidebar__quick-icon" aria-hidden="true">📋</span>
+      <span class="app-sidebar__quick-text">
+        <strong>Catálogo de vendedores</strong>
+        <small>Asesores registrados{% if sidebar_stats.vendedores %} · {{ sidebar_stats.vendedores }} activo{{ sidebar_stats.vendedores|pluralize }}{% endif %}</small>
+      </span>
+    </a>
+    <a href="{% url 'app:vendedor_create' %}" class="app-sidebar__quick app-sidebar__quick--solo{% if sidebar_nav.vendedor_create_active %} is-active{% endif %}"{% if sidebar_nav.vendedor_create_active %} aria-current="page"{% endif %}>
+      <span class="app-sidebar__quick-icon" aria-hidden="true">➕</span>
+      <span class="app-sidebar__quick-text">
+        <strong>Nuevo vendedor</strong>
+        <small>Alta para contratos y comisiones de venta de proyectos</small>
+      </span>
+    </a>
+  </div>
+</section>
+{% endif %}

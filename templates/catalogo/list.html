@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block body_class %}app-body app-body--catalogo{% endblock %}
+{% block title %}Catálogo | Paredes Bienes Raíces{% endblock %}
+
+{% block content %}
+<div class="app-wrap catalogo">
+  <header class="catalogo-hero">
+    <p class="catalogo-hero__eyebrow">Paredes Bienes Raíces</p>
+    <h1 class="catalogo-hero__title">Catálogo de inmuebles</h1>
+    <p class="catalogo-hero__lead">
+      Alquileres y propiedades en venta disponibles. Solo fotos; sin acceso al sistema interno.
+    </p>
+    {% if total_inmuebles %}
+    <p class="catalogo-hero__meta">{{ total_inmuebles }} inmueble{{ total_inmuebles|pluralize }} disponible{{ total_inmuebles|pluralize }}</p>
+    {% endif %}
+  </header>
+
+  <aside class="catalogo-share" aria-label="Enviar este enlace al cliente">
+    <p class="catalogo-share__label">Enlace y código QR para el cliente</p>
+    <div class="catalogo-share__grid">
+      <div class="catalogo-share__qr-box">
+        <img
+          class="catalogo-share__qr"
+          id="catalogo-qr-img"
+          src="{{ catalogo_qr_url }}"
+          alt="Código QR del catálogo"
+          width="168"
+          height="168"
+        >
+        <p class="catalogo-share__qr-cap muted">Escanee con el celular</p>
+        <div class="catalogo-share__qr-actions">
+          <a class="btn-secondary catalogo-share__btn" id="catalogo-qr-download" href="{{ catalogo_qr_url }}" download="catalogo-paredes-qr.png">Descargar QR</a>
+          <button type="button" class="btn-secondary catalogo-share__btn" id="catalogo-qr-refresh">Generar otro QR</button>
+        </div>
+      </div>
+      <div class="catalogo-share__links">
+        <p class="catalogo-share__hint muted" style="margin-top:0;">
+          El QR se crea con la URL de <strong>esta visita</strong> (cambia si usa localhost o el dominio real). No es el QR fijo del manual PDF.
+        </p>
+        <div class="catalogo-share__row">
+          <input type="text" class="catalogo-share__url" id="catalogo-share-url" readonly value="{{ catalogo_share_url }}" aria-label="URL del catálogo">
+          <button type="button" class="btn-primary catalogo-share__btn" id="catalogo-copy-btn">Copiar enlace</button>
+          <a class="btn-secondary catalogo-share__btn" id="catalogo-wa-btn" target="_blank" rel="noopener">WhatsApp</a>
+        </div>
+        <p class="catalogo-share__hint muted" id="catalogo-copy-msg" hidden>Enlace copiado. Ya puede pegarlo en el chat con el cliente.</p>
+      </div>
+    </div>
+  </aside>
+
+  {% if bloques %}
+  {% for bloque in bloques %}
+  <section class="catalogo-proyecto" aria-labelledby="proy-{{ bloque.proyecto.pk }}">
+    <div class="catalogo-proyecto__head">
+      <h2 id="proy-{{ bloque.proyecto.pk }}" class="catalogo-proyecto__title">{{ bloque.proyecto.nombre }}</h2>
+      {% if bloque.proyecto.municipio or bloque.proyecto.departamento %}
+      <p class="catalogo-proyecto__lugar">
+        {% if bloque.proyecto.municipio %}{{ bloque.proyecto.municipio }}{% endif %}{% if bloque.proyecto.municipio and bloque.proyecto.departamento %}, {% endif %}{% if bloque.proyecto.departamento %}{{ bloque.proyecto.departamento }}{% endif %}
+      </p>
+      {% endif %}
+    </div>
+    <ul class="catalogo-grid">
+      {% for inm in bloque.inmuebles %}
+      <li>
+        <a class="catalogo-card" href="{% url 'catalogo:detalle' inm.pk %}">
+          <div class="catalogo-card__media">
+            {% if inm.catalogo_portada %}
+            <img src="{{ inm.catalogo_portada }}" alt="" loading="lazy" decoding="async">
+            {% else %}
+            <div class="catalogo-card__empty">Sin fotos aún</div>
+            {% endif %}
+            {% if inm.catalogo_n_fotos %}
+            <span class="catalogo-card__badge">{{ inm.catalogo_n_fotos }} foto{{ inm.catalogo_n_fotos|pluralize }}</span>
+            {% endif %}
+          </div>
+          <div class="catalogo-card__body">
+            <span class="catalogo-card__tipo">{{ inm.get_tipo_display }}</span>
+            <strong class="catalogo-card__codigo">{{ inm.codigo }}</strong>
+            {% if inm.poligono %}
+            <span class="catalogo-card__pol">{{ inm.poligono.nombre }}</span>
+            {% endif %}
+          </div>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+  {% else %}
+  <div class="catalogo-empty card">
+    <p class="page-lead" style="margin:0;">Por ahora no hay inmuebles disponibles para mostrar.</p>
+  </div>
+  {% endif %}
+
+  <p class="catalogo-foot muted">
+    ¿Es personal interno?
+    <a href="{% url 'login' %}">Ingresar al sistema</a>
+  </p>
+</div>
+<script>
+(function () {
+  var input = document.getElementById("catalogo-share-url");
+  var btn = document.getElementById("catalogo-copy-btn");
+  var msg = document.getElementById("catalogo-copy-msg");
+  var wa = document.getElementById("catalogo-wa-btn");
+  var qrImg = document.getElementById("catalogo-qr-img");
+  var qrDl = document.getElementById("catalogo-qr-download");
+  var qrRefresh = document.getElementById("catalogo-qr-refresh");
+  if (!input || !btn) return;
+  var url = input.value;
+  if (wa) {
+    wa.href = "https://wa.me/?text=" + encodeURIComponent(
+      "Le comparto el catálogo de inmuebles disponibles de Paredes Bienes Raíces:\n" + url
+    );
+  }
+  btn.addEventListener("click", function () {
+    function ok() {
+      if (msg) { msg.hidden = false; }
+      btn.textContent = "¡Copiado!";
+      setTimeout(function () { btn.textContent = "Copiar enlace"; }, 2000);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(ok).catch(function () {
+        input.select();
+        document.execCommand("copy");
+        ok();
+      });
+    } else {
+      input.select();
+      document.execCommand("copy");
+      ok();
+    }
+  });
+  if (qrRefresh && qrImg) {
+    qrRefresh.addEventListener("click", function () {
+      var base = qrImg.getAttribute("src").split("?")[0];
+      var stamp = String(Date.now());
+      var next = base + "?v=" + stamp;
+      qrImg.src = next;
+      if (qrDl) {
+        qrDl.href = next;
+        qrDl.setAttribute("download", "catalogo-paredes-qr-" + stamp + ".png");
+      }
+      qrRefresh.textContent = "QR actualizado";
+      setTimeout(function () { qrRefresh.textContent = "Generar otro QR"; }, 1600);
+    });
+  }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "app/base_app.html" %}
+{% block title %}{{ page_title }} | Paredes Bienes Raíces{% endblock %}
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">{{ page_title }}</h1>
+    <p class="page-toolbar__meta">{{ page_meta }}</p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:recibo_comision_hub' %}" class="btn-secondary">← Recibos de comisión</a>
+  </div>
+</header>
+<div class="data-panel">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Código</th>
+      <th>Proyecto</th>
+      <th>Tipo</th>
+      <th>Renta ref.</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for i in items %}
+    <tr>
+      <td><strong>{{ i.codigo }}</strong></td>
+      <td>{{ i.proyecto.nombre }}</td>
+      <td>{{ i.get_tipo_display }}</td>
+      <td>{% if i.renta_ref %}${{ i.renta_ref|floatformat:2 }}{% else %}—{% endif %}</td>
+      <td>
+        <a href="{% url 'app:emitir_recibo_comision_alquiler' i.pk %}" class="link-action">Preparar recibo</a>
+        {% if segmento == 'local' %}
+        <a href="{% url 'app:local_alquiler_ficha' i.pk %}" class="link-action">Ficha</a>
+        {% else %}
+        <a href="{% url 'app:casa_alquiler_ficha' i.pk %}" class="link-action">Ficha</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="muted">No hay inmuebles en alquiler guardados. Cree uno desde «Nuevo alquiler» en el menú.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "app/pagination.html" %}
+{% endblock %}

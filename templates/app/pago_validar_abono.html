@@ -1,0 +1,86 @@
+{% extends "app/base_app.html" %}
+{% block title %}{% if accion == 'rechazar' %}Rechazar abono{% else %}Validar abono y emitir recibo{% endif %} | {{ marca_portal.nombre }}{% endblock %}
+
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">
+      {% if accion == 'rechazar' %}Rechazar abono{% else %}Validar pago y emitir recibo{% endif %}
+    </h1>
+    <p class="page-toolbar__meta">
+      {% if accion == 'rechazar' %}
+      Si rechaza, no se genera recibo ni se notifica al cliente.
+      {% else %}
+      Flujo: 1) Revisar la cuenta → 2) Confirmar aquí → 3) El sistema genera el recibo y lo envía (correo/WhatsApp).
+      {% endif %}
+    </p>
+  </div>
+</header>
+
+{% if accion != 'rechazar' %}
+<ol class="gestion-flujo" aria-label="Pasos al validar" style="margin-bottom:1.25rem;">
+  <li class="gestion-flujo__paso">
+    <span class="gestion-flujo__card" style="cursor:default;">
+      <span class="gestion-flujo__num" aria-hidden="true">1</span>
+      <span class="gestion-flujo__body">
+        <strong>Revisar la cuenta</strong>
+        <small>Confirme que el depósito o abono ya aparece en el banco.</small>
+      </span>
+    </span>
+  </li>
+  <li class="gestion-flujo__paso">
+    <span class="gestion-flujo__card" style="cursor:default;">
+      <span class="gestion-flujo__num" aria-hidden="true">2</span>
+      <span class="gestion-flujo__body">
+        <strong>Validar en el sistema</strong>
+        <small>Solo gerencia o administrador.</small>
+      </span>
+    </span>
+  </li>
+  <li class="gestion-flujo__paso">
+    <span class="gestion-flujo__card" style="cursor:default;">
+      <span class="gestion-flujo__num" aria-hidden="true">3</span>
+      <span class="gestion-flujo__body">
+        <strong>Recibo + envío</strong>
+        <small>Se crea el PDF y se notifica al cliente (correo y/o WhatsApp).</small>
+      </span>
+    </span>
+  </li>
+</ol>
+{% endif %}
+
+<section class="card" style="max-width:36rem;margin-bottom:1.25rem;">
+  <p style="margin:0 0 0.5rem;"><strong>Concepto:</strong> {{ pago.get_concepto_display }}</p>
+  <p style="margin:0 0 0.5rem;"><strong>Monto:</strong> ${{ pago.monto }}</p>
+  <p style="margin:0 0 0.5rem;"><strong>Fecha del pago:</strong> {{ pago.fecha|date:"d/m/Y" }}</p>
+  <p style="margin:0 0 0.5rem;"><strong>Contrato:</strong> {{ pago.contrato.numero }} — {{ pago.contrato.cliente }}</p>
+  {% if pago.referencia %}
+  <p style="margin:0;"><strong>Referencia:</strong> {{ pago.referencia }}</p>
+  {% endif %}
+</section>
+
+<form method="post" class="card" style="max-width:36rem;">
+  {% csrf_token %}
+  <label for="id_validacion_nota" style="display:block;font-weight:600;margin-bottom:0.35rem;">
+    {% if accion == 'rechazar' %}Motivo del rechazo (obligatorio){% else %}Nota de revisión de cuenta{% endif %}
+  </label>
+  <input
+    type="text"
+    name="validacion_nota"
+    id="id_validacion_nota"
+    maxlength="255"
+    class="input"
+    style="width:100%;margin-bottom:1rem;"
+    {% if accion == 'rechazar' %}required{% endif %}
+    placeholder="{% if accion == 'rechazar' %}Ej. No aparece el depósito{% else %}Ej. Revisado en cuenta bancaria — OK{% endif %}"
+  >
+  <div class="page-toolbar__actions" style="justify-content:flex-start;gap:0.5rem;">
+    {% if accion == 'rechazar' %}
+    <button type="submit" class="btn-primary" style="background:#b91c1c;">Rechazar — no emitir recibo</button>
+    {% else %}
+    <button type="submit" class="btn-primary">Ya revisé la cuenta — generar recibo y enviar</button>
+    {% endif %}
+    <a href="{% url 'app:pago_list' %}?validacion=pendiente" class="btn-secondary">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

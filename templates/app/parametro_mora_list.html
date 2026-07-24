@@ -1,13 +1,16 @@
 {% extends "app/base_app.html" %}
-{% block title %}Parámetros de mora | Paredes Bienes Raíces{% endblock %}
+{% block title %}Recargo administrativo | {{ marca_portal.nombre }}{% endblock %}
 {% block app_content %}
 <header class="page-toolbar">
   <div class="page-toolbar__intro">
-    <h1 class="page-title">Parámetros de mora</h1>
-    <p class="page-toolbar__meta">Tasas, gracia y reglas para el cálculo de mora.</p>
+    <h1 class="page-title">Recargo administrativo</h1>
+    <p class="page-toolbar__meta">
+      Definen el <strong>monto fijo</strong> y los <strong>días de gracia</strong>.
+      Si no pagan un mes (después de la gracia), al siguiente sale la cuota + el recargo.
+    </p>
   </div>
   <div class="page-toolbar__actions">
-    <a href="{% url 'app:parametro_mora_create' %}" class="btn-primary btn-sm">Nuevo parámetro</a>
+    <a href="{% url 'app:parametro_mora_create' %}" class="btn-primary btn-sm">Nueva política</a>
   </div>
 </header>
 <div class="data-panel">
@@ -15,8 +18,8 @@
   <thead>
     <tr>
       <th>Nombre</th>
-      <th>Tasa diaria %</th>
-      <th>Días gracia</th>
+      <th class="right">Monto recargo</th>
+      <th>Días de gracia</th>
       <th>Activo</th>
       <th></th>
       <th></th>
@@ -26,14 +29,14 @@
     {% for m in items %}
     <tr>
       <td><strong>{{ m.nombre }}</strong></td>
-      <td>{{ m.tasa_diaria_porcentaje }}</td>
+      <td class="right">${{ m.monto_recargo }}</td>
       <td>{{ m.dias_gracia }}</td>
       <td>{% if m.activo %}<span class="badge badge--activo">Sí</span>{% else %}<span class="badge badge--bloqueado">No</span>{% endif %}</td>
       <td><a href="{% url 'app:parametro_mora_update' m.pk %}" class="link-action">Editar</a></td>
       <td><a href="{% url 'app:parametro_mora_delete' m.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a></td>
     </tr>
     {% empty %}
-    <tr><td colspan="6" class="muted">No hay parámetros.</td></tr>
+    <tr><td colspan="6" class="muted">No hay políticas. Cree una con el monto y los días de gracia.</td></tr>
     {% endfor %}
   </tbody>
 </table>
