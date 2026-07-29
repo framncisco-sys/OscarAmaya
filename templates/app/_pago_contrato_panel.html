@@ -1,7 +1,16 @@
-{# Panel de referencia tras elegir contrato (Nuevo/Editar pago). Prioridad: formato de aceptación vinculado. #}
-<div id="pago-contrato-resumen" class="card cliente-docs-card pago-contrato-resumen" style="margin-bottom:1rem;display:none;" aria-live="polite">
+{# Panel de referencia tras elegir formato/contrato (Nuevo/Editar pago). #}
+<div
+  id="pago-contrato-resumen"
+  class="card cliente-docs-card pago-contrato-resumen"
+  style="margin-bottom:1rem;{% if not pago_cuotas_checkboxes %}display:none;{% endif %}"
+  aria-live="polite"
+  {% if pago_cuotas_checkboxes %}data-siempre-visible="1"{% endif %}
+>
   <p class="field__label" style="margin-top:0;">Referencia para el pago (formato de aceptación y calendario)</p>
-  <ul class="muted" style="margin:0;padding-left:1.2rem;font-size:0.9rem;line-height:1.5;">
+  <p id="pago-hint-sin-formato" class="field__help" style="margin:0 0 0.75rem;padding:0.65rem 0.75rem;background:#fff7ed;border-radius:6px;font-size:0.9rem;{% if not pago_cuotas_checkboxes %}display:none;{% endif %}" role="status">
+    Seleccione un <strong>formato de aceptación guardado</strong> arriba para cargar el cliente, el contrato y las <strong>cuotas a pagar</strong>.
+  </p>
+  <ul id="pago-hint-resumen-lista" class="muted" style="margin:0;padding-left:1.2rem;font-size:0.9rem;line-height:1.5;display:none;">
     <li><strong>Cliente</strong> <span class="muted" style="font-weight:400;">(nombre en formato si existe)</span>: <span id="pago-hint-cliente">—</span></li>
     <li><strong>Contrato:</strong> <span id="pago-hint-contrato-num">—</span></li>
     <li><strong>Plazo / N.º cuotas / Interés</strong> <span class="muted" style="font-weight:400;">(desde formato)</span>: <span id="pago-hint-fmt-fin">—</span></li>
@@ -14,11 +23,12 @@
       monto <span id="pago-hint-cuota-monto">—</span>
     </li>
   </ul>
-  <p id="pago-hint-aplicacion-cuota" class="field__help" style="margin:0.75rem 0 0;padding:0.5rem 0.65rem;background:#f1f5f9;border-radius:6px;font-size:0.9rem;" role="status"></p>
+  <p id="pago-hint-aplicacion-cuota" class="field__help" style="margin:0.75rem 0 0;padding:0.5rem 0.65rem;background:#f1f5f9;border-radius:6px;font-size:0.9rem;display:none;" role="status"></p>
   <p class="field__help muted" style="margin-bottom:0;margin-top:0.65rem;">
-    La <strong>fecha del pago</strong> (campo siguiente) es cuándo ingresa el dinero.
-    Si no pagaron un mes (tras los días de gracia), al siguiente corresponde
-    <strong>cuota + recargo administrativo</strong>.
+    La <strong>fecha del pago</strong> es cuándo ingresa el dinero.
+    Si no pagaron un mes (tras los días de gracia), corresponde
+    <strong>cuota + recargo administrativo</strong> (el recargo <strong>no</strong> reduce capital).
+    Si abona de más, el excedente es <strong>abono a capital</strong> en el mismo recibo.
     <a href="{% url 'app:parametro_mora_list' %}">Configurar recargo</a>.
   </p>
   <p id="pago-hint-recargo" class="field__help" style="margin:0.5rem 0 0;padding:0.5rem 0.65rem;background:#fff7ed;border-radius:6px;font-size:0.9rem;display:none;" role="status"></p>
@@ -39,11 +49,14 @@
   {% if form.cuotas_seleccionadas.errors %}
   <div class="field__error" role="alert" style="margin-top:0.75rem;">{{ form.cuotas_seleccionadas.errors }}</div>
   {% endif %}
-  <div id="pago-cuotas-tabla-wrap" class="pago-cuotas-tabla-wrap" style="display:none;margin-top:1rem;" data-enabled="1" aria-live="polite">
-    <p class="field__label" style="margin-top:0;">Cuotas del calendario (financiamiento)</p>
+  <div id="pago-cuotas-tabla-wrap" class="pago-cuotas-tabla-wrap" style="margin-top:1rem;" data-enabled="1" aria-live="polite">
+    <p class="field__label" style="margin-top:0;">Cuotas a pagar (calendario)</p>
     <p class="muted" style="margin:0 0 0.5rem;font-size:0.9rem;line-height:1.45;">
-      Marque desde la <strong>primera cuota pendiente</strong> una o más cuotas <strong>consecutivas</strong>. El monto total debe coincidir con la suma de las filas marcadas.
+      Marque desde la <strong>primera cuota pendiente</strong> una o más cuotas <strong>consecutivas</strong>.
+      El monto sugerido incluye recargo si ya pasaron los días de gracia.
+      Si paga de más, el excedente (después de cuotas + recargo) es <strong>abono a capital</strong>.
     </p>
+    <p id="pago-cuotas-vacio" class="field__help" style="margin:0 0 0.5rem;padding:0.5rem 0.65rem;background:#f8fafc;border-radius:6px;display:none;" role="status"></p>
     <div style="overflow-x:auto;">
       <table class="table-pago-cuotas" style="width:100%;border-collapse:collapse;font-size:0.9rem;">
         <thead>
@@ -53,6 +66,7 @@
             <th style="padding:0.35rem;">Vence</th>
             <th style="padding:0.35rem;">Monto</th>
             <th style="padding:0.35rem;">Estado</th>
+            <th style="padding:0.35rem;">Recargo</th>
           </tr>
         </thead>
         <tbody id="pago-cuotas-tabla-body"></tbody>

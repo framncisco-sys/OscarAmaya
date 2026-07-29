@@ -15,4 +15,12 @@ def crear_perfil_si_no_existe(sender, instance, created, **kwargs):
             if instance.is_superuser
             else PerfilUsuario.Rol.LECTURA
         )
-        PerfilUsuario.objects.create(user=instance, rol=rol)
+        PerfilUsuario.objects.create(
+            user=instance,
+            rol=rol,
+            empresa=(
+                PerfilUsuario.Empresa.AMBAS
+                if rol == PerfilUsuario.Rol.ADMINISTRADOR
+                else PerfilUsuario.Empresa.DESARROLLOS
+            ),
+        )

@@ -1,12 +1,15 @@
 {% extends "app/object_form.html" %}
-{% block form_before_actions %}
-{% include "app/_contrato_cuotas_formset.html" %}
-{% endblock %}
+{% load static %}
 {% block after_page_title %}
 {% if object.pk %}
 <p class="page-lead">
   <a href="{% url 'app:contrato_estado_cuenta' object.pk %}" class="btn-primary btn-sm">Plan de cuotas y estado de cuenta</a>
-  <span class="muted"> — Cuotas pagadas y por pagar, vencimientos y fechas de pago detalladas.</span>
+  <a href="{% url 'app:contrato_estado_cuenta_pdf' object.pk %}" class="btn-secondary btn-sm" target="_blank" rel="noopener">Imprimir estado (PDF)</a>
+  <span class="muted"> — Cuotas, pagos, logos del proyecto y Paredes Desarrollos.</span>
 </p>
 {% endif %}
+{% endblock %}
+{% block form_extras %}
+{{ block.super }}
+<script src="{% static 'js/contrato_credito_formato.js' %}" defer></script>
 {% endblock %}

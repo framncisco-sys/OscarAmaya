@@ -51,12 +51,18 @@ def cuota_genera_recargo(
 
 
 def monto_recargos_pagados(contrato_id: int) -> Decimal:
-    """Suma de pagos concepto recargo administrativo (MORA) no rechazados."""
-    qs = Pago.objects.filter(
+    """Suma de recargos cubiertos: pagos MORA + recargo incluido en pagos de cuota."""
+    qs_mora = Pago.objects.filter(
         contrato_id=contrato_id,
         concepto=Pago.Concepto.MORA,
     ).exclude(validacion_abono=Pago.ValidacionAbono.RECHAZADO)
-    return qs.aggregate(t=Sum("monto"))["t"] or Decimal("0")
+    mora = qs_mora.aggregate(t=Sum("monto"))["t"] or Decimal("0")
+    qs_inc = Pago.objects.filter(
+        contrato_id=contrato_id,
+        concepto=Pago.Concepto.CUOTA,
+    ).exclude(validacion_abono=Pago.ValidacionAbono.RECHAZADO)
+    incluido = qs_inc.aggregate(t=Sum("monto_recargo_incluido"))["t"] or Decimal("0")
+    return (mora + incluido).quantize(Decimal("0.01"))
 
 
 @dataclass(frozen=True)

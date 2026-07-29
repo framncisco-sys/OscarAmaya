@@ -70,6 +70,37 @@
     font-weight: 700;
     color: #b91c1c;
   }
+  .formato-papel__serie-field {
+    margin: 0.5rem 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .formato-papel__serie-field .field__label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #b91c1c;
+    margin: 0;
+  }
+  .formato-numero-input {
+    width: 7.5rem;
+    text-align: center;
+    font-weight: 700;
+    color: #b91c1c;
+    border-color: #fecaca !important;
+  }
+  .formato-papel__serie-field .field__error {
+    font-size: 0.78rem;
+    max-width: 14rem;
+    text-align: center;
+  }
+  .formato-papel__serie-field .field__help {
+    font-size: 0.72rem;
+    max-width: 16rem;
+    text-align: center;
+    margin: 0;
+  }
   .formato-acept-intro { margin-bottom: 1rem; }
   .formato-section-title {
     font-size: 0.72rem;
@@ -96,35 +127,44 @@
     font-weight: 700;
     color: #475569;
   }
-  .formato-firma-block {
-    margin-bottom: 1.25rem;
-    padding: 0.75rem;
+  .formato-adjunto-block {
+    margin-bottom: 1.1rem;
+    padding: 0.85rem 1rem;
     background: #f8fafc;
     border-radius: 8px;
     border: 1px solid #e2e8f0;
   }
-  .formato-firma-canvas {
-    width: 100%;
-    max-width: 560px;
-    height: 160px;
-    border: 1px solid #94a3b8;
-    border-radius: 6px;
-    cursor: crosshair;
-    touch-action: none;
-    background: #fff;
+  .formato-adjunto-block .field__label {
     display: block;
-  }
-  .formato-firma-prev {
-    max-width: 200px;
-    max-height: 64px;
-    object-fit: contain;
     margin-bottom: 0.35rem;
-    border: 1px solid #e4eaf2;
-    border-radius: 4px;
-    padding: 4px;
-    background: #fff;
+    font-size: 0.88rem;
+    color: #0f172a;
   }
-  .formato-firma-actions { margin-top: 0.35rem; }
+  .formato-adjunto-picker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55rem;
+  }
+  .formato-adjunto-file {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .formato-adjunto-fname {
+    font-size: 0.85rem;
+    flex: 1 1 12rem;
+  }
+  .formato-adjunto-actual {
+    margin: 0.45rem 0 0;
+    font-size: 0.85rem;
+  }
 </style>
 
 <h1 class="page-title" style="max-width: 920px; margin-left: auto; margin-right: auto;">{{ form_title }}</h1>
@@ -137,11 +177,11 @@
     {% if firmas_completas %}
       <p class="page-lead">
         <a href="{{ formato_pdf_url }}" class="btn-primary btn-sm" target="_blank" rel="noopener">Descargar PDF</a>
-        <span class="muted"> — Incluye las firmas guardadas.</span>
+        <span class="muted"> — Documentos adjuntos completos.</span>
       </p>
     {% else %}
       <p class="page-lead muted">
-        Guarde las <strong>tres firmas</strong> en los lienzos para habilitar el PDF.
+        Suba y guarde el <strong>DUI</strong> y el <strong>formato en físico</strong> para habilitar el PDF.
       </p>
     {% endif %}
   {% endif %}
@@ -183,15 +223,46 @@
 </section>
 {% endif %}
 
+{% if formato_compraventa_migrate_pendiente %}
+<div class="alert" role="alert" style="max-width: 920px; margin: 0 auto 1rem;">
+  Falta migración para el contrato de compraventa. Ejecute <code>python manage.py migrate --noinput</code>.
+</div>
+{% endif %}
+
+{% if object.pk and formato_compraventa_subir_url %}
+<section id="compraventa-pdf" class="formato-papel" style="max-width: 920px; margin: 0 auto 1.5rem;">
+  <h2 class="formato-section-title">Contrato de compraventa (PDF)</h2>
+  <p class="muted" style="margin: 0 0 0.75rem; font-size: 0.88rem;">
+    Suba la escritura o contrato de compraventa firmado. Queda guardado en el expediente junto con el formato, la promesa y los demás adjuntos.
+  </p>
+  {% if formato_compraventa_descargar_url %}
+  <p style="margin: 0 0 1rem;">
+    <a href="{{ formato_compraventa_descargar_url }}" class="btn-secondary btn-sm">Descargar compraventa</a>
+  </p>
+  {% endif %}
+  <form method="post" action="{{ formato_compraventa_subir_url }}" enctype="multipart/form-data" class="form-stack" style="gap: 0.65rem;">
+    {% csrf_token %}
+    <div class="field">
+      <label class="field__label" for="id-compraventa-file">Archivo (PDF, JPG o PNG)</label>
+      <div class="field__control">
+        <input id="id-compraventa-file" class="input" type="file" name="contrato_compraventa_escaneado" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/*" required />
+      </div>
+    </div>
+    <div>
+      <button type="submit" class="btn-primary btn-sm">Subir contrato de compraventa</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
 {% if firmas_storage_perdidas %}
 <div class="alert" role="alert" style="max-width: 920px; margin: 0 auto 1rem; border-color: #b45309; background: #fffbeb; color: #78350f;">
-  <strong>Faltan los archivos de firma en el servidor.</strong>
-  La base de datos tiene rutas guardadas, pero los PNG ya no están en el almacenamiento
+  <strong>Faltan archivos adjuntos en el servidor.</strong>
+  La base de datos tiene rutas guardadas, pero los archivos ya no están en el almacenamiento
   (típico en App Platform sin volumen persistente: cada redeploy borra la carpeta <code>media</code>).
   <strong>Solución:</strong> configure <code>DJANGO_USE_S3_MEDIA=1</code> y DigitalOcean Spaces
   (variables en <code>deploy/COPIAR_A_DIGITALOCEAN.txt</code>), despliegue de nuevo y
-  <strong>vuelva a dibujar y guardar las tres firmas</strong>. Puede comprobar el estado con
-  <code>python manage.py verificar_formatos_aceptacion</code> en la consola del Web Service.
+  <strong>vuelva a subir los documentos</strong>.
 </div>
 {% endif %}
 
@@ -212,10 +283,17 @@
       </div>
       <div class="formato-papel__title-block">
         <h1 class="formato-papel__doc-title">Formato de aceptación</h1>
-        {% if object.pk %}
+        {% if form.numero_formulario %}
+        <div class="formato-papel__serie-field">
+          <label class="field__label" for="{{ form.numero_formulario.id_for_label }}">No. formulario</label>
+          <div class="field__control">{{ form.numero_formulario }}</div>
+          <p class="field__help muted">Debe coincidir con el PDF físico que suba abajo.</p>
+          {% if form.numero_formulario.errors %}
+          <div class="field__error" role="alert">{{ form.numero_formulario.errors }}</div>
+          {% endif %}
+        </div>
+        {% elif object.pk %}
         <p class="formato-papel__serie">No. {{ object.numero_formulario|stringformat:"04d" }}</p>
-        {% else %}
-        <p class="formato-papel__serie muted" style="color:#64748b;font-weight:600;">Nº se asigna al guardar</p>
         {% endif %}
       </div>
     </header>
@@ -280,10 +358,11 @@
       {% if sec.title == "Datos del crédito" %}
       <div class="fmt-listado-cuotas-wrap" style="margin-top:1.1rem;">
         <h3 class="formato-section-title" style="margin-top:0.5rem;font-size:0.72rem;">Listado de cuotas a pagar (referencia)</h3>
-        <p class="muted" style="font-size:0.82rem;margin:0 0 0.5rem;">
-          Incluye <strong>Prima 1</strong> y <strong>Prima 2</strong> con sus fechas y el plan mensual según fecha primera cuota, letra y número de cuotas.
-          Referencia informativa; el calendario oficial del contrato se define al editar el contrato en el sistema.
+        <p class="muted" style="font-size:0.82rem;margin:0 0 0.35rem;">
+          A plazos (máx. 5 años): el vendedor <strong>escribe la cuota de los meses 1–12 sin interés</strong>;
+          <strong>desde el mes 13</strong> esa cuota ya va con el interés elegido. El listado y el PDF se arman solos al guardar.
         </p>
+        <p id="fmt-plan-plazos-resumen" class="muted" style="font-size:0.82rem;margin:0 0 0.65rem;color:#0f172a;font-weight:600;"></p>
         <div class="field__control" style="overflow-x:auto;">
           <table class="fmt-listado-cuotas-table" style="width:100%;border-collapse:collapse;font-size:0.85rem;border:1px solid #e2e8f0;border-radius:6px;">
             <thead>
@@ -301,51 +380,66 @@
       {% endif %}
     {% endfor %}
 
-    <h2 class="formato-section-title">Firmas</h2>
+    <h2 class="formato-section-title">Documentos adjuntos</h2>
     <p class="muted" style="margin: 0 0 1rem; font-size: 0.88rem;">
-      Firma aceptante (cliente), vendedor y autorizado — igual que en el impreso. Guarde antes del PDF.
+      Suba el DUI (PDF) y el formato de aceptación firmado en físico (PDF).
+      Use <strong>Examinar</strong> en cada campo y luego <strong>Guardar</strong> al final del formulario.
     </p>
 
-    <div class="formato-firma-block">
-      <span class="field__label">Firma aceptante</span>
-      {% if object.pk and firma_preview.aceptante %}
-        <p class="muted" style="margin: 0.25rem 0; font-size: 0.85rem;">Firma guardada (dibuje de nuevo para reemplazar):</p>
-        <img class="formato-firma-prev" src="{% url 'app:formato_firma_preview' object.pk 'aceptante' %}" alt="" width="200" height="80" loading="lazy" />
-      {% endif %}
-      <canvas class="formato-firma-canvas" width="560" height="180" data-input-name="firma_aceptante_canvas" aria-label="Firma aceptante"></canvas>
-      <div class="formato-firma-actions">
-        <button type="button" class="btn-secondary btn-sm formato-firma-clear">Borrar lienzo</button>
+    {% if form.dui_cliente_archivo %}
+    <div class="formato-adjunto-block">
+      <label class="field__label" for="{{ form.dui_cliente_archivo.id_for_label }}">Subir DUI del cliente (frente y reverso)</label>
+      <div class="formato-adjunto-picker">
+        <input type="file"
+               name="{{ form.dui_cliente_archivo.html_name }}"
+               id="{{ form.dui_cliente_archivo.id_for_label }}"
+               class="formato-adjunto-file"
+               accept=".pdf,application/pdf"
+               data-fname-target="fname-dui">
+        <button type="button" class="btn-secondary btn-sm formato-adjunto-examinar" data-file-input="{{ form.dui_cliente_archivo.id_for_label }}">Examinar</button>
+        <span id="fname-dui" class="formato-adjunto-fname muted">Ningún archivo seleccionado</span>
       </div>
+      <p class="muted" style="margin: 0.35rem 0 0; font-size: 0.8rem;">Solo PDF. Incluya frente y reverso en el mismo archivo.</p>
+      {% if object.pk and object.dui_cliente_archivo and object.dui_cliente_archivo.name and formato_adjunto_urls.dui %}
+      <p class="formato-adjunto-actual">
+        Archivo guardado:
+        <a href="{{ formato_adjunto_urls.dui }}" class="link-action" target="_blank" rel="noopener">Descargar DUI</a>
+      </p>
+      {% endif %}
+      {% if form.dui_cliente_archivo.errors %}
+        <div class="field__error" role="alert">{{ form.dui_cliente_archivo.errors }}</div>
+      {% endif %}
     </div>
+    {% endif %}
 
-    <div class="formato-firma-block">
-      <span class="field__label">Firma vendedor</span>
-      {% if object.pk and firma_preview.vendedor %}
-        <p class="muted" style="margin: 0.25rem 0; font-size: 0.85rem;">Firma guardada (dibuje de nuevo para reemplazar):</p>
-        <img class="formato-firma-prev" src="{% url 'app:formato_firma_preview' object.pk 'vendedor' %}" alt="" width="200" height="80" loading="lazy" />
-      {% endif %}
-      <canvas class="formato-firma-canvas" width="560" height="180" data-input-name="firma_vendedor_canvas" aria-label="Firma vendedor"></canvas>
-      <div class="formato-firma-actions">
-        <button type="button" class="btn-secondary btn-sm formato-firma-clear">Borrar lienzo</button>
+    {% if form.formato_aceptacion_fisico %}
+    <div class="formato-adjunto-block">
+      <label class="field__label" for="{{ form.formato_aceptacion_fisico.id_for_label }}">Subir archivo del formato de aceptación en físico</label>
+      <div class="formato-adjunto-picker">
+        <input type="file"
+               name="{{ form.formato_aceptacion_fisico.html_name }}"
+               id="{{ form.formato_aceptacion_fisico.id_for_label }}"
+               class="formato-adjunto-file"
+               accept=".pdf,application/pdf"
+               data-fname-target="fname-fisico">
+        <button type="button" class="btn-secondary btn-sm formato-adjunto-examinar" data-file-input="{{ form.formato_aceptacion_fisico.id_for_label }}">Examinar</button>
+        <span id="fname-fisico" class="formato-adjunto-fname muted">Ningún archivo seleccionado</span>
       </div>
-    </div>
-
-    <div class="formato-firma-block">
-      <span class="field__label">Firma autorizado</span>
-      {% if object.pk and firma_preview.autorizado %}
-        <p class="muted" style="margin: 0.25rem 0; font-size: 0.85rem;">Firma guardada (dibuje de nuevo para reemplazar):</p>
-        <img class="formato-firma-prev" src="{% url 'app:formato_firma_preview' object.pk 'autorizado' %}" alt="" width="200" height="80" loading="lazy" />
+      <p class="muted" style="margin: 0.35rem 0 0; font-size: 0.8rem;">
+        Suba el PDF del formato firmado: se comprueba que contenga el mismo Nº del encabezado.
+      </p>
+      {% if object.pk and object.formato_aceptacion_fisico and object.formato_aceptacion_fisico.name and formato_adjunto_urls.fisico %}
+      <p class="formato-adjunto-actual">
+        Archivo guardado:
+        <a href="{{ formato_adjunto_urls.fisico }}" class="link-action" target="_blank" rel="noopener">Descargar formato físico</a>
+      </p>
       {% endif %}
-      <canvas class="formato-firma-canvas" width="560" height="180" data-input-name="firma_autorizado_canvas" aria-label="Firma autorizado"></canvas>
-      <div class="formato-firma-actions">
-        <button type="button" class="btn-secondary btn-sm formato-firma-clear">Borrar lienzo</button>
-      </div>
+      {% if form.formato_aceptacion_fisico.errors %}
+        <div class="field__error" role="alert">{{ form.formato_aceptacion_fisico.errors }}</div>
+      {% endif %}
     </div>
+    {% endif %}
   </article>
-
-  {{ form.firma_aceptante_canvas }}
-  {{ form.firma_vendedor_canvas }}
-  {{ form.firma_autorizado_canvas }}
 
   <div class="form-actions">
     <button type="submit" class="btn-primary">Guardar</button>
@@ -357,5 +451,25 @@
 {{ formato_catalogo_inmuebles|json_script:"formato-catalogo-inmuebles-data" }}
 <script src="{% static 'js/formato_aceptacion_credito.js' %}" defer></script>
 <script src="{% static 'js/formato_aceptacion_masks.js' %}" defer></script>
-<script src="{% static 'js/formato_aceptacion_firmas.js' %}" defer></script>
+<script>
+(function () {
+  document.querySelectorAll(".formato-adjunto-examinar").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var id = btn.getAttribute("data-file-input");
+      var input = id ? document.getElementById(id) : null;
+      if (input) input.click();
+    });
+  });
+  document.querySelectorAll(".formato-adjunto-file").forEach(function (input) {
+    input.addEventListener("change", function () {
+      var targetId = input.getAttribute("data-fname-target");
+      var label = targetId ? document.getElementById(targetId) : null;
+      if (!label) return;
+      label.textContent = (input.files && input.files[0])
+        ? input.files[0].name
+        : "Ningún archivo seleccionado";
+    });
+  });
+})();
+</script>
 {% endblock %}

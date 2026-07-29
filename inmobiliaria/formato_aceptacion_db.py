@@ -17,6 +17,14 @@ FORMATO_CREDITO_EXTRA_FIELDS = (
     "observaciones_financiamiento",
 )
 
+FORMATO_TIPO_FINANCIAMIENTO_FIELD = "tipo_financiamiento"
+
+FORMATO_ADJUNTOS_FIELDS = (
+    "dui_cliente_archivo",
+    "formato_aceptacion_fisico",
+    "boucher_pago_reserva",
+)
+
 
 def _formato_column_names_lower() -> set[str] | None:
     table = FormatoAceptacion._meta.db_table
@@ -36,6 +44,14 @@ def formato_aceptacion_promesa_column_ready() -> bool:
     return "promesa_venta_escaneada" in names
 
 
+def formato_aceptacion_compraventa_column_ready() -> bool:
+    """True si existe `contrato_compraventa_escaneado` (migración 0048+)."""
+    names = _formato_column_names_lower()
+    if names is None:
+        return True
+    return "contrato_compraventa_escaneado" in names
+
+
 def formato_aceptacion_credito_extra_columns_ready() -> bool:
     """True si existen columnas de migración 0026 (fechas de prima + observaciones)."""
     names = _formato_column_names_lower()
@@ -44,10 +60,32 @@ def formato_aceptacion_credito_extra_columns_ready() -> bool:
     return "prima_1_fecha" in names
 
 
+def formato_aceptacion_tipo_financiamiento_column_ready() -> bool:
+    """True si existe `tipo_financiamiento` (migración 0040)."""
+    names = _formato_column_names_lower()
+    if names is None:
+        return True
+    return "tipo_financiamiento" in names
+
+
+def formato_aceptacion_adjuntos_columns_ready() -> bool:
+    """True si existen columnas de migración 0039 (DUI, físico, boucher)."""
+    names = _formato_column_names_lower()
+    if names is None:
+        return True
+    return "dui_cliente_archivo" in names
+
+
 def formato_aceptacion_defer_missing_columns(qs):
     """Aplica defer a columnas ausentes para que listados y detalle no rompan el SELECT."""
     if not formato_aceptacion_promesa_column_ready():
         qs = qs.defer("promesa_venta_escaneada")
+    if not formato_aceptacion_compraventa_column_ready():
+        qs = qs.defer("contrato_compraventa_escaneado")
     if not formato_aceptacion_credito_extra_columns_ready():
         qs = qs.defer(*FORMATO_CREDITO_EXTRA_FIELDS)
+    if not formato_aceptacion_tipo_financiamiento_column_ready():
+        qs = qs.defer(FORMATO_TIPO_FINANCIAMIENTO_FIELD)
+    if not formato_aceptacion_adjuntos_columns_ready():
+        qs = qs.defer(*FORMATO_ADJUNTOS_FIELDS)
     return qs

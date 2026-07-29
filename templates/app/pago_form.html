@@ -1,15 +1,92 @@
 {% extends "app/object_form.html" %}
 {% block before_form %}
 <div id="pago-form-flags" data-ocultar-contrato="{% if pago_ocultar_contrato %}1{% else %}0{% endif %}" hidden></div>
-<div class="card" style="margin-bottom:1rem;max-width:42rem;border-left:4px solid #1e3a5f;">
-  <p style="margin:0 0 0.5rem;font-weight:600;">Si la cuota es $200 y abona $250</p>
-  <ol class="muted" style="margin:0;padding-left:1.2rem;font-size:0.9rem;line-height:1.45;">
-    <li>Concepto: <strong>Cuota de financiamiento</strong> (marque la cuota del mes).</li>
-    <li>Monto: <strong>$250</strong> (el total que depositó).</li>
-    <li>Gerencia valida → <strong>un solo recibo</strong> con: cuota $200 + abono a capital $50 = $250.</li>
-  </ol>
-  <p class="muted" style="margin:0.65rem 0 0;font-size:0.875rem;">
-    El $250 completo se descuenta del saldo del contrato. No registre dos pagos separados.
+{% if pago_flujo_concepto == "RESERVA" or pago_flujo_concepto == "PRIMA" or pago_flujo_concepto == "CONTADO" %}
+<div class="card" style="margin-bottom:1rem;max-width:42rem;border-left:4px solid #0f766e;background:#f0fdfa;">
+  <p style="margin:0 0 0.35rem;font-weight:700;color:#0f766e;">Voucher obligatorio</p>
+  <p class="muted" style="margin:0;font-size:0.9rem;line-height:1.45;">
+    El vendedor debe subir el <strong>voucher PDF de la transferencia</strong> bancaria
+    (o depósito). Sin ese archivo no se puede guardar este pago.
   </p>
 </div>
+{% if pago_flujo_concepto == "CONTADO" %}
+<div class="card" style="margin-bottom:1rem;max-width:42rem;border-left:4px solid #1e3a5f;">
+  <p style="margin:0 0 0.5rem;font-weight:600;">Venta de contado (pago total del lote)</p>
+  <ol class="muted" style="margin:0;padding-left:1.2rem;font-size:0.9rem;line-height:1.45;">
+    <li>Elija el <strong>formato de aceptación</strong> marcado como <strong>Contado</strong>.</li>
+    <li>El monto debe ser el <strong>valor total del lote</strong> (se sugiere desde el formato).</li>
+    <li>Gerencia valida el depósito → se genera el <strong>recibo PDF</strong> imprimible.</li>
+  </ol>
+  <p class="muted" style="margin:0.65rem 0 0;font-size:0.875rem;">
+    No use plan de pagos ni cuotas mensuales: es un solo recibo por la totalidad.
+  </p>
+</div>
+{% endif %}
+{% else %}
+<div class="card" style="margin-bottom:1rem;max-width:42rem;border-left:4px solid #1e3a5f;">
+  <p style="margin:0 0 0.5rem;font-weight:600;">Recibo a plazos: cuotas, recargo y capital</p>
+  <ol class="muted" style="margin:0;padding-left:1.2rem;font-size:0.9rem;line-height:1.45;">
+    <li>Elija el <strong>formato</strong> y marque una o varias <strong>cuotas consecutivas</strong> en la tabla.</li>
+    <li>Si ya pasaron los <strong>días de gracia</strong>, el monto incluye <strong>recargo administrativo</strong> (no reduce capital).</li>
+    <li>Si abona de más (ej. cuota $200 + recargo $0 y paga $250), los <strong>$50 van a capital</strong> en el mismo recibo.</li>
+  </ol>
+  <p class="muted" style="margin:0.65rem 0 0;font-size:0.875rem;">
+    Gerencia valida el abono y se genera un solo recibo con el desglose.
+  </p>
+</div>
+{% endif %}
+{% endblock %}
+{% block form_extras %}
+{{ block.super }}
+<style>
+  .pago-voucher-picker input[type="file"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    overflow: hidden;
+    z-index: -1;
+  }
+</style>
+<script>
+(function () {
+  var input = document.getElementById("id_voucher_transferencia");
+  var btn = document.getElementById("pago-voucher-examinar");
+  var fname = document.getElementById("pago-voucher-fname");
+  if (input) {
+    if (btn) {
+      btn.addEventListener("click", function () { input.click(); });
+    }
+    input.addEventListener("change", function () {
+      if (!fname) return;
+      fname.textContent = (input.files && input.files[0])
+        ? input.files[0].name
+        : "Ningún archivo seleccionado";
+    });
+  }
+
+  // Contado: al elegir formato, sugerir monto = valor del lote.
+  var flags = document.getElementById("pago-form-flags");
+  var concepto = "{{ pago_flujo_concepto|default:''|escapejs }}";
+  if (concepto === "CONTADO") {
+    var selFmt = document.getElementById("id_formato_aceptacion");
+    var elMonto = document.getElementById("id_monto");
+    function sugerirMontoContado() {
+      if (!selFmt || !elMonto || !selFmt.value) return;
+      var opt = selFmt.selectedOptions[0];
+      if (!opt) return;
+      var v = opt.getAttribute("data-valor-lote") || "";
+      if (!v) return;
+      var actual = String(elMonto.value || "").replace(/,/g, "").trim();
+      if (!actual || actual === "0" || actual === "0.00" || actual === "0,00") {
+        elMonto.value = v;
+      }
+    }
+    if (selFmt) {
+      selFmt.addEventListener("change", sugerirMontoContado);
+      sugerirMontoContado();
+    }
+  }
+})();
+</script>
 {% endblock %}

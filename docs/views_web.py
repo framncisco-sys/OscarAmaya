@@ -242,12 +242,15 @@ def emitir_recibo_comision(request: HttpRequest, contrato_id: int) -> HttpRespon
         form = ReciboComisionVendedorForm(request.POST, contrato=contrato)
         if form.is_valid():
             try:
+                from core.marcas import SESSION_KEY
+
                 doc = emitir_recibo_comision_vendedor(
                     contrato=contrato,
                     emitido_por=request.user,
                     monto_comision=form.cleaned_data["monto_comision"],
                     comision_porcentaje=form.cleaned_data.get("comision_porcentaje"),
                     concepto=form.cleaned_data.get("concepto") or "",
+                    marca_slug=(request.session.get(SESSION_KEY) or "").strip() or None,
                 )
             except ValueError as exc:
                 messages.error(request, str(exc))
@@ -389,8 +392,12 @@ def doc_download(request: HttpRequest, doc_id: int) -> HttpResponse:
 @login_required
 def docs_list(request: HttpRequest) -> HttpResponse:
     items = DocumentoEmitido.objects.select_related(
-        "contrato", "pago", "pago__contrato", "vendedor"
-    ).order_by("-id")
+        "contrato",
+        "pago",
+        "pago__contrato",
+        "pago__formato_aceptacion",
+        "vendedor",
+    ).prefetch_related("contrato__formatos_aceptacion").order_by("-id")
     if aplica_restriccion_contratos_por_vendedor(request.user):
         vc = vendedor_catalogo_activo_vinculado(request.user)
         allowed = filtrar_contratos_queryset_por_vendedor(Contrato.objects.all(), request.user)
@@ -398,7 +405,14 @@ def docs_list(request: HttpRequest) -> HttpResponse:
         if vc is not None:
             q_vis |= Q(vendedor_id=vc.pk, tipo=DocumentoTipo.RECIBO_COMISION_VENDEDOR)
         items = items.filter(q_vis).distinct()
-    items = items[:200]
+    items = list(items[:200])
+    for d in items:
+        fmt = getattr(getattr(d, "pago", None), "formato_aceptacion", None)
+        if fmt is None and getattr(d, "contrato_id", None):
+            relacionados = list(d.contrato.formatos_aceptacion.all())
+            if relacionados:
+                fmt = max(relacionados, key=lambda f: f.numero_formulario)
+        d.formato_relacionado = fmt
     from django.shortcuts import render
 
     return render(request, "app/docs_list.html", {"items": items})

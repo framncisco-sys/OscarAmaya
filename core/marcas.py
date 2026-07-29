@@ -89,6 +89,7 @@ RUTAS_SOLO_BIENES_RAICES: frozenset[str] = frozenset(
         "cliente_update",
         "cliente_delete",
         "cliente_reporte_pdf",
+        "cliente_estado_cuenta_pdf",
         "cliente_documento_delete",
     }
 )

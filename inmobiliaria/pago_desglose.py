@@ -1,4 +1,4 @@
-"""Desglose de un pago de cuota: parte calendario + excedente a capital."""
+"""Desglose de un pago de cuota: calendario + recargo + excedente a capital."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from inmobiliaria.models import CuotaProgramada, Pago
 class DesglosePagoRecibo:
     lineas: tuple[tuple[str, Decimal], ...]
     monto_cuotas: Decimal
+    monto_recargo: Decimal
     monto_abono_capital: Decimal
     total: Decimal
 
@@ -44,8 +45,8 @@ def cuotas_del_pago(pago: Pago) -> list[CuotaProgramada]:
 
 def desglose_para_recibo(pago: Pago) -> DesglosePagoRecibo:
     """
-    Un solo recibo: si cuota $200 y pagan $250 →
-    líneas cuota(s) + abono a capital $50 = total $250.
+    Un solo recibo: cuotas + recargo administrativo (si aplica) + abono a capital.
+    El recargo no forma parte del abono a capital.
     """
     total = Decimal(pago.monto).quantize(Decimal("0.01"))
 
@@ -53,7 +54,17 @@ def desglose_para_recibo(pago: Pago) -> DesglosePagoRecibo:
         return DesglosePagoRecibo(
             lineas=(("Abono a capital (reducción de saldo)", total),),
             monto_cuotas=Decimal("0.00"),
+            monto_recargo=Decimal("0.00"),
             monto_abono_capital=total,
+            total=total,
+        )
+
+    if pago.concepto == Pago.Concepto.MORA:
+        return DesglosePagoRecibo(
+            lineas=(("Recargo administrativo", total),),
+            monto_cuotas=Decimal("0.00"),
+            monto_recargo=total,
+            monto_abono_capital=Decimal("0.00"),
             total=total,
         )
 
@@ -61,16 +72,28 @@ def desglose_para_recibo(pago: Pago) -> DesglosePagoRecibo:
         return DesglosePagoRecibo(
             lineas=((pago.get_concepto_display(), total),),
             monto_cuotas=Decimal("0.00"),
+            monto_recargo=Decimal("0.00"),
             monto_abono_capital=Decimal("0.00"),
             total=total,
         )
 
     cuotas = cuotas_del_pago(pago)
     monto_cuotas = _suma_cuotas(cuotas) if cuotas else Decimal("0.00")
-    if monto_cuotas > total:
-        # Datos inconsistentes: no inventar capital negativo.
-        monto_cuotas = total
-    capital = (total - monto_cuotas).quantize(Decimal("0.01"))
+    monto_recargo = Decimal(pago.monto_recargo_incluido or 0).quantize(Decimal("0.01"))
+    if monto_recargo < 0:
+        monto_recargo = Decimal("0.00")
+
+    base = (monto_cuotas + monto_recargo).quantize(Decimal("0.01"))
+    if base > total:
+        # Datos inconsistentes: priorizar cuotas, luego recargo, sin capital negativo.
+        if monto_cuotas > total:
+            monto_cuotas = total
+            monto_recargo = Decimal("0.00")
+        else:
+            monto_recargo = (total - monto_cuotas).quantize(Decimal("0.01"))
+        base = total
+
+    capital = (total - base).quantize(Decimal("0.01"))
 
     lineas: list[tuple[str, Decimal]] = []
     if cuotas:
@@ -89,18 +112,31 @@ def desglose_para_recibo(pago: Pago) -> DesglosePagoRecibo:
                 (f"Cuotas de financiamiento n.º {nums}", monto_cuotas)
             )
     else:
-        lineas.append(("Cuota de financiamiento", total if capital <= 0 else monto_cuotas or total))
+        lineas.append(
+            (
+                "Cuota de financiamiento",
+                total if capital <= 0 and monto_recargo <= 0 else monto_cuotas or total,
+            )
+        )
+
+    if monto_recargo > 0:
+        lineas.append(
+            (
+                "Recargo administrativo (no reduce capital)",
+                monto_recargo,
+            )
+        )
 
     if capital > 0:
         lineas.append(("Abono a capital (reducción de saldo)", capital))
 
-    # Si no hubo cuotas detectadas, una sola línea con el total.
-    if len(lineas) == 1 and lineas[0][1] != total and capital <= 0:
+    if len(lineas) == 1 and lineas[0][1] != total and capital <= 0 and monto_recargo <= 0:
         lineas = [("Cuota de financiamiento", total)]
 
     return DesglosePagoRecibo(
         lineas=tuple(lineas),
         monto_cuotas=monto_cuotas,
+        monto_recargo=monto_recargo,
         monto_abono_capital=capital,
         total=total,
     )

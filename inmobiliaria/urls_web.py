@@ -129,6 +129,11 @@ urlpatterns = [
         name="cliente_reporte_pdf",
     ),
     path(
+        "clientes/<int:pk>/estado-cuenta.pdf",
+        views.cliente_estado_cuenta_pdf,
+        name="cliente_estado_cuenta_pdf",
+    ),
+    path(
         "clientes/documentos/<int:pk>/eliminar/",
         views.cliente_documento_delete,
         name="cliente_documento_delete",
@@ -141,14 +146,29 @@ urlpatterns = [
     path("asesores-alquiler/nuevo/", views_asesor_alquiler.AsesorAlquilerCreateView.as_view(), name="asesor_alquiler_create"),
     path("asesores-alquiler/<int:pk>/editar/", views_asesor_alquiler.AsesorAlquilerUpdateView.as_view(), name="asesor_alquiler_update"),
     path("asesores-alquiler/<int:pk>/eliminar/", views_asesor_alquiler.AsesorAlquilerDeleteView.as_view(), name="asesor_alquiler_delete"),
+    path(
+        "estado-cuenta/",
+        views.estado_cuenta_hub,
+        name="estado_cuenta_hub",
+    ),
     path("contratos/", views.ContratoListView.as_view(), name="contrato_list"),
     path("contratos/nuevo/", views.ContratoCreateView.as_view(), name="contrato_create"),
+    path(
+        "contratos/credito-cliente/<int:cliente_id>/",
+        views.contrato_credito_cliente_json,
+        name="contrato_credito_cliente_json",
+    ),
     path("contratos/<int:pk>/editar/", views.ContratoUpdateView.as_view(), name="contrato_update"),
     path("contratos/<int:pk>/eliminar/", views.ContratoDeleteView.as_view(), name="contrato_delete"),
     path(
         "contratos/<int:pk>/estado-cuenta/",
         views.contrato_estado_cuenta,
         name="contrato_estado_cuenta",
+    ),
+    path(
+        "contratos/<int:pk>/estado-cuenta.pdf",
+        views.contrato_estado_cuenta_pdf,
+        name="contrato_estado_cuenta_pdf",
     ),
     path(
         "formato-aceptacion/lista/",
@@ -189,6 +209,11 @@ urlpatterns = [
         name="formato_firma_preview",
     ),
     path(
+        "formato-aceptacion/<int:pk>/adjunto/<slug:tipo>/",
+        views.formato_aceptacion_adjunto_descargar,
+        name="formato_aceptacion_adjunto_descargar",
+    ),
+    path(
         "formato-aceptacion/<int:pk>.pdf",
         views.formato_aceptacion_pdf,
         name="formato_aceptacion_pdf",
@@ -202,6 +227,16 @@ urlpatterns = [
         "formato-aceptacion/<int:pk>/promesa/descargar/",
         views.formato_aceptacion_promesa_descargar,
         name="formato_aceptacion_promesa_descargar",
+    ),
+    path(
+        "formato-aceptacion/<int:pk>/compraventa/subir/",
+        views.formato_aceptacion_compraventa_subir,
+        name="formato_aceptacion_compraventa_subir",
+    ),
+    path(
+        "formato-aceptacion/<int:pk>/compraventa/descargar/",
+        views.formato_aceptacion_compraventa_descargar,
+        name="formato_aceptacion_compraventa_descargar",
     ),
     path("reportes/pagos.csv", views.export_pagos_csv, name="export_pagos_csv"),
     path("pagos/", views.PagoListView.as_view(), name="pago_list"),

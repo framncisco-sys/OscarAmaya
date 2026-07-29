@@ -283,7 +283,7 @@ def notificar_formato_pdf_tras_guardado(
     prev_firmas_completas: bool,
 ) -> None:
     """
-    Tras guardar el formulario: si hay tres firmas y la política lo permite, genera el PDF
+    Tras guardar el formulario: si hay documentos adjuntos y la política lo permite, genera el PDF
     y lo envía por correo y WhatsApp (Meta) como en recibos.
     """
     if not getattr(settings, "FORMATO_ACEPTACION_ENVIAR_AL_GUARDAR", True):
@@ -302,7 +302,7 @@ def notificar_formato_pdf_tras_guardado(
         logger.exception("Formato Nº %s: error al generar PDF para notificar: %s", formato.numero_formulario, e)
         messages.warning(
             request,
-            "No se pudo generar el PDF para enviar al cliente. Revise las firmas y el almacenamiento.",
+            "No se pudo generar el PDF para enviar al cliente. Revise los documentos adjuntos y el almacenamiento.",
         )
         return
 

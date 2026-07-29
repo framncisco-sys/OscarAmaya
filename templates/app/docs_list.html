@@ -4,7 +4,7 @@
 <header class="page-toolbar">
   <div class="page-toolbar__intro">
     <h1 class="page-title">Documentos</h1>
-    <p class="page-toolbar__meta">Últimos documentos emitidos (promesas, recibos y otros).</p>
+    <p class="page-toolbar__meta">Últimos documentos emitidos (recibos de reserva, prima, cuotas y otros).</p>
   </div>
 </header>
 <div class="data-panel">
@@ -12,7 +12,9 @@
   <thead>
     <tr>
       <th>Tipo</th>
+      <th>Concepto</th>
       <th>Número</th>
+      <th>Monto</th>
       <th>Emitido</th>
       <th>Relacionado</th>
       <th></th>
@@ -22,11 +24,39 @@
     {% for d in items %}
     <tr>
       <td>{{ d.get_tipo_display }}</td>
+      <td>
+        {% if d.pago %}
+          <strong>{{ d.pago.get_concepto_display }}</strong>
+          {% if d.pago.validacion_abono == 'VALIDADO' %}
+            <span class="badge badge--activo" style="margin-left:0.35rem;">Autorizado</span>
+          {% elif d.pago.validacion_abono == 'PENDIENTE' %}
+            <span class="badge" style="margin-left:0.35rem;">Pendiente</span>
+          {% endif %}
+        {% elif d.tipo == 'RECIBO_COMISION_VENDEDOR' %}
+          Comisión vendedor
+        {% elif d.tipo == 'PROMESA_VENTA' %}
+          Promesa de venta
+        {% else %}
+          —
+        {% endif %}
+      </td>
       <td><strong>{{ d.numero }}</strong></td>
+      <td class="right">
+        {% if d.pago %}
+          ${{ d.pago.monto }}
+        {% elif d.monto_comision_usd %}
+          ${{ d.monto_comision_usd }}
+        {% else %}
+          —
+        {% endif %}
+      </td>
       <td>{{ d.emitido_en }}</td>
       <td>
-        {% if d.contrato %}Contrato {{ d.contrato.numero }}{% endif %}
-        {% if d.pago %} · Pago {{ d.pago.id }}{% endif %}
+        {% if d.formato_relacionado %}
+          Formato Nº {{ d.formato_relacionado.numero_formulario|stringformat:"04d" }}{% if d.formato_relacionado.nombre_cliente %} — {{ d.formato_relacionado.nombre_cliente }}{% endif %}
+        {% elif d.contrato %}
+          Contrato {{ d.contrato.numero }}
+        {% endif %}
         {% if d.vendedor %} · Vendedor {{ d.vendedor.nombre_completo }}{% endif %}
       </td>
       <td>
@@ -38,7 +68,7 @@
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="5" class="muted">No hay documentos.</td></tr>
+    <tr><td colspan="7" class="muted">No hay documentos.</td></tr>
     {% endfor %}
   </tbody>
 </table>

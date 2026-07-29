@@ -1,5 +1,6 @@
 /**
- * Máscaras El Salvador: DUI 00000000-0, NIT 0000-000000-000-0, teléfono 0000-0000.
+ * Máscaras El Salvador solo para DUI / NIT en formato de aceptación.
+ * Teléfonos: ver static/js/pbr-tel-intl.js (toda la app).
  */
 (function () {
   "use strict";
@@ -27,19 +28,6 @@
     el.value = p.join("-");
   }
 
-  function formatPhoneSV(el) {
-    var d = digitsOnly(el.value);
-    if (d.length >= 11 && d.slice(0, 3) === "503") {
-      d = d.slice(3);
-    }
-    d = d.slice(0, 8);
-    if (d.length <= 4) {
-      el.value = d;
-    } else {
-      el.value = d.slice(0, 4) + "-" + d.slice(4, 8);
-    }
-  }
-
   function bind(el, fmt) {
     if (!el) return;
     el.addEventListener("input", function () {
@@ -53,23 +41,7 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     if (!document.getElementById("formato-aceptacion-form")) return;
-
     bind(document.getElementById("id_dui_numero"), formatDUI);
     bind(document.getElementById("id_nit_numero"), formatNIT);
-
-    var phoneIds = [
-      "id_telefono_domicilio",
-      "id_telefono_notificacion",
-      "id_telefono_trabajo",
-      "id_ref_com_tel_1",
-      "id_ref_com_tel_2",
-      "id_ref_com_tel_3",
-      "id_ref_per_tel_1",
-      "id_ref_per_tel_2",
-      "id_ref_per_tel_3",
-    ];
-    phoneIds.forEach(function (id) {
-      bind(document.getElementById(id), formatPhoneSV);
-    });
   });
 })();

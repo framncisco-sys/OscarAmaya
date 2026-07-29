@@ -18,6 +18,7 @@
       <th>Usuario</th>
       <th>Nombre</th>
       <th>Rol</th>
+      <th>Empresa</th>
       <th>App</th>
       <th>Staff</th>
       <th></th>
@@ -29,6 +30,7 @@
       <td><strong>{{ u.username }}</strong>{% if u.is_superuser %} <span class="badge badge--activo">super</span>{% endif %}</td>
       <td>{{ u.get_full_name|default:"—" }}</td>
       <td>{% if u.perfil_app %}{{ u.perfil_app.get_rol_display }}{% else %}—{% endif %}</td>
+      <td>{% if u.perfil_app %}{{ u.perfil_app.get_empresa_display }}{% else %}—{% endif %}</td>
       <td>{% if u.perfil_app %}{% if u.perfil_app.activo_en_app %}<span class="badge badge--activo">Sí</span>{% else %}<span class="badge badge--bloqueado">No</span>{% endif %}{% else %}—{% endif %}</td>
       <td>{% if u.is_staff %}<span class="badge badge--activo">Sí</span>{% else %}<span class="muted">No</span>{% endif %}</td>
       <td>
@@ -42,7 +44,7 @@
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="6" class="muted">No hay usuarios que coincidan con el criterio.</td></tr>
+    <tr><td colspan="7" class="muted">No hay usuarios que coincidan con el criterio.</td></tr>
     {% endfor %}
   </tbody>
 </table>

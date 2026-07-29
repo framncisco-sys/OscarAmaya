@@ -1,5 +1,8 @@
 {% extends "docs/_base_pdf.html" %}
 {% block pdf_body_class %} class="pdf-reporte-cliente"{% endblock %}
+{% block pdf_brand_captions %}
+{% include "docs/_pdf_brand_captions.html" with razon_social=razon_social pie_inmobiliaria="Ficha / reporte del cliente" %}
+{% endblock %}
 {% block pdf_extra_styles %}
     body.pdf-reporte-cliente { font-size: 11px; line-height: 1.45; color: #1e293b; }
     body.pdf-reporte-cliente .pdf-header { margin-bottom: 10px; padding-bottom: 8px; }

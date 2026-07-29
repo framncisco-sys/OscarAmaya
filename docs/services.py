@@ -90,6 +90,58 @@ def _razon_social_negocio_pdf() -> str:
     )
 
 
+def _marca_slug_para_pdf(
+    *,
+    user=None,
+    marca_slug: str | None = None,
+    default_slug: str | None = None,
+) -> str:
+    """
+    Empresa/marca del PDF: sesión o perfil del usuario.
+    Comisión de venta → Desarrollos; alquiler → Bienes Raíces (default_slug).
+    """
+    from core.marcas import (
+        MARCAS,
+        SLUG_BIENES_RAICES,
+        SLUG_DESARROLLOS,
+        get_marca,
+    )
+    from usuarios.models import PerfilUsuario
+
+    if marca_slug and get_marca(marca_slug):
+        return marca_slug
+    if user is not None:
+        perfil = getattr(user, "perfil_app", None)
+        if perfil is None:
+            try:
+                perfil = PerfilUsuario.objects.filter(user_id=user.pk).first()
+            except Exception:
+                perfil = None
+        if perfil is not None:
+            emp = (perfil.empresa or "").strip()
+            if emp in MARCAS:
+                return emp
+    if default_slug and default_slug in MARCAS:
+        return default_slug
+    return SLUG_DESARROLLOS if default_slug != SLUG_BIENES_RAICES else SLUG_BIENES_RAICES
+
+
+def _branding_empresa_pdf(
+    *,
+    user=None,
+    marca_slug: str | None = None,
+    default_slug: str | None = None,
+) -> tuple[str, str]:
+    """(archivo logo estático, nombre comercial) según empresa."""
+    from core.marcas import MARCAS, SLUG_DESARROLLOS
+
+    slug = _marca_slug_para_pdf(
+        user=user, marca_slug=marca_slug, default_slug=default_slug
+    )
+    marca = MARCAS.get(slug) or MARCAS[SLUG_DESARROLLOS]
+    return str(marca["logo"]), str(marca["nombre"])
+
+
 def _pdf_static_base_url() -> str:
     """Directorio de estáticos donde están los logos (cualquiera sirve como ancla)."""
     for fname in (
@@ -103,21 +155,175 @@ def _pdf_static_base_url() -> str:
     return Path(settings.BASE_DIR).as_uri() + "/"
 
 
-def _proyecto_logo_src_para_pdf(proyecto) -> str:
-    """
-    Logo del proyecto subido (ruta absoluta) o fallback estático Valle Alegre.
-    WeasyPrint/xhtml2pdf resuelven file: o nombre en STATIC.
-    """
+def _proyecto_logo_path(proyecto) -> Path | None:
+    """Ruta de archivo del logo del proyecto, o del fallback Valle Alegre."""
     if proyecto is not None:
         logo = getattr(proyecto, "logo", None)
         if logo and getattr(logo, "name", None):
             try:
                 path = Path(logo.path)
                 if path.is_file():
-                    return path.as_uri()
+                    return path
             except (ValueError, OSError):
                 pass
+    found = finders.find("logo_valle_alegre.png")
+    return Path(found) if found else None
+
+
+def _proyecto_logo_src_para_pdf(proyecto) -> str:
+    """
+    Logo del proyecto subido (ruta absoluta) o fallback estático Valle Alegre.
+    WeasyPrint/xhtml2pdf resuelven file: o nombre en STATIC.
+    """
+    path = _proyecto_logo_path(proyecto)
+    if path is not None:
+        return path.as_uri()
     return "logo_valle_alegre.png"
+
+
+def _watermark_faded_src(proyecto, *, opacity: float = 0.11) -> str:
+    """
+    Marca de agua atenuada (PNG con alfa).
+    xhtml2pdf no respeta opacity CSS ni position:fixed: sin esto el logo
+    del proyecto aparece opaco y encima del contenido.
+    """
+    src = _proyecto_logo_path(proyecto)
+    if src is None:
+        return "logo_valle_alegre.png"
+    try:
+        from PIL import Image
+
+        cache_dir = Path(tempfile.gettempdir()) / "pbr-pdf-watermark"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            mtime = src.stat().st_mtime_ns
+        except OSError:
+            mtime = 0
+        key = hashlib.sha256(
+            f"{src.resolve()}:{mtime}:{opacity}".encode("utf-8", errors="replace")
+        ).hexdigest()[:28]
+        out = cache_dir / f"wm_{key}.png"
+        if not out.is_file():
+            img = Image.open(src).convert("RGBA")
+            # Limitar tamaño para PDF (evita logos enormes en cabecera).
+            max_side = 900
+            w, h = img.size
+            if max(w, h) > max_side:
+                ratio = max_side / float(max(w, h))
+                img = img.resize(
+                    (max(1, int(w * ratio)), max(1, int(h * ratio))),
+                    Image.Resampling.LANCZOS,
+                )
+            pixels = img.getdata()
+            faded = []
+            for r, g, b, a in pixels:
+                # Fondo blanco / casi blanco → totalmente transparente
+                if r >= 248 and g >= 248 and b >= 248:
+                    faded.append((r, g, b, 0))
+                    continue
+                faded.append((r, g, b, int(a * opacity)))
+            img.putdata(faded)
+            img.save(out, format="PNG", optimize=True)
+        return out.as_uri()
+    except Exception:
+        logger.exception("No se pudo atenuar marca de agua del proyecto")
+        return src.as_uri()
+
+
+def branding_pdf_context(proyecto=None, *, empresa_default: str = "desarrollos") -> dict:
+    """
+    Logos estándar para todos los PDF (visibles, sin marca de agua):
+    - Paredes Desarrollos + logo del proyecto + Paredes Bienes Raíces
+    """
+    from core.marcas import MARCAS, SLUG_BIENES_RAICES, SLUG_DESARROLLOS
+
+    des = MARCAS[SLUG_DESARROLLOS]
+    br = MARCAS[SLUG_BIENES_RAICES]
+    empresa_logo, empresa_nombre = _branding_empresa_pdf(default_slug=empresa_default)
+    proy_logo = _proyecto_logo_src_para_pdf(proyecto)
+    return {
+        "logo_desarrollos_src": str(des["logo"]),
+        "logo_bienes_src": str(br["logo"]),
+        "empresa_logo_src": "logo_paredes_desarrollos.png",
+        "empresa_logo_alt": str(des["nombre"]),
+        "empresa_nombre": str(des["nombre"]),
+        "razon_social_desarrollos": "Paredes Desarrollos Inmobiliarios, S.A.S. de C.V.",
+        "proyecto_logo_src": proy_logo,
+        # Sombra atenuada (solo para recibo / fondo). No usar como logo de cabecera.
+        "watermark_logo_src": _watermark_faded_src(proyecto, opacity=0.12),
+        "proyecto_nombre": (proyecto.nombre if proyecto is not None else "") or "",
+        "recibo_contacto_nombre": "Karen Patricia Vásquez Merlos",
+        "formato_aceptacion_direccion": (
+            getattr(settings, "PBR_FORMATO_ACEPTACION_DIRECCION", "") or ""
+        ).strip(),
+    }
+
+
+def _fecha_espanol_larga(d) -> str:
+    if d is None:
+        return ""
+    meses = (
+        "",
+        "ENERO",
+        "FEBRERO",
+        "MARZO",
+        "ABRIL",
+        "MAYO",
+        "JUNIO",
+        "JULIO",
+        "AGOSTO",
+        "SEPTIEMBRE",
+        "OCTUBRE",
+        "NOVIEMBRE",
+        "DICIEMBRE",
+    )
+    return f"{d.day} DE {meses[d.month]} DE {d.year}"
+
+
+def _numero_recibo_corto(numero: str) -> str:
+    """Últimos dígitos del correlativo para caja 'No. 0003'."""
+    digits = "".join(c for c in str(numero or "") if c.isdigit())
+    if not digits:
+        return "0000"
+    return digits[-4:].zfill(4)
+
+
+def _saldos_recibo(pago) -> dict:
+    """Saldo anterior / recibido / nuevo saldo (capital) para pie del recibo digital."""
+    from decimal import Decimal
+
+    from django.db.models import Sum
+
+    contrato = pago.contrato
+    precio = contrato.precio_final or Decimal("0")
+    qs = contrato.pagos.exclude(pk=pago.pk)
+    # Aprox. capital pagado antes: total − mora − recargo incluido
+    bruto = qs.aggregate(t=Sum("monto"))["t"] or Decimal("0")
+    mora = (
+        qs.filter(concepto=pago.Concepto.MORA).aggregate(t=Sum("monto"))["t"]
+        or Decimal("0")
+    )
+    rec_inc = qs.aggregate(t=Sum("monto_recargo_incluido"))["t"] or Decimal("0")
+    capital_antes = (bruto - mora - rec_inc).quantize(Decimal("0.01"))
+    if capital_antes < 0:
+        capital_antes = Decimal("0.00")
+    saldo_anterior = (precio - capital_antes).quantize(Decimal("0.01"))
+    # Este pago: capital = monto − recargo incluido (si aplica)
+    rec_este = pago.monto_recargo_incluido or Decimal("0")
+    if pago.concepto == pago.Concepto.MORA:
+        capital_este = Decimal("0.00")
+    else:
+        capital_este = (pago.monto - rec_este).quantize(Decimal("0.01"))
+        if capital_este < 0:
+            capital_este = Decimal("0.00")
+    nuevo_saldo = (saldo_anterior - capital_este).quantize(Decimal("0.01"))
+    return {
+        "saldo_anterior": saldo_anterior,
+        "saldo_anterior_fmt": format_monto_sv(saldo_anterior),
+        "recibido_fmt": format_monto_sv(pago.monto),
+        "nuevo_saldo": nuevo_saldo,
+        "nuevo_saldo_fmt": format_monto_sv(nuevo_saldo),
+    }
 
 
 def _html_to_pdf_bytes_weasyprint(html: str) -> bytes:
@@ -240,20 +446,37 @@ def _contexto_recibo_ingreso(*, doc, pago) -> dict:
             aplicar_cuotas_programadas_del_pago(pago)
             pago.refresh_from_db()
 
-    proyecto = pago.contrato.inmueble.proyecto
+    contrato = pago.contrato
+    inmueble = contrato.inmueble
+    proyecto = inmueble.proyecto
     desglose = desglose_para_recibo(pago)
     lineas_fmt = [
         (etiqueta, format_monto_sv(monto))
         for etiqueta, monto in desglose.lineas
     ]
-    return {
+    poligono = ""
+    if getattr(inmueble, "poligono_id", None) and inmueble.poligono_id:
+        poligono = (inmueble.poligono.nombre or "").strip()
+    concepto_detalle = pago.get_concepto_display()
+    if lineas_fmt:
+        concepto_detalle = " / ".join(et for et, _ in lineas_fmt)
+    concepto_detalle = (
+        f"{concepto_detalle} / VALOR DEL INMUEBLE {format_monto_sv(contrato.precio_final)}"
+    )
+    vendedor = ""
+    if hasattr(contrato, "nombre_vendedor_documentos"):
+        vendedor = (contrato.nombre_vendedor_documentos() or "").strip()
+
+    ctx = {
         "doc": doc,
         "pago": pago,
-        "contrato": pago.contrato,
-        "cliente": pago.contrato.cliente,
+        "contrato": contrato,
+        "cliente": contrato.cliente,
         "proyecto": proyecto,
+        "inmueble": inmueble,
+        "poligono_nombre": poligono,
         "lugar_emision": _lugar_emision_republica(proyecto),
-        "razon_social_receptor": _razon_social_negocio_pdf(),
+        "razon_social_receptor": "Paredes Desarrollos Inmobiliarios, S.A.S. de C.V.",
         "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
         "monto_fmt": format_monto_sv(pago.monto),
         "monto_letras": monto_usd_letras_es(pago.monto),
@@ -264,8 +487,22 @@ def _contexto_recibo_ingreso(*, doc, pago) -> dict:
             if desglose.monto_abono_capital > 0
             else ""
         ),
-        "proyecto_logo_src": _proyecto_logo_src_para_pdf(proyecto),
+        "concepto_detalle": concepto_detalle,
+        "recibo_numero_corto": _numero_recibo_corto(doc.numero),
+        "fecha_emision_larga": _fecha_espanol_larga(
+            getattr(doc, "emitido_en", None).date()
+            if getattr(doc, "emitido_en", None)
+            else pago.fecha
+        ),
+        "fecha_contrato_fmt": (
+            contrato.fecha_firma.strftime("%d / %m / %Y") if contrato.fecha_firma else "—"
+        ),
+        "vendedor_nombre": vendedor,
+        "precio_inmueble_fmt": format_monto_sv(contrato.precio_final),
+        **_saldos_recibo(pago),
+        **branding_pdf_context(proyecto),
     }
+    return ctx
 
 
 def emitir_recibo_ingreso(*, pago, emitido_por=None) -> tuple[DocumentoEmitido, ReciboNotificacionInfo]:
@@ -273,6 +510,22 @@ def emitir_recibo_ingreso(*, pago, emitido_por=None) -> tuple[DocumentoEmitido, 
         raise ValueError(
             "El abono (reserva, prima, cuota o abono a capital) debe ser validado por gerencia antes de emitir el recibo."
         )
+    # Garantiza lote/polígono/proyecto para el PDF estilo RECIBO DIGITAL.
+    from inmobiliaria.models import Pago
+
+    pago = (
+        Pago.objects.select_related(
+            "contrato",
+            "contrato__cliente",
+            "contrato__inmueble",
+            "contrato__inmueble__proyecto",
+            "contrato__inmueble__poligono",
+            "contrato__vendedor_perfil",
+        )
+        .filter(pk=pago.pk)
+        .first()
+        or pago
+    )
     numero = _next_correlativo(tipo=DocumentoTipo.RECIBO_INGRESO, cfg=CorrelativoConfig())
     doc = DocumentoEmitido.objects.create(
         tipo=DocumentoTipo.RECIBO_INGRESO,
@@ -336,7 +589,7 @@ def emitir_promesa_venta(*, contrato, emitido_por=None) -> DocumentoEmitido:
             "lugar_emision": _lugar_emision_republica(contrato.inmueble.proyecto),
             "razon_social_vendedor": _razon_social_negocio_pdf(),
             "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
-            "proyecto_logo_src": _proyecto_logo_src_para_pdf(contrato.inmueble.proyecto),
+            **branding_pdf_context(contrato.inmueble.proyecto),
         },
     )
     pdf_bytes = _html_to_pdf_bytes(html)
@@ -367,9 +620,8 @@ def _contexto_recibo_comision_vendedor(
     monto,
     comision_porcentaje=None,
     concepto: str = "",
+    marca_slug: str | None = None,
 ) -> dict:
-    from decimal import Decimal
-
     nombre_v = contrato.nombre_vendedor_documentos()
     proyecto = contrato.inmueble.proyecto
     pct = comision_porcentaje
@@ -380,6 +632,7 @@ def _contexto_recibo_comision_vendedor(
         from .forms import _concepto_comision_default
 
         concepto_txt = _concepto_comision_default(contrato)
+    # Comisión de venta: ambos logos corporativos + watermark del proyecto.
     return {
         "doc": doc,
         "contrato": contrato,
@@ -397,7 +650,7 @@ def _contexto_recibo_comision_vendedor(
         "lugar_emision": _lugar_emision_republica(proyecto),
         "razon_social_emisor": _razon_social_negocio_pdf(),
         "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
-        "proyecto_logo_src": _proyecto_logo_src_para_pdf(proyecto),
+        **branding_pdf_context(proyecto),
     }
 
 
@@ -408,6 +661,7 @@ def emitir_recibo_comision_vendedor(
     monto_comision=None,
     comision_porcentaje=None,
     concepto: str = "",
+    marca_slug: str | None = None,
 ) -> DocumentoEmitido:
     """PDF de liquidación de comisión al vendedor (diseño distinto al recibo de ingreso del cliente)."""
     from decimal import Decimal
@@ -454,6 +708,7 @@ def emitir_recibo_comision_vendedor(
             monto=monto,
             comision_porcentaje=comision_porcentaje,
             concepto=concepto,
+            marca_slug=marca_slug,
         ),
     )
     pdf_bytes = _html_to_pdf_bytes(html)
@@ -516,7 +771,7 @@ def _contexto_recibo_comision_alquiler(
         "lugar_emision": _lugar_emision_republica(proyecto),
         "razon_social_emisor": _razon_social_negocio_pdf(),
         "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
-        "proyecto_logo_src": _proyecto_logo_src_para_pdf(proyecto),
+        **branding_pdf_context(proyecto, empresa_default="bienes-raices"),
     }
 
 
@@ -622,13 +877,24 @@ def regenerar_pdf_documento(doc: DocumentoEmitido) -> bytes:
                 "lugar_emision": _lugar_emision_republica(contrato.inmueble.proyecto),
                 "razon_social_vendedor": _razon_social_negocio_pdf(),
                 "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
-                "proyecto_logo_src": _proyecto_logo_src_para_pdf(contrato.inmueble.proyecto),
+                **branding_pdf_context(contrato.inmueble.proyecto),
             },
         )
         return _html_to_pdf_bytes(html)
 
     if doc.tipo == DocumentoTipo.RECIBO_COMISION_VENDEDOR:
-        contrato = doc.contrato
+        if doc.contrato_id is None:
+            raise ValueError("Este recibo no tiene contrato; no se puede regenerar el PDF.")
+        contrato = (
+            Contrato.objects.select_related(
+                "cliente",
+                "inmueble",
+                "inmueble__proyecto",
+                "vendedor_perfil",
+            )
+            .filter(pk=doc.contrato_id)
+            .first()
+        )
         if contrato is None:
             raise ValueError("Este recibo no tiene contrato; no se puede regenerar el PDF.")
         monto = _monto_comision_documento(doc, contrato)

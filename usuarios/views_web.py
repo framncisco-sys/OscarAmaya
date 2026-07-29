@@ -20,9 +20,24 @@ from core.sensitive_access import SensitiveDeleteMixin
 
 from .forms import UsuarioAppCrearForm, UsuarioAppEditarForm
 from .models import PerfilUsuario
-from .roles import puede_gestionar_usuarios
+from .roles import (
+    es_superusuario_o_admin_app,
+    puede_gestionar_usuarios,
+    slug_unica_permitida,
+)
 
 User = get_user_model()
+
+
+def _es_admin_editor(user) -> bool:
+    return es_superusuario_o_admin_app(user)
+
+
+def _forzar_empresa_editor(user) -> str | None:
+    """Gerencia solo puede crear/editar usuarios de su misma empresa."""
+    if _es_admin_editor(user):
+        return None
+    return slug_unica_permitida(user)
 
 
 class GestionUsuariosMixin(LoginRequiredMixin):
@@ -45,7 +60,7 @@ class UsuarioListView(GestionUsuariosMixin, ListView):
     paginate_by = 30
 
     def get_queryset(self):
-        return (
+        qs = (
             User.objects.filter(
                 Q(is_staff=True) | Q(is_superuser=True) | Q(perfil_app__isnull=False)
             )
@@ -53,6 +68,10 @@ class UsuarioListView(GestionUsuariosMixin, ListView):
             .select_related("perfil_app")
             .order_by("username")
         )
+        forzar = _forzar_empresa_editor(self.request.user)
+        if forzar:
+            qs = qs.filter(perfil_app__empresa=forzar).exclude(is_superuser=True)
+        return qs
 
 
 @login_required
@@ -61,11 +80,19 @@ def usuario_create(request: HttpRequest) -> HttpResponse:
         return HttpResponseForbidden("Sin permiso para crear usuarios.")
 
     mostrar_interno = request.user.is_superuser
+    es_admin = _es_admin_editor(request.user)
+    forzar = _forzar_empresa_editor(request.user)
     if request.method == "POST":
-        form = UsuarioAppCrearForm(request.POST, mostrar_acceso_interno=mostrar_interno)
+        form = UsuarioAppCrearForm(
+            request.POST,
+            mostrar_acceso_interno=mostrar_interno,
+            es_admin_editor=es_admin,
+            forzar_empresa=forzar,
+        )
         if form.is_valid():
             cd = form.cleaned_data
             activa = bool(cd.get("cuenta_activa", True))
+            empresa = forzar or cd["empresa"]
             with transaction.atomic():
                 u = User.objects.create_user(
                     username=cd["username"],
@@ -78,6 +105,7 @@ def usuario_create(request: HttpRequest) -> HttpResponse:
                 )
                 perfil, _ = PerfilUsuario.objects.get_or_create(user=u)
                 perfil.rol = cd["rol"]
+                perfil.empresa = empresa
                 perfil.telefono = cd.get("telefono") or ""
                 perfil.activo_en_app = activa
                 perfil.save()
@@ -102,7 +130,12 @@ def usuario_create(request: HttpRequest) -> HttpResponse:
                 messages.success(request, f"Usuario «{u.username}» creado.")
             return redirect("app:usuario_list")
     else:
-        form = UsuarioAppCrearForm(mostrar_acceso_interno=mostrar_interno)
+        form = UsuarioAppCrearForm(
+            mostrar_acceso_interno=mostrar_interno,
+            es_admin_editor=es_admin,
+            forzar_empresa=forzar,
+            initial={"empresa": forzar or PerfilUsuario.Empresa.DESARROLLOS},
+        )
 
     return render(
         request,
@@ -125,10 +158,19 @@ def usuario_update(request: HttpRequest, pk: int) -> HttpResponse:
     if user.is_superuser and not request.user.is_superuser:
         return HttpResponseForbidden("Solo un superusuario puede editar a otro superusuario.")
     perfil, _ = PerfilUsuario.objects.get_or_create(user=user)
+    forzar = _forzar_empresa_editor(request.user)
+    if forzar and (perfil.empresa != forzar or user.is_superuser):
+        return HttpResponseForbidden("Solo puede editar usuarios de su misma empresa.")
     mostrar_interno = request.user.is_superuser
+    es_admin = _es_admin_editor(request.user)
 
     if request.method == "POST":
-        form = UsuarioAppEditarForm(request.POST, mostrar_acceso_interno=mostrar_interno)
+        form = UsuarioAppEditarForm(
+            request.POST,
+            mostrar_acceso_interno=mostrar_interno,
+            es_admin_editor=es_admin,
+            forzar_empresa=forzar,
+        )
         if form.is_valid():
             cd = form.cleaned_data
             antes = snapshot_auth_user(user)
@@ -144,6 +186,7 @@ def usuario_update(request: HttpRequest, pk: int) -> HttpResponse:
                 user.set_password(p1)
             user.save()
             perfil.rol = cd["rol"]
+            perfil.empresa = forzar or cd["empresa"]
             perfil.telefono = cd.get("telefono") or ""
             perfil.notas = cd.get("notas") or ""
             perfil.activo_en_app = activa
@@ -170,12 +213,15 @@ def usuario_update(request: HttpRequest, pk: int) -> HttpResponse:
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "rol": perfil.rol,
+                "empresa": forzar or perfil.empresa,
                 "telefono": perfil.telefono,
                 "notas": perfil.notas,
                 "cuenta_activa": bool(user.is_active and perfil.activo_en_app),
                 "acceso_interno": user.is_staff,
             },
             mostrar_acceso_interno=mostrar_interno,
+            es_admin_editor=es_admin,
+            forzar_empresa=forzar,
         )
 
     return render(
@@ -219,6 +265,11 @@ class UsuarioDeleteView(GestionUsuariosMixin, SensitiveDeleteMixin, DeleteView):
             raise PermissionDenied(
                 "No se puede eliminar el único superusuario del sistema.",
             )
+        forzar = _forzar_empresa_editor(self.request.user)
+        if forzar:
+            perfil = getattr(user, "perfil_app", None)
+            if not perfil or perfil.empresa != forzar:
+                raise PermissionDenied("Solo puede eliminar usuarios de su misma empresa.")
         return user
 
     def get_context_data(self, **kwargs):

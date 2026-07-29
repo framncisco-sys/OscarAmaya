@@ -38,6 +38,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.formats import date_format
+from django.utils.html import format_html
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from django.views import View
@@ -82,6 +83,7 @@ from .cuotas_calendario import (
 from docs.services import generar_pdf_desde_plantilla
 
 from .formato_aceptacion_db import (
+    formato_aceptacion_compraventa_column_ready as _formato_aceptacion_compraventa_column_ready,
     formato_aceptacion_credito_extra_columns_ready,
     formato_aceptacion_defer_missing_columns,
     formato_aceptacion_promesa_column_ready as _formato_aceptacion_promesa_column_ready,
@@ -220,36 +222,88 @@ def _guardar_galeria_inmueble_tras_ficha(request: HttpRequest, inv: Inmueble) ->
 
 
 def _firma_preview_flags(formato: FormatoAceptacion | None) -> dict[str, bool]:
-    """True solo si hay archivo legible en storage (evita <img> roto en producción)."""
-    empty = {"aceptante": False, "vendedor": False, "autorizado": False}
-    if not formato or not getattr(formato, "pk", None):
-        return empty
-    out: dict[str, bool] = {}
-    for key, attr in (
-        ("aceptante", "firma_aceptante"),
-        ("vendedor", "firma_vendedor"),
-        ("autorizado", "firma_autorizado"),
-    ):
-        ff = getattr(formato, attr, None)
-        out[key] = bool(ff and ff.name and default_storage.exists(ff.name))
-    return out
+    """Compat: ya no se usan miniaturas de firma; se mantiene vacío."""
+    return {"aceptante": False, "vendedor": False, "autorizado": False}
 
 
 def _formato_firmas_ausentes_en_storage(formato: FormatoAceptacion) -> list[str]:
     """
-    Firmas con ruta en BD pero archivo inexistente en default_storage.
-    Ocurre en App Platform sin S3/volumen: el PDF y las miniaturas fallan.
+    Adjuntos con ruta en BD pero archivo inexistente en default_storage.
+    Ocurre en App Platform sin S3/volumen.
     """
     faltan: list[str] = []
     for label, attr in (
-        ("aceptante", "firma_aceptante"),
-        ("vendedor", "firma_vendedor"),
-        ("autorizado", "firma_autorizado"),
+        ("DUI del cliente", "dui_cliente_archivo"),
+        ("formato en físico", "formato_aceptacion_fisico"),
     ):
         ff = getattr(formato, attr, None)
         if ff and ff.name and not default_storage.exists(ff.name):
             faltan.append(label)
     return faltan
+
+
+def _formato_ctx_expediente_archivos(obj) -> dict:
+    """URLs de subir/descargar promesa y compraventa para plantillas de formato."""
+    out = {
+        "formato_promesa_columna_bd": False,
+        "formato_promesa_migrate_pendiente": False,
+        "formato_promesa_subir_url": None,
+        "formato_promesa_descargar_url": None,
+        "formato_compraventa_columna_bd": False,
+        "formato_compraventa_migrate_pendiente": False,
+        "formato_compraventa_subir_url": None,
+        "formato_compraventa_descargar_url": None,
+    }
+    has_pk = bool(getattr(obj, "pk", None))
+    promesa_ok = _formato_aceptacion_promesa_column_ready()
+    compra_ok = _formato_aceptacion_compraventa_column_ready()
+    out["formato_promesa_columna_bd"] = promesa_ok
+    out["formato_compraventa_columna_bd"] = compra_ok
+    out["formato_promesa_migrate_pendiente"] = bool(has_pk and not promesa_ok)
+    out["formato_compraventa_migrate_pendiente"] = bool(has_pk and not compra_ok)
+    if not has_pk:
+        return out
+    if promesa_ok:
+        out["formato_promesa_subir_url"] = reverse(
+            "app:formato_aceptacion_promesa_subir", kwargs={"pk": obj.pk}
+        )
+        f = getattr(obj, "promesa_venta_escaneada", None)
+        if f and f.name:
+            out["formato_promesa_descargar_url"] = reverse(
+                "app:formato_aceptacion_promesa_descargar", kwargs={"pk": obj.pk}
+            )
+    if compra_ok:
+        out["formato_compraventa_subir_url"] = reverse(
+            "app:formato_aceptacion_compraventa_subir", kwargs={"pk": obj.pk}
+        )
+        c = getattr(obj, "contrato_compraventa_escaneado", None)
+        if c and c.name:
+            out["formato_compraventa_descargar_url"] = reverse(
+                "app:formato_aceptacion_compraventa_descargar", kwargs={"pk": obj.pk}
+            )
+    return out
+
+
+def _formato_adjunto_urls(formato: FormatoAceptacion | None) -> dict[str, str | None]:
+    empty = {"dui": None, "fisico": None, "boucher": None}
+    if not formato or not getattr(formato, "pk", None):
+        return empty
+    mapping = (
+        ("dui", "dui_cliente_archivo", "dui"),
+        ("fisico", "formato_aceptacion_fisico", "fisico"),
+        ("boucher", "boucher_pago_reserva", "boucher"),
+    )
+    out: dict[str, str | None] = {}
+    for key, attr, slug in mapping:
+        ff = getattr(formato, attr, None)
+        if ff and ff.name:
+            out[key] = reverse(
+                "app:formato_aceptacion_adjunto_descargar",
+                kwargs={"pk": formato.pk, "tipo": slug},
+            )
+        else:
+            out[key] = None
+    return out
 
 
 def _firma_field_bytes(field_file) -> bytes | None:
@@ -292,7 +346,7 @@ def _formato_aceptacion_direccion_impreso() -> str:
     return getattr(
         settings,
         "PBR_FORMATO_ACEPTACION_DIRECCION",
-        "16 Calle Ote. Pol. C-1 #24. Col. El Molino. San Miguel. Tel. 7547-0186",
+        "16a Calle Oriente, Pol. C-1 #24, Col. El Molino, Distrito de San Miguel, San Miguel Centro, 7547-0186",
     )
 
 
@@ -330,9 +384,12 @@ def _generar_pdf_formato_aceptacion_bytes(formato: FormatoAceptacion) -> bytes:
                 "PDF formato aceptación pk=%s: no se leyeron los 3 archivos de firma.",
                 formato.pk,
             )
+        from docs.services import branding_pdf_context
+
+        proyecto = _proyecto_para_pdf_formato(formato)
         ctx = {
             "formato": formato,
-            "proyecto": _proyecto_para_pdf_formato(formato),
+            "proyecto": proyecto,
             "razon_social": getattr(
                 settings,
                 "PBR_PROMESA_RAZON_SOCIAL_VENDEDOR",
@@ -345,10 +402,8 @@ def _generar_pdf_formato_aceptacion_bytes(formato: FormatoAceptacion) -> bytes:
             "firma_autorizado_src": uri_z,
             "formato_pdf_credito_extra_bd": formato_aceptacion_credito_extra_columns_ready(),
             "formato_listado_cuotas": filas_listado_cuotas_formato_aceptacion(formato),
+            **branding_pdf_context(proyecto),
         }
-        from docs.services import _proyecto_logo_src_para_pdf
-
-        ctx["proyecto_logo_src"] = _proyecto_logo_src_para_pdf(ctx["proyecto"])
         return generar_pdf_desde_plantilla(
             template_name="docs/formato_aceptacion_pdf.html",
             context=ctx,
@@ -489,6 +544,7 @@ def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list
                 row(G("valor_inmueble")),
                 row(G("prima_1"), G("prima_1_fecha")),
                 row(G("prima_2"), G("prima_2_fecha")),
+                row(G("tipo_financiamiento")),
                 row(G("valor_financiamiento"), G("letra_mensual")),
                 row(G("plazo_txt"), G("num_cuota_txt"), G("interes_txt")),
                 row(G("fecha_primera_cuota"), G("fecha_pago_mensual")),
@@ -532,15 +588,34 @@ class AppLoginRequiredMixin(LoginRequiredMixin):
     def dispatch(self, request: HttpRequest, *args, **kwargs):
         if request.user.is_authenticated:
             from core.marcas import (
+                SESSION_KEY,
                 es_desarrollos,
                 marca_from_session,
                 ruta_solo_bienes_raices,
             )
             from inmobiliaria.vendedor_acceso import redirigir_vendedor_si_fuera_de_flujo
+            from usuarios.roles import puede_acceder_marca, slug_unica_permitida
 
             marca = marca_from_session(request)
             if marca is None:
-                return HttpResponseRedirect(reverse("elegir_marca"))
+                unica = slug_unica_permitida(request.user)
+                if unica:
+                    from core.marcas import set_marca
+
+                    set_marca(request, unica)
+                    marca = marca_from_session(request)
+                else:
+                    return HttpResponseRedirect(reverse("elegir_marca"))
+            elif not puede_acceder_marca(request.user, marca.get("slug")):
+                request.session.pop(SESSION_KEY, None)
+                unica = slug_unica_permitida(request.user)
+                if unica:
+                    from core.marcas import set_marca
+
+                    set_marca(request, unica)
+                else:
+                    return HttpResponseRedirect(reverse("elegir_marca"))
+                return HttpResponseRedirect(reverse("dashboard"))
             match = getattr(request, "resolver_match", None)
             url_name = getattr(match, "url_name", None) if match else None
             if es_desarrollos(marca) and ruta_solo_bienes_raices(url_name):
@@ -1638,10 +1713,60 @@ class ClienteUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
             ctx["documentos_cliente"] = []
             ctx["cliente_pk"] = None
         ctx["pdf_report_url"] = reverse("app:cliente_reporte_pdf", args=[self.object.pk])
+        ctx["estado_cuenta_pdf_url"] = reverse(
+            "app:cliente_estado_cuenta_pdf", args=[self.object.pk]
+        )
         from inmobiliaria.cliente_inmuebles import build_cliente_inmuebles_context
 
         ctx.update(build_cliente_inmuebles_context(self.object))
         return ctx
+
+
+@login_required
+def estado_cuenta_hub(request: HttpRequest) -> HttpResponse:
+    """Pantalla visible: elegir cliente/contrato e imprimir estado de cuenta PDF."""
+    from inmobiliaria.contratos_acceso import filtrar_contratos_queryset_por_vendedor
+
+    qs = (
+        Contrato.objects.select_related(
+            "cliente", "inmueble", "inmueble__proyecto", "vendedor_perfil"
+        )
+        .order_by("cliente__apellidos", "cliente__nombres", "-fecha_firma", "-pk")
+    )
+    qs = filtrar_contratos_queryset_por_vendedor(qs, request.user)
+    items = list(qs[:200])
+    # Clientes únicos (para PDF por cliente)
+    clientes_vistos: set[int] = set()
+    clientes_filas: list = []
+    for c in items:
+        if c.cliente_id in clientes_vistos:
+            continue
+        clientes_vistos.add(c.cliente_id)
+        n_contratos = sum(1 for x in items if x.cliente_id == c.cliente_id)
+        clientes_filas.append(
+            {
+                "cliente": c.cliente,
+                "n_contratos": n_contratos,
+                "ejemplo_proyecto": (
+                    c.inmueble.proyecto.nombre
+                    if c.inmueble_id and c.inmueble.proyecto_id
+                    else "—"
+                ),
+            }
+        )
+    return render(
+        request,
+        "app/estado_cuenta_hub.html",
+        {
+            "page_title": "Estado de cuenta",
+            "page_meta": (
+                "PDF imprimible con logo del proyecto y logo de Paredes Desarrollos Inmobiliarios. "
+                "Elija por cliente (todos sus contratos) o por un plan de pagos."
+            ),
+            "contratos": items,
+            "clientes_filas": clientes_filas,
+        },
+    )
 
 
 @login_required
@@ -1662,11 +1787,17 @@ def cliente_reporte_pdf(request: HttpRequest, pk: int) -> HttpResponse:
         documentos_reporte.append(
             {"descripcion": d.descripcion, "nombre_archivo": nom or "—", "creado_en": d.creado_en}
         )
+    from docs.services import branding_pdf_context
+
     razon = getattr(
         settings,
         "PBR_PROMESA_RAZON_SOCIAL_VENDEDOR",
         "PAREDES BIENES RAÍCES",
     )
+    proy = None
+    first = contratos.first()
+    if first is not None and first.inmueble_id:
+        proy = first.inmueble.proyecto
     pdf_bytes = generar_pdf_desde_plantilla(
         template_name="docs/reporte_cliente.html",
         context={
@@ -1675,6 +1806,8 @@ def cliente_reporte_pdf(request: HttpRequest, pk: int) -> HttpResponse:
             "documentos": documentos_reporte,
             "emitido_en": timezone.now(),
             "razon_social": razon,
+            "proyecto": proy,
+            **branding_pdf_context(proy),
         },
     )
     base_name = f"reporte_cliente_{cliente.pk}_{cliente.apellidos}_{cliente.nombres}"
@@ -1684,6 +1817,63 @@ def cliente_reporte_pdf(request: HttpRequest, pk: int) -> HttpResponse:
         pdf_bytes,
         content_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{safe}.pdf"'},
+    )
+
+
+@login_required
+def cliente_estado_cuenta_pdf(request: HttpRequest, pk: int) -> HttpResponse:
+    """PDF imprimible: estado de cuenta detallado del cliente (logos proyecto + Desarrollos)."""
+    from inmobiliaria.contratos_acceso import filtrar_contratos_queryset_por_vendedor
+    from inmobiliaria.estado_cuenta import build_estado_cuenta_cliente_context
+
+    cliente = get_object_or_404(Cliente, pk=pk)
+    base = (
+        Contrato.objects.filter(cliente=cliente)
+        .select_related("inmueble", "inmueble__proyecto", "vendedor_perfil")
+        .order_by("-fecha_firma", "-pk")
+    )
+    contratos = filtrar_contratos_queryset_por_vendedor(base, request.user)
+    ctx = build_estado_cuenta_cliente_context(cliente, contratos_qs=contratos)
+    pdf_bytes = generar_pdf_desde_plantilla(
+        template_name="docs/estado_cuenta_cliente.html",
+        context=ctx,
+    )
+    base_name = f"estado_cuenta_{cliente.pk}_{cliente.apellidos}_{cliente.nombres}"
+    safe = "".join(c if c.isalnum() or c in "._-" else "_" for c in base_name).strip("._") or "estado_cuenta"
+    safe = safe[:100]
+    return HttpResponse(
+        pdf_bytes,
+        content_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{safe}.pdf"'},
+    )
+
+
+@login_required
+def contrato_estado_cuenta_pdf(request: HttpRequest, pk: int) -> HttpResponse:
+    """PDF del estado de cuenta de un contrato (mismo formato detallado, un solo contrato)."""
+    from inmobiliaria.contratos_acceso import filtrar_contratos_queryset_por_vendedor
+    from inmobiliaria.estado_cuenta import build_estado_cuenta_cliente_context
+
+    base = Contrato.objects.select_related(
+        "cliente", "inmueble", "inmueble__proyecto", "vendedor_perfil"
+    )
+    contrato = get_object_or_404(
+        filtrar_contratos_queryset_por_vendedor(base, request.user),
+        pk=pk,
+    )
+    qs = Contrato.objects.filter(pk=contrato.pk).select_related(
+        "inmueble", "inmueble__proyecto", "vendedor_perfil"
+    )
+    ctx = build_estado_cuenta_cliente_context(contrato.cliente, contratos_qs=qs)
+    pdf_bytes = generar_pdf_desde_plantilla(
+        template_name="docs/estado_cuenta_cliente.html",
+        context=ctx,
+    )
+    safe = f"estado_cuenta_contrato_{contrato.numero}".replace("/", "-")[:100]
+    return HttpResponse(
+        pdf_bytes,
+        content_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{safe}.pdf"'},
     )
 
 
@@ -1794,12 +1984,13 @@ class ContratoListView(AppLoginRequiredMixin, ListView):
             ctx["contratos_resumen_total"] = n
             ctx["contratos_resumen_comision_suma"] = total
             ctx["contratos_resumen_comision_con_monto"] = con_m
+
         return ctx
 
 
 class ContratoCreateView(AppLoginRequiredMixin, CreateView):
     model = Contrato
-    form_class = forms.ContratoForm
+    form_class = forms.PlanPagosForm
     template_name = "app/contrato_form.html"
     success_url = reverse_lazy("app:contrato_list")
 
@@ -1824,31 +2015,79 @@ class ContratoCreateView(AppLoginRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["form_title"] = "Nuevo contrato"
+        ctx["form_title"] = "Paso 5 · Nuevo plan de pagos (desde el mes 13)"
         ctx["cancel_url"] = reverse_lazy("app:contrato_list")
-        ctx["form_inmueble_filters"] = True
-        ctx["proyectos_filtro"] = Proyecto.objects.order_by("nombre")
-        ctx["poligonos_filtro"] = Poligono.objects.select_related("proyecto").order_by(
-            "proyecto__nombre", "orden", "nombre"
-        )
-        ctx["filtro_get_proyecto"] = self.request.GET.get("proyecto") or ""
-        ctx["filtro_get_poligono"] = self.request.GET.get("poligono") or ""
+        ctx["form_inmueble_filters"] = False
         ctx["form_contrato_autocomplete_off"] = True
+        ctx["form_contrato_credito_panel"] = True
         return ctx
 
     def form_valid(self, form):
         response = super().form_valid(form)
-        messages.success(
-            self.request,
-            "Paso 2 listo: contrato guardado. Siguiente: el vendedor registra la reserva pagada "
-            f"(Pagos → Nuevo, concepto Reserva, o use el enlace del contrato #{self.object.numero}).",
+        from inmobiliaria.cuotas_calendario import aplicar_calendario_desde_formato_cliente
+
+        n = aplicar_calendario_desde_formato_cliente(
+            self.object,
+            descuento=self.object.descuento_efectivo_monto,
+            prima=form.cleaned_data.get("prima_monto"),
+            forzar=True,
         )
+        if n:
+            messages.success(
+                self.request,
+                f"Plan de pagos #{self.object.numero} guardado con {n} cuotas "
+                f"(deuda con interés desde el mes 13). Es el único plan de este tipo para el cliente.",
+            )
+        else:
+            messages.success(
+                self.request,
+                f"Plan de pagos #{self.object.numero} guardado. "
+                "Es el único plan post–mes 13 permitido para este cliente.",
+            )
         return response
 
 
-class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, UpdateView):
+@login_required
+def contrato_credito_cliente_json(request: HttpRequest, cliente_id: int) -> JsonResponse:
+    """
+    Carga el crédito a plazos del formato de aceptación del cliente y calcula
+    nueva deuda tras descuento y abonos de los meses 1–12.
+    """
+    cliente = get_object_or_404(Cliente, pk=cliente_id)
+    desc_raw = (request.GET.get("descuento") or "").strip().replace(",", "")
+    descuento = None
+    if desc_raw:
+        try:
+            descuento = Decimal(desc_raw)
+        except Exception:
+            descuento = None
+    prima_raw = (request.GET.get("prima") or "").strip().replace(",", "")
+    prima = None
+    if prima_raw:
+        try:
+            prima = Decimal(prima_raw)
+        except Exception:
+            prima = None
+    from inmobiliaria.credito_contrato import credito_plazos_para_cliente
+
+    data = credito_plazos_para_cliente(cliente, descuento=descuento, prima=prima)
+    if data.get("necesita_formato") or (not data.get("ok") and not data.get("formato_id")):
+        data["formato_nuevo_url"] = (
+            reverse("app:formato_aceptacion") + f"?cliente={cliente.pk}"
+        )
+    elif data.get("formato_id"):
+        data["formato_edit_url"] = reverse(
+            "app:formato_aceptacion_edit", kwargs={"pk": data["formato_id"]}
+        )
+    # Ayuda a preseleccionar lote en el plan
+    if data.get("ok") and data.get("num_lote"):
+        data["num_lote"] = data.get("num_lote")
+    return JsonResponse(data)
+
+
+class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
     model = Contrato
-    form_class = forms.ContratoForm
+    form_class = forms.PlanPagosForm
     template_name = "app/contrato_form.html"
     success_url = reverse_lazy("app:contrato_list")
 
@@ -1872,171 +2111,31 @@ class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditSessionMixin, Updat
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["form_title"] = "Editar contrato"
+        ctx["form_title"] = "Editar plan de pagos"
         ctx["cancel_url"] = reverse_lazy("app:contrato_list")
-        ctx["form_inmueble_filters"] = True
-        ctx["proyectos_filtro"] = Proyecto.objects.order_by("nombre")
-        ctx["poligonos_filtro"] = Poligono.objects.select_related("proyecto").order_by(
-            "proyecto__nombre", "orden", "nombre"
-        )
-        ctx["filtro_get_proyecto"] = self.request.GET.get("proyecto") or ""
-        ctx["filtro_get_poligono"] = self.request.GET.get("poligono") or ""
+        ctx["form_inmueble_filters"] = False
         ctx["form_contrato_autocomplete_off"] = True
-        if "cuotas_formset" not in ctx:
-            ctx["cuotas_formset"] = forms.CuotaProgramadaFormSet(
-                instance=self.object,
-                prefix="cuotas",
-            )
-        if "generar_cuotas_form" not in ctx:
-            gen_initial: dict = {}
-            if self.object.plan_anos:
-                gen_initial["num_cuotas"] = int(self.object.plan_anos) * 12
-            cm = self.object.cuota_mensual_estimada
-            if cm is None:
-                cm = forms._cuota_mensual_estimada(
-                    self.object.precio_final,
-                    self.object.plan_anos,
-                    self.object.tasa_interes_anual,
-                    self.object.modalidad_financiamiento or "",
-                )
-            if cm is not None:
-                gen_initial["monto_cuota"] = cm
-            fd_fmt = fecha_primera_cuota_desde_formato_contrato(self.object)
-            if fd_fmt:
-                gen_initial["fecha_primera"] = fd_fmt
-            elif getattr(self.object, "fecha_firma", None):
-                gen_initial.setdefault("fecha_primera", self.object.fecha_firma)
-            ctx["generar_cuotas_form"] = forms.GenerarCuotasCalendarioForm(
-                prefix="gen",
-                initial=gen_initial,
-            )
+        ctx["form_contrato_credito_panel"] = True
         return ctx
 
-    def _handle_generar_cuotas(self, request: HttpRequest) -> HttpResponse:
-        self.object = self.get_object()
-        post = request.POST.copy()
-        if not (post.get("gen-num_cuotas") or "").strip() and self.object.plan_anos:
-            post["gen-num_cuotas"] = str(int(self.object.plan_anos) * 12)
-        gform = forms.GenerarCuotasCalendarioForm(post, prefix="gen")
-        if not gform.is_valid():
-            form = self.get_form_class()(
-                instance=self.object,
-                **self.get_form_kwargs(),
-            )
-            formset = forms.CuotaProgramadaFormSet(
-                instance=self.object,
-                prefix="cuotas",
-            )
-            return self.render_to_response(
-                self.get_context_data(
-                    form=form,
-                    cuotas_formset=formset,
-                    generar_cuotas_form=gform,
-                )
-            )
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        from inmobiliaria.cuotas_calendario import aplicar_calendario_desde_formato_cliente
 
-        if self.object.cuotas_programadas.filter(
-            estado=CuotaProgramada.Estado.PAGADA
-        ).exists():
-            messages.error(
-                request,
-                "No se puede generar el calendario automáticamente porque ya hay cuotas pagadas. "
-                "Agregue o ajuste cuotas manualmente en la tabla.",
-            )
-            url = reverse("app:contrato_update", kwargs={"pk": self.object.pk})
-            q = request.GET.urlencode()
-            if q:
-                url = f"{url}?{q}"
-            return HttpResponseRedirect(url)
-
-        n = gform.cleaned_data["num_cuotas"]
-        fecha_primera = gform.cleaned_data["fecha_primera"]
-        monto_in = gform.cleaned_data.get("monto_cuota")
-
-        monto_efectivo = monto_in
-        if monto_efectivo is None:
-            monto_efectivo = self.object.cuota_mensual_estimada
-        if monto_efectivo is None:
-            monto_efectivo = forms._cuota_mensual_estimada(
-                self.object.precio_final,
-                self.object.plan_anos,
-                self.object.tasa_interes_anual,
-                self.object.modalidad_financiamiento or "",
-            )
-        try:
-            monto_linea = monto_uniforme_por_cuota(
-                self.object.precio_final, n, monto_efectivo
-            )
-        except (ValueError, ArithmeticError):
-            messages.error(request, "Revise precio del contrato y cantidad de cuotas.")
-            url = reverse("app:contrato_update", kwargs={"pk": self.object.pk})
-            q = request.GET.urlencode()
-            if q:
-                url = f"{url}?{q}"
-            return HttpResponseRedirect(url)
-
-        with transaction.atomic():
-            self.object.cuotas_programadas.all().delete()
-            nuevas = construir_cuotas_programadas(
-                self.object,
-                fecha_primera=fecha_primera,
-                n_cuotas=n,
-                monto_cuota=monto_linea,
-            )
-            CuotaProgramada.objects.bulk_create(nuevas)
-
-        messages.success(
-            request,
-            f"Se generaron {n} cuotas mensuales a partir del {fecha_primera.strftime('%d/%m/%Y')}.",
+        n = aplicar_calendario_desde_formato_cliente(
+            self.object,
+            descuento=self.object.descuento_efectivo_monto,
+            prima=form.cleaned_data.get("prima_monto"),
+            forzar=False,
         )
-        url = reverse("app:contrato_update", kwargs={"pk": self.object.pk})
-        q = request.GET.urlencode()
-        if q:
-            url = f"{url}?{q}"
-        return HttpResponseRedirect(url)
-
-    def post(self, request, *args, **kwargs):
-        self.object = self.get_object()
-        if request.POST.get("btn_generar_cuotas"):
-            if not check_sensitive_write(request):
-                messages.error(
-                    request,
-                    "Debe confirmar su contraseña para generar cuotas. Use «Confirmar contraseña» al pie o vuelva a confirmar acceso.",
-                )
-                url = reverse("app:contrato_update", kwargs={"pk": self.object.pk})
-                q = request.GET.urlencode()
-                if q:
-                    url = f"{url}?{q}"
-                return HttpResponseRedirect(url)
-            return self._handle_generar_cuotas(request)
-        form_class = self.get_form_class()
-        form = form_class(**self.get_form_kwargs())
-        formset = forms.CuotaProgramadaFormSet(
-            request.POST,
-            instance=self.object,
-            prefix="cuotas",
-        )
-        if form.is_valid() and formset.is_valid():
-            if not check_sensitive_write(request):
-                form.add_error(
-                    None,
-                    ValidationError(
-                        "Debe ingresar su contraseña en «Confirmar contraseña» para guardar los cambios.",
-                    ),
-                )
-                return self.render_to_response(
-                    self.get_context_data(form=form, cuotas_formset=formset)
-                )
-            with transaction.atomic():
-                self.object = form.save()
-                formset.instance = self.object
-                formset.save()
-            if not skips_sensitive_reauth(request.user):
-                grant(request)
-            return HttpResponseRedirect(self.get_success_url())
-        return self.render_to_response(
-            self.get_context_data(form=form, cuotas_formset=formset)
-        )
+        if n:
+            messages.success(
+                self.request,
+                f"Plan de pagos actualizado y calendario regenerado ({n} cuotas).",
+            )
+        else:
+            messages.success(self.request, "Plan de pagos actualizado.")
+        return response
 
 
 class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
@@ -2046,13 +2145,40 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
     form_class = forms.FormatoAceptacionForm
     template_name = "app/formato_aceptacion_form.html"
 
+    def get_initial(self):
+        initial = super().get_initial()
+        raw = self.request.GET.get("cliente")
+        if not raw:
+            return initial
+        try:
+            cid = int(raw)
+        except (TypeError, ValueError):
+            return initial
+        cli = Cliente.objects.filter(pk=cid).first()
+        if not cli:
+            return initial
+        initial["nombre_cliente"] = (
+            f"{(cli.nombres or '').strip()} {(cli.apellidos or '').strip()}".strip()
+        )
+        if cli.dui:
+            initial["dui_numero"] = cli.dui
+        if cli.telefono:
+            initial["telefono_domicilio"] = cli.telefono
+            initial["telefono_notificacion"] = cli.telefono
+        if cli.direccion:
+            initial["direccion_domicilio"] = cli.direccion
+            initial["direccion_notificacion"] = cli.direccion
+        return initial
+
     def form_valid(self, form):
         form.instance.creado_por = self.request.user
         prev_firmas = False
         response = super().form_valid(form)
         messages.success(
             self.request,
-            "Paso 1 listo: formato de aceptación guardado. Siguiente: llenar el contrato (Gestión → Flujo de venta → Contrato).",
+            "Paso 1 listo: formato de aceptación guardado. "
+            "Si es Contado → paso 2 (recibo total). "
+            "Si es a plazos → 3 reserva → 4 prima → 5 plan → 6 cuotas.",
         )
         _formato_aceptacion_tras_guardado_notificar(self.request, self.object, prev_firmas)
         return response
@@ -2073,36 +2199,13 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
         ctx["firmas_completas"] = False
         ctx["firmas_storage_perdidas"] = []
         ctx["firma_preview"] = _firma_preview_flags(getattr(self, "object", None))
+        ctx["formato_adjunto_urls"] = _formato_adjunto_urls(getattr(self, "object", None))
         ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
         ctx["proyectos_formato"] = _proyectos_para_formato_aceptacion()
         ctx["formato_catalogo_inmuebles"] = _catalogo_inmuebles_formato_aceptacion()
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
-        col_ok = _formato_aceptacion_promesa_column_ready()
-        ctx["formato_promesa_columna_bd"] = col_ok
-        ctx["formato_promesa_migrate_pendiente"] = bool(
-            getattr(self, "object", None) and self.object.pk and not col_ok
-        )
-        if getattr(self, "object", None) and self.object.pk:
-            if col_ok:
-                ctx["formato_promesa_subir_url"] = reverse(
-                    "app:formato_aceptacion_promesa_subir", kwargs={"pk": self.object.pk}
-                )
-                f = self.object.promesa_venta_escaneada
-                ctx["formato_promesa_descargar_url"] = (
-                    reverse(
-                        "app:formato_aceptacion_promesa_descargar",
-                        kwargs={"pk": self.object.pk},
-                    )
-                    if f and f.name
-                    else None
-                )
-            else:
-                ctx["formato_promesa_subir_url"] = None
-                ctx["formato_promesa_descargar_url"] = None
-        else:
-            ctx["formato_promesa_subir_url"] = None
-            ctx["formato_promesa_descargar_url"] = None
+        ctx.update(_formato_ctx_expediente_archivos(getattr(self, "object", None)))
         return ctx
 
 
@@ -2131,6 +2234,7 @@ class FormatoAceptacionListView(AppLoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["formato_promesa_lista_ok"] = _formato_aceptacion_promesa_column_ready()
+        ctx["formato_compraventa_lista_ok"] = _formato_aceptacion_compraventa_column_ready()
         ctx["formato_credito_extra_lista_ok"] = formato_aceptacion_credito_extra_columns_ready()
         return ctx
 
@@ -2184,30 +2288,13 @@ class FormatoAceptacionUpdateView(
             self.object
         )
         ctx["firma_preview"] = _firma_preview_flags(self.object)
+        ctx["formato_adjunto_urls"] = _formato_adjunto_urls(self.object)
         ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
         ctx["proyectos_formato"] = _proyectos_para_formato_aceptacion()
         ctx["formato_catalogo_inmuebles"] = _catalogo_inmuebles_formato_aceptacion()
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
-        col_ok = _formato_aceptacion_promesa_column_ready()
-        ctx["formato_promesa_columna_bd"] = col_ok
-        ctx["formato_promesa_migrate_pendiente"] = not col_ok
-        if col_ok:
-            ctx["formato_promesa_subir_url"] = reverse(
-                "app:formato_aceptacion_promesa_subir", kwargs={"pk": self.object.pk}
-            )
-            pf = self.object.promesa_venta_escaneada
-            ctx["formato_promesa_descargar_url"] = (
-                reverse(
-                    "app:formato_aceptacion_promesa_descargar",
-                    kwargs={"pk": self.object.pk},
-                )
-                if pf and pf.name
-                else None
-            )
-        else:
-            ctx["formato_promesa_subir_url"] = None
-            ctx["formato_promesa_descargar_url"] = None
+        ctx.update(_formato_ctx_expediente_archivos(self.object))
         return ctx
 
 
@@ -2239,7 +2326,7 @@ class FormatoAceptacionDeleteView(
         ctx = super().get_context_data(**kwargs)
         ctx["delete_title"] = "Eliminar formato de aceptación"
         ctx["delete_blurb"] = (
-            "Quitará este formato y sus datos. Los archivos de firma en almacenamiento pueden quedar huérfanos; "
+            "Quitará este formato y sus datos. Los archivos adjuntos en almacenamiento pueden quedar huérfanos; "
             "revise su bucket o carpeta media si aplica."
         )
         return ctx
@@ -2251,8 +2338,8 @@ def formato_aceptacion_pdf(request: HttpRequest, pk: int) -> HttpResponse:
     if not formato.firmas_completas:
         messages.error(
             request,
-            "Guarde el formulario con las tres firmas dibujadas (aceptante, vendedor y autorizado) "
-            "antes de generar el PDF.",
+            "Guarde el formulario con el DUI del cliente (PDF) y el formato de aceptación "
+            "en físico firmado (PDF) antes de generar el PDF del sistema.",
         )
         return HttpResponseRedirect(
             reverse("app:formato_aceptacion_edit", kwargs={"pk": pk})
@@ -2268,6 +2355,12 @@ _FORMATO_FIRMA_PREVIEW_ROLES = {
     "aceptante": "firma_aceptante",
     "vendedor": "firma_vendedor",
     "autorizado": "firma_autorizado",
+}
+
+_FORMATO_ADJUNTO_ROLES = {
+    "dui": "dui_cliente_archivo",
+    "fisico": "formato_aceptacion_fisico",
+    "boucher": "boucher_pago_reserva",
 }
 
 
@@ -2292,6 +2385,37 @@ def formato_firma_preview(request: HttpRequest, pk: int, tipo: str) -> HttpRespo
         raise Http404()
     content_type = mimetypes.guess_type(field.name)[0] or "image/png"
     return FileResponse(fh, content_type=content_type)
+
+
+@login_required
+@never_cache
+def formato_aceptacion_adjunto_descargar(
+    request: HttpRequest, pk: int, tipo: str
+) -> HttpResponse:
+    if tipo not in _FORMATO_ADJUNTO_ROLES:
+        raise Http404()
+    if not _formato_editar_acceso_permitido(request):
+        nxt = request.get_full_path()
+        gate = f"{reverse('app:formato_superuser_gate')}?{urlencode({'next': nxt})}"
+        return HttpResponseRedirect(gate)
+    formato = get_object_or_404(_formato_aceptacion_qs_pk(), pk=pk)
+    field = getattr(formato, _FORMATO_ADJUNTO_ROLES[tipo])
+    if not field or not field.name:
+        raise Http404()
+    if not default_storage.exists(field.name):
+        raise Http404()
+    try:
+        fh = field.open("rb")
+    except OSError:
+        raise Http404()
+    ctype = mimetypes.guess_type(field.name)[0] or "application/octet-stream"
+    base = field.name.split("/")[-1] or f"adjunto_{tipo}"
+    return FileResponse(
+        fh,
+        content_type=ctype,
+        as_attachment=True,
+        filename=base,
+    )
 
 
 @login_required
@@ -2359,6 +2483,69 @@ def formato_aceptacion_promesa_descargar(request: HttpRequest, pk: int) -> HttpR
         raise Http404()
     ctype = mimetypes.guess_type(field.name)[0] or "application/octet-stream"
     base = field.name.split("/")[-1] or "promesa_venta"
+    return FileResponse(
+        fh,
+        content_type=ctype,
+        as_attachment=True,
+        filename=base,
+    )
+
+
+@login_required
+@require_POST
+def formato_aceptacion_compraventa_subir(request: HttpRequest, pk: int) -> HttpResponse:
+    if not _formato_editar_acceso_permitido(request):
+        nxt = request.get_full_path()
+        gate = f"{reverse('app:formato_superuser_gate')}?{urlencode({'next': nxt})}"
+        return HttpResponseRedirect(gate)
+    use_list = (request.POST.get("compraventa_origen") or "").strip() == "lista"
+    redir = (
+        reverse("app:formato_aceptacion_list")
+        if use_list
+        else reverse("app:formato_aceptacion_edit", kwargs={"pk": pk})
+    )
+    if not _formato_aceptacion_compraventa_column_ready():
+        messages.error(
+            request,
+            "La base de datos aún no tiene la columna para el contrato de compraventa. "
+            "En el servidor ejecute: python manage.py migrate --noinput",
+        )
+        return HttpResponseRedirect(redir)
+    formato = get_object_or_404(_formato_aceptacion_qs_pk(), pk=pk)
+    form = forms.FormatoAceptacionCompraventaForm(request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(request, "Revise el archivo (PDF, JPG o PNG).")
+        return HttpResponseRedirect(redir)
+    formato.contrato_compraventa_escaneado = form.cleaned_data["contrato_compraventa_escaneado"]
+    formato.save(update_fields=["contrato_compraventa_escaneado", "actualizado_en"])
+    messages.success(
+        request,
+        "Contrato de compraventa guardado en el expediente del formato.",
+    )
+    return HttpResponseRedirect(redir)
+
+
+@login_required
+@never_cache
+def formato_aceptacion_compraventa_descargar(request: HttpRequest, pk: int) -> HttpResponse:
+    if not _formato_editar_acceso_permitido(request):
+        nxt = request.get_full_path()
+        gate = f"{reverse('app:formato_superuser_gate')}?{urlencode({'next': nxt})}"
+        return HttpResponseRedirect(gate)
+    if not _formato_aceptacion_compraventa_column_ready():
+        raise Http404()
+    formato = get_object_or_404(_formato_aceptacion_qs_pk(), pk=pk)
+    field = formato.contrato_compraventa_escaneado
+    if not field or not field.name:
+        raise Http404()
+    if not default_storage.exists(field.name):
+        raise Http404()
+    try:
+        fh = field.open("rb")
+    except OSError:
+        raise Http404()
+    ctype = mimetypes.guess_type(field.name)[0] or "application/octet-stream"
+    base = field.name.split("/")[-1] or "contrato_compraventa"
     return FileResponse(
         fh,
         content_type=ctype,
@@ -2452,7 +2639,18 @@ def contrato_estado_cuenta(request: HttpRequest, pk: int) -> HttpResponse:
         "monto_cuotas_por_pagar": monto_cuotas_por_pagar,
     }
 
-    total_pagado = pagos.aggregate(t=Sum("monto"))["t"] or Decimal("0")
+    total_pagado_bruto = pagos.aggregate(t=Sum("monto"))["t"] or Decimal("0")
+    total_recargos = (
+        pagos.filter(concepto=Pago.Concepto.MORA).aggregate(t=Sum("monto"))["t"]
+        or Decimal("0")
+    ) + (
+        pagos.filter(concepto=Pago.Concepto.CUOTA).aggregate(
+            t=Sum("monto_recargo_incluido")
+        )["t"]
+        or Decimal("0")
+    )
+    # El recargo administrativo no reduce el capital del contrato.
+    total_pagado = (total_pagado_bruto - total_recargos).quantize(Decimal("0.01"))
     saldo_estimado = contrato.precio_final - total_pagado
     context = {
         "contrato": contrato,
@@ -2550,6 +2748,9 @@ class PagoCreateView(AppLoginRequiredMixin, CreateView):
         kw = super().get_form_kwargs()
         kw["ocultar_contrato"] = True
         kw["user"] = self.request.user
+        concepto = (self.request.GET.get("concepto") or "").strip().upper()
+        if concepto in {c.value for c in Pago.Concepto}:
+            kw["concepto_fijo"] = concepto
         return kw
 
     def get_initial(self):
@@ -2569,17 +2770,19 @@ class PagoCreateView(AppLoginRequiredMixin, CreateView):
         ctx = super().get_context_data(**kwargs)
         concepto = (self.request.GET.get("concepto") or "").strip().upper()
         titulos = {
+            "CONTADO": "Paso 2 · Contado: recibo total del lote",
             "RESERVA": "Paso 3 · Reserva pagada (recibo)",
             "PRIMA": "Paso 4 · Prima pagada (recibo)",
-            "CUOTA": "Paso 5 · Recibo a plazos (cuota)",
+            "CUOTA": "Paso 6 · Recibo a plazos (cuota)",
         }
         ctx["form_title"] = titulos.get(concepto, "Nuevo pago / recibo")
         ctx["cancel_url"] = reverse_lazy("app:pago_list")
         ctx["pago_contrato_panel"] = True
-        ctx["pago_cuotas_checkboxes"] = True
+        ctx["pago_cuotas_checkboxes"] = concepto == "CUOTA"
         ctx["pago_ocultar_contrato"] = True
         ctx["pago_panel_debajo_formato"] = True
         ctx["pago_flujo_concepto"] = concepto
+        ctx["form_multipart"] = True
         return ctx
 
     def form_valid(self, form):
@@ -2589,12 +2792,13 @@ class PagoCreateView(AppLoginRequiredMixin, CreateView):
             messages.success(
                 self.request,
                 f"{self.object.get_concepto_display()} registrado. "
-                "Queda pendiente de validación de gerencia: no se genera recibo ni se envía "
-                "correo/WhatsApp al cliente hasta que confirmen el abono en la cuenta.",
+                "Queda pendiente de validación de gerencia/administrador: "
+                "el recibo PDF no se genera ni se puede imprimir hasta que confirmen el depósito en cuenta.",
             )
             messages.info(
                 self.request,
-                "Gerencia: Pagos → Pendientes de validación → Confirmar abono en cuenta.",
+                "Gerencia: menú → Validar abonos (gerencia) → Confirmar abono → generar recibo. "
+                "Vendedor: menú → Estado de mis recibos (verá «Imprimir / PDF» solo cuando esté validado).",
             )
         else:
             messages.success(
@@ -2677,6 +2881,40 @@ def pago_validar_abono(request: HttpRequest, pk: int) -> HttpResponse:
             request,
             f"Validación OK ({nota}). Recibo {doc.numero} generado y enviado al cliente.",
         )
+        if pago.concepto in (
+            Pago.Concepto.RESERVA,
+            Pago.Concepto.PRIMA,
+            Pago.Concepto.CONTADO,
+        ):
+            from inmobiliaria.comision_vendedor import (
+                intentar_emitir_comision_automatica,
+                requisitos_comision_venta,
+                ya_existe_recibo_comision,
+            )
+
+            doc_com = intentar_emitir_comision_automatica(
+                pago.contrato_id, emitido_por=request.user
+            )
+            if doc_com is not None:
+                url_com = reverse("app:doc_download", args=[doc_com.id])
+                messages.success(
+                    request,
+                    format_html(
+                        "Recibo de comisión al vendedor <strong>{}</strong> generado "
+                        "(reserva y prima OK, vendedor completo). "
+                        '<a href="{}">Descargar PDF</a>.',
+                        doc_com.numero,
+                        url_com,
+                    ),
+                    extra_tags="allow_html",
+                )
+            elif not ya_existe_recibo_comision(pago.contrato_id):
+                req_c = requisitos_comision_venta(pago.contrato)
+                if not req_c.puede_emitir:
+                    messages.info(
+                        request,
+                        "Comisión al vendedor aún no generada: " + " ".join(req_c.motivos),
+                    )
         return HttpResponseRedirect(reverse("app:docs_list"))
     except Exception:
         logger.exception("Error al emitir recibo tras validar pago id=%s", pago.pk)
@@ -2769,6 +3007,7 @@ class PagoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
         ctx["pago_cuotas_checkboxes"] = False
         ctx["pago_ocultar_contrato"] = False
         ctx["pago_panel_debajo_formato"] = False
+        ctx["form_multipart"] = True
         return ctx
 
 

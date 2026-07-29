@@ -1,6 +1,5 @@
 """Formularios para la interfaz web (sin admin)."""
 
-import binascii
 import json
 import re
 from datetime import date
@@ -14,12 +13,15 @@ from django.db.models import Count, Prefetch, Q, Sum
 from django.forms import BaseInlineFormSet, inlineformset_factory
 from django.urls import reverse
 
-from .phone_sv import normalizar_guardado_telefono_sv
+from .phone_sv import aplicar_attrs_telefono, limpiar_telefono_formulario
 from .validators import validar_dui_sv, validar_nit_sv
 
 from .formato_aceptacion_db import (
     FORMATO_CREDITO_EXTRA_FIELDS,
+    FORMATO_TIPO_FINANCIAMIENTO_FIELD,
+    formato_aceptacion_adjuntos_columns_ready,
     formato_aceptacion_credito_extra_columns_ready,
+    formato_aceptacion_tipo_financiamiento_column_ready,
 )
 from .models import (
     Cliente,
@@ -121,6 +123,16 @@ def _formato_sin_contrato_catalogo(f: FormatoAceptacion) -> dict[str, str]:
         "formato_num_cuota_txt": (f.num_cuota_txt or "").strip(),
         "formato_interes_txt": (f.interes_txt or "").strip(),
         "cuotas_todas_json": "[]",
+        "recargo_monto": "0",
+        "recargo_cantidad": "0",
+        "recargo_total_mes": "",
+        "recargo_nota": "",
+        "valor_lote": (
+            str(f.valor_inmueble.quantize(Decimal("0.01")))
+            if f.valor_inmueble is not None
+            else ""
+        ),
+        "tipo_financiamiento": getattr(f, "tipo_financiamiento", "") or "",
     }
 
 
@@ -411,16 +423,10 @@ class InmuebleDetalleCasaForm(forms.ModelForm):
             ac.widget.attrs.setdefault("placeholder", "ej. 3")
         td = self.fields.get("telefono_dueno")
         if td:
-            td.widget.attrs.setdefault("maxlength", "40")
-            td.widget.attrs.setdefault("placeholder", "+503 7012 3456")
-            td.widget.attrs.setdefault("inputmode", "tel")
-            td.widget.attrs.setdefault("autocomplete", "tel")
+            aplicar_attrs_telefono(td)
 
     def clean_telefono_dueno(self):
-        v = self.cleaned_data.get("telefono_dueno")
-        if not v or not str(v).strip():
-            return ""
-        return normalizar_guardado_telefono_sv(v)
+        return limpiar_telefono_formulario(self.cleaned_data.get("telefono_dueno"))
 
 
 class InmuebleDetalleLocalAlquilerForm(forms.ModelForm):
@@ -526,16 +532,10 @@ class ClienteForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         tf = self.fields.get("telefono")
         if tf:
-            tf.widget.attrs.setdefault("maxlength", "40")
-            tf.widget.attrs.setdefault("placeholder", "+503 7012 3456 (hasta 40 caracteres)")
-            tf.widget.attrs.setdefault("inputmode", "tel")
-            tf.widget.attrs.setdefault("autocomplete", "tel")
+            aplicar_attrs_telefono(tf)
 
     def clean_telefono(self):
-        v = self.cleaned_data.get("telefono")
-        if not v or not str(v).strip():
-            return ""
-        return normalizar_guardado_telefono_sv(v)
+        return limpiar_telefono_formulario(self.cleaned_data.get("telefono"))
 
 
 class VendedorForm(forms.ModelForm):
@@ -566,20 +566,15 @@ class VendedorForm(forms.ModelForm):
         self.fields["porcentaje_comision_default"].label = "Comisión de venta (%)"
         self.fields["porcentaje_comision_default"].help_text = (
             "Cuánto % le corresponde sobre el precio de venta. Se usa al asignarlo en un contrato "
-            "y al generar el recibo de comisión (después de validar reserva y prima)."
+            "y al generar el recibo de comisión (solo si el cliente ya pagó reserva y prima "
+            "validadas, y este registro está completo: DUI, teléfono y correo)."
         )
         vt = self.fields.get("telefono")
         if vt:
-            vt.widget.attrs.setdefault("maxlength", "40")
-            vt.widget.attrs.setdefault("placeholder", "+503 7012 3456 (hasta 40 caracteres)")
-            vt.widget.attrs.setdefault("inputmode", "tel")
-            vt.widget.attrs.setdefault("autocomplete", "tel")
+            aplicar_attrs_telefono(vt)
 
     def clean_telefono(self):
-        v = self.cleaned_data.get("telefono")
-        if not v or not str(v).strip():
-            return ""
-        return normalizar_guardado_telefono_sv(v)
+        return limpiar_telefono_formulario(self.cleaned_data.get("telefono"))
 
 
 class InmuebleSelect(forms.Select):
@@ -630,6 +625,8 @@ def _pago_contrato_catalog_option_attrs(c: dict) -> dict[str, str]:
         "data-recargo-cantidad": c.get("recargo_cantidad", "0"),
         "data-recargo-total-mes": c.get("recargo_total_mes", ""),
         "data-recargo-nota": c.get("recargo_nota", ""),
+        "data-valor-lote": c.get("valor_lote", ""),
+        "data-tipo-financiamiento": c.get("tipo_financiamiento", ""),
     }
 
 
@@ -707,9 +704,10 @@ class ContratoForm(forms.ModelForm):
             "Obligatorio para comisión de venta. Al elegirlo se copia su % de comisión. "
             "El recibo de comisión solo se emite cuando reserva y prima estén validadas."
         )
-        self.fields["vendedor_nombre"].help_text = (
-            "Opcional si elige vendedor del catálogo; use este campo para un nombre libre en documentos."
-        )
+        if "vendedor_nombre" in self.fields:
+            self.fields["vendedor_nombre"].help_text = (
+                "Opcional si elige vendedor del catálogo; use este campo para un nombre libre en documentos."
+            )
         # Vendedor de campo: el contrato queda siempre a su nombre en catálogo.
         if self.user is not None:
             from inmobiliaria.contratos_acceso import vendedor_catalogo_activo_vinculado
@@ -825,7 +823,21 @@ class ContratoForm(forms.ModelForm):
 
         if "modalidad_financiamiento" in self.fields:
             self.fields["modalidad_financiamiento"].help_text = (
-                "Según la negociación: tasa acordada, período sin intereses, contado u otra condición (amplíe en notas)."
+                "En a plazos desde formato: se usa «Primer año sin intereses». "
+                "Meses 1–12 = cuota del vendedor; desde el 13 = nueva deuda con interés."
+            )
+        if "descuento_efectivo_monto" in self.fields:
+            self.fields["descuento_efectivo_monto"].help_text = (
+                "Se resta del monto inicial junto con lo abonado en meses 1–12 para calcular la nueva deuda."
+            )
+        if "precio_final" in self.fields:
+            self.fields["precio_final"].help_text = (
+                "Con crédito a plazos del formato: se rellena con la nueva deuda "
+                "(inicial − descuento − abonado 1–12)."
+            )
+        if "cuota_mensual_estimada" in self.fields:
+            self.fields["cuota_mensual_estimada"].help_text = (
+                "Desde el mes 13: cuota mensual sobre la nueva deuda incluyendo intereses."
             )
 
         ff = self.fields.get("fecha_firma")
@@ -837,8 +849,8 @@ class ContratoForm(forms.ModelForm):
         for fname, label, htxt in (
             (
                 "cuota_mensual_estimada",
-                "Cuota mensual estimada",
-                "Calculada con precio final, plazo (años) y tasa anual; no aplica en «Sin financiamiento».",
+                "Cuota mensual (desde mes 13, con interés)",
+                "Calculada con la nueva deuda, cuotas restantes e interés del formato a plazos.",
             ),
             (
                 "desglose_iva_monto",
@@ -912,15 +924,235 @@ class ContratoForm(forms.ModelForm):
         js = ("js/contrato_precio_referencia.js", "js/contrato_calculos.js")
 
 
+class PlanPagosForm(ContratoForm):
+    """
+    Pantalla «Plan de pagos»: solo elige cliente; el resto (reserva, prima,
+    cuotas 1–12, nueva deuda, cuota desde mes 13) se carga del formato.
+    """
+
+    prima_monto = forms.DecimalField(
+        label="Prima",
+        required=False,
+        min_value=Decimal("0"),
+        max_digits=14,
+        decimal_places=2,
+        widget=forms.HiddenInput(),
+    )
+
+    class Meta(ContratoForm.Meta):
+        fields = [
+            "cliente",
+            "descuento_efectivo_monto",
+            "inmueble",
+            "precio_lista_referencia",
+            "precio_final",
+            "plan_anos",
+            "tasa_interes_anual",
+            "cuota_mensual_estimada",
+            "modalidad_financiamiento",
+            "meses_sin_interes",
+            "notas",
+            "vendedor_perfil",
+        ]
+
+    class Media:
+        js = ()  # el plan se carga con contrato_credito_formato.js en la plantilla
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Solo visible: cliente. Todo lo demás va al panel de crédito.
+        ocultos = (
+            "descuento_efectivo_monto",
+            "inmueble",
+            "precio_lista_referencia",
+            "precio_final",
+            "plan_anos",
+            "tasa_interes_anual",
+            "cuota_mensual_estimada",
+            "modalidad_financiamiento",
+            "meses_sin_interes",
+            "notas",
+            "vendedor_perfil",
+        )
+        for fname in ocultos:
+            if fname not in self.fields:
+                continue
+            self.fields[fname].widget = forms.HiddenInput()
+            self.fields[fname].required = False
+
+        if "cliente" in self.fields:
+            self.fields["cliente"].label = "Cliente"
+            self.fields["cliente"].help_text = (
+                "Solo después de pagar las 12 cuotas sin interés del plan base. "
+                "Se crea un único plan por cliente con la nueva deuda e interés desde el mes 13. "
+                "Al elegirlo verá el desglose; luego pulse Guardar."
+            )
+
+        self.fields["prima_monto"].required = False
+        self.order_fields(
+            [
+                "cliente",
+                "descuento_efectivo_monto",
+                "prima_monto",
+                "inmueble",
+                "precio_lista_referencia",
+                "precio_final",
+                "plan_anos",
+                "tasa_interes_anual",
+                "cuota_mensual_estimada",
+                "modalidad_financiamiento",
+                "meses_sin_interes",
+                "notas",
+                "vendedor_perfil",
+            ]
+        )
+
+        # Valores por defecto del plan a plazos
+        if not getattr(self.instance, "pk", None):
+            self.initial.setdefault(
+                "modalidad_financiamiento",
+                Contrato.ModalidadFinanciamiento.PRIMER_ANO_SIN_INTERESES,
+            )
+            self.initial.setdefault("meses_sin_interes", 12)
+
+    def clean(self):
+        # Conservar la cuota del panel (mes 13+); el padre la recalcula con otra fórmula.
+        raw_cuota = None
+        if self.is_bound:
+            raw_cuota = self.data.get("cuota_mensual_estimada")
+        cleaned = super().clean()
+        if raw_cuota not in (None, ""):
+            try:
+                from .money_fmt import normalizar_monto_a_decimal_str
+
+                cleaned["cuota_mensual_estimada"] = Decimal(
+                    normalizar_monto_a_decimal_str(str(raw_cuota))
+                )
+            except Exception:
+                try:
+                    cleaned["cuota_mensual_estimada"] = Decimal(
+                        str(raw_cuota).replace(",", "").strip()
+                    )
+                except Exception:
+                    pass
+        pf = cleaned.get("precio_final")
+        if pf is None:
+            self.add_error(
+                "cliente",
+                "Seleccione un cliente con formato a plazos para calcular la nueva deuda, "
+                "o revise que el formato tenga cuota y plazo.",
+            )
+
+        # Alta: solo tras 12 cuotas pagadas y un solo plan PP- por cliente.
+        if not getattr(self.instance, "pk", None):
+            cliente = cleaned.get("cliente")
+            if cliente is not None:
+                from inmobiliaria.credito_contrato import elegibilidad_nuevo_plan_mes13
+
+                eleg = elegibilidad_nuevo_plan_mes13(cliente)
+                if not eleg.get("puede_crear_plan_mes13"):
+                    self.add_error(
+                        "cliente",
+                        eleg.get("motivo_plan_mes13")
+                        or "No se puede crear el plan de pagos para este cliente.",
+                    )
+        return cleaned
+
+    def save(self, commit=True):
+        from datetime import date
+
+        instance = super().save(commit=False)
+        if not (instance.numero or "").strip():
+            from django.utils import timezone
+
+            stamp = timezone.localtime().strftime("%Y%m%d%H%M%S")
+            base = f"PP-{stamp}"
+            numero = base
+            n = 1
+            while Contrato.objects.filter(numero=numero).exclude(pk=instance.pk or 0).exists():
+                n += 1
+                numero = f"{base}-{n}"
+            instance.numero = numero
+        if not instance.fecha_firma:
+            instance.fecha_firma = date.today()
+        if not instance.estado:
+            instance.estado = Contrato.Estado.BORRADOR
+        if not instance.etapa_comercial:
+            instance.etapa_comercial = Contrato.EtapaComercial.CONVERSACION
+        if not instance.modalidad_financiamiento:
+            instance.modalidad_financiamiento = (
+                Contrato.ModalidadFinanciamiento.PRIMER_ANO_SIN_INTERESES
+            )
+        if instance.meses_sin_interes is None:
+            instance.meses_sin_interes = 12
+
+        # Vendedor + comisión desde «Elaborado por» del formato de aceptación.
+        if instance.cliente_id and not instance.vendedor_perfil_id:
+            from inmobiliaria.comision_vendedor import vendedor_por_nombre_elaborado
+            from inmobiliaria.credito_contrato import buscar_formato_plazos_del_cliente
+
+            fmt = buscar_formato_plazos_del_cliente(instance.cliente)
+            if fmt and (fmt.elaborado_por or "").strip():
+                vp = vendedor_por_nombre_elaborado(fmt.elaborado_por)
+                if vp is not None:
+                    instance.vendedor_perfil = vp
+                    instance.vendedor_nombre = vp.nombre_completo[:120]
+                    if vp.usuario_vinculo_id:
+                        instance.vendedor_id = vp.usuario_vinculo_id
+                    if instance.comision_porcentaje is None:
+                        instance.comision_porcentaje = vp.porcentaje_comision_default
+
+        if commit:
+            instance.save()
+        return instance
+
+
 class MontoDecimalFormField(forms.DecimalField):
-    """Acepta coma como separador decimal (p. ej. 333,82) además del punto."""
+    """
+    Montos con miles en coma y decimales en punto (22,500.00).
+    También acepta 22500.00 o formato europeo 22.500,00 al pegar.
+    """
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault(
+            "widget",
+            forms.TextInput(
+                attrs={
+                    "class": "input input-monto-us",
+                    "inputmode": "decimal",
+                    "placeholder": "0.00",
+                    "autocomplete": "off",
+                }
+            ),
+        )
+        super().__init__(*args, **kwargs)
 
     def to_python(self, value):
         if value in self.empty_values:
             return None
         if isinstance(value, str):
-            value = value.strip().replace(" ", "").replace(",", ".")
+            from .money_fmt import normalizar_monto_a_decimal_str
+
+            value = normalizar_monto_a_decimal_str(value)
         return super().to_python(value)
+
+    def prepare_value(self, value):
+        if value is None or value == "":
+            return ""
+        if isinstance(value, str):
+            # Valor crudo del POST con error de validación: dejarlo o reformatear
+            from .money_fmt import format_monto_us, normalizar_monto_a_decimal_str
+
+            try:
+                normalized = normalizar_monto_a_decimal_str(value)
+                if not normalized:
+                    return value
+                return format_monto_us(normalized)
+            except Exception:
+                return value
+        from .money_fmt import format_monto_us
+
+        return format_monto_us(value)
 
 
 class PagoForm(forms.ModelForm):
@@ -934,20 +1166,29 @@ class PagoForm(forms.ModelForm):
             "concepto",
             "fecha",
             "monto",
+            "monto_recargo_incluido",
             "referencia",
+            "voucher_transferencia",
             "notas",
             "cuotas_incluidas",
         ]
 
-    def __init__(self, *args, ocultar_contrato=False, user=None, **kwargs):
+    def __init__(self, *args, ocultar_contrato=False, user=None, concepto_fijo=None, **kwargs):
         self.ocultar_contrato = bool(ocultar_contrato)
         self._pago_user = user
+        self._concepto_fijo = (concepto_fijo or "").strip().upper() or None
         super().__init__(*args, **kwargs)
 
         ci = self.fields.get("cuotas_incluidas")
         if ci:
             ci.widget = forms.HiddenInput()
             ci.show_hidden_initial = False
+
+        mri = self.fields.get("monto_recargo_incluido")
+        if mri:
+            mri.widget = forms.HiddenInput()
+            mri.required = False
+            mri.initial = Decimal("0.00")
 
         ff = self.fields.get("fecha")
         if ff:
@@ -999,27 +1240,79 @@ class PagoForm(forms.ModelForm):
         c = self.fields.get("concepto")
         if c:
             c.label = "Concepto del recibo"
-            c.help_text = (
-                "Orden: 1) Reserva → 2) Prima → 3) Cuotas. "
-                "Si paga más que la cuota, deje concepto «Cuota de financiamiento» y el monto total: "
-                "un solo recibo con cuota + abono a capital. "
-                "«Abono a capital» solo si abona a capital sin liquidar cuota del mes."
-            )
-            # Orden comercial preferido en el desplegable.
-            orden = [
-                Pago.Concepto.RESERVA,
-                Pago.Concepto.PRIMA,
-                Pago.Concepto.CUOTA,
-                Pago.Concepto.MANTENIMIENTO,
-                Pago.Concepto.ABONO_CAPITAL,
-                Pago.Concepto.MORA,
-                Pago.Concepto.OTRO,
-            ]
-            c.choices = [(x.value, x.label) for x in orden]
+            # Si viene del flujo (Reserva / Prima / Cuota), solo ese concepto.
+            fijo = self._concepto_fijo
+            if fijo in {x.value for x in Pago.Concepto}:
+                # Etiquetas del flujo (no depender solo del modelo por caché / SW).
+                labels_flujo = {
+                    Pago.Concepto.RESERVA: "Reserva pagada (recibo)",
+                    Pago.Concepto.PRIMA: "Prima pagada (recibo)",
+                    Pago.Concepto.CONTADO: "Pago de contado (total del lote)",
+                    Pago.Concepto.CUOTA: "Cuota de financiamiento (plazos)",
+                }
+                label = labels_flujo.get(fijo) or dict(Pago.Concepto.choices).get(fijo, fijo)
+                c.choices = [(fijo, label)]
+                c.initial = fijo
+                c.disabled = True
+                c.required = False  # disabled no se envía; se fuerza en clean()
+                c.help_text = "Fijado por el paso del flujo de venta."
+            else:
+                c.help_text = (
+                    "Orden: 1) Reserva → 2) Prima → 3) Cuotas. "
+                    "Si paga más que la cuota, deje concepto «Cuota de financiamiento» y el monto total: "
+                    "un solo recibo con cuota + abono a capital. "
+                    "«Abono a capital» solo si abona a capital sin liquidar cuota del mes."
+                )
+                orden = [
+                    Pago.Concepto.RESERVA,
+                    Pago.Concepto.PRIMA,
+                    Pago.Concepto.CUOTA,
+                    Pago.Concepto.MANTENIMIENTO,
+                    Pago.Concepto.ABONO_CAPITAL,
+                    Pago.Concepto.MORA,
+                    Pago.Concepto.OTRO,
+                ]
+                c.choices = [(x.value, x.label) for x in orden]
 
         r = self.fields.get("referencia")
         if r:
             r.help_text = "Opcional: número de transferencia, depósito, cheque u otra referencia bancaria."
+
+        vch = self.fields.get("voucher_transferencia")
+        if vch:
+            vch.label = "Subir voucher PDF de la transferencia"
+            vch.help_text = (
+                "Obligatorio: el vendedor debe subir el comprobante PDF de la transferencia "
+                "o depósito bancario."
+            )
+            vch.widget = forms.ClearableFileInput(
+                attrs={
+                    "accept": ".pdf,application/pdf",
+                    "class": "input pago-voucher-file",
+                }
+            )
+            # En alta de reserva/prima se exige; en edición si ya hay archivo, no.
+            concepto_ini = self._concepto_fijo or ""
+            if not concepto_ini:
+                if self.is_bound:
+                    concepto_ini = (self.data.get("concepto") or "").strip().upper()
+                elif self.initial.get("concepto"):
+                    concepto_ini = str(self.initial.get("concepto")).strip().upper()
+                elif getattr(self.instance, "concepto", None):
+                    concepto_ini = self.instance.concepto
+            if concepto_ini in {
+                Pago.Concepto.RESERVA,
+                Pago.Concepto.PRIMA,
+                Pago.Concepto.CONTADO,
+            }:
+                tiene_archivo = bool(
+                    getattr(self.instance, "pk", None)
+                    and getattr(self.instance, "voucher_transferencia", None)
+                    and self.instance.voucher_transferencia.name
+                )
+                vch.required = not tiene_archivo
+            else:
+                vch.required = False
 
         ct = self.fields.get("contrato")
         if ct:
@@ -1116,6 +1409,9 @@ class PagoForm(forms.ModelForm):
                             in (
                                 CuotaProgramada.Estado.PENDIENTE,
                                 CuotaProgramada.Estado.VENCIDA,
+                            ),
+                            "rg": cuota_genera_recargo(
+                                x, hoy=hoy_r, dias_gracia=dias_gracia_r
                             ),
                         }
                         for x in todas
@@ -1285,6 +1581,13 @@ class PagoForm(forms.ModelForm):
                         "formato_plazo_txt": (f.plazo_txt or "").strip(),
                         "formato_num_cuota_txt": (f.num_cuota_txt or "").strip(),
                         "formato_interes_txt": (f.interes_txt or "").strip(),
+                        "valor_lote": (
+                            str(f.valor_inmueble.quantize(Decimal("0.01")))
+                            if f.valor_inmueble is not None
+                            else base.get("valor_lote", "")
+                        ),
+                        "tipo_financiamiento": getattr(f, "tipo_financiamiento", "")
+                        or "",
                     }
                 )
                 formato_catalog[str(f.pk)] = base
@@ -1310,6 +1613,9 @@ class PagoForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        # Campo disabled no llega en POST: restaurar concepto del flujo.
+        if self._concepto_fijo:
+            cleaned_data["concepto"] = self._concepto_fijo
         if self.ocultar_contrato and not getattr(self.instance, "pk", None):
             if not cleaned_data.get("formato_aceptacion"):
                 raise ValidationError(
@@ -1327,12 +1633,35 @@ class PagoForm(forms.ModelForm):
                 c_res = contrato_desde_formato_aceptacion(formato)
                 if c_res:
                     cleaned_data["contrato"] = c_res
+            # Venta de contado: crear contrato automático si aún no hay.
+            if (
+                cleaned_data.get("concepto") == Pago.Concepto.CONTADO
+                or self._concepto_fijo == Pago.Concepto.CONTADO
+            ) and not cleaned_data.get("contrato"):
+                from inmobiliaria.credito_contrato import (
+                    asegurar_contrato_contado_desde_formato,
+                )
+
+                c_contado = asegurar_contrato_contado_desde_formato(formato)
+                if c_contado:
+                    cleaned_data["contrato"] = c_contado
         if (
             self.ocultar_contrato
             and not getattr(self.instance, "pk", None)
             and cleaned_data.get("formato_aceptacion")
             and not cleaned_data.get("contrato")
         ):
+            if self._concepto_fijo == Pago.Concepto.CONTADO or cleaned_data.get(
+                "concepto"
+            ) == Pago.Concepto.CONTADO:
+                raise ValidationError(
+                    {
+                        "formato_aceptacion": (
+                            "No se pudo armar la venta de contado: revise que el formato tenga "
+                            "lote, proyecto y valor del inmueble, y que el lote exista en inventario."
+                        )
+                    }
+                )
             raise ValidationError(
                 {
                     "formato_aceptacion": (
@@ -1345,9 +1674,48 @@ class PagoForm(forms.ModelForm):
         concepto = cleaned_data.get("concepto")
         contrato = cleaned_data.get("contrato")
 
+        if concepto in {
+            Pago.Concepto.RESERVA,
+            Pago.Concepto.PRIMA,
+            Pago.Concepto.CONTADO,
+        }:
+            archivo = cleaned_data.get("voucher_transferencia")
+            existente = (
+                getattr(self.instance, "voucher_transferencia", None)
+                if getattr(self.instance, "pk", None)
+                else None
+            )
+            if not archivo and not (existente and existente.name):
+                self.add_error(
+                    "voucher_transferencia",
+                    "El vendedor debe subir el voucher PDF de la transferencia. Es obligatorio.",
+                )
+            elif archivo is not None:
+                name = (getattr(archivo, "name", "") or "").lower()
+                if name and not name.endswith(".pdf"):
+                    self.add_error(
+                        "voucher_transferencia",
+                        "El voucher debe ser un archivo PDF.",
+                    )
+
+        if concepto == Pago.Concepto.CONTADO:
+            cleaned_data["cuotas_incluidas"] = 1
+            cleaned_data["cuotas_seleccionadas"] = ""
+            cleaned_data["monto_recargo_incluido"] = Decimal("0.00")
+            # Sugerir monto = valor del lote del formato si el usuario dejó vacío o cero.
+            monto = cleaned_data.get("monto")
+            if formato and (monto is None or monto <= 0):
+                valor = formato.valor_inmueble
+                if valor is None and contrato is not None:
+                    valor = contrato.precio_final
+                if valor is not None and valor > 0:
+                    cleaned_data["monto"] = Decimal(valor).quantize(Decimal("0.01"))
+            return cleaned_data
+
         if concepto != Pago.Concepto.CUOTA:
             cleaned_data["cuotas_incluidas"] = 1
             cleaned_data["cuotas_seleccionadas"] = ""
+            cleaned_data["monto_recargo_incluido"] = Decimal("0.00")
             return cleaned_data
 
         n = max(1, min(int(cleaned_data.get("cuotas_incluidas") or 1), 200))
@@ -1369,13 +1737,24 @@ class PagoForm(forms.ModelForm):
                 esperado = sum((c.monto for c in vinculadas), Decimal("0")).quantize(
                     Decimal("0.01")
                 )
-                if monto_q is not None and monto_q < esperado:
+                recargo_exist = Decimal(
+                    getattr(self.instance, "monto_recargo_incluido", 0) or 0
+                ).quantize(Decimal("0.01"))
+                minimo = (esperado + recargo_exist).quantize(Decimal("0.01"))
+                cleaned_data["monto_recargo_incluido"] = recargo_exist
+                if monto_q is not None and monto_q < minimo:
                     nums = ", ".join(str(c.numero) for c in vinculadas)
                     raise ValidationError(
                         {
                             "monto": (
-                                f"El monto no puede ser menor a ${esperado} "
-                                f"(suma de las cuotas vinculadas: n.º {nums}). "
+                                f"El monto no puede ser menor a ${minimo} "
+                                f"(suma de las cuotas vinculadas: n.º {nums}"
+                                + (
+                                    f" + recargo ${recargo_exist}"
+                                    if recargo_exist > 0
+                                    else ""
+                                )
+                                + "). "
                                 "Si abona de más, ese excedente va a capital en el mismo recibo."
                             )
                         }
@@ -1443,15 +1822,27 @@ class PagoForm(forms.ModelForm):
                 }
             )
         esperado = sum((c.monto for c in pend), Decimal("0")).quantize(Decimal("0.01"))
-        if monto_q is not None and monto_q < esperado:
+        from inmobiliaria.recargo_administrativo import resumen_cobro_contrato
+
+        cobro = resumen_cobro_contrato(contrato, hoy=cleaned_data.get("fecha"))
+        monto_recargo = Decimal(cobro.monto_recargo or 0).quantize(Decimal("0.01"))
+        minimo = (esperado + monto_recargo).quantize(Decimal("0.01"))
+        cleaned_data["monto_recargo_incluido"] = monto_recargo
+        if monto_q is not None and monto_q < minimo:
+            detalle_recargo = (
+                f" + recargo administrativo ${monto_recargo}"
+                if monto_recargo > 0
+                else ""
+            )
             raise ValidationError(
                 {
                     "monto": (
-                        f"Para {n} cuota(s) el monto mínimo es ${esperado} "
-                        f"(cuotas n.º {pend[0].numero} al {pend[-1].numero}). "
+                        f"Para {n} cuota(s) el monto mínimo es ${minimo} "
+                        f"(cuotas n.º {pend[0].numero} al {pend[-1].numero}: ${esperado}"
+                        f"{detalle_recargo}). "
                         "Si el cliente abona de más (ej. cuota $200 y paga $250), "
                         "registre $250: el excedente sale como abono a capital en el mismo recibo "
-                        "y se descuenta del saldo."
+                        "y se descuenta del saldo. El recargo administrativo no reduce capital."
                     )
                 }
             )
@@ -1572,13 +1963,15 @@ class ParametroMoraForm(forms.ModelForm):
 _FORMATO_ACEPTACION_EXCLUDE = (
     "id",
     "contrato",
-    "numero_formulario",
     "creado_por",
     "creado_en",
     "actualizado_en",
     "firma_aceptante",
     "firma_vendedor",
     "firma_autorizado",
+    "promesa_venta_escaneada",
+    "contrato_compraventa_escaneado",
+    "boucher_pago_reserva",
 )
 _FORMATO_ACEPTACION_FIELDS = [
     f.name
@@ -1586,22 +1979,27 @@ _FORMATO_ACEPTACION_FIELDS = [
     if f.name not in _FORMATO_ACEPTACION_EXCLUDE
 ]
 
-_ANOS_PLAZO_CHOICES = [("", "— Años —")] + [(str(i), str(i)) for i in range(0, 51)]
+_FORMATO_ADJUNTOS_FIELDS = (
+    "dui_cliente_archivo",
+    "formato_aceptacion_fisico",
+)
+
+_ANOS_PLAZO_CHOICES = [("", "— Años —")] + [(str(i), str(i)) for i in range(1, 6)]
 _INTERES_PCT_CHOICES = [("", "— % —")] + [(str(i), f"{i} %") for i in range(0, 51)]
 
 
 def _formato_plazo_guardado_a_anos_select(val) -> str:
-    """Alinea valores viejos (meses o texto) al select 0–50 años."""
+    """Alinea valores viejos (meses o texto) al select 1–5 años."""
     if val is None or str(val).strip() == "":
         return ""
     s = str(val).strip()
     if s.isdigit():
         n = int(s)
-        if 0 <= n <= 50:
+        if 1 <= n <= 5:
             return str(n)
-        if n > 50 and n % 12 == 0:
+        if n > 5 and n % 12 == 0:
             y = n // 12
-            if 0 <= y <= 50:
+            if 1 <= y <= 5:
                 return str(y)
         return ""
     m = re.search(r"(\d+)", s)
@@ -1609,11 +2007,11 @@ def _formato_plazo_guardado_a_anos_select(val) -> str:
         return ""
     n = int(m.group(1))
     low = s.lower()
-    if "mes" in low or (n > 50 and n % 12 == 0):
+    if "mes" in low or (n > 5 and n % 12 == 0):
         y = n // 12
-        if 0 <= y <= 50:
+        if 1 <= y <= 5:
             return str(y)
-    if 0 <= n <= 50:
+    if 1 <= n <= 5:
         return str(n)
     return ""
 
@@ -1682,7 +2080,7 @@ def _aplicar_pistas_observaciones_financiamiento(instance: FormatoAceptacion) ->
         m_plazo = re.search(r"\bplazo\s*[:\s]*(\d{1,2})\b", obs)
     if m_plazo:
         y = int(m_plazo.group(1))
-        if 0 <= y <= 50 and not (instance.plazo_txt or "").strip():
+        if 1 <= y <= 5 and not (instance.plazo_txt or "").strip():
             instance.plazo_txt = str(y)
 
 
@@ -1707,26 +2105,28 @@ def _aplicar_elaborado_por_desde_vendedor(instance: FormatoAceptacion, user) -> 
 
 
 def _choices_elaborado_por_vendedores() -> list[tuple[str, str]]:
+    """Todos los vendedores del catálogo (activos primero) para «Elaborado por»."""
     opts: list[tuple[str, str]] = [("", "— Seleccione vendedor —")]
     seen_lower: set[str] = set()
-    for v in Vendedor.objects.filter(activo=True).order_by("apellidos", "nombres", "id"):
+    qs = Vendedor.objects.all().order_by("-activo", "apellidos", "nombres", "id")
+    for v in qs:
         n = v.nombre_completo.strip()
         if not n:
             continue
-        k = n.lower()
+        k = n.casefold()
         if k in seen_lower:
             continue
         seen_lower.add(k)
-        opts.append((n, n))
+        pct = v.porcentaje_comision_default
+        pct_txt = f"{pct:g}%" if pct is not None else "sin %"
+        estado = "" if v.activo else " · inactivo"
+        label = f"{n} — comisión {pct_txt}{estado}"
+        opts.append((n, label))
     return opts
 
 
 class FormatoAceptacionForm(forms.ModelForm):
-    """Las firmas se capturan con lienzo (PNG en base64) vía campos ocultos *_canvas."""
-
-    firma_aceptante_canvas = forms.CharField(required=False, widget=forms.HiddenInput)
-    firma_vendedor_canvas = forms.CharField(required=False, widget=forms.HiddenInput)
-    firma_autorizado_canvas = forms.CharField(required=False, widget=forms.HiddenInput)
+    """Formato de aceptación; adjuntos (DUI y formato físico) se suben como archivos."""
 
     class Meta:
         model = FormatoAceptacion
@@ -1759,88 +2159,120 @@ class FormatoAceptacionForm(forms.ModelForm):
                     "title": "NIT: 14 dígitos con formato habitual en El Salvador",
                 }
             ),
+            "dui_cliente_archivo": forms.ClearableFileInput(
+                attrs={
+                    "class": "input formato-adjunto-input",
+                    "accept": ".pdf,application/pdf",
+                }
+            ),
+            "formato_aceptacion_fisico": forms.ClearableFileInput(
+                attrs={
+                    "class": "input formato-adjunto-input",
+                    "accept": ".pdf,application/pdf",
+                }
+            ),
+            "tipo_financiamiento": forms.Select(attrs={"class": "input"}),
+            "numero_formulario": forms.NumberInput(
+                attrs={
+                    "class": "input formato-numero-input",
+                    "min": "1",
+                    "step": "1",
+                    "inputmode": "numeric",
+                    "placeholder": "Ej. 42",
+                    "required": True,
+                }
+            ),
             "telefono_domicilio": forms.TextInput(
                 attrs={
-                    "class": "input",
-                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "class": "input input--tel-intl",
+                    "placeholder": "+503 7012 3456 · +52 55 1234 5678",
                     "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
-                    "title": "Móvil El Salvador: 8 dígitos o con prefijo 503 (área país).",
+                    "title": "Cualquier país: use + y código (ej. +503, +52, +1). Sin + se asume El Salvador.",
+                    "data-tel-intl": "1",
                 }
             ),
             "telefono_notificacion": forms.TextInput(
                 attrs={
-                    "class": "input",
-                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "class": "input input--tel-intl",
+                    "placeholder": "+503 7012 3456 · +52 55 1234 5678",
                     "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
-                    "title": "Móvil El Salvador: 8 dígitos o con prefijo 503 (área país).",
+                    "title": "Cualquier país: use + y código (ej. +503, +52, +1). Sin + se asume El Salvador.",
+                    "data-tel-intl": "1",
                 }
             ),
             "telefono_trabajo": forms.TextInput(
                 attrs={
-                    "class": "input",
-                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "class": "input input--tel-intl",
+                    "placeholder": "+503 7012 3456 · +52 55 1234 5678",
                     "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
-                    "title": "Móvil El Salvador: 8 dígitos o con prefijo 503 (área país).",
+                    "title": "Cualquier país: use + y código (ej. +503, +52, +1). Sin + se asume El Salvador.",
+                    "data-tel-intl": "1",
                 }
             ),
             "ref_com_tel_1": forms.TextInput(
                 attrs={
-                    "class": "input",
-                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "class": "input input--tel-intl",
+                    "placeholder": "+503 … o +código país",
                     "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
+                    "data-tel-intl": "1",
                 }
             ),
             "ref_com_tel_2": forms.TextInput(
                 attrs={
-                    "class": "input",
-                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "class": "input input--tel-intl",
+                    "placeholder": "+503 … o +código país",
                     "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
+                    "data-tel-intl": "1",
                 }
             ),
             "ref_com_tel_3": forms.TextInput(
                 attrs={
-                    "class": "input",
-                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "class": "input input--tel-intl",
+                    "placeholder": "+503 … o +código país",
                     "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
+                    "data-tel-intl": "1",
                 }
             ),
             "ref_per_tel_1": forms.TextInput(
                 attrs={
-                    "class": "input",
-                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "class": "input input--tel-intl",
+                    "placeholder": "+503 … o +código país",
                     "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
+                    "data-tel-intl": "1",
                 }
             ),
             "ref_per_tel_2": forms.TextInput(
                 attrs={
-                    "class": "input",
-                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "class": "input input--tel-intl",
+                    "placeholder": "+503 … o +código país",
                     "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
+                    "data-tel-intl": "1",
                 }
             ),
             "ref_per_tel_3": forms.TextInput(
                 attrs={
-                    "class": "input",
-                    "placeholder": "+503 7012 3456 (hasta 40 caracteres)",
+                    "class": "input input--tel-intl",
+                    "placeholder": "+503 … o +código país",
                     "maxlength": 40,
                     "inputmode": "tel",
                     "autocomplete": "tel",
+                    "data-tel-intl": "1",
                 }
             ),
             "ben_porcentaje_1": forms.NumberInput(
@@ -1874,6 +2306,14 @@ class FormatoAceptacionForm(forms.ModelForm):
     def __init__(self, *args, user=None, **kwargs):
         self._formato_user = user
         super().__init__(*args, **kwargs)
+        num_f = self.fields.get("numero_formulario")
+        if num_f:
+            num_f.required = True
+            num_f.label = "Nº formulario"
+            num_f.help_text = (
+                "Ingrese el número impreso del formato. Debe coincidir con el del PDF físico."
+            )
+            num_f.min_value = 1
         dui_f = self.fields.get("dui_numero")
         if dui_f:
             dui_f.validators.append(validar_dui_sv)
@@ -1899,6 +2339,7 @@ class FormatoAceptacionForm(forms.ModelForm):
                 attrs={"class": "input"},
             )
             plazo_f.required = False
+            plazo_f.help_text = "Máximo 5 años. Meses 1–12 sin interés; desde el mes 13 aplica el interés."
 
         inter_f = self.fields.get("interes_txt")
         if inter_f:
@@ -1907,6 +2348,30 @@ class FormatoAceptacionForm(forms.ModelForm):
                 attrs={"class": "input"},
             )
             inter_f.required = False
+        inter_f.help_text = (
+            "Interés anual que se aplica desde el mes 13. "
+            "Los meses 1–12 van sin interés con la cuota que escribe el vendedor."
+        )
+
+        letra_f = self.fields.get("letra_mensual")
+        if letra_f:
+            letra_f.label = "Cuota meses 1–12 (sin interés)"
+            letra_f.help_text = (
+                "La escribe el vendedor. Ese monto se aplica en los meses 1–12 sin interés. "
+                "Desde el mes 13 el sistema suma el interés."
+            )
+
+        # Reserva primero, luego prima (mismos campos en BD: prima_1 / prima_2)
+        if "prima_1" in self.fields:
+            self.fields["prima_1"].label = "Reserva $"
+            self.fields["prima_1"].help_text = "Monto de la reserva al llenar el formato."
+        if "prima_1_fecha" in self.fields:
+            self.fields["prima_1_fecha"].label = "Fecha de pago de reserva"
+        if "prima_2" in self.fields:
+            self.fields["prima_2"].label = "Prima a pagar $"
+            self.fields["prima_2"].help_text = "Monto de la prima (se paga después de la reserva)."
+        if "prima_2_fecha" in self.fields:
+            self.fields["prima_2_fecha"].label = "Fecha de pago de prima"
 
         ncuota_f = self.fields.get("num_cuota_txt")
         if ncuota_f:
@@ -1918,6 +2383,45 @@ class FormatoAceptacionForm(forms.ModelForm):
                 },
             )
             ncuota_f.required = False
+            ncuota_f.help_text = "Se calcula solo: años × 12."
+
+        for fname in _FORMATO_TELEFONO_FIELDS:
+            tf = self.fields.get(fname)
+            if tf:
+                aplicar_attrs_telefono(tf)
+
+        # Montos con formato 22,500.00
+        for fname in (
+            "sueldo",
+            "valor_inmueble",
+            "prima_1",
+            "prima_2",
+            "valor_financiamiento",
+            "letra_mensual",
+        ):
+            old = self.fields.get(fname)
+            if not old:
+                continue
+            self.fields[fname] = MontoDecimalFormField(
+                label=old.label,
+                help_text=getattr(old, "help_text", "") or "",
+                max_digits=14,
+                decimal_places=2,
+                required=old.required,
+                widget=forms.TextInput(
+                    attrs={
+                        "class": "input input-monto-us",
+                        "inputmode": "decimal",
+                        "placeholder": "0.00",
+                        "autocomplete": "off",
+                    }
+                ),
+            )
+            if fname == "letra_mensual":
+                self.fields[fname].label = "Cuota meses 1–12 (sin interés)"
+                self.fields[fname].help_text = (
+                    "La escribe el vendedor. Meses 1–12 sin interés; desde el mes 13 ya va con intereses."
+                )
 
         if self.instance and getattr(self.instance, "pk", None):
             pa = _formato_plazo_guardado_a_anos_select(self.instance.plazo_txt)
@@ -1960,40 +2464,129 @@ class FormatoAceptacionForm(forms.ModelForm):
             if cur and cur not in choice_vals:
                 choices.insert(1, (cur, f"{cur} (guardado)"))
             lbl = FormatoAceptacion._meta.get_field("elaborado_por").verbose_name
+            tiene_vendedores = any(c[0] for c in choices)
             self.fields["elaborado_por"] = forms.ChoiceField(
                 label=lbl,
-                required=False,
+                required=tiene_vendedores,
                 choices=choices,
                 widget=forms.Select(attrs={"class": "input"}),
                 help_text=(
-                    "Catálogo de Vendedores (activos). Al crear el registro se sugiere el del contrato o su usuario; "
-                    "puede elegir otro de la lista."
+                    "Lista de todos los vendedores registrados (con su % de comisión). "
+                    "Elija quién elaboró el formato; ese mismo vendedor cobrará la comisión "
+                    "cuando el cliente tenga reserva y prima pagadas y validadas."
+                    if tiene_vendedores
+                    else "No hay vendedores en el catálogo. Regístrelos en Vendedores (registro) primero."
                 ),
+                error_messages={
+                    "required": "Seleccione el vendedor que elaboró este formato.",
+                },
             )
 
         if not formato_aceptacion_credito_extra_columns_ready():
             for fname in FORMATO_CREDITO_EXTRA_FIELDS:
                 self.fields.pop(fname, None)
+        if not formato_aceptacion_tipo_financiamiento_column_ready():
+            self.fields.pop(FORMATO_TIPO_FINANCIAMIENTO_FIELD, None)
+        if not formato_aceptacion_adjuntos_columns_ready():
+            for fname in _FORMATO_ADJUNTOS_FIELDS:
+                self.fields.pop(fname, None)
+
+    def clean_numero_formulario(self):
+        num = self.cleaned_data.get("numero_formulario")
+        if num is None:
+            raise ValidationError("Indique el número del formato de aceptación.")
+        try:
+            num = int(num)
+        except (TypeError, ValueError):
+            raise ValidationError("El número del formato debe ser un entero positivo.")
+        if num < 1:
+            raise ValidationError("El número del formato debe ser mayor que cero.")
+        qs = FormatoAceptacion.objects.filter(numero_formulario=num)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise ValidationError(
+                f"Ya existe un formato con el número {num:04d}. Use otro número."
+            )
+        return num
 
     def clean(self):
         cleaned = super().clean()
         plazo_raw = (cleaned.get("plazo_txt") or "").strip()
         if plazo_raw.isdigit():
             y = int(plazo_raw)
-            if 0 <= y <= 50:
+            if y < 1 or y > 5:
+                self.add_error(
+                    "plazo_txt",
+                    "El plazo a plazos debe ser entre 1 y 5 años.",
+                )
+            else:
                 cleaned["num_cuota_txt"] = str(y * 12)
         for fname in _FORMATO_TELEFONO_FIELDS:
             v = cleaned.get(fname)
             if v is not None and str(v).strip():
-                cleaned[fname] = normalizar_guardado_telefono_sv(v)
+                try:
+                    cleaned[fname] = limpiar_telefono_formulario(v)
+                except ValidationError as e:
+                    self.add_error(fname, e)
+        tipo = (cleaned.get("tipo_financiamiento") or "").strip()
+        if tipo == FormatoAceptacion.TipoFinanciamiento.CONTADO:
+            cleaned["valor_financiamiento"] = Decimal("0")
+            cleaned["letra_mensual"] = None
+            cleaned["plazo_txt"] = ""
+            cleaned["num_cuota_txt"] = ""
+            cleaned["interes_txt"] = ""
+        elif tipo == FormatoAceptacion.TipoFinanciamiento.A_PLAZOS or not tipo:
+            letra = cleaned.get("letra_mensual")
+            n_raw = (cleaned.get("num_cuota_txt") or "").strip()
+            if n_raw.isdigit() and int(n_raw) > 0 and (letra is None or letra <= 0):
+                self.add_error(
+                    "letra_mensual",
+                    "Escriba la cuota de los meses 1–12 (sin interés). El vendedor la define; "
+                    "desde el mes 13 el sistema le suma el interés.",
+                )
+
+        num = cleaned.get("numero_formulario")
+        fisico = cleaned.get("formato_aceptacion_fisico")
+        from django.core.files.uploadedfile import UploadedFile
+
+        from .formato_numero_pdf import (
+            archivo_es_pdf,
+            pdf_contiene_numero_formulario,
+        )
+
+        # Solo validar contra un PDF recién subido (o el existente si es PDF y cambió el número).
+        archivo_a_validar = None
+        if isinstance(fisico, UploadedFile):
+            if not archivo_es_pdf(fisico.name, getattr(fisico, "content_type", None)):
+                self.add_error(
+                    "formato_aceptacion_fisico",
+                    "Para validar el número del formato, suba el archivo en PDF. "
+                    "El Nº ingresado arriba debe aparecer en ese PDF.",
+                )
+            else:
+                archivo_a_validar = fisico
+        elif (
+            num is not None
+            and self.instance
+            and getattr(self.instance, "pk", None)
+            and "numero_formulario" in self.changed_data
+        ):
+            existing = getattr(self.instance, "formato_aceptacion_fisico", None)
+            if existing and existing.name and archivo_es_pdf(existing.name):
+                archivo_a_validar = existing
+
+        if num is not None and archivo_a_validar is not None:
+            ok, msg = pdf_contiene_numero_formulario(archivo_a_validar, int(num))
+            if not ok:
+                self.add_error("formato_aceptacion_fisico", msg)
+                self.add_error(
+                    "numero_formulario",
+                    "No coincide con el número del PDF del formato físico.",
+                )
         return cleaned
 
     def save(self, commit=True):
-        import base64
-        import uuid
-
-        from django.core.files.base import ContentFile
-
         instance = super().save(commit=False)
         _aplicar_elaborado_por_desde_vendedor(instance, getattr(self, "_formato_user", None))
         if formato_aceptacion_credito_extra_columns_ready():
@@ -2001,31 +2594,29 @@ class FormatoAceptacionForm(forms.ModelForm):
         plazo_sync = (instance.plazo_txt or "").strip()
         if plazo_sync.isdigit():
             y = int(plazo_sync)
-            if 0 <= y <= 50:
+            if 1 <= y <= 5:
                 instance.num_cuota_txt = str(y * 12)
+        # Detalle automático del plan a plazos (para imprimir / PDF)
+        if formato_aceptacion_credito_extra_columns_ready():
+            from .cuotas_calendario import texto_plan_financiamiento_a_plazos
 
-        def _apply_firma_desde_canvas(attr: str, canvas_key: str) -> None:
-            raw = (self.cleaned_data.get(canvas_key) or "").strip()
-            if not raw:
-                return
-            if raw.startswith("data:image") and "," in raw:
-                _, b64 = raw.split(",", 1)
-            else:
-                b64 = raw
-            try:
-                data = base64.b64decode(b64, validate=False)
-            except (ValueError, TypeError, binascii.Error):
-                return
-            # PNG estándar desde canvas (toDataURL); evita basura o payloads vacíos.
-            if len(data) < 8 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
-                return
-            name = f"{attr}_{uuid.uuid4().hex[:12]}.png"
-            getattr(instance, attr).save(name, ContentFile(data), save=False)
-
-        _apply_firma_desde_canvas("firma_aceptante", "firma_aceptante_canvas")
-        _apply_firma_desde_canvas("firma_vendedor", "firma_vendedor_canvas")
-        _apply_firma_desde_canvas("firma_autorizado", "firma_autorizado_canvas")
-
+            plan = texto_plan_financiamiento_a_plazos(instance)
+            if plan:
+                obs = (instance.observaciones_financiamiento or "").strip()
+                # Reemplaza bloque previo del sistema o lo antepone si está vacío
+                marker = "Plan a plazos"
+                if not obs:
+                    instance.observaciones_financiamiento = plan
+                elif obs.startswith(marker) or "meses 1–12 sin interés" in obs:
+                    # Conservar notas del usuario después de la 1.ª línea del plan
+                    resto = ""
+                    if "\n" in obs:
+                        resto = "\n".join(obs.splitlines()[1:]).strip()
+                    instance.observaciones_financiamiento = (
+                        plan + (f"\n{resto}" if resto else "")
+                    )
+                elif marker not in obs and "meses 1–12 sin interés" not in obs:
+                    instance.observaciones_financiamiento = f"{plan}\n{obs}"
         if commit:
             instance.save()
         return instance
@@ -2034,6 +2625,18 @@ class FormatoAceptacionForm(forms.ModelForm):
 class FormatoAceptacionPromesaForm(forms.Form):
     promesa_venta_escaneada = forms.FileField(
         label="Archivo escaneado (PDF o imagen)",
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["pdf", "png", "jpg", "jpeg"],
+                message="Use PDF, JPG o PNG.",
+            )
+        ],
+    )
+
+
+class FormatoAceptacionCompraventaForm(forms.Form):
+    contrato_compraventa_escaneado = forms.FileField(
+        label="Contrato de compraventa (PDF o imagen)",
         validators=[
             FileExtensionValidator(
                 allowed_extensions=["pdf", "png", "jpg", "jpeg"],

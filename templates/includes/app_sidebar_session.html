@@ -43,10 +43,12 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
         Dashboard
       </a>
+      {% if puede_cambiar_empresa %}
       <a href="{% url 'elegir_marca' %}" class="app-sidebar__session-btn app-sidebar__session-btn--ghost" title="Cambiar de empresa">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
         Cambiar empresa
       </a>
+      {% endif %}
       {% else %}
       <a href="{% url 'app:index' %}" class="app-sidebar__session-btn app-sidebar__session-btn--ghost" title="Inicio del flujo de venta">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9l9-7 9 7"/><path d="M9 22V12h6v10"/></svg>

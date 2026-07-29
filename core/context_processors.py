@@ -55,7 +55,10 @@ def sidebar_context(request):
             marca_sesion and marca_sesion.get("muestra_gestion") and not vend_restringido
         ),
         "es_vendedor_restringido": vend_restringido,
-        "sidebar_nav": build_sidebar_nav(url_name),
+        "sidebar_nav": build_sidebar_nav(
+            url_name,
+            pago_concepto=(request.GET.get("concepto") or "").strip(),
+        ),
         "sidebar_stats": build_sidebar_stats(
             user=request.user,
             contratos_restringidos=restriccion,

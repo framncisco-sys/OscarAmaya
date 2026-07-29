@@ -1,9 +1,9 @@
-{# Proyecto (izq.) + inmobiliaria (der.) — recibo y promesa #}
+{# Pie de cabecera bajo los dos logos corporativos: proyecto (izq.) + inmobiliaria (der.) #}
 <table class="pdf-brand-captions{% if brand_variant %} {{ brand_variant }}{% endif %}">
   <tr>
     <td class="pdf-brand-cell pdf-brand-cell--proyecto">
       <p class="pdf-brand-kicker">Proyecto</p>
-      <p class="pdf-brand-name">{{ proyecto.nombre|title }}</p>
+      <p class="pdf-brand-name">{% firstof proyecto.nombre proyecto_nombre "—" %}</p>
       {% if proyecto.direccion or proyecto.municipio or proyecto.departamento %}
       <p class="pdf-brand-meta">
         {% if proyecto.direccion %}{{ proyecto.direccion }}{% endif %}
@@ -14,7 +14,7 @@
     </td>
     <td class="pdf-brand-cell pdf-brand-cell--inmobiliaria">
       <p class="pdf-brand-kicker">Inmobiliaria</p>
-      <p class="pdf-brand-name">{{ razon_social }}</p>
+      <p class="pdf-brand-name">{% firstof razon_social empresa_nombre "Paredes Desarrollos Inmobiliarios" %}</p>
       {% if emisor_nit %}<p class="pdf-brand-meta"><strong>NIT</strong> {{ emisor_nit }}</p>{% endif %}
       {% if pie_inmobiliaria %}<p class="pdf-brand-meta">{{ pie_inmobiliaria }}</p>{% endif %}
     </td>

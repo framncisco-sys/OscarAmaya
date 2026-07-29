@@ -10,6 +10,7 @@ _CLIENTE = frozenset(
         "cliente_delete",
         "cliente_reporte_pdf",
         "cliente_documento_delete",
+        "cliente_estado_cuenta_pdf",
     }
 )
 
@@ -113,6 +114,9 @@ _CARTERA = frozenset(
         "contrato_update",
         "contrato_delete",
         "contrato_estado_cuenta",
+        "contrato_estado_cuenta_pdf",
+        "estado_cuenta_hub",
+        "contrato_credito_cliente_json",
         "pago_list",
         "pago_create",
         "pago_update",
@@ -135,6 +139,7 @@ _DOCS = frozenset(
         "formato_aceptacion_pdf",
         "formato_aceptacion_delete",
         "formato_firma_preview",
+        "formato_aceptacion_adjunto_descargar",
         "formato_superuser_gate",
         "formato_aceptacion_promesa_subir",
         "formato_aceptacion_promesa_descargar",
@@ -160,9 +165,11 @@ _ADMIN = frozenset(
 _GESTION = frozenset({"index"}) | _PROYECTOS | _CARTERA | _DOCS | _ADMIN
 
 
-def build_sidebar_nav(url_name: str | None) -> dict:
+def build_sidebar_nav(url_name: str | None, *, pago_concepto: str | None = None) -> dict:
     u = url_name or ""
+    concepto = (pago_concepto or "").strip().upper()
     in_set = lambda names: u in names  # noqa: E731
+    pago_create = u == "pago_create"
     return {
         "u": u,
         "clientes_active": in_set(_CLIENTE),
@@ -193,6 +200,7 @@ def build_sidebar_nav(url_name: str | None) -> dict:
             "cliente_delete",
             "cliente_reporte_pdf",
             "cliente_documento_delete",
+            "cliente_estado_cuenta_pdf",
         },
         "cliente_create_active": u == "cliente_create",
         "gestion_active": in_set(_GESTION),
@@ -213,8 +221,22 @@ def build_sidebar_nav(url_name: str | None) -> dict:
             "contrato_update",
             "contrato_delete",
             "contrato_estado_cuenta",
+            "contrato_estado_cuenta_pdf",
+            "estado_cuenta_hub",
+            "contrato_credito_cliente_json",
+        },
+        "estado_cuenta_active": u
+        in {
+            "estado_cuenta_hub",
+            "cliente_estado_cuenta_pdf",
+            "contrato_estado_cuenta_pdf",
+            "contrato_estado_cuenta",
         },
         "pago_active": u in {"pago_list", "pago_create", "pago_update", "export_pagos_csv"},
+        "pago_reserva_active": pago_create and concepto == "RESERVA",
+        "pago_prima_active": pago_create and concepto == "PRIMA",
+        "pago_contado_active": pago_create and concepto == "CONTADO",
+        "pago_cuota_active": pago_create and concepto == "CUOTA",
         "aviso_cobro_active": u == "aviso_cobro_list",
         "mora_active": u
         in {

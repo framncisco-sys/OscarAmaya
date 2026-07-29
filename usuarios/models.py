@@ -17,6 +17,11 @@ class PerfilUsuario(models.Model):
         MARKETING = "MARKETING", "Marketing / CRM"
         LECTURA = "LECTURA", "Solo consulta"
 
+    class Empresa(models.TextChoices):
+        AMBAS = "ambas", "Ambas empresas (solo administrador)"
+        BIENES_RAICES = "bienes-raices", "Paredes Bienes Raíces"
+        DESARROLLOS = "desarrollos", "Paredes Desarrollos Inmobiliarios"
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -29,6 +34,18 @@ class PerfilUsuario(models.Model):
         default=Rol.LECTURA,
         db_index=True,
         verbose_name="rol",
+    )
+    empresa = models.CharField(
+        max_length=32,
+        choices=Empresa.choices,
+        default=Empresa.AMBAS,
+        db_index=True,
+        verbose_name="empresa",
+        help_text=(
+            "Define a qué sistema puede entrar. "
+            "Solo administradores pueden tener «Ambas». "
+            "Gerencia y el resto quedan limitados a la empresa asignada."
+        ),
     )
     telefono = models.CharField(max_length=40, blank=True, verbose_name="teléfono")
     activo_en_app = models.BooleanField(
@@ -46,4 +63,4 @@ class PerfilUsuario(models.Model):
         ordering = ["user__username"]
 
     def __str__(self) -> str:
-        return f"{self.user.get_username()} ({self.get_rol_display()})"
+        return f"{self.user.get_username()} ({self.get_rol_display()} · {self.get_empresa_display()})"

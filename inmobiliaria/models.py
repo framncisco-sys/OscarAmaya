@@ -952,6 +952,10 @@ class Contrato(models.Model):
         CIERRE = "CIERRE", "Cierre / venta"
 
     class PlanAnos(models.IntegerChoices):
+        ANOS_1 = 1, "1 año"
+        ANOS_2 = 2, "2 años"
+        ANOS_3 = 3, "3 años"
+        ANOS_4 = 4, "4 años"
         ANOS_5 = 5, "5 años"
         ANOS_10 = 10, "10 años"
         ANOS_15 = 15, "15 años"
@@ -1145,7 +1149,8 @@ class Pago(models.Model):
 
     class Concepto(models.TextChoices):
         RESERVA = "RESERVA", "Reserva pagada"
-        PRIMA = "PRIMA", "Prima / enganche"
+        PRIMA = "PRIMA", "Prima pagada (recibo)"
+        CONTADO = "CONTADO", "Pago de contado (total del lote)"
         CUOTA = "CUOTA", "Cuota de financiamiento (plazos)"
         MANTENIMIENTO = "MANTENIMIENTO", "Cuota de mantenimiento"
         ABONO_CAPITAL = "ABONO_CAPITAL", "Abono a capital"
@@ -1162,6 +1167,7 @@ class Pago(models.Model):
         {
             Concepto.RESERVA,
             Concepto.PRIMA,
+            Concepto.CONTADO,
             Concepto.CUOTA,
             Concepto.ABONO_CAPITAL,
         }
@@ -1188,7 +1194,25 @@ class Pago(models.Model):
         decimal_places=2,
         validators=[MinValueValidator(Decimal("0.01"))],
     )
+    monto_recargo_incluido = models.DecimalField(
+        "Recargo administrativo incluido",
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text=(
+            "Parte del monto total que corresponde a recargo administrativo "
+            "(días de gracia vencidos). No reduce el capital del contrato."
+        ),
+    )
     referencia = models.CharField(max_length=120, blank=True)
+    voucher_transferencia = models.FileField(
+        "Voucher de transferencia (PDF)",
+        upload_to="pagos/vouchers/%Y/%m/",
+        blank=True,
+        null=True,
+        help_text="Comprobante PDF (o imagen) de la transferencia/depósito bancario.",
+    )
     notas = models.TextField(blank=True)
     cuotas_incluidas = models.PositiveSmallIntegerField(
         default=1,
@@ -1336,6 +1360,10 @@ class FormatoAceptacion(models.Model):
     El vínculo con contrato es opcional: el formulario puede usarse solo con los campos del modelo.
     """
 
+    class TipoFinanciamiento(models.TextChoices):
+        A_PLAZOS = "A_PLAZOS", "Con Financiamiento (A Plazos)"
+        CONTADO = "CONTADO", "Contado"
+
     contrato = models.ForeignKey(
         Contrato,
         on_delete=models.SET_NULL,
@@ -1347,8 +1375,8 @@ class FormatoAceptacion(models.Model):
     numero_formulario = models.PositiveIntegerField(
         "Nº formulario",
         unique=True,
-        editable=False,
         db_index=True,
+        help_text="Número del formato impreso. Debe coincidir con el del PDF físico que se suba.",
     )
 
     nombre_cliente = models.CharField("Nombre del cliente", max_length=200)
@@ -1410,15 +1438,51 @@ class FormatoAceptacion(models.Model):
     valor_inmueble = models.DecimalField(
         "Valor del inmueble", max_digits=14, decimal_places=2, null=True, blank=True
     )
-    prima_1 = models.DecimalField("Prima 1 $", max_digits=14, decimal_places=2, null=True, blank=True)
-    prima_1_fecha = models.DateField("Fecha prima 1", null=True, blank=True)
-    prima_2 = models.DecimalField("Prima 2 $", max_digits=14, decimal_places=2, null=True, blank=True)
-    prima_2_fecha = models.DateField("Fecha prima 2", null=True, blank=True)
+    prima_1 = models.DecimalField(
+        "Reserva $",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Monto de la reserva (se paga al llenar el formato).",
+    )
+    prima_1_fecha = models.DateField(
+        "Fecha de pago de reserva",
+        null=True,
+        blank=True,
+    )
+    prima_2 = models.DecimalField(
+        "Prima a pagar $",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Monto de la prima / enganche (se paga después de la reserva).",
+    )
+    prima_2_fecha = models.DateField(
+        "Fecha de pago de prima",
+        null=True,
+        blank=True,
+    )
+    tipo_financiamiento = models.CharField(
+        "Tipo de financiamiento",
+        max_length=20,
+        choices=TipoFinanciamiento.choices,
+        default=TipoFinanciamiento.A_PLAZOS,
+        blank=True,
+        db_index=True,
+        help_text="Con financiamiento a plazos o pago de contado.",
+    )
     valor_financiamiento = models.DecimalField(
         "Valor del financiamiento", max_digits=14, decimal_places=2, null=True, blank=True
     )
     letra_mensual = models.DecimalField(
-        "Letra mensual", max_digits=14, decimal_places=2, null=True, blank=True
+        "Cuota meses 1–12 (sin interés)",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="La escribe el vendedor. Meses 1–12 sin interés; desde el mes 13 ya va con intereses.",
     )
     plazo_txt = models.CharField("Plazo", max_length=80, blank=True)
     num_cuota_txt = models.CharField("No. cuota", max_length=40, blank=True)
@@ -1471,10 +1535,55 @@ class FormatoAceptacion(models.Model):
         upload_to="formatos_aceptacion/firmas/%Y/%m/",
         blank=True,
     )
+    dui_cliente_archivo = models.FileField(
+        "DUI del cliente (frente y reverso)",
+        upload_to="formatos_aceptacion/dui/%Y/%m/",
+        blank=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["pdf"],
+                message="El DUI debe ser un archivo PDF.",
+            )
+        ],
+    )
+    formato_aceptacion_fisico = models.FileField(
+        "Formato de aceptación en físico",
+        upload_to="formatos_aceptacion/fisico/%Y/%m/",
+        blank=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["pdf"],
+                message="Use PDF del formato físico (para validar el número).",
+            )
+        ],
+    )
+    boucher_pago_reserva = models.FileField(
+        "Voucher de Reserva",
+        upload_to="formatos_aceptacion/vouchers/%Y/%m/",
+        blank=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["pdf", "jpg", "jpeg", "png"],
+                message="Use PDF, JPG o PNG.",
+            )
+        ],
+    )
     promesa_venta_escaneada = models.FileField(
         "Promesa de venta escaneada",
         upload_to="formatos_aceptacion/promesas/%Y/%m/",
         blank=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["pdf", "png", "jpg", "jpeg"],
+                message="Use PDF, JPG o PNG.",
+            )
+        ],
+    )
+    contrato_compraventa_escaneado = models.FileField(
+        "Contrato de compraventa (PDF)",
+        upload_to="formatos_aceptacion/compraventa/%Y/%m/",
+        blank=True,
+        help_text="Escritura o contrato de compraventa firmado; forma parte del expediente del formato.",
         validators=[
             FileExtensionValidator(
                 allowed_extensions=["pdf", "png", "jpg", "jpeg"],
@@ -1512,19 +1621,24 @@ class FormatoAceptacion(models.Model):
 
     @property
     def firmas_completas(self) -> bool:
-        """True si las tres firmas están guardadas (requisito para PDF)."""
-        for attr in ("firma_aceptante", "firma_vendedor", "firma_autorizado"):
+        """True si DUI y formato físico están guardados (requisito para PDF)."""
+        from inmobiliaria.formato_aceptacion_db import (
+            formato_aceptacion_adjuntos_columns_ready,
+        )
+
+        if not formato_aceptacion_adjuntos_columns_ready():
+            return False
+        for attr in (
+            "dui_cliente_archivo",
+            "formato_aceptacion_fisico",
+        ):
             f = getattr(self, attr)
             if not f or not f.name:
                 return False
         return True
 
     def save(self, *args, **kwargs):
-        if self.pk is None:
-            from django.db.models import Max
-
-            agg = FormatoAceptacion.objects.aggregate(m=Max("numero_formulario"))
-            self.numero_formulario = (agg["m"] or 0) + 1
+        # El vendedor ingresa el número; no se autoasigna.
         super().save(*args, **kwargs)
 
 

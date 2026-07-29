@@ -1,4 +1,4 @@
-"""Listado y detalle de auditoría: solo administrador de app o superusuario Django."""
+"""Listado y detalle de auditoría: administradores (todo) y gerencia (su empresa)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,8 @@ from django.db.models import Q
 from django.urls import reverse_lazy
 from django.views.generic import DetailView, ListView
 
-from usuarios.roles import es_superusuario_o_admin_app
+from core.marcas import MARCAS
+from usuarios.roles import puede_ver_historial_auditoria, slug_filtro_auditoria
 
 from .models import AuditLog
 
@@ -18,7 +19,7 @@ class SoloAdministradorAuditoriaMixin(LoginRequiredMixin, UserPassesTestMixin):
     login_url = reverse_lazy("login")
 
     def test_func(self) -> bool:
-        return es_superusuario_o_admin_app(self.request.user)
+        return puede_ver_historial_auditoria(self.request.user)
 
 
 class AuditLogListView(SoloAdministradorAuditoriaMixin, ListView):
@@ -29,6 +30,13 @@ class AuditLogListView(SoloAdministradorAuditoriaMixin, ListView):
 
     def get_queryset(self):
         qs = AuditLog.objects.select_related("actor").all()
+        filtro_marca = slug_filtro_auditoria(self.request.user)
+        if filtro_marca:
+            qs = qs.filter(marca_slug=filtro_marca)
+        else:
+            marca_q = (self.request.GET.get("marca") or "").strip()
+            if marca_q in MARCAS:
+                qs = qs.filter(marca_slug=marca_q)
         q = (self.request.GET.get("q") or "").strip()
         if q:
             qs = qs.filter(
@@ -50,6 +58,8 @@ class AuditLogListView(SoloAdministradorAuditoriaMixin, ListView):
         qd = self.request.GET.copy()
         qd.pop("page", None)
         ctx["pagination_query"] = qd.urlencode()
+        ctx["filtro_marca_fijo"] = slug_filtro_auditoria(self.request.user)
+        ctx["marcas_filtro"] = list(MARCAS.values())
         return ctx
 
 
@@ -57,6 +67,13 @@ class AuditLogDetailView(SoloAdministradorAuditoriaMixin, DetailView):
     model = AuditLog
     template_name = "app/audit_log_detail.html"
     context_object_name = "log"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        filtro_marca = slug_filtro_auditoria(self.request.user)
+        if filtro_marca:
+            qs = qs.filter(marca_slug=filtro_marca)
+        return qs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -66,4 +83,6 @@ class AuditLogDetailView(SoloAdministradorAuditoriaMixin, DetailView):
             ctx[f"{key}_json"] = (
                 json.dumps(raw, indent=2, ensure_ascii=False, default=str) if raw is not None else ""
             )
+        marca = MARCAS.get(log.marca_slug or "")
+        ctx["marca_nombre"] = marca["nombre"] if marca else (log.marca_slug or "—")
         return ctx

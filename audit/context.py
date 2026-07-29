@@ -10,6 +10,7 @@ class RequestContext:
     ip_address: str | None = None
     user_agent: str | None = None
     request_id: str | None = None
+    marca_slug: str = ""
 
 
 _local = threading.local()
@@ -21,4 +22,3 @@ def set_request_context(ctx: RequestContext | None) -> None:
 
 def get_request_context() -> RequestContext | None:
     return getattr(_local, "ctx", None)
-

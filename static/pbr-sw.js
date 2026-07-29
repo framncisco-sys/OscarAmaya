@@ -1,7 +1,7 @@
 /* PBR — Service Worker: caché de estáticos + páginas visitadas para modo sin conexión.
  * Versión de caché: subir el sufijo tras cambios importantes. */
-const CACHE_STATIC = "pbr-static-v2";
-const CACHE_PAGES = "pbr-pages-v2";
+const CACHE_STATIC = "pbr-static-v3";
+const CACHE_PAGES = "pbr-pages-v3";
 
 const PRECACHE_URLS = [
   "/static/offline.html",
@@ -13,6 +13,15 @@ const PRECACHE_URLS = [
   "/static/js/pbr-header.js",
   "/static/js/pbr-sidebar.js",
 ];
+
+/** No cachear HTML con tokens CSRF / sesión (provoca 403 al enviar formularios). */
+function isAuthSensitivePath(pathname) {
+  const p = pathname.replace(/\/+$/, "") || "/";
+  if (p === "/login" || p === "/logout") return true;
+  if (p.startsWith("/accounts/")) return true;
+  if (p.includes("sensitive") || p.includes("reauth")) return true;
+  return false;
+}
 
 function isSameOrigin(url) {
   return url.origin === self.location.origin;
@@ -63,15 +72,27 @@ self.addEventListener("fetch", (event) => {
   if (isGetNavigation(request)) {
     event.respondWith(
       (async () => {
+        const noCachePage = isAuthSensitivePath(url.pathname);
         try {
-          const fresh = await fetch(request);
-          if (fresh && fresh.ok) {
+          const fresh = await fetch(request, noCachePage ? { cache: "no-store" } : undefined);
+          if (fresh && fresh.ok && !noCachePage) {
             const copy = fresh.clone();
             const pages = await caches.open(CACHE_PAGES);
             await pages.put(request, copy);
           }
           return fresh;
         } catch (_) {
+          if (noCachePage) {
+            return new Response(
+              "<!DOCTYPE html><html lang='es'><meta charset='utf-8'><title>Sin conexión</title>" +
+                "<body style='font-family:system-ui;padding:2rem'><h1>Sin conexión</h1>" +
+                "<p>No se puede iniciar sesión sin Internet. Vuelva a intentarlo cuando tenga red.</p></body>",
+              {
+                status: 503,
+                headers: { "Content-Type": "text/html; charset=utf-8" },
+              }
+            );
+          }
           const cachedPage =
             (await caches.match(request)) ||
             (await caches.match(request, { ignoreSearch: true }));

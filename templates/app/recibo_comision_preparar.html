@@ -14,14 +14,32 @@
       · <a href="{% url 'app:vendedor_list' %}">Catálogo de vendedores</a>
       {% endif %}
     </li>
+    <li>{% if req_comision.vendedor_completo.ok %}✓{% else %}○{% endif %}
+      <strong>Ficha del vendedor completa y al día:</strong>
+      {{ req_comision.vendedor_completo.detalle }}
+      {% if not req_comision.vendedor_completo.ok and contrato.vendedor_perfil_id %}
+      — <a href="{% url 'app:vendedor_update' contrato.vendedor_perfil_id %}">Completar registro</a>
+      {% endif %}
+    </li>
     <li>{% if req_comision.comision_ok %}✓{% else %}○{% endif %}
       <strong>Comisión del vendedor:</strong>
       {% if req_comision.comision_monto %}${{ req_comision.comision_monto }}{% else %}no definida{% endif %}
       {% if contrato.comision_porcentaje %} ({{ contrato.comision_porcentaje }} %){% endif %}
       {% if not req_comision.comision_ok %}
-      — <a href="{% url 'app:contrato_update' contrato.pk %}">Definir % o monto en el contrato</a>
+      — defina el % en <a href="{% url 'app:vendedor_list' %}">Vendedores (registro)</a>
       {% endif %}
     </li>
+    {% if req_comision.es_venta_contado %}
+    <li>{% if req_comision.contado.validado %}✓{% else %}○{% endif %}
+      {{ req_comision.contado.detalle }}
+      {% if not req_comision.contado.validado %}
+      — <a href="{% url 'app:pago_create' %}?concepto=CONTADO">Registrar pago de contado</a>
+      {% if req_comision.contado.registrado %}
+      · <a href="{% url 'app:pago_list' %}?validacion=pendiente">Validar abonos</a>
+      {% endif %}
+      {% endif %}
+    </li>
+    {% else %}
     <li>{% if req_comision.reserva.validado %}✓{% else %}○{% endif %}
       {{ req_comision.reserva.detalle }}
       {% if not req_comision.reserva.validado %}
@@ -40,11 +58,23 @@
       {% endif %}
       {% endif %}
     </li>
+    {% endif %}
   </ul>
   {% if not puede_emitir_comision %}
   <p class="muted" style="margin:0.85rem 0 0;font-size:0.9rem;">
-    Complete los puntos pendientes. La comisión de venta solo se genera cuando reserva y prima
-    ya están pagadas y confirmadas en cuenta.
+    {% if req_comision.es_venta_contado %}
+    En venta de <strong>contado</strong>, el recibo de comisión al vendedor se genera cuando
+    gerencia valida el <strong>pago total del lote</strong> y el vendedor tiene su ficha completa.
+    {% else %}
+    El recibo de comisión al vendedor <strong>solo se genera</strong> cuando:
+    el cliente ya pagó (y gerencia validó) la <strong>reserva</strong> y la <strong>prima</strong>,
+    y el vendedor tiene su ficha completa con la comisión del registro.
+    {% endif %}
+  </p>
+  {% else %}
+  <p class="muted" style="margin:0.85rem 0 0;font-size:0.9rem;color:#15803d;">
+    Requisitos cumplidos: al validar el pago{% if req_comision.es_venta_contado %} de contado{% else %} (reserva y prima){% endif %}
+    el sistema puede generar el recibo de comisión automáticamente; también puede generarlo aquí.
   </p>
   {% endif %}
 </section>

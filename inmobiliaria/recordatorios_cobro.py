@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from datetime import date, timedelta
 from urllib.parse import quote
 
@@ -10,18 +9,12 @@ from django.core.mail import send_mail
 from django.db import IntegrityError
 from django.utils import timezone
 
+from inmobiliaria.phone_sv import digitos_telefono_e164_sv
 from inmobiliaria.models import CuotaProgramada, RecordatorioPago
 
 
 def normalizar_telefono_sv(raw: str) -> str:
-    digits = re.sub(r"\D+", "", raw or "")
-    if not digits:
-        return ""
-    if digits.startswith("503") and len(digits) >= 11:
-        return digits
-    if len(digits) == 8:
-        return "503" + digits
-    return digits
+    return digitos_telefono_e164_sv(raw) or ""
 
 
 def mensaje_aviso_cobro(cuota: CuotaProgramada) -> str:

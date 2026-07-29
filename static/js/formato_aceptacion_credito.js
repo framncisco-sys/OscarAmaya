@@ -16,16 +16,38 @@
 
   function parseMoney(el) {
     if (!el || el.value === undefined || el.value === null) return 0;
-    var t = String(el.value).replace(/,/g, "").replace(/\s/g, "").trim();
+    var t = String(el.value).replace(/\$/g, "").replace(/\s/g, "").trim();
     if (!t) return 0;
+    if (t.indexOf(",") >= 0 && t.indexOf(".") >= 0) {
+      if (t.lastIndexOf(",") > t.lastIndexOf(".")) {
+        t = t.replace(/\./g, "").replace(",", ".");
+      } else {
+        t = t.replace(/,/g, "");
+      }
+    } else if (t.indexOf(",") >= 0) {
+      var parts = t.split(",");
+      if (parts.length === 2 && /^\d{1,2}$/.test(parts[1])) {
+        t = parts[0].replace(/\./g, "") + "." + parts[1];
+      } else {
+        t = t.replace(/,/g, "");
+      }
+    }
     var n = parseFloat(t);
     return isFinite(n) ? n : 0;
+  }
+
+  function formatMoneyUS(n) {
+    if (!isFinite(n) || n < 0) n = 0;
+    return n.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   }
 
   function setMoney(el, n) {
     if (!el) return;
     if (!isFinite(n) || n < 0) n = 0;
-    el.value = n.toFixed(2);
+    el.value = formatMoneyUS(n);
   }
 
   function pmtCuota(principal, annualPct, months) {
@@ -39,6 +61,27 @@
     var pow = Math.pow(1 + r, n);
     if (!isFinite(pow) || pow === 1) return P / n;
     return (P * r * pow) / (pow - 1);
+  }
+
+  /** Cuota del vendedor (meses 1–12 sin interés) y cuota desde mes 13 (con interés). */
+  function planCuotasAPlazos(principal, letraMin, annualPct, nCuotas) {
+    var P = principal;
+    var n = nCuotas;
+    var letra = letraMin;
+    if (!n || n < 1 || !isFinite(letra) || letra <= 0) {
+      return { letra: null, cuota13: null };
+    }
+    letra = Math.round(letra * 100) / 100;
+    if (n <= 12) {
+      return { letra: letra, cuota13: null };
+    }
+    if (!isFinite(P) || P < 0) P = 0;
+    var tasa = isFinite(annualPct) && annualPct > 0 ? annualPct : 0;
+    var saldo = P - letra * 12;
+    if (saldo < 0) saldo = 0;
+    var interesMes = Math.round(((saldo * tasa) / 100 / 12) * 100) / 100;
+    var cuota13 = Math.round((letra + interesMes) * 100) / 100;
+    return { letra: letra, cuota13: cuota13 };
   }
 
   function parseDateInputValue(s) {
@@ -83,7 +126,7 @@
 
   function fmtMoney(n) {
     if (!isFinite(n) || n <= 0) return "—";
-    return "$" + n.toFixed(2);
+    return "$" + formatMoneyUS(n);
   }
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -110,6 +153,7 @@
     var plazo = document.getElementById("id_plazo_txt");
     var numCuota = document.getElementById("id_num_cuota_txt");
     var interes = document.getElementById("id_interes_txt");
+    var tipoFin = document.getElementById("id_tipo_financiamiento");
     var obsFin = document.getElementById("id_observaciones_financiamiento");
     var fechaPrimera = document.getElementById("id_fecha_primera_cuota");
     var fechaPagoMensual = document.getElementById("id_fecha_pago_mensual");
@@ -119,29 +163,107 @@
 
     var mapOk = !!(selPol && selLote && hidLote && hidPol);
 
+    function esContado() {
+      return tipoFin && String(tipoFin.value || "") === "CONTADO";
+    }
+
+    function setPlazosCamposEnabled(enabled) {
+      [letra, plazo, numCuota, interes, fechaPrimera, fechaPagoMensual].forEach(function (el) {
+        if (!el) return;
+        el.disabled = !enabled;
+        if (!enabled) el.classList.add("is-readonly");
+        else el.classList.remove("is-readonly");
+      });
+      if (valorFin) {
+        valorFin.readOnly = !enabled;
+      }
+    }
+
+    function aplicarTipoFinanciamiento() {
+      if (esContado()) {
+        if (valorFin) setMoney(valorFin, 0);
+        if (letra) letra.value = "";
+        if (plazo) plazo.value = "";
+        if (numCuota) numCuota.value = "";
+        if (interes) interes.value = "";
+        setPlazosCamposEnabled(false);
+        rebuildListadoCuotas();
+        return;
+      }
+      setPlazosCamposEnabled(true);
+      recalcFin();
+    }
+
     function recalcLetra() {
+      if (esContado()) {
+        if (letra) letra.value = "";
+        rebuildListadoCuotas();
+        return;
+      }
       if (plazo) {
         var years = parseInt(String(plazo.value || ""), 10);
-        if (!isFinite(years) || years < 0) years = 0;
+        if (!isFinite(years) || years < 1) years = 0;
+        if (years > 5) years = 5;
         var n = years * 12;
         if (numCuota) numCuota.value = n > 0 ? String(n) : "";
-
-        if (letra && interes) {
-          var principal = parseMoney(valorFin);
-          var interVal = parseFloat(String(interes.value || ""));
-          if (!isFinite(interVal) || interVal < 0) interVal = 0;
-          var cuota = pmtCuota(principal, interVal, n);
-          if (cuota === null) {
-            letra.value = "";
-          } else {
-            letra.value = cuota.toFixed(2);
-          }
-        }
+        // La cuota 1–12 la escribe el vendedor; no se calcula ni se pisa aquí.
       }
       rebuildListadoCuotas();
+      actualizarResumenPlan();
+    }
+
+    function actualizarResumenPlan() {
+      var box = document.getElementById("fmt-plan-plazos-resumen");
+      if (!box) return;
+      if (esContado()) {
+        box.textContent = "Financiamiento: Contado (sin plan de cuotas).";
+        return;
+      }
+      var years = plazo ? parseInt(String(plazo.value || ""), 10) : 0;
+      if (!isFinite(years) || years < 1) {
+        box.textContent =
+          "Elija plazo (1–5 años). Escriba la cuota de los meses 1–12 (sin interés). Desde el mes 13 ya va con intereses.";
+        return;
+      }
+      var n = years * 12;
+      var principal = parseMoney(valorFin);
+      var interVal = parseFloat(String((interes && interes.value) || ""));
+      if (!isFinite(interVal) || interVal < 0) interVal = 0;
+      var letraVend = parseMoney(letra);
+      if (!letraVend || letraVend <= 0) {
+        box.textContent =
+          "Escriba la cuota de los meses 1–12 (sin interés). El mes 13 en adelante llevará esa cuota + intereses.";
+        return;
+      }
+      var plan = planCuotasAPlazos(principal, letraVend, interVal, n);
+      if (n <= 12) {
+        box.textContent =
+          "Plan " +
+          years +
+          " año(s): cuota del vendedor $" +
+          formatMoneyUS(plan.letra) +
+          " sin interés en las " +
+          n +
+          " cuotas.";
+        return;
+      }
+      box.textContent =
+        "Meses 1–12: cuota del vendedor $" +
+        formatMoneyUS(plan.letra) +
+        " sin interés. Desde el mes 13: ya con intereses (" +
+        interVal +
+        "%) = $" +
+        formatMoneyUS(plan.cuota13) +
+        " mensuales.";
     }
 
     function recalcFin() {
+      if (esContado()) {
+        if (valorFin) setMoney(valorFin, 0);
+        if (letra) letra.value = "";
+        rebuildListadoCuotas();
+        return;
+      }
       var vi = parseMoney(valorInm);
       var p1 = parseMoney(prima1);
       var p2 = parseMoney(prima2);
@@ -328,6 +450,27 @@
       obsFin.addEventListener("blur", aplicarTextoObservacionesFinanciamiento);
     }
 
+    if (tipoFin) {
+      tipoFin.addEventListener("change", aplicarTipoFinanciamiento);
+    }
+
+    var formEl = document.getElementById("formato-aceptacion-form");
+    if (formEl) {
+      formEl.addEventListener("submit", function () {
+        // Los campos disabled no viajan en el POST; reactivar antes de guardar.
+        setPlazosCamposEnabled(true);
+        if (esContado()) {
+          if (valorFin) setMoney(valorFin, 0);
+          if (letra) letra.value = "";
+          if (plazo) plazo.value = "";
+          if (numCuota) numCuota.value = "";
+          if (interes) interes.value = "";
+        }
+      });
+    }
+
+    aplicarTipoFinanciamiento();
+
     function nCuotasDesdeFormulario() {
       var raw = numCuota && numCuota.value ? String(numCuota.value).trim() : "";
       if (raw && /^\d+$/.test(raw)) {
@@ -336,7 +479,7 @@
       }
       if (plazo && plazo.value) {
         var y = parseInt(String(plazo.value).trim(), 10);
-        if (isFinite(y) && y > 0 && y <= 50) return y * 12;
+        if (isFinite(y) && y >= 1 && y <= 5) return y * 12;
       }
       return null;
     }
@@ -374,22 +517,35 @@
       var f1 = prima1Fecha && prima1Fecha.value ? parseDateInputValue(prima1Fecha.value) : null;
       var f2 = prima2Fecha && prima2Fecha.value ? parseDateInputValue(prima2Fecha.value) : null;
       if (p1 > 0 || f1) {
-        appendRow("Prima 1", fmtDMY(f1), p1 > 0 ? fmtMoney(p1) : "—");
+        appendRow("Reserva", fmtDMY(f1), p1 > 0 ? fmtMoney(p1) : "—");
       }
       if (p2 > 0 || f2) {
-        appendRow("Prima 2", fmtDMY(f2), p2 > 0 ? fmtMoney(p2) : "—");
+        appendRow("Prima a pagar", fmtDMY(f2), p2 > 0 ? fmtMoney(p2) : "—");
       }
 
       var n = nCuotasDesdeFormulario();
       var fecha0 =
         (fechaPrimera && fechaPrimera.value ? parseDateInputValue(fechaPrimera.value) : null) ||
         (fechaPagoMensual && fechaPagoMensual.value ? parseDateInputValue(fechaPagoMensual.value) : null);
-      if (n && fecha0) {
-        var letraN = letraParaListado(n);
+      if (n && fecha0 && !esContado()) {
+        var principal = parseMoney(valorFin);
+        var interVal = parseFloat(String((interes && interes.value) || ""));
+        if (!isFinite(interVal) || interVal < 0) interVal = 0;
+        var plan = planCuotasAPlazos(principal, parseMoney(letra), interVal, n);
         var i;
         for (i = 0; i < n; i += 1) {
           var vd = addMonthsDate(fecha0, i);
-          appendRow("Cuota " + (i + 1), fmtDMY(vd), letraN !== null ? fmtMoney(letraN) : "—");
+          var num = i + 1;
+          var concepto;
+          var monto;
+          if (num <= 12 || plan.cuota13 === null) {
+            concepto = "Cuota " + num + " (sin interés — cuota del vendedor)";
+            monto = plan.letra;
+          } else {
+            concepto = "Cuota " + num + " (con interés " + interVal + "%)";
+            monto = plan.cuota13;
+          }
+          appendRow(concepto, fmtDMY(vd), monto !== null ? fmtMoney(monto) : "—");
         }
       }
 
@@ -397,9 +553,11 @@
         var tr0 = document.createElement("tr");
         tr0.innerHTML =
           "<td colspan=\"4\" class=\"muted\" style=\"padding:0.45rem 0.5rem;border:1px solid #e2e8f0;font-size:0.82rem;\">" +
-          "Indique primas (monto o fecha), fecha de primera cuota o «Fecha de pago mensual», y plazo o número de cuotas para ver el plan.</td>";
+          "Indique primas, fecha de primera cuota, plazo (1–5 años) y escriba la cuota de los meses 1–12 (sin interés). " +
+          "Desde el mes 13 esa cuota ya va con intereses.</td>";
         tbodyListado.appendChild(tr0);
       }
+      actualizarResumenPlan();
     }
 
     var listadoWatch = [
@@ -413,6 +571,8 @@
       plazo,
       letra,
       valorFin,
+      interes,
+      tipoFin,
     ];
     listadoWatch.forEach(function (el) {
       if (!el) return;
@@ -420,7 +580,17 @@
       el.addEventListener("change", rebuildListadoCuotas);
     });
 
+    // Reformatear montos al salir del campo (22,500.00)
+    [valorInm, prima1, prima2, valorFin, letra].forEach(function (el) {
+      if (!el) return;
+      el.addEventListener("blur", function () {
+        var n = parseMoney(el);
+        if (String(el.value || "").trim() !== "") setMoney(el, n);
+      });
+    });
+
     recalcFin();
     rebuildListadoCuotas();
+    actualizarResumenPlan();
   });
 })();

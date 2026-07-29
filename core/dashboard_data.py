@@ -282,6 +282,9 @@ def build_gestion_hub_context(
     monto_mes = pagos_qs.filter(fecha__gte=mes_inicio).aggregate(s=Sum("monto"))["s"] or Decimal(
         "0"
     )
+    pagos_pendientes_validacion = pagos_qs.filter(
+        validacion_abono=Pago.ValidacionAbono.PENDIENTE
+    ).count()
 
     reservas_vencidas = inventario.filter(
         tipo=_LOTE,
@@ -312,6 +315,7 @@ def build_gestion_hub_context(
             "contratos_activos": contratos_qs.filter(estado=Contrato.Estado.ACTIVO).count(),
             "contratos_total": contratos_qs.count(),
             "pagos_mes": pagos_mes,
+            "pagos_pendientes_validacion": pagos_pendientes_validacion,
             "monto_mes": monto_mes,
             "documentos": docs_total,
             "formatos": formatos_total,
@@ -369,6 +373,7 @@ def build_sidebar_stats(
         "contratos_activos": resumen["contratos_activos"],
         "contratos_total": resumen["contratos_total"],
         "pagos_mes": resumen["pagos_mes"],
+        "pagos_pendientes_validacion": resumen.get("pagos_pendientes_validacion", 0),
         "documentos": resumen["documentos"],
         "formatos": resumen["formatos"],
         "parametros_mora": ParametroMora.objects.count(),

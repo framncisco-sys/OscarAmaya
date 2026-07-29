@@ -1,0 +1,70 @@
+{# Panel: plan de pagos a plazos (carga automática desde formato + pagos) #}
+<section id="contrato-credito-plazos-panel" class="card" style="margin:0 0 1.25rem;padding:1rem 1.1rem;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;display:none;" hidden>
+  <h2 class="field__label" style="margin:0 0 0.35rem;font-size:1rem;color:#0f172a;">Plan desde el mes 13 (con interés)</h2>
+  <p id="contrato-credito-msg" class="muted" style="margin:0 0 0.75rem;font-size:0.85rem;"></p>
+  <p id="contrato-credito-elegibilidad" class="muted" style="margin:0 0 0.75rem;font-size:0.85rem;display:none;"></p>
+  <div id="contrato-credito-detalle" style="display:none;">
+    <p class="muted" style="margin:0 0 0.65rem;font-size:0.82rem;">
+      Lote: <strong id="cc-lote">—</strong>
+      · Proyecto: <strong id="cc-proyecto">—</strong>
+      · Formato Nº <strong id="cc-formato">—</strong>
+      · Plazo: <strong id="cc-plazo">—</strong>
+    </p>
+
+    <dl style="display:grid;grid-template-columns:1fr;gap:0.55rem;margin:0 0 1rem;font-size:0.92rem;max-width:36rem;">
+      <div style="display:flex;justify-content:space-between;gap:1rem;padding:0.45rem 0.6rem;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">
+        <dt style="margin:0;font-weight:600;">Reserva pagada</dt>
+        <dd id="cc-reserva" style="margin:0;font-weight:800;color:#0f766e;">—</dd>
+      </div>
+      <div style="display:flex;justify-content:space-between;gap:1rem;padding:0.45rem 0.6rem;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">
+        <dt style="margin:0;font-weight:600;">Prima pagada</dt>
+        <dd id="cc-prima" style="margin:0;font-weight:800;color:#0f766e;">—</dd>
+      </div>
+      <div style="display:flex;justify-content:space-between;gap:1rem;padding:0.45rem 0.6rem;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">
+        <dt style="margin:0;font-weight:600;">Suma total cuotas meses 1–12 (sin interés)</dt>
+        <dd id="cc-abonado-cuotas" style="margin:0;font-weight:800;">—</dd>
+      </div>
+      <div style="display:flex;justify-content:space-between;gap:1rem;padding:0.45rem 0.6rem;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;">
+        <dt style="margin:0;font-weight:600;line-height:1.35;">
+          Monto inicial <span class="muted" style="font-weight:500;">(−)</span> reserva
+          <span class="muted" style="font-weight:500;">(−)</span> prima
+          <span class="muted" style="font-weight:500;">(−)</span> cuotas 1–12
+        </dt>
+        <dd id="cc-formula" style="margin:0;font-weight:700;text-align:right;white-space:nowrap;">—</dd>
+      </div>
+      <div style="display:flex;justify-content:space-between;gap:1rem;padding:0.55rem 0.65rem;background:#fef2f2;border-radius:8px;border:1px solid #fecaca;">
+        <dt style="margin:0;font-weight:700;">Nuevo monto adeudado</dt>
+        <dd id="cc-deuda" style="margin:0;font-weight:900;color:#b91c1c;font-size:1.05rem;">—</dd>
+      </div>
+      <div style="display:flex;justify-content:space-between;gap:1rem;padding:0.55rem 0.65rem;background:#ecfdf5;border-radius:8px;border:1px solid #a7f3d0;">
+        <dt style="margin:0;font-weight:700;line-height:1.35;">
+          Cuota mensual + intereses<br>
+          <span class="muted" style="font-weight:500;font-size:0.82rem;">del mes 13 hasta el plazo elegido</span>
+        </dt>
+        <dd id="cc-cuota13" style="margin:0;font-weight:900;color:#003366;font-size:1.05rem;">—</dd>
+      </div>
+    </dl>
+
+    <p id="cc-detalle-montos" class="muted" style="margin:0 0 0.75rem;font-size:0.8rem;line-height:1.45;"></p>
+    <p id="cc-resumen" class="muted" style="margin:0 0 0.85rem;font-size:0.82rem;line-height:1.4;"></p>
+
+    <h3 class="field__label" style="margin:0 0 0.4rem;font-size:0.82rem;letter-spacing:0.06em;text-transform:uppercase;color:#0f172a;">Todas las cuotas a pagar</h3>
+    <div style="overflow-x:auto;max-height:22rem;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;background:#fff;">
+      <table style="width:100%;border-collapse:collapse;font-size:0.84rem;">
+        <thead style="position:sticky;top:0;background:#f1f5f9;">
+          <tr>
+            <th scope="col" style="text-align:left;padding:0.4rem 0.55rem;border-bottom:1px solid #e2e8f0;">N.º</th>
+            <th scope="col" style="text-align:left;padding:0.4rem 0.55rem;border-bottom:1px solid #e2e8f0;">Concepto</th>
+            <th scope="col" style="text-align:right;padding:0.4rem 0.55rem;border-bottom:1px solid #e2e8f0;">Monto</th>
+          </tr>
+        </thead>
+        <tbody id="cc-listado-cuotas-body">
+          <tr><td colspan="3" class="muted" style="padding:0.5rem;">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+<script>
+  window.PBR_CONTRATO_CREDITO_URL = "/app/contratos/credito-cliente/__ID__/";
+</script>

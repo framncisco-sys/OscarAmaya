@@ -6,7 +6,7 @@
   <div>
     <h1 class="page-title dash-header__title">Mi flujo de venta</h1>
     <p class="page-lead dash-header__lead">
-      Acceso de vendedor: solo estas opciones. Sus contratos y pagos quedan filtrados a su cartera.
+      1 formato → 2 contado <em>o</em> 3–6 a plazos. Sus contratos y pagos quedan filtrados a su cartera.
     </p>
   </div>
 </header>
@@ -17,16 +17,16 @@
       <span class="gestion-flujo__num" aria-hidden="true">1</span>
       <span class="gestion-flujo__body">
         <strong>Formato de aceptación (nuevo)</strong>
-        <small>Registre primero el formato de ingreso.</small>
+        <small>Registre primero el formato (Contado o A plazos).</small>
       </span>
     </a>
   </li>
   <li class="gestion-flujo__paso">
-    <a class="gestion-flujo__card" href="{% url 'app:contrato_create' %}">
+    <a class="gestion-flujo__card" href="{% url 'app:pago_create' %}?concepto=CONTADO">
       <span class="gestion-flujo__num" aria-hidden="true">2</span>
       <span class="gestion-flujo__body">
-        <strong>Llenado de contrato</strong>
-        <small>Cliente, lote, precio y condiciones.</small>
+        <strong>Contado: recibo total del lote</strong>
+        <small>Si el formato es Contado: un solo recibo por el valor completo.</small>
       </span>
     </a>
   </li>
@@ -35,7 +35,7 @@
       <span class="gestion-flujo__num" aria-hidden="true">3</span>
       <span class="gestion-flujo__body">
         <strong>Reserva pagada (recibo)</strong>
-        <small>Registre el abono; gerencia valida en cuenta.</small>
+        <small>Camino a plazos; gerencia valida en cuenta.</small>
       </span>
     </a>
   </li>
@@ -43,14 +43,23 @@
     <a class="gestion-flujo__card" href="{% url 'app:pago_create' %}?concepto=PRIMA">
       <span class="gestion-flujo__num" aria-hidden="true">4</span>
       <span class="gestion-flujo__body">
-        <strong>Prima pagada → promesa</strong>
+        <strong>Prima pagada (recibo)</strong>
         <small>Tras validar, se emite la promesa de venta.</small>
       </span>
     </a>
   </li>
   <li class="gestion-flujo__paso">
-    <a class="gestion-flujo__card" href="{% url 'app:pago_create' %}?concepto=CUOTA">
+    <a class="gestion-flujo__card" href="{% url 'app:contrato_create' %}">
       <span class="gestion-flujo__num" aria-hidden="true">5</span>
+      <span class="gestion-flujo__body">
+        <strong>Nuevo plan de pagos</strong>
+        <small>Solo si el formato es a plazos.</small>
+      </span>
+    </a>
+  </li>
+  <li class="gestion-flujo__paso">
+    <a class="gestion-flujo__card" href="{% url 'app:pago_create' %}?concepto=CUOTA">
+      <span class="gestion-flujo__num" aria-hidden="true">6</span>
       <span class="gestion-flujo__body">
         <strong>Recibos a plazos</strong>
         <small>Cuotas del financiamiento.</small>
@@ -59,9 +68,9 @@
   </li>
   <li class="gestion-flujo__paso">
     <a class="gestion-flujo__card" href="{% url 'app:contrato_list' %}">
-      <span class="gestion-flujo__num" aria-hidden="true">6</span>
+      <span class="gestion-flujo__num" aria-hidden="true">7</span>
       <span class="gestion-flujo__body">
-        <strong>Listado de contratos</strong>
+        <strong>Listado de planes de pagos</strong>
         <small>Solo sus ventas / cartera asignada.</small>
       </span>
     </a>

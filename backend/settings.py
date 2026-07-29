@@ -140,17 +140,39 @@ if not env.bool("DJANGO_DISABLE_ONDIGITALOCEAN_HOST", default=False):
     if _do_suffix not in ALLOWED_HOSTS:
         ALLOWED_HOSTS = list(ALLOWED_HOSTS) + [_do_suffix]
 
-# HTTPS detrás de proxy (nginx, DigitalOcean App Platform, load balancer)
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-USE_X_FORWARDED_HOST = env.bool("DJANGO_USE_X_FORWARDED_HOST", default=True)
+# HTTPS detrás de proxy (nginx, DigitalOcean App Platform, load balancer).
+# En DEBUG local no confiar en X-Forwarded-Proto: rompe cookies CSRF en http://127.0.0.1.
+USE_X_FORWARDED_HOST = env.bool(
+    "DJANGO_USE_X_FORWARDED_HOST",
+    default=not DEBUG,
+)
+if env.bool("DJANGO_SECURE_PROXY_SSL_HEADER", default=not DEBUG):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+else:
+    SECURE_PROXY_SSL_HEADER = None
 
-# Orígenes confiables para CSRF con HTTPS (ej. https://tu-app.ondigitalocean.app)
+# Orígenes confiables para CSRF (ej. https://tu-app.ondigitalocean.app)
 _csrf_origins = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 _pbu_csrf = env.str("PUBLIC_BASE_URL", default="").strip().rstrip("/")
 if _pbu_csrf.startswith("http") and _pbu_csrf not in _csrf_origins:
     CSRF_TRUSTED_ORIGINS = list(_csrf_origins) + [_pbu_csrf]
 else:
-    CSRF_TRUSTED_ORIGINS = _csrf_origins
+    CSRF_TRUSTED_ORIGINS = list(_csrf_origins)
+
+# Desarrollo local: asegurar orígenes http aunque falten en .env
+if DEBUG:
+    for _origin in (
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8001",
+        "http://localhost:8001",
+    ):
+        if _origin not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(_origin)
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    CSRF_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SAMESITE = "Lax"
 
 if not DEBUG:
     SESSION_COOKIE_SECURE = env.bool("DJANGO_SESSION_COOKIE_SECURE", default=True)
@@ -717,10 +739,15 @@ PBR_PROMESA_RAZON_SOCIAL_VENDEDOR = env.str(
 )
 # Recibo / constancia de pago (PDF): NIT del emisor cuando deba figurar (opcional).
 PBR_EMPRESA_NIT = env.str("PBR_EMPRESA_NIT", default="")
-# Dirección en el encabezado del PDF «Formato de aceptación» (texto legal / contacto).
+# Contacto fijo en encabezado del recibo digital (no el vendedor del contrato).
+PBR_RECIBO_CONTACTO_NOMBRE = env.str(
+    "PBR_RECIBO_CONTACTO_NOMBRE",
+    default="Karen Patricia Vásquez Merlos",
+)
+# Dirección / teléfono en encabezado de recibos y formato de aceptación.
 PBR_FORMATO_ACEPTACION_DIRECCION = env.str(
     "PBR_FORMATO_ACEPTACION_DIRECCION",
-    default="16 Calle Ote. Pol. C-1 #24. Col. El Molino. San Miguel. Tel. 7547-0186",
+    default="16a Calle Oriente, Pol. C-1 #24, Col. El Molino, Distrito de San Miguel, San Miguel Centro, 7547-0186",
 )
 
 # Tras confirmar contraseña en /app/, cuántos segundos puede editar/eliminar sin volver a pedirla (no superusuarios).

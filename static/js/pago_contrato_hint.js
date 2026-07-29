@@ -126,15 +126,40 @@
 
   function update() {
     syncContratoDesdeFormato();
+    var siempre = panel.getAttribute("data-siempre-visible") === "1";
     var opt = getPanelOpt();
+    var sinFmt = document.getElementById("pago-hint-sin-formato");
+    var lista = document.getElementById("pago-hint-resumen-lista");
+    var aplic = document.getElementById("pago-hint-aplicacion-cuota");
+
     if (!opt || !opt.value) {
-      panel.style.display = "none";
+      if (siempre) {
+        panel.style.display = "block";
+        if (sinFmt) sinFmt.style.display = "block";
+        if (lista) lista.style.display = "none";
+        if (aplic) {
+          aplic.style.display = "none";
+          aplic.textContent = "";
+        }
+      } else {
+        panel.style.display = "none";
+      }
       return;
     }
     panel.style.display = "block";
+    if (sinFmt) sinFmt.style.display = "none";
+    if (lista) lista.style.display = "block";
+    if (aplic) aplic.style.display = "block";
 
     var esCuota =
-      conceptoSel && String(conceptoSel.value || "").toUpperCase() === "CUOTA";
+      (conceptoSel && String(conceptoSel.value || "").toUpperCase() === "CUOTA") ||
+      (function () {
+        try {
+          return String(new URLSearchParams(window.location.search).get("concepto") || "").toUpperCase() === "CUOTA";
+        } catch (e) {
+          return false;
+        }
+      })();
     if (wrapCuotasN) {
       wrapCuotasN.style.display = esCuota ? "" : "none";
     }
@@ -207,9 +232,14 @@
     if (elRecargo) {
       var rNota = opt.getAttribute("data-recargo-nota") || "";
       var rCant = parseInt10(opt.getAttribute("data-recargo-cantidad"));
+      var rMonto = opt.getAttribute("data-recargo-monto") || "0";
       if (rCant > 0 && rNota) {
         elRecargo.style.display = "block";
-        elRecargo.textContent = rNota + ". Al cobrar, registre la cuota y, aparte, el concepto «Recargo administrativo» (o incluya el total según su política).";
+        elRecargo.innerHTML =
+          rNota +
+          ". El recargo <strong>$" +
+          rMonto +
+          "</strong> se incluye en el monto sugerido del recibo y <strong>no reduce el capital</strong>.";
       } else {
         elRecargo.style.display = "none";
         elRecargo.textContent = "";
@@ -218,7 +248,6 @@
 
     populateFormato(opt);
 
-    var aplic = document.getElementById("pago-hint-aplicacion-cuota");
     if (!aplic) return;
 
     var fmtLetra = opt.getAttribute("data-formato-letra-mensual") || "";
@@ -240,7 +269,7 @@
 
     if (nTotal === 0) {
       aplic.innerHTML =
-        "Concepto «Cuota»: aún no hay filas en el calendario de este contrato. Cárguelas en «Contratos» → «Editar» → «Cuotas programadas (calendario)»." +
+        "Concepto «Cuota»: aún no hay filas en el calendario de este contrato. Cárguelas en «Contratos» → «Editar» → «Cuotas programadas (calendario)» o cree el <strong>plan de pagos</strong> (paso 4)." +
         (fmtLetra
           ? " Letra mensual en <strong>formato de aceptación</strong>: <strong>$" +
             fmtLetra +
@@ -271,7 +300,7 @@
 
     if (useTablaCuotas) {
       aplic.innerHTML =
-        "Concepto «Cuota»: marque la(s) cuota(s). El monto puede ser mayor: el excedente va a capital en el <strong>mismo recibo</strong> (ej. cuota $200 + $50 capital = $250).";
+        "Marque la(s) cuota(s) consecutivas. Monto = cuotas + recargo (si aplica) + excedente a capital. El recargo <strong>no</strong> reduce el saldo.";
       aplic.style.color = "#0f766e";
       primeraEjecucion = false;
       return;

@@ -8,6 +8,7 @@
   <dt>Acción</dt><dd>{{ log.get_action_display }} (<code>{{ log.action }}</code>)</dd>
   <dt>Actor</dt><dd>{% if log.actor %}<strong>{{ log.actor.username }}</strong> (id {{ log.actor_id }}){% else %}—{% endif %}</dd>
   <dt>Rol en app</dt><dd>{{ log.actor_role|default:"—" }}</dd>
+  <dt>Empresa</dt><dd>{{ marca_nombre }}</dd>
   <dt>Modelo</dt><dd><code>{{ log.app_label }}.{{ log.model_name }}</code></dd>
   <dt>Id registro</dt><dd>{{ log.object_pk }}</dd>
   <dt>IP</dt><dd>{{ log.ip_address|default:"—" }}</dd>

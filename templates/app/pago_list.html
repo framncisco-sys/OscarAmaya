@@ -1,5 +1,5 @@
 {% extends "app/base_app.html" %}
-{% block title %}Pagos | {{ marca_portal.nombre }}{% endblock %}
+{% block title %}{% if filtro_validacion == 'pendiente' %}Abonos pendientes de gerencia{% else %}Pagos{% endif %} | {{ marca_portal.nombre }}{% endblock %}
 {% block app_content %}
 {% if contrato_filtro %}
 <p class="alert" role="status" style="margin-bottom:1rem;">
@@ -13,13 +13,18 @@
   <div class="page-toolbar__intro">
     <h1 class="page-title">{% if filtro_validacion == 'pendiente' %}Abonos pendientes de gerencia{% else %}Pagos{% endif %}</h1>
     <p class="page-toolbar__meta">
-      Reserva, prima y cuotas a plazos: el vendedor registra el abono; gerencia confirma el depósito en cuenta y recién entonces se emite el recibo (correo/WhatsApp).
+      {% if filtro_validacion == 'pendiente' %}
+      Aquí el <strong>administrador o gerencia</strong> confirma el depósito en cuenta.
+      Solo después de validar se genera el recibo (reserva, prima o cuota mensual) y el vendedor puede imprimirlo.
+      {% else %}
+      El vendedor registra el abono; gerencia/admin valida el depósito; recién entonces se emite el recibo PDF (correo/WhatsApp) y se habilita la impresión.
+      {% endif %}
     </p>
   </div>
   <div class="page-toolbar__actions">
-    {% if puede_validar_abonos_app and pagos_pendientes_validacion_ct %}
-    <a href="{% url 'app:pago_list' %}?validacion=pendiente" class="btn-secondary btn-sm">
-      Pendientes ({{ pagos_pendientes_validacion_ct }})
+    {% if puede_validar_abonos_app %}
+    <a href="{% url 'app:pago_list' %}?validacion=pendiente" class="btn-secondary btn-sm"{% if filtro_validacion == 'pendiente' %} aria-current="page"{% endif %}>
+      Pendientes{% if pagos_pendientes_validacion_ct %} ({{ pagos_pendientes_validacion_ct }}){% endif %}
     </a>
     {% endif %}
     <a href="{% url 'app:pago_create' %}" class="btn-primary btn-sm">Registrar pago</a>
@@ -28,14 +33,29 @@
 </header>
 
 {% if filtro_validacion == 'pendiente' %}
+<section class="card" style="margin-bottom:1rem;border-left:4px solid #1e3a5f;max-width:48rem;">
+  <p style="margin:0 0 0.5rem;font-weight:700;">Flujo obligatorio</p>
+  <ol class="muted" style="margin:0;padding-left:1.2rem;font-size:0.9rem;line-height:1.5;">
+    <li>El <strong>vendedor</strong> registra reserva, prima o cuota del mes (con voucher si aplica).</li>
+    <li>El abono queda aquí como <strong>Pendiente gerencia</strong> — aún <strong>no</strong> hay recibo imprimible.</li>
+    <li><strong>Admin / Gerencia</strong> confirma el depósito → <em>Confirmar abono</em>.</li>
+    <li>Se genera el recibo PDF y el vendedor ya puede <strong>imprimir / descargar</strong>.</li>
+  </ol>
+</section>
 <p class="alert alert--info" role="status" style="margin-bottom:1rem;">
-  Solo reservas, primas y cuotas a la espera de confirmación de depósito.
+  Solo reservas, primas, pagos de contado, cuotas a plazos y abonos a capital a la espera de confirmación.
   <a href="{% url 'app:pago_list' %}">Ver todos los pagos</a>
 </p>
 {% elif pagos_pendientes_validacion_ct and puede_validar_abonos_app %}
 <p class="alert" role="status" style="margin-bottom:1rem;">
   Hay <strong>{{ pagos_pendientes_validacion_ct }}</strong> abono(s) pendiente(s) de validación.
-  <a href="{% url 'app:pago_list' %}?validacion=pendiente">Revisar ahora</a>
+  <a href="{% url 'app:pago_list' %}?validacion=pendiente">Revisar y aprobar ahora</a>
+</p>
+{% elif not puede_validar_abonos_app and pagos_pendientes_validacion_ct %}
+<p class="alert" role="status" style="margin-bottom:1rem;">
+  Tiene <strong>{{ pagos_pendientes_validacion_ct }}</strong> abono(s) esperando validación de gerencia.
+  Cuando aprueben el depósito podrá imprimir el recibo.
+  <a href="{% url 'app:pago_list' %}?validacion=pendiente">Ver pendientes</a>
 </p>
 {% endif %}
 
@@ -49,7 +69,7 @@
       <th>Concepto</th>
       <th>Monto</th>
       <th>Validación</th>
-      <th></th>
+      <th>Recibo</th>
     </tr>
   </thead>
   <tbody>
@@ -74,18 +94,35 @@
       <td>
         <div class="action-cluster">
           {% if p.pendiente_validacion_gerente and puede_validar_abonos_app %}
-          <a href="{% url 'app:pago_validar_abono' p.pk %}" class="link-action">Confirmar abono</a>
+          <a href="{% url 'app:pago_validar_abono' p.pk %}" class="link-action" style="font-weight:700;">Confirmar abono → generar recibo</a>
           <a href="{% url 'app:pago_rechazar_abono' p.pk %}" class="link-action" style="color:#b91c1c;">Rechazar</a>
+          {% elif p.pendiente_validacion_gerente %}
+          <span class="muted" style="font-size:0.85rem;">Esperando gerencia — aún no se puede imprimir</span>
           {% elif p.puede_emitir_recibo_cliente %}
-          <a href="{% url 'app:emitir_recibo' p.pk %}" class="link-action">Recibo PDF</a>
+          <a href="{% url 'app:emitir_recibo' p.pk %}" class="link-action">Imprimir / PDF</a>
+          {% elif p.validacion_abono == 'RECHAZADO' %}
+          <span class="muted" style="font-size:0.85rem;">Sin recibo (rechazado)</span>
+          {% else %}
+          <span class="muted">—</span>
           {% endif %}
+          {% if filtro_validacion != 'pendiente' or puede_validar_abonos_app %}
           <a href="{% url 'app:pago_update' p.pk %}" class="link-action">Editar</a>
-          <a href="{% url 'app:pago_delete' p.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a>
+          {% endif %}
         </div>
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="7" class="muted">No hay pagos{% if filtro_validacion == 'pendiente' %} pendientes{% endif %}.</td></tr>
+    <tr>
+      <td colspan="7" class="muted" style="padding:1rem;line-height:1.5;">
+        {% if filtro_validacion == 'pendiente' %}
+        No hay abonos pendientes de validación.
+        Cuando el vendedor registre una <strong>reserva</strong>, <strong>prima</strong> o <strong>cuota del mes</strong>,
+        aparecerán aquí para que admin/gerencia confirme el depósito y se genere el recibo imprimible.
+        {% else %}
+        No hay pagos registrados.
+        {% endif %}
+      </td>
+    </tr>
     {% endfor %}
   </tbody>
 </table>

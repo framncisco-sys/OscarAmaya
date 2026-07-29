@@ -1,8 +1,10 @@
 {% extends "docs/_base_pdf.html" %}
+{% load money_fmt %}
 {% block pdf_brand_captions %}
 {% include "docs/_pdf_brand_captions.html" with razon_social=razon_social pie_inmobiliaria=pie_inmobiliaria %}
 {% endblock %}
 {% block pdf_extra_styles %}
+    body { position: relative; }
     h1.formato-acept-titulo {
       text-align: center;
       font-size: 14px;
@@ -80,7 +82,7 @@
   <tr><td class="fa-lbl">Dirección trabajo</td><td class="fa-val" colspan="2">{{ formato.direccion_trabajo|default:"—"|linebreaksbr }}</td><td class="fa-val"><strong>Tel.</strong> {{ formato.telefono_trabajo|default:"—" }}</td></tr>
   <tr>
     <td class="fa-lbl">Cargo</td><td class="fa-val">{{ formato.cargo|default:"—" }}</td>
-    <td class="fa-lbl">Sueldo $</td><td class="fa-val">{% if formato.sueldo %}${{ formato.sueldo|floatformat:2 }}{% else %}—{% endif %}</td>
+    <td class="fa-lbl">Sueldo $</td><td class="fa-val">{% if formato.sueldo %}{{ formato.sueldo|money_us_symbol }}{% else %}—{% endif %}</td>
   </tr>
   <tr>
     <td class="fa-lbl">Nº grupo familiar</td><td class="fa-val">{{ formato.num_familia_grupo|default:"—" }}</td>
@@ -122,33 +124,37 @@
     <td class="fa-lbl">Área v²</td><td class="fa-val">{{ formato.area_v2_txt|default:"—" }}</td>
   </tr>
   <tr>
-    <td class="fa-lbl">Valor inmueble</td><td class="fa-val" colspan="3">{% if formato.valor_inmueble %}${{ formato.valor_inmueble|floatformat:2 }}{% else %}—{% endif %}</td>
+    <td class="fa-lbl">Valor inmueble</td><td class="fa-val" colspan="3">{% if formato.valor_inmueble %}{{ formato.valor_inmueble|money_us_symbol }}{% else %}—{% endif %}</td>
   </tr>
   {% if formato_pdf_credito_extra_bd %}
   <tr>
-    <td class="fa-lbl">Prima 1 $</td><td class="fa-val">{% if formato.prima_1 %}${{ formato.prima_1|floatformat:2 }}{% else %}—{% endif %}</td>
-    <td class="fa-lbl">Fecha prima 1</td><td class="fa-val">{% if formato.prima_1_fecha %}{{ formato.prima_1_fecha|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+    <td class="fa-lbl">Reserva $</td><td class="fa-val">{% if formato.prima_1 %}{{ formato.prima_1|money_us_symbol }}{% else %}—{% endif %}</td>
+    <td class="fa-lbl">Fecha de pago de reserva</td><td class="fa-val">{% if formato.prima_1_fecha %}{{ formato.prima_1_fecha|date:"d/m/Y" }}{% else %}—{% endif %}</td>
   </tr>
   <tr>
-    <td class="fa-lbl">Prima 2 $</td><td class="fa-val">{% if formato.prima_2 %}${{ formato.prima_2|floatformat:2 }}{% else %}—{% endif %}</td>
-    <td class="fa-lbl">Fecha prima 2</td><td class="fa-val">{% if formato.prima_2_fecha %}{{ formato.prima_2_fecha|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+    <td class="fa-lbl">Prima a pagar $</td><td class="fa-val">{% if formato.prima_2 %}{{ formato.prima_2|money_us_symbol }}{% else %}—{% endif %}</td>
+    <td class="fa-lbl">Fecha de pago de prima</td><td class="fa-val">{% if formato.prima_2_fecha %}{{ formato.prima_2_fecha|date:"d/m/Y" }}{% else %}—{% endif %}</td>
   </tr>
   {% else %}
   <tr>
-    <td class="fa-lbl">Prima 1 $</td><td class="fa-val">{% if formato.prima_1 %}${{ formato.prima_1|floatformat:2 }}{% else %}—{% endif %}</td>
-    <td class="fa-lbl">Prima 2 $</td><td class="fa-val">{% if formato.prima_2 %}${{ formato.prima_2|floatformat:2 }}{% else %}—{% endif %}</td>
+    <td class="fa-lbl">Reserva $</td><td class="fa-val">{% if formato.prima_1 %}{{ formato.prima_1|money_us_symbol }}{% else %}—{% endif %}</td>
+    <td class="fa-lbl">Prima a pagar $</td><td class="fa-val">{% if formato.prima_2 %}{{ formato.prima_2|money_us_symbol }}{% else %}—{% endif %}</td>
   </tr>
   {% endif %}
   <tr>
-    <td class="fa-lbl">Valor financiamiento</td><td class="fa-val">{% if formato.valor_financiamiento %}${{ formato.valor_financiamiento|floatformat:2 }}{% else %}—{% endif %}</td>
-    <td class="fa-lbl">Letra mensual</td><td class="fa-val">{% if formato.letra_mensual %}${{ formato.letra_mensual|floatformat:2 }}{% else %}—{% endif %}</td>
+    <td class="fa-lbl">Tipo de financiamiento</td>
+    <td class="fa-val" colspan="3">{{ formato.get_tipo_financiamiento_display|default:"—" }}</td>
   </tr>
   <tr>
-    <td class="fa-lbl">Plazo</td><td class="fa-val">{{ formato.plazo_txt|default:"—" }}</td>
+    <td class="fa-lbl">Valor financiamiento</td><td class="fa-val">{% if formato.valor_financiamiento %}{{ formato.valor_financiamiento|money_us_symbol }}{% else %}—{% endif %}</td>
+    <td class="fa-lbl">Letra / cuota 1–12 (sin interés)</td><td class="fa-val">{% if formato.letra_mensual %}{{ formato.letra_mensual|money_us_symbol }}{% else %}—{% endif %}</td>
+  </tr>
+  <tr>
+    <td class="fa-lbl">Plazo</td><td class="fa-val">{% if formato.plazo_txt %}{{ formato.plazo_txt }} año(s){% else %}—{% endif %}</td>
     <td class="fa-lbl">No. cuota</td><td class="fa-val">{{ formato.num_cuota_txt|default:"—" }}</td>
   </tr>
   <tr>
-    <td class="fa-lbl">Interés</td><td class="fa-val" colspan="3">{{ formato.interes_txt|default:"—" }}</td>
+    <td class="fa-lbl">Interés (desde mes 13)</td><td class="fa-val" colspan="3">{% if formato.interes_txt %}{{ formato.interes_txt }} %{% else %}—{% endif %}</td>
   </tr>
   <tr>
     <td class="fa-lbl">Fecha primera cuota</td><td class="fa-val">{% if formato.fecha_primera_cuota %}{{ formato.fecha_primera_cuota|date:"d/m/Y" }}{% else %}—{% endif %}</td>
@@ -173,10 +179,10 @@
     <td class="fa-val">{{ r.linea }}</td>
     <td class="fa-val">{{ r.concepto }}</td>
     <td class="fa-val">{% if r.fecha %}{{ r.fecha|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-    <td class="fa-val" style="text-align:right;">{% if r.monto is not None %}${{ r.monto|floatformat:2 }}{% else %}—{% endif %}</td>
+    <td class="fa-val" style="text-align:right;">{% if r.monto is not None %}{{ r.monto|money_us_symbol }}{% else %}—{% endif %}</td>
   </tr>
   {% empty %}
-  <tr><td class="fa-val" colspan="4">Complete primas (monto o fecha), fecha de primera cuota (o «Fecha de pago mensual») y número de cuotas o plazo para armar el calendario.</td></tr>
+  <tr><td class="fa-val" colspan="4">Complete primas, fecha de primera cuota, plazo (1–5 años) y cuota mínima. Meses 1–12 sin interés; desde el mes 13 cuota mínima + interés.</td></tr>
   {% endfor %}
 </table>
 

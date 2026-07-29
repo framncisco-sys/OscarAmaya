@@ -1,12 +1,20 @@
 {% extends "app/base_app.html" %}
 {% block title %}Plan de cuotas y estado de cuenta | {{ marca_portal.nombre }}{% endblock %}
 {% block app_content %}
-<h1 class="page-title">Plan de cuotas y estado de cuenta</h1>
-<p class="page-lead">
-  Contrato <strong>{{ contrato.numero }}</strong> —
-  <a href="{% url 'app:contrato_update' contrato.pk %}">Editar contrato</a>
-  · <a href="{% url 'app:pago_list' %}?contrato={{ contrato.pk }}">Pagos de este contrato</a>
-</p>
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Plan de cuotas y estado de cuenta</h1>
+    <p class="page-toolbar__meta">
+      Contrato <strong>{{ contrato.numero }}</strong> —
+      <a href="{% url 'app:contrato_update' contrato.pk %}">Editar plan de pagos</a>
+      · <a href="{% url 'app:pago_list' %}?contrato={{ contrato.pk }}">Pagos de este contrato</a>
+      · <a href="{% url 'app:cliente_estado_cuenta_pdf' contrato.cliente_id %}" target="_blank" rel="noopener">Estado de cuenta del cliente (PDF)</a>
+    </p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:contrato_estado_cuenta_pdf' contrato.pk %}" class="btn-primary btn-sm" target="_blank" rel="noopener">Imprimir / PDF</a>
+  </div>
+</header>
 
 {% if cobro_mes.cuota %}
 <section class="card" style="border-left:4px solid #1e3a5f;">

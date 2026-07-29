@@ -1,0 +1,203 @@
+{% extends "docs/_base_pdf.html" %}
+{% block pdf_body_class %} class="pdf-estado-cuenta"{% endblock %}
+{% block pdf_brand_captions %}
+{% include "docs/_pdf_brand_captions.html" with razon_social=empresa_nombre pie_inmobiliaria="Estado de cuenta · cartera del cliente" %}
+{% endblock %}
+{% block pdf_extra_styles %}
+    body.pdf-estado-cuenta { font-size: 10px; line-height: 1.35; color: #1e293b; }
+    body.pdf-estado-cuenta .pdf-header { margin-bottom: 8px; padding-bottom: 6px; }
+    .ec-hero { text-align: center; margin: 0 0 10px; padding: 0 0 8px; border-bottom: 2px solid #0f172a; }
+    .ec-hero h1 { margin: 0 0 2px; font-size: 18px; font-weight: 800; color: #003366; letter-spacing: 0.04em; text-transform: uppercase; }
+    .ec-hero .sub { margin: 0; font-size: 9.5px; color: #64748b; }
+    .ec-kpis { width: 100%; border-collapse: collapse; margin: 0 0 12px; }
+    .ec-kpis td { width: 25%; text-align: center; padding: 8px 6px; border: 1px solid #e2e8f0; background: #f8fafc; vertical-align: top; }
+    .ec-kpis .k { display: block; font-size: 8px; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; margin: 0 0 3px; }
+    .ec-kpis .v { display: block; font-size: 13px; font-weight: 800; color: #0f172a; }
+    .ec-kpis .v.warn { color: #b45309; }
+    .ec-kpis .v.ok { color: #15803d; }
+    .ec-kpis .v.bad { color: #b91c1c; }
+    .ec-dl { width: 100%; border-collapse: collapse; margin: 0 0 8px; }
+    .ec-dl td { padding: 4px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+    .ec-dl .lbl { width: 28%; font-weight: 700; color: #475569; background: #f8fafc; }
+    .ec-block { margin: 14px 0 0; padding: 0 0 8px; page-break-inside: avoid; }
+    .ec-block-title {
+      font-size: 11px; font-weight: 800; color: #fff; background: #003366;
+      padding: 6px 10px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .ec-h3 { font-size: 10px; font-weight: 800; color: #003366; text-transform: uppercase; letter-spacing: 0.05em; margin: 10px 0 4px; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px; }
+    .ec-table { width: 100%; border-collapse: collapse; margin: 0 0 6px; font-size: 8.5px; }
+    .ec-table th { text-align: left; padding: 4px 5px; background: #e2e8f0; color: #334155; font-weight: 800; text-transform: uppercase; font-size: 7.5px; letter-spacing: 0.03em; }
+    .ec-table td { padding: 3px 5px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+    .ec-table tr.proxima td { background: #eff6ff; }
+    .ec-table tr.vencida td { background: #fef2f2; }
+    .right { text-align: right; }
+    .ok { color: #15803d; font-weight: 700; }
+    .warn { color: #b45309; font-weight: 700; }
+    .bad { color: #b91c1c; font-weight: 700; }
+    .muted { color: #94a3b8; }
+    .ec-nota { font-size: 8.5px; color: #64748b; margin: 4px 0 0; }
+    .ec-pie { margin-top: 16px; font-size: 8px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+    .ec-empty { color: #94a3b8; font-style: italic; padding: 8px 0; }
+{% endblock %}
+
+{% block content %}
+<section class="ec-hero">
+  <h1>Estado de cuenta</h1>
+  <p class="sub">
+    Documento de cartera · Corte al {{ hoy|date:"d/m/Y" }}
+    · Emitido {{ emitido_en|date:"d/m/Y H:i" }}
+  </p>
+</section>
+
+<table class="ec-dl">
+  <tr><td class="lbl">Cliente</td><td><strong>{{ cliente.apellidos }}, {{ cliente.nombres }}</strong></td></tr>
+  <tr><td class="lbl">DUI / documento</td><td>{{ cliente.dui|default:"—" }}{% if cliente.nit %} · NIT {{ cliente.nit }}{% endif %}</td></tr>
+  <tr><td class="lbl">Teléfono</td><td>{{ cliente.telefono|default:"—" }}</td></tr>
+  <tr><td class="lbl">Correo</td><td>{{ cliente.email|default:"—" }}</td></tr>
+  <tr><td class="lbl">Dirección</td><td>{{ cliente.direccion|default:"—"|linebreaksbr }}</td></tr>
+</table>
+
+<table class="ec-kpis">
+  <tr>
+    <td><span class="k">Contratos</span><span class="v">{{ totales.contratos }}</span></td>
+    <td><span class="k">Precio total</span><span class="v">${{ totales.precio }}</span></td>
+    <td><span class="k">Total pagado</span><span class="v ok">${{ totales.pagado }}</span></td>
+    <td><span class="k">Saldo estimado</span><span class="v {% if totales.saldo > 0 %}warn{% else %}ok{% endif %}">${{ totales.saldo }}</span></td>
+  </tr>
+</table>
+{% if totales.vencidas %}
+<p class="ec-nota bad">Cuotas vencidas sin pagar (todos los contratos): {{ totales.vencidas }}</p>
+{% endif %}
+{% if param_recargo %}
+<p class="ec-nota">Política de recargo: ${{ param_recargo.monto_recargo }} · {{ param_recargo.dias_gracia }} día(s) de gracia tras el vencimiento.</p>
+{% endif %}
+
+{% for b in bloques %}
+<section class="ec-block">
+  <div class="ec-block-title">
+    Contrato {{ b.contrato.numero }}
+    · {{ b.inmueble.codigo }}
+    {% if b.proyecto %} — {{ b.proyecto.nombre }}{% endif %}
+  </div>
+
+  <table class="ec-dl">
+    <tr><td class="lbl">Estado</td><td>{{ b.contrato.get_estado_display }}</td></tr>
+    <tr><td class="lbl">Fecha firma</td><td>{{ b.contrato.fecha_firma|date:"d/m/Y"|default:"—" }}</td></tr>
+    <tr><td class="lbl">Inmueble</td><td>{{ b.inmueble.codigo }} — {{ b.inmueble.get_tipo_display }}{% if b.proyecto %} · {{ b.proyecto.nombre }}{% endif %}</td></tr>
+    <tr><td class="lbl">Modalidad</td><td>{{ b.contrato.get_modalidad_financiamiento_display }}</td></tr>
+    {% if b.contrato.plan_anos %}
+    <tr><td class="lbl">Plazo</td><td>{{ b.contrato.get_plan_anos_display }}</td></tr>
+    {% endif %}
+    <tr><td class="lbl">Precio acordado</td><td><strong>${{ b.contrato.precio_final }}</strong></td></tr>
+    <tr><td class="lbl">Pagado (capital)</td><td class="ok">${{ b.resumen.total_pagado }}</td></tr>
+    <tr><td class="lbl">Saldo estimado</td><td class="{% if b.resumen.saldo_estimado > 0 %}warn{% else %}ok{% endif %}"><strong>${{ b.resumen.saldo_estimado }}</strong></td></tr>
+    <tr>
+      <td class="lbl">Plan de cuotas</td>
+      <td>
+        {{ b.resumen.total_cuotas }} cuotas ·
+        {{ b.resumen.pagadas }} pagadas ·
+        {{ b.resumen.pendientes }} pendientes ·
+        <span class="{% if b.resumen.vencidas %}bad{% endif %}">{{ b.resumen.vencidas }} vencidas</span>
+        · Plan ${{ b.resumen.monto_plan_total }} · Cubierto ${{ b.resumen.monto_cuotas_pagadas }} · Por pagar ${{ b.resumen.monto_cuotas_por_pagar }}
+      </td>
+    </tr>
+    {% if b.cobro_mes.cuota %}
+    <tr>
+      <td class="lbl">A cobrar (corte)</td>
+      <td>
+        <strong>${{ b.cobro_mes.monto_total }}</strong>
+        (cuota ${{ b.cobro_mes.monto_cuota }}{% if b.cobro_mes.monto_recargo %} + recargo ${{ b.cobro_mes.monto_recargo }}{% endif %})
+        <span class="muted"> — {{ b.cobro_mes.nota }}</span>
+      </td>
+    </tr>
+    {% endif %}
+  </table>
+
+  <p class="ec-h3">Detalle de cuotas</p>
+  {% if b.filas_cuotas %}
+  <table class="ec-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Vence</th>
+        <th class="right">Cuota</th>
+        <th>Estado</th>
+        <th>Pagó</th>
+        <th class="right">Monto pago</th>
+        <th>Ref.</th>
+        <th>Cumplimiento</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in b.filas_cuotas %}
+      {% with c=row.cuota %}
+      <tr class="{% if row.es_proxima %}proxima{% elif c.estado == 'VENCIDA' %}vencida{% endif %}">
+        <td>{{ c.numero }}{% if row.es_proxima %} *{% endif %}</td>
+        <td>{{ c.vence_en|date:"d/m/Y" }}</td>
+        <td class="right">
+          ${{ c.monto }}
+          {% if row.es_proxima and row.a_cobrar_recargo %}
+          <br><span class="warn">+${{ row.a_cobrar_recargo }} → ${{ row.a_cobrar_total }}</span>
+          {% endif %}
+        </td>
+        <td>{{ c.get_estado_display }}</td>
+        <td>{% if row.fecha_pago %}{{ row.fecha_pago|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+        <td class="right">{% if row.pago_monto is not None %}${{ row.pago_monto }}{% else %}—{% endif %}</td>
+        <td>{{ row.pago_referencia|default:"—" }}</td>
+        <td>
+          {% if row.dias_tarde_al_pagar is not None %}
+            {% if row.dias_tarde_al_pagar > 0 %}<span class="warn">{{ row.dias_tarde_al_pagar }} d después</span>{% else %}<span class="ok">A tiempo</span>{% endif %}
+          {% elif row.genera_recargo %}
+            <span class="bad">Genera recargo</span>
+          {% elif row.dias_impago_tras_venc %}
+            <span class="warn">Impaga {{ row.dias_impago_tras_venc }} d</span>
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endwith %}
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="ec-nota">* = próxima a cobrar en el corte. El saldo es orientativo (precio − pagos de capital).</p>
+  {% else %}
+  <p class="ec-empty">Sin cuotas programadas en este contrato.</p>
+  {% endif %}
+
+  <p class="ec-h3">Pagos registrados</p>
+  {% if b.resumen.pagos %}
+  <table class="ec-table">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Concepto</th>
+        <th class="right">Monto</th>
+        <th class="right">Recargo incl.</th>
+        <th>Referencia</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in b.resumen.pagos %}
+      <tr>
+        <td>{{ p.fecha|date:"d/m/Y" }}</td>
+        <td>{{ p.get_concepto_display }}</td>
+        <td class="right">${{ p.monto }}</td>
+        <td class="right">{% if p.monto_recargo_incluido %}${{ p.monto_recargo_incluido }}{% else %}—{% endif %}</td>
+        <td>{{ p.referencia|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="ec-empty">Sin pagos registrados.</p>
+  {% endif %}
+</section>
+{% empty %}
+<p class="ec-empty">Este cliente no tiene contratos registrados.</p>
+{% endfor %}
+
+<p class="ec-pie">
+  {{ empresa_nombre|default:"Paredes Desarrollos Inmobiliarios" }} · Estado de cuenta interno ·
+  Cliente #{{ cliente.pk }} · Generado desde el sistema de gestión.
+  No sustituye estados notariales ni certificaciones formales.
+</p>
+{% endblock %}

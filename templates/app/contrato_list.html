@@ -1,31 +1,33 @@
 {% extends "app/base_app.html" %}
-{% block title %}Contratos | Paredes Bienes Raíces{% endblock %}
+{% block title %}Planes de pagos | Paredes Bienes Raíces{% endblock %}
 {% block app_content %}
 <header class="page-toolbar">
   <div class="page-toolbar__intro">
-    <h1 class="page-title">{% if contratos_modo_solo_vendedor %}Mis contratos{% else %}Contratos{% endif %}</h1>
+    <h1 class="page-title">{% if contratos_modo_solo_vendedor %}Mis planes de pagos{% else %}Planes de pagos{% endif %}</h1>
     <p class="page-toolbar__meta">
       {% if contratos_modo_solo_vendedor %}
-        Contratos donde figura como vendedor. Flujo: reserva → prima → promesa → plazos.
+        Planes donde figura como vendedor. Flujo: reserva → prima → plazos / cuotas.
       {% else %}
-        Flujo: formato → contrato → reserva pagada → prima y promesa → recibos a plazos.
+        Flujo: 1 formato → reserva/prima/cuotas 1–12 en el plan base.
+        «Nuevo plan de pagos» solo después de esas 12 cuotas pagadas, y una sola vez por cliente (deuda con interés desde el mes 13).
+        Al pagar la última cuota el plan pasa solo a <strong>Liquidado</strong> (también si estaba en borrador).
       {% endif %}
     </p>
   </div>
   <div class="page-toolbar__actions">
-    <a href="{% url 'app:contrato_create' %}" class="btn-primary btn-sm">Nuevo contrato</a>
+    <a href="{% url 'app:contrato_create' %}" class="btn-primary btn-sm">Nuevo plan de pagos</a>
   </div>
 </header>
 {% if contratos_modo_solo_vendedor %}
 <section class="card pbr-card--info" style="margin-bottom:1rem;">
   <h2 class="page-title" style="font-size:1.05rem;margin:0 0 0.5rem;">Resumen</h2>
   <p class="muted" style="margin:0;">
-    <strong>{{ contratos_resumen_total }}</strong> contrato(s) en su vista.
+    <strong>{{ contratos_resumen_total }}</strong> plan(es) en su vista.
     {% if contratos_resumen_comision_con_monto %}
       Comisión estimada acumulada (donde hay % o monto definido): <strong>${{ contratos_resumen_comision_suma|floatformat:2 }}</strong>
-      en <strong>{{ contratos_resumen_comision_con_monto }}</strong> contrato(s).
+      en <strong>{{ contratos_resumen_comision_con_monto }}</strong> plan(es).
     {% else %}
-      Aún no hay comisión calculable (defina porcentaje o monto fijo en cada contrato).
+      Aún no hay comisión calculable (defina porcentaje o monto fijo en cada plan).
     {% endif %}
   </p>
 </section>
@@ -59,12 +61,9 @@
       <td>
         <div class="action-cluster">
           <a href="{% url 'app:contrato_update' c.pk %}" class="link-action">Editar</a>
-          <a href="{% url 'app:pago_create' %}?concepto=RESERVA&amp;contrato={{ c.pk }}" class="link-action">Reserva</a>
-          <a href="{% url 'app:pago_create' %}?concepto=PRIMA&amp;contrato={{ c.pk }}" class="link-action">Prima</a>
-          <a href="{% url 'app:emitir_promesa' c.pk %}" class="link-action">Promesa venta</a>
           <a href="{% url 'app:pago_create' %}?concepto=CUOTA&amp;contrato={{ c.pk }}" class="link-action">Plazos</a>
           <a href="{% url 'app:contrato_estado_cuenta' c.pk %}" class="link-action">Cuotas</a>
-          <a href="{% url 'app:emitir_recibo_comision' c.pk %}" class="link-action">Comisión</a>
+          <a href="{% url 'app:contrato_estado_cuenta_pdf' c.pk %}" class="link-action" target="_blank" rel="noopener" title="Estado de cuenta PDF para imprimir">Estado PDF</a>
           <a href="{% url 'app:contrato_delete' c.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a>
         </div>
       </td>

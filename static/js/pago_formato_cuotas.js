@@ -6,12 +6,14 @@
   var conceptoSel = document.getElementById("id_concepto");
   var hiddenIds = document.getElementById("id_cuotas_seleccionadas");
   var hiddenN = document.getElementById("id_cuotas_incluidas");
+  var hiddenRecargo = document.getElementById("id_monto_recargo_incluido");
   var wrap = document.getElementById("pago-cuotas-tabla-wrap");
   var tbody = document.getElementById("pago-cuotas-tabla-body");
+  var vacio = document.getElementById("pago-cuotas-vacio");
   var elFecha = document.getElementById("id_fecha");
   var elMonto = document.getElementById("id_monto");
 
-  if (!wrap || !tbody || !selCt || wrap.getAttribute("data-enabled") !== "1") {
+  if (!wrap || !tbody || wrap.getAttribute("data-enabled") !== "1") {
     return;
   }
 
@@ -40,20 +42,46 @@
     return "Pendiente";
   }
 
-  function getAllCuotas() {
+  function getPanelOpt() {
     if (selFmt && selFmt.value && selFmt.selectedOptions[0]) {
       var fo = selFmt.selectedOptions[0];
       if (fo.getAttribute("data-cuotas-todas-json") != null) {
-        return parseJsonAttr(fo, "data-cuotas-todas-json") || [];
+        return fo;
       }
     }
-    var opt = selCt.selectedOptions[0];
-    if (!opt || !opt.value) return [];
+    if (selCt && selCt.selectedOptions[0] && selCt.value) {
+      return selCt.selectedOptions[0];
+    }
+    return null;
+  }
+
+  function getAllCuotas() {
+    var opt = getPanelOpt();
+    if (!opt) return [];
     return parseJsonAttr(opt, "data-cuotas-todas-json") || [];
   }
 
+  function getRecargoMonto() {
+    var opt = getPanelOpt();
+    if (!opt) return 0;
+    return parseFloat(String(opt.getAttribute("data-recargo-monto") || "0").replace(",", ".")) || 0;
+  }
+
   function isCuotaConcept() {
-    return conceptoSel && String(conceptoSel.value || "").toUpperCase() === "CUOTA";
+    if (conceptoSel && String(conceptoSel.value || "").toUpperCase() === "CUOTA") {
+      return true;
+    }
+    // Flujo Paso 6: concepto fijo en URL aunque el select falle.
+    try {
+      var q = new URLSearchParams(window.location.search);
+      return String(q.get("concepto") || "").toUpperCase() === "CUOTA";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function money(n) {
+    return (Math.round(n * 100) / 100).toFixed(2);
   }
 
   function updateHiddens(openChecksPrefix, rowsByIdx) {
@@ -72,16 +100,24 @@
       if (r) sum += parseFloat(String(r.m).replace(",", ".")) || 0;
     }
     sum = Math.round(sum * 100) / 100;
+    var recargo = openChecksPrefix.length ? getRecargoMonto() : 0;
+    recargo = Math.round(recargo * 100) / 100;
+    if (hiddenRecargo) {
+      hiddenRecargo.value = money(recargo);
+    }
+    var sugerido = Math.round((sum + recargo) * 100) / 100;
     wrap.setAttribute("data-suma-cuotas", openChecksPrefix.length ? String(sum) : "0");
+    wrap.setAttribute("data-recargo", String(recargo));
+    wrap.setAttribute("data-sugerido", openChecksPrefix.length ? String(sugerido) : "0");
+
     if (isCuotaConcept() && elMonto) {
-      // Al marcar cuotas se sugiere la suma; si ya había un monto mayor, se conserva el excedente.
       var actual = parseFloat(String(elMonto.value || "").replace(",", ".")) || 0;
       if (!openChecksPrefix.length) {
         elMonto.value = "";
-      } else if (actual > sum + 0.0001) {
-        elMonto.value = actual.toFixed(2);
+      } else if (actual > sugerido + 0.0001) {
+        elMonto.value = money(actual);
       } else {
-        elMonto.value = sum.toFixed(2);
+        elMonto.value = money(sugerido);
       }
     }
     if (isCuotaConcept() && openChecksPrefix.length && elFecha) {
@@ -89,10 +125,10 @@
       var r0 = rowsByIdx[ix0];
       if (r0 && r0.v) elFecha.value = r0.v;
     }
-    actualizarHintExcedente(sum);
+    actualizarHintExcedente(sum, recargo);
   }
 
-  function actualizarHintExcedente(sumaCuotas) {
+  function actualizarHintExcedente(sumaCuotas, recargoOpt) {
     var el = document.getElementById("pago-hint-excedente-capital");
     if (!el) return;
     if (!isCuotaConcept() || !elMonto) {
@@ -100,24 +136,32 @@
       el.textContent = "";
       return;
     }
-    var suma = typeof sumaCuotas === "number"
-      ? sumaCuotas
-      : parseFloat(wrap.getAttribute("data-suma-cuotas") || "0") || 0;
+    var suma =
+      typeof sumaCuotas === "number"
+        ? sumaCuotas
+        : parseFloat(wrap.getAttribute("data-suma-cuotas") || "0") || 0;
+    var recargo =
+      typeof recargoOpt === "number"
+        ? recargoOpt
+        : parseFloat(wrap.getAttribute("data-recargo") || "0") || 0;
+    var base = Math.round((suma + recargo) * 100) / 100;
     var total = parseFloat(String(elMonto.value || "").replace(",", ".")) || 0;
-    var exc = Math.round((total - suma) * 100) / 100;
-    if (suma > 0 && exc > 0.009) {
+    var exc = Math.round((total - base) * 100) / 100;
+    if (suma > 0 && (exc > 0.009 || recargo > 0.009)) {
       el.style.display = "block";
+      var partes = ["cuota(s) $" + money(suma)];
+      if (recargo > 0.009) {
+        partes.push("recargo $" + money(recargo) + " (no capital)");
+      }
+      if (exc > 0.009) {
+        partes.push("capital $" + money(exc));
+      }
       el.innerHTML =
-        "Excedente <strong>$" +
-        exc.toFixed(2) +
-        "</strong> → abono a capital en el <strong>mismo recibo</strong> " +
-        "(cuota $" +
-        suma.toFixed(2) +
-        " + capital $" +
-        exc.toFixed(2) +
-        " = $" +
-        total.toFixed(2) +
-        "). El total se descuenta del saldo.";
+        "Desglose del recibo: <strong>" +
+        partes.join(" + ") +
+        "</strong> = <strong>$" +
+        money(total) +
+        "</strong>. Solo cuota(s) y capital reducen el saldo.";
     } else {
       el.style.display = "none";
       el.textContent = "";
@@ -158,26 +202,46 @@
     var rows = getAllCuotas();
     var thAcc = document.getElementById("pago-cuotas-th-accion");
     var esCuota = isCuotaConcept();
+    var opt = getPanelOpt();
+
+    if (vacio) {
+      if (!opt || !opt.value) {
+        vacio.style.display = "block";
+        vacio.textContent =
+          "Elija un formato de aceptación guardado para ver las cuotas pendientes y generar el recibo.";
+      } else if (!rows.length) {
+        vacio.style.display = "block";
+        vacio.textContent =
+          "Este contrato aún no tiene cuotas en el calendario. Cree el plan de pagos (paso 4) o cargue cuotas programadas en el contrato.";
+      } else {
+        vacio.style.display = "none";
+        vacio.textContent = "";
+      }
+    }
 
     if (!rows.length) {
-      wrap.style.display = "none";
       if (hiddenIds) hiddenIds.value = "";
       if (hiddenN) hiddenN.value = "1";
+      if (hiddenRecargo) hiddenRecargo.value = "0.00";
+      actualizarHintExcedente(0, 0);
       return;
     }
 
-    wrap.style.display = "block";
     if (thAcc) thAcc.textContent = esCuota ? "Pagar" : "—";
 
     if (!esCuota) {
       if (hiddenIds) hiddenIds.value = "";
       if (hiddenN) hiddenN.value = "1";
+      if (hiddenRecargo) hiddenRecargo.value = "0.00";
     }
 
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
       var tr = document.createElement("tr");
       tr.style.borderBottom = "1px solid var(--pbr-border, #f1f5f9)";
+      if (row.rg) {
+        tr.style.background = "#fff7ed";
+      }
       var td0 = document.createElement("td");
       td0.style.padding = "0.35rem 0.5rem 0.35rem 0";
       var td1 = document.createElement("td");
@@ -188,6 +252,8 @@
       td3.style.padding = "0.35rem";
       var td4 = document.createElement("td");
       td4.style.padding = "0.35rem";
+      var td5 = document.createElement("td");
+      td5.style.padding = "0.35rem";
 
       if (esCuota) {
         var chk = document.createElement("input");
@@ -206,26 +272,41 @@
       td2.textContent = formatDate(row.v);
       td3.textContent = "$" + row.m;
       td4.textContent = estadoLabel(row.e);
+      td5.textContent = row.rg && row.abierta ? "Sí (gracia vencida)" : "—";
+      if (row.rg && row.abierta) {
+        td5.style.color = "#c2410c";
+        td5.style.fontWeight = "600";
+      }
       tr.appendChild(td0);
       tr.appendChild(td1);
       tr.appendChild(td2);
       tr.appendChild(td3);
       tr.appendChild(td4);
+      tr.appendChild(td5);
       tbody.appendChild(tr);
     }
 
     if (esCuota) {
+      // Preseleccionar la primera pendiente si no hay ninguna marcada.
+      var openChecks = tbody.querySelectorAll(
+        'input[type="checkbox"][data-cuota-id]:not(:disabled)'
+      );
+      var alguna = false;
+      for (var c = 0; c < openChecks.length; c++) {
+        if (openChecks[c].checked) {
+          alguna = true;
+          break;
+        }
+      }
+      if (!alguna && openChecks.length) {
+        openChecks[0].checked = true;
+      }
       normalizeSelection();
     }
   }
 
   function onContratoOrConceptoChange() {
     rebuildTable();
-    if (selCt && selCt.selectedOptions[0] && selCt.selectedOptions[0].value) {
-      try {
-        selCt.dispatchEvent(new Event("change", { bubbles: true }));
-      } catch (e) {}
-    }
   }
 
   if (selFmt) {
@@ -239,21 +320,17 @@
     });
   }
 
-  selCt.addEventListener("change", function () {
-    rebuildTable();
-  });
+  if (selCt) {
+    selCt.addEventListener("change", function () {
+      rebuildTable();
+    });
+  }
   if (conceptoSel) conceptoSel.addEventListener("change", onContratoOrConceptoChange);
 
   if (selFmt && selFmt.value && selCt) {
     var o = selFmt.selectedOptions[0];
     var cid = o && o.getAttribute("data-contrato-id");
     if (cid) selCt.value = cid;
-  }
-
-  if (selCt) {
-    try {
-      selCt.dispatchEvent(new Event("change", { bubbles: true }));
-    } catch (e) {}
   }
 
   wrap.addEventListener("change", function (ev) {
@@ -274,4 +351,3 @@
 
   rebuildTable();
 })();
-

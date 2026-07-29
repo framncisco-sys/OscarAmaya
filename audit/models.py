@@ -28,12 +28,15 @@ class AuditLog(models.Model):
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.TextField(blank=True)
     request_id = models.CharField(max_length=64, blank=True)
+    # Slug de sesión al momento del evento: bienes-raices | desarrollos | vacío.
+    marca_slug = models.CharField(max_length=32, blank=True, db_index=True)
 
     class Meta:
         indexes = [
             models.Index(fields=["created_at"]),
             models.Index(fields=["app_label", "model_name", "object_pk"]),
             models.Index(fields=["actor", "created_at"]),
+            models.Index(fields=["marca_slug", "created_at"]),
         ]
         ordering = ["-created_at"]
 

@@ -47,6 +47,7 @@ def snapshot_auth_user(user) -> dict:
     p = getattr(user, "perfil_app", None)
     if p is not None:
         out["perfil_rol"] = p.rol
+        out["perfil_empresa"] = getattr(p, "empresa", "") or ""
         out["perfil_telefono"] = p.telefono or ""
         out["perfil_activo_en_app"] = p.activo_en_app
         notas = p.notas or ""
@@ -72,6 +73,7 @@ def write_audit_log(
         ip = getattr(ctx, "ip_address", None) if ctx else None
         ua = (getattr(ctx, "user_agent", None) or "") if ctx else ""
         rid = (getattr(ctx, "request_id", None) or "") if ctx else ""
+        marca = (getattr(ctx, "marca_slug", None) or "") if ctx else ""
         act = actor if actor and getattr(actor, "is_authenticated", False) else None
         AuditLog.objects.create(
             action=action,
@@ -85,6 +87,7 @@ def write_audit_log(
             ip_address=ip,
             user_agent=ua,
             request_id=rid,
+            marca_slug=marca,
         )
     except Exception:
         return

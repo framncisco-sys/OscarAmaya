@@ -24,24 +24,30 @@
         <span class="app-sidebar__accord-chevron" aria-hidden="true"></span>
       </summary>
       <div class="app-sidebar__accord-panel">
-        <p class="app-sidebar__accord-hint">Orden: formato → contrato → reserva → prima/promesa → plazos. Abonos con validación de gerencia.</p>
+        <p class="app-sidebar__accord-hint">1 formato → 2 contado <em>o</em> 3–6 a plazos. Abonos con validación de gerencia.</p>
         <a href="{% url 'app:formato_aceptacion' %}"{% if sidebar_nav.formato_active %} class="is-active" aria-current="page"{% endif %}>
           1. Formato de aceptación (nuevo){% if sidebar_stats %}<span class="app-sidebar__stat" title="Formatos">{{ sidebar_stats.formatos }}</span>{% endif %}
         </a>
-        <a href="{% url 'app:contrato_create' %}"{% if sidebar_nav.contrato_active %} class="is-active" aria-current="page"{% endif %}>
-          2. Llenado de contrato
+        <a href="{% url 'app:pago_create' %}?concepto=CONTADO"{% if sidebar_nav.pago_contado_active %} class="is-active" aria-current="page"{% endif %}>
+          2. Contado: recibo total del lote
         </a>
-        <a href="{% url 'app:pago_create' %}?concepto=RESERVA"{% if sidebar_nav.pago_active %} class="is-active" aria-current="page"{% endif %}>
+        <a href="{% url 'app:pago_create' %}?concepto=RESERVA"{% if sidebar_nav.pago_reserva_active %} class="is-active" aria-current="page"{% endif %}>
           3. Reserva pagada (recibo)
         </a>
-        <a href="{% url 'app:pago_create' %}?concepto=PRIMA">
-          4. Prima pagada → promesa
+        <a href="{% url 'app:pago_create' %}?concepto=PRIMA"{% if sidebar_nav.pago_prima_active %} class="is-active" aria-current="page"{% endif %}>
+          4. Prima pagada (recibo)
         </a>
-        <a href="{% url 'app:pago_create' %}?concepto=CUOTA">
-          5. Recibos a plazos
+        <a href="{% url 'app:contrato_create' %}"{% if sidebar_nav.contrato_active %} class="is-active" aria-current="page"{% endif %}>
+          5. Nuevo plan de pagos
+        </a>
+        <a href="{% url 'app:pago_create' %}?concepto=CUOTA"{% if sidebar_nav.pago_cuota_active %} class="is-active" aria-current="page"{% endif %}>
+          6. Recibos a plazos
         </a>
         <a href="{% url 'app:contrato_list' %}">
-          {% if contratos_restriccion_vendedor %}Mis contratos{% else %}Listado de contratos{% endif %}{% if sidebar_stats %}<span class="app-sidebar__stat">{{ sidebar_stats.contratos_activos }}</span>{% endif %}
+          {% if contratos_restriccion_vendedor %}Mis planes de pagos{% else %}Listado de planes de pagos{% endif %}{% if sidebar_stats %}<span class="app-sidebar__stat">{{ sidebar_stats.contratos_activos }}</span>{% endif %}
+        </a>
+        <a href="{% url 'app:estado_cuenta_hub' %}"{% if sidebar_nav.estado_cuenta_active %} class="is-active" aria-current="page"{% endif %}>
+          Estado de cuenta (imprimir PDF)
         </a>
         {% if puede_gestionar_vendedores_app %}
         <a href="{% url 'app:vendedor_list' %}"{% if sidebar_nav.vendedor_list_active or sidebar_nav.vendedor_create_active %} class="is-active" aria-current="page"{% endif %}>
@@ -53,7 +59,7 @@
         </a>
         {% if puede_validar_abonos_app %}
         <a href="{% url 'app:pago_list' %}?validacion=pendiente">
-          Validar abonos (gerencia)
+          Validar abonos (gerencia){% if sidebar_stats and sidebar_stats.pagos_pendientes_validacion %}<span class="app-sidebar__stat">{{ sidebar_stats.pagos_pendientes_validacion }}</span>{% endif %}
         </a>
         {% endif %}
         <a href="{% url 'app:formato_aceptacion_list' %}">Formatos guardados</a>

@@ -1,0 +1,85 @@
+{% extends "app/base_app.html" %}
+{% block title %}{{ page_title }} | {{ marca_portal.nombre }}{% endblock %}
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">{{ page_title }}</h1>
+    <p class="page-toolbar__meta">{{ page_meta }}</p>
+  </div>
+</header>
+
+<section class="card pbr-card--info" style="margin-bottom:1.25rem;">
+  <h2 class="page-title" style="font-size:1.05rem;margin:0 0 0.5rem;">Qué incluye el PDF</h2>
+  <ul class="muted" style="margin:0;padding-left:1.2rem;line-height:1.55;">
+    <li><strong>Logo del proyecto</strong> (izquierda) y <strong>logo Paredes Desarrollos Inmobiliarios</strong> (derecha).</li>
+    <li>Datos del cliente, totales de cartera, cuotas, vencimientos y pagos.</li>
+    <li>Abra el PDF y use <strong>Ctrl+P</strong> para imprimir.</li>
+  </ul>
+</section>
+
+<section class="card" style="margin-bottom:1.25rem;">
+  <h2 class="page-title" style="font-size:1.05rem;margin:0 0 0.75rem;">Por cliente (recomendado)</h2>
+  <p class="muted" style="margin:0 0 0.75rem;">Un PDF con todos los planes de pagos de ese cliente.</p>
+  <div class="data-panel">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Planes</th>
+          <th>Proyecto (ej.)</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in clientes_filas %}
+        <tr>
+          <td><strong>{{ row.cliente.apellidos }}, {{ row.cliente.nombres }}</strong></td>
+          <td>{{ row.n_contratos }}</td>
+          <td class="muted">{{ row.ejemplo_proyecto }}</td>
+          <td>
+            <a href="{% url 'app:cliente_estado_cuenta_pdf' row.cliente.pk %}" class="btn-primary btn-sm" target="_blank" rel="noopener">
+              Imprimir estado de cuenta
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="muted">No hay clientes con planes de pagos.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2 class="page-title" style="font-size:1.05rem;margin:0 0 0.75rem;">Por plan de pagos</h2>
+  <p class="muted" style="margin:0 0 0.75rem;">PDF de un solo contrato / plan.</p>
+  <div class="data-panel">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Número</th>
+          <th>Cliente</th>
+          <th>Inmueble</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in contratos %}
+        <tr>
+          <td><strong>{{ c.numero }}</strong></td>
+          <td>{{ c.cliente }}</td>
+          <td class="muted">{{ c.inmueble.codigo }} — {{ c.inmueble.proyecto.nombre }}</td>
+          <td>
+            <a href="{% url 'app:contrato_estado_cuenta_pdf' c.pk %}" class="btn-secondary btn-sm" target="_blank" rel="noopener">
+              PDF de este plan
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="muted">No hay planes de pagos.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -5,12 +5,15 @@ from inmobiliaria.contratos_acceso import (
 from inmobiliaria.vendedor_acceso import es_vendedor_restringido
 
 from .roles import (
+    codigo_empresa,
     codigo_rol,
     es_superusuario_o_admin_app,
     obtener_perfil,
+    puede_cambiar_empresa,
     puede_gestionar_usuarios,
     puede_gestionar_vendedores,
     puede_validar_abonos,
+    puede_ver_historial_auditoria,
 )
 
 
@@ -22,6 +25,8 @@ def perfil_app(request):
             "puede_gestionar_vendedores_app": False,
             "puede_validar_abonos_app": False,
             "puede_ver_historial_auditoria": False,
+            "puede_cambiar_empresa": False,
+            "empresa_app_codigo": None,
             "rol_app_codigo": None,
             "vendedor_catalogo_vinculado_ctx": None,
             "contratos_restriccion_vendedor": False,
@@ -33,7 +38,9 @@ def perfil_app(request):
         "puede_gestionar_usuarios_app": puede_gestionar_usuarios(request.user),
         "puede_gestionar_vendedores_app": puede_gestionar_vendedores(request.user),
         "puede_validar_abonos_app": puede_validar_abonos(request.user),
-        "puede_ver_historial_auditoria": es_superusuario_o_admin_app(request.user),
+        "puede_ver_historial_auditoria": puede_ver_historial_auditoria(request.user),
+        "puede_cambiar_empresa": puede_cambiar_empresa(request.user),
+        "empresa_app_codigo": codigo_empresa(request.user),
         "rol_app_codigo": codigo_rol(request.user),
         "vendedor_catalogo_vinculado_ctx": vc,
         "contratos_restriccion_vendedor": aplica_restriccion_contratos_por_vendedor(

@@ -32,8 +32,12 @@
       <p class="portal-hero__kicker">Portal Paredes</p>
       <h1 class="portal-hero__title">Elija con qué <span class="portal-hero__accent">empresa continuar</span></h1>
       <p class="portal-hero__lead">
+        {% if marcas|length == 1 %}
+        Entrará al sistema de su empresa.
+        {% else %}
         Dos sistemas independientes. Seleccione uno para entrar;
-        podrá cambiar después desde el menú lateral.
+        podrá cambiar después desde el menú lateral si tiene acceso a ambas.
+        {% endif %}
       </p>
       <div class="portal-hero__hint" aria-hidden="true">
         <span>Pase el cursor o use</span>

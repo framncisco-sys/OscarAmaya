@@ -32,12 +32,12 @@
           <figure class="login-visual__side login-visual__side--lotes">
             <img src="{% static 'login_hero_lotes_cerca.png' %}" alt="" class="login-visual__img" decoding="async" loading="lazy">
             <span class="login-visual__fade"></span>
-            <figcaption class="login-visual__tag">Desarrolladores de lotificaciones</figcaption>
+            <figcaption class="login-visual__tag">Venta de lotes</figcaption>
           </figure>
           <figure class="login-visual__side login-visual__side--venta">
             <img src="{% static 'login_hero_lotes_aereos.png' %}" alt="" class="login-visual__img" decoding="async" loading="lazy">
             <span class="login-visual__fade"></span>
-            <figcaption class="login-visual__tag">Venta de lotes</figcaption>
+            <figcaption class="login-visual__tag">Desarrolladores de lotificaciones</figcaption>
           </figure>
           <figure class="login-visual__side login-visual__side--interior">
             <img src="{% static 'login_hero_interior.png' %}" alt="" class="login-visual__img" decoding="async" loading="lazy">
@@ -87,7 +87,7 @@
         </div>
         {% endif %}
 
-        <form method="post" class="login-form" id="pbr-login-form" novalidate>
+        <form method="post" class="login-form" id="pbr-login-form" novalidate data-pbr-offline="skip" autocomplete="on">
           {% csrf_token %}
           {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
 

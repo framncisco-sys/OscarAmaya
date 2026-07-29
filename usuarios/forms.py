@@ -3,15 +3,55 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
+from inmobiliaria.phone_sv import aplicar_attrs_telefono, limpiar_telefono_formulario
+
 from .models import PerfilUsuario
 
 User = get_user_model()
 
 _ROL_HELP = (
-    "Administrador / Gerencia: acceso completo. "
+    "Administrador / Gerencia: acceso completo en su empresa. "
     "Ventas / comercial: solo el flujo de venta (formato, contrato, pagos). "
     "Tras crear un vendedor, vincúlelo en el catálogo Vendedores."
 )
+
+_EMPRESA_HELP = (
+    "Solo administradores pueden tener «Ambas empresas». "
+    "Gerencia y el resto deben quedar asignados a Bienes Raíces o Desarrollos."
+)
+
+
+def _choices_empresa_para(*, es_admin_editor: bool, forzar_slug: str | None = None):
+    if forzar_slug:
+        return [
+            (c.value, c.label)
+            for c in PerfilUsuario.Empresa
+            if c.value == forzar_slug
+        ]
+    if es_admin_editor:
+        return list(PerfilUsuario.Empresa.choices)
+    return [
+        (c.value, c.label)
+        for c in PerfilUsuario.Empresa
+        if c.value != PerfilUsuario.Empresa.AMBAS
+    ]
+
+
+def validar_rol_empresa(rol: str, empresa: str) -> None:
+    if rol == PerfilUsuario.Rol.ADMINISTRADOR:
+        if empresa != PerfilUsuario.Empresa.AMBAS:
+            raise ValidationError(
+                {
+                    "empresa": "El administrador de sistema debe tener acceso a ambas empresas.",
+                }
+            )
+        return
+    if empresa == PerfilUsuario.Empresa.AMBAS:
+        raise ValidationError(
+            {
+                "empresa": "Solo el rol Administrador puede tener «Ambas empresas».",
+            }
+        )
 
 
 class UsuarioAppCrearForm(forms.Form):
@@ -56,6 +96,11 @@ class UsuarioAppCrearForm(forms.Form):
         choices=PerfilUsuario.Rol.choices,
         help_text=_ROL_HELP,
     )
+    empresa = forms.ChoiceField(
+        label="Empresa",
+        choices=PerfilUsuario.Empresa.choices,
+        help_text=_EMPRESA_HELP,
+    )
     telefono = forms.CharField(label="Teléfono", max_length=40, required=False)
     cuenta_activa = forms.BooleanField(
         label="Cuenta activa (puede iniciar sesión y usar la app)",
@@ -69,10 +114,35 @@ class UsuarioAppCrearForm(forms.Form):
         help_text="Solo para personal de sistemas. Los vendedores y la gerencia de oficina no lo necesitan.",
     )
 
-    def __init__(self, *args, mostrar_acceso_interno: bool = False, **kwargs):
+    def __init__(
+        self,
+        *args,
+        mostrar_acceso_interno: bool = False,
+        es_admin_editor: bool = False,
+        forzar_empresa: str | None = None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         if not mostrar_acceso_interno:
             self.fields.pop("acceso_interno", None)
+        self.fields["empresa"].choices = _choices_empresa_para(
+            es_admin_editor=es_admin_editor,
+            forzar_slug=forzar_empresa,
+        )
+        if forzar_empresa:
+            self.fields["empresa"].initial = forzar_empresa
+            self.fields["empresa"].widget.attrs["readonly"] = True
+        if not es_admin_editor:
+            # Gerencia no crea administradores de sistema.
+            self.fields["rol"].choices = [
+                (c.value, c.label)
+                for c in PerfilUsuario.Rol
+                if c.value != PerfilUsuario.Rol.ADMINISTRADOR
+            ]
+        aplicar_attrs_telefono(self.fields.get("telefono"))
+
+    def clean_telefono(self):
+        return limpiar_telefono_formulario(self.cleaned_data.get("telefono"))
 
     def clean_username(self):
         u = self.cleaned_data["username"].strip()
@@ -88,6 +158,10 @@ class UsuarioAppCrearForm(forms.Form):
             raise ValidationError("Las contraseñas no coinciden.")
         if p1:
             validate_password(p1)
+        rol = data.get("rol")
+        empresa = data.get("empresa")
+        if rol and empresa:
+            validar_rol_empresa(rol, empresa)
         return data
 
 
@@ -112,6 +186,11 @@ class UsuarioAppEditarForm(forms.Form):
         choices=PerfilUsuario.Rol.choices,
         help_text=_ROL_HELP,
     )
+    empresa = forms.ChoiceField(
+        label="Empresa",
+        choices=PerfilUsuario.Empresa.choices,
+        help_text=_EMPRESA_HELP,
+    )
     telefono = forms.CharField(label="Teléfono", max_length=40, required=False)
     notas = forms.CharField(label="Notas internas", widget=forms.Textarea, required=False)
     cuenta_activa = forms.BooleanField(
@@ -124,10 +203,33 @@ class UsuarioAppEditarForm(forms.Form):
         help_text="Solo para personal de sistemas. Los vendedores y la gerencia de oficina no lo necesitan.",
     )
 
-    def __init__(self, *args, mostrar_acceso_interno: bool = False, **kwargs):
+    def __init__(
+        self,
+        *args,
+        mostrar_acceso_interno: bool = False,
+        es_admin_editor: bool = False,
+        forzar_empresa: str | None = None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         if not mostrar_acceso_interno:
             self.fields.pop("acceso_interno", None)
+        self.fields["empresa"].choices = _choices_empresa_para(
+            es_admin_editor=es_admin_editor,
+            forzar_slug=forzar_empresa,
+        )
+        if forzar_empresa:
+            self.fields["empresa"].initial = forzar_empresa
+        if not es_admin_editor:
+            self.fields["rol"].choices = [
+                (c.value, c.label)
+                for c in PerfilUsuario.Rol
+                if c.value != PerfilUsuario.Rol.ADMINISTRADOR
+            ]
+        aplicar_attrs_telefono(self.fields.get("telefono"))
+
+    def clean_telefono(self):
+        return limpiar_telefono_formulario(self.cleaned_data.get("telefono"))
 
     def clean(self):
         data = super().clean()
@@ -140,4 +242,8 @@ class UsuarioAppEditarForm(forms.Form):
             if p1 != p2:
                 raise ValidationError("Las contraseñas nuevas no coinciden.")
             validate_password(p1)
+        rol = data.get("rol")
+        empresa = data.get("empresa")
+        if rol and empresa:
+            validar_rol_empresa(rol, empresa)
         return data

@@ -90,6 +90,7 @@ def audit_post_save(sender, instance, created: bool, **kwargs):
             ip_address=ctx.ip_address,
             user_agent=ctx.user_agent or "",
             request_id=ctx.request_id or "",
+            marca_slug=getattr(ctx, "marca_slug", "") or "",
         )
     except Exception:
         # Nunca bloquear la operación principal por fallo de auditoría.
@@ -136,6 +137,7 @@ def audit_post_delete(sender, instance, **kwargs):
             ip_address=ctx.ip_address,
             user_agent=ctx.user_agent or "",
             request_id=ctx.request_id or "",
+            marca_slug=getattr(ctx, "marca_slug", "") or "",
         )
     except Exception:
         return

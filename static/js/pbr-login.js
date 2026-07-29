@@ -116,6 +116,16 @@
   });
 
   form.addEventListener("submit", function (ev) {
+    // Renovar CSRF desde la cookie (evita 403 por página/token en caché).
+    try {
+      var m = document.cookie.match(/(?:^|; )csrftoken=([^;]*)/);
+      var token = m ? decodeURIComponent(m[1]) : "";
+      if (token) {
+        var csrfInput = form.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfInput) csrfInput.value = token;
+      }
+    } catch (e) {}
+
     if (!validateClient()) {
       ev.preventDefault();
       var firstInvalid = form.querySelector(".login-field--invalid input");

@@ -1,25 +1,11 @@
 {% extends "docs/_base_pdf.html" %}
 {% block pdf_body_class %} class="pdf-comision-alquiler"{% endblock %}
-{% block pdf_header %}
-<div class="pdf-header pdf-header--pbr-br">
-  <table class="pdf-header-logos">
-    <tr>
-      <td>
-        <img src="{% firstof proyecto_logo_src 'logo_valle_alegre.png' %}" alt="Logo del proyecto" class="pdf-logo pdf-logo--proyecto">
-      </td>
-      <td>
-        <img src="logo_paredes_bienes_raices.png" alt="Paredes Bienes Raíces" class="pdf-logo pdf-logo--pbr-br">
-      </td>
-    </tr>
-  </table>
-</div>
+{% block pdf_brand_captions %}
+{% include "docs/_pdf_brand_captions.html" with razon_social=razon_social_emisor pie_inmobiliaria="Comisión por intermediación en arrendamiento" %}
 {% endblock %}
 {% block pdf_extra_styles %}
     body.pdf-comision-alquiler { margin: 0; padding: 0; color: #1e293b; font-size: 11px; line-height: 1.4; }
-    body.pdf-comision-alquiler .pdf-header--pbr-br { margin: 0 0 12px; padding: 0 0 10px; border-bottom: 2px solid #003366; }
-    body.pdf-comision-alquiler .pdf-header-logos td { height: 168px; min-height: 168px; padding: 6px 10px 8px; vertical-align: middle; }
-    body.pdf-comision-alquiler .pdf-logo--proyecto,
-    body.pdf-comision-alquiler .pdf-logo--pbr-br { height: 136px; max-height: 136px; width: auto; max-width: 280px; object-fit: contain; }
+    body.pdf-comision-alquiler .pdf-header { margin: 0 0 12px; padding: 0 0 10px; border-bottom: 2px solid #003366; }
     .cv-band { background: linear-gradient(135deg, #0f3d2e 0%, #1b5e3b 55%, #2d7a52 100%); color: #fff; padding: 14px 16px 12px; border-radius: 6px 6px 0 0; text-align: center; }
     .cv-band__kicker { margin: 0 0 4px; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.9; }
     .cv-band h1 { margin: 0 0 6px; font-size: 20px; font-weight: 800; }

@@ -217,11 +217,36 @@
     };
   }
 
+  function getCookie(name) {
+    var match = document.cookie.match(
+      new RegExp("(?:^|; )" + name.replace(/([.$?*|{}()[\]\\/+^])/g, "\\$1") + "=([^;]*)")
+    );
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  function refreshCsrfInFormData(fd) {
+    var token = getCookie("csrftoken");
+    if (!token) return;
+    if (typeof fd.set === "function") {
+      fd.set("csrfmiddlewaretoken", token);
+    } else {
+      fd.append("csrfmiddlewaretoken", token);
+    }
+  }
+
+  function isAuthForm(form) {
+    var action = (form.getAttribute("action") || window.location.pathname || "").toLowerCase();
+    if (action.indexOf("/login") !== -1 || action.indexOf("/logout") !== -1) return true;
+    if (form.id === "pbr-login-form") return true;
+    return false;
+  }
+
   function payloadToFormData(payload) {
     var fd = new FormData();
     (payload.entries || []).forEach(function (e) {
       fd.append(e.key, e.value);
     });
+    refreshCsrfInFormData(fd);
     return { fd: fd, skippedFiles: payload.fileNames || [] };
   }
 
@@ -346,7 +371,17 @@
       var form = ev.target;
       if (!form || form.tagName !== "FORM") return;
       if (form.getAttribute("data-pbr-offline") === "skip") return;
-      if (navigator.onLine) return;
+      if (isAuthForm(form)) return;
+
+      // Con red: renovar CSRF del cookie (evita 403 por token en caché / cola vieja).
+      if (navigator.onLine) {
+        var token = getCookie("csrftoken");
+        if (token) {
+          var input = form.querySelector('input[name="csrfmiddlewaretoken"]');
+          if (input) input.value = token;
+        }
+        return;
+      }
 
       var method = (form.getAttribute("method") || "GET").toUpperCase();
       if (method === "GET") return;

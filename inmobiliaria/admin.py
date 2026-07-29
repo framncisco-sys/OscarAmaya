@@ -247,7 +247,7 @@ class FormatoAceptacionAdmin(admin.ModelAdmin):
     list_filter = ("creado_en",)
     search_fields = ("nombre_cliente", "contrato__numero")
     raw_id_fields = ("contrato", "creado_por")
-    readonly_fields = ("numero_formulario", "creado_en", "actualizado_en")
+    readonly_fields = ("creado_en", "actualizado_en")
 
 
 @admin.register(ParametroMora)

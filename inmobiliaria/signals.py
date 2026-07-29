@@ -40,6 +40,38 @@ def _historial_precio_inmueble(sender, instance: Inmueble, created: bool, **kwar
 
 
 @receiver(post_save, sender=Pago)
+def intentar_comision_vendedor_tras_validar_abono(
+    sender, instance: Pago, created: bool, **kwargs
+):
+    """
+    Si ya hay reserva y prima validadas, y el vendedor está completo,
+    genera automáticamente el recibo de comisión al vendedor.
+    """
+    if instance.concepto not in (
+        Pago.Concepto.RESERVA,
+        Pago.Concepto.PRIMA,
+        Pago.Concepto.CONTADO,
+    ):
+        return
+    if not instance.contrato_id:
+        return
+    if instance.validacion_abono != Pago.ValidacionAbono.VALIDADO:
+        return
+    # Solo al pasar a validado (no en el alta pendiente).
+    if created and instance.pendiente_validacion_gerente:
+        return
+
+    contrato_id = instance.contrato_id
+
+    def _emitir():
+        from inmobiliaria.comision_vendedor import intentar_emitir_comision_automatica
+
+        intentar_emitir_comision_automatica(contrato_id)
+
+    transaction.on_commit(_emitir)
+
+
+@receiver(post_save, sender=Pago)
 def aplicar_pago_a_cuota_programada(sender, instance: Pago, created: bool, **kwargs):
     """Marca cuotas del calendario solo cuando el abono ya puede contar (validado o sin validación)."""
     if instance.concepto != Pago.Concepto.CUOTA:
@@ -94,19 +126,68 @@ def aplicar_cuotas_programadas_del_pago(pago: Pago) -> list:
             cuota.pagado_en = pago.fecha
             cuota.save(update_fields=["pago", "estado", "pagado_en"])
             aplicadas.append(cuota)
+        if aplicadas:
+            intentar_liquidar_contrato_si_completo(pago.contrato_id)
     return aplicadas
+
+
+def intentar_liquidar_contrato_si_completo(contrato_id: int | None) -> bool:
+    """
+    Si el plan tiene calendario y todas las cuotas están pagadas,
+    pasa a LIQUIDADO (también si estaba en BORRADOR), etapa CIERRE y lote VENDIDO.
+    """
+    if not contrato_id:
+        return False
+    with transaction.atomic():
+        contrato = (
+            Contrato.objects.select_for_update()
+            .select_related("inmueble")
+            .filter(pk=contrato_id)
+            .first()
+        )
+        if contrato is None:
+            return False
+        if contrato.estado in (
+            Contrato.Estado.LIQUIDADO,
+            Contrato.Estado.CANCELADO,
+        ):
+            return False
+
+        total = CuotaProgramada.objects.filter(contrato_id=contrato.pk).count()
+        if total < 1:
+            return False
+        abiertas = (
+            CuotaProgramada.objects.filter(contrato_id=contrato.pk)
+            .exclude(estado=CuotaProgramada.Estado.PAGADA)
+            .exists()
+        )
+        if abiertas:
+            return False
+
+        contrato.estado = Contrato.Estado.LIQUIDADO
+        contrato.etapa_comercial = Contrato.EtapaComercial.CIERRE
+        contrato.save(update_fields=["estado", "etapa_comercial"])
+
+        if contrato.inmueble_id:
+            Inmueble.objects.filter(pk=contrato.inmueble_id).exclude(
+                estado=Inmueble.Estado.VENDIDO
+            ).update(
+                estado=Inmueble.Estado.VENDIDO,
+                cliente_reserva_id=contrato.cliente_id,
+            )
+        return True
 
 
 @receiver(post_save, sender=Pago)
 def avanzar_etapa_comercial_por_pago(sender, instance: Pago, created: bool, **kwargs):
-    """Reserva/prima solo avanzan etapa cuando gerencia valida el abono."""
+    """Reserva/prima/contado/cuotas: efectos comerciales al validar el abono."""
     if not instance.contrato_id:
         return
     if instance.pendiente_validacion_gerente:
         return
     if instance.validacion_abono == Pago.ValidacionAbono.RECHAZADO:
         return
-    # Alta de cuota/otros: en create. Reserva/prima: al validar (update a VALIDADO).
+    # Alta pendiente: no aplicar. Tras validar (update a VALIDADO): aplicar.
     if created and instance.requiere_validacion_gerente:
         return
     if not created and instance.validacion_abono != Pago.ValidacionAbono.VALIDADO:
@@ -130,6 +211,8 @@ def _aplicar_efectos_comerciales_pago(instance: Pago) -> None:
     elif instance.concepto == Pago.Concepto.PRIMA:
         if etapa != Contrato.EtapaComercial.CIERRE:
             nueva = Contrato.EtapaComercial.DOCUMENTOS
+    elif instance.concepto == Pago.Concepto.CONTADO:
+        nueva = Contrato.EtapaComercial.CIERRE
 
     if nueva and nueva != etapa:
         Contrato.objects.filter(pk=contrato.pk).update(etapa_comercial=nueva)
@@ -141,6 +224,38 @@ def _aplicar_efectos_comerciales_pago(instance: Pago) -> None:
                 estado=Inmueble.Estado.RESERVADO,
                 cliente_reserva_id=contrato.cliente_id,
             )
+    elif instance.concepto == Pago.Concepto.CONTADO:
+        # Contado: cierra la operación (activo o borrador → liquidado).
+        Contrato.objects.filter(pk=contrato.pk).exclude(
+            estado=Contrato.Estado.CANCELADO
+        ).update(
+            estado=Contrato.Estado.LIQUIDADO,
+            etapa_comercial=Contrato.EtapaComercial.CIERRE,
+        )
+        # Refrescar para notificación de cierre si hace falta
+        contrato.refresh_from_db(fields=["estado", "etapa_comercial"])
+        if etapa != Contrato.EtapaComercial.CIERRE:
+            # Disparar aviso al vendedor (update() no dispara post_save de etapa)
+            from docs.vendedor_notificacion import notificar_vendedor_cierre_venta
+
+            cid = contrato.pk
+
+            def _enviar():
+                notificar_vendedor_cierre_venta(cid)
+
+            transaction.on_commit(_enviar)
+        inm = contrato.inmueble
+        if inm and inm.estado != Inmueble.Estado.VENDIDO:
+            Inmueble.objects.filter(pk=inm.pk).update(
+                estado=Inmueble.Estado.VENDIDO,
+                cliente_reserva_id=contrato.cliente_id,
+            )
+    elif instance.concepto in (
+        Pago.Concepto.CUOTA,
+        Pago.Concepto.ABONO_CAPITAL,
+    ):
+        # Por si el pago se validó después de aplicar cuotas en otro camino.
+        intentar_liquidar_contrato_si_completo(contrato.pk)
 
 
 @receiver(pre_save, sender=Contrato)

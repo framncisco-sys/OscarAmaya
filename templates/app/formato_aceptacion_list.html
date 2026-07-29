@@ -21,6 +21,11 @@
   Falta migración para «promesa escaneada». Ejecute <code>python manage.py migrate --noinput</code> en el servidor.
 </p>
 {% endif %}
+{% if formato_compraventa_lista_ok %}{% else %}
+<p class="alert" role="alert" style="margin:0 0 1rem;">
+  Falta migración para «contrato de compraventa». Ejecute <code>python manage.py migrate --noinput</code> en el servidor.
+</p>
+{% endif %}
 
 <div class="data-panel">
 <table class="table">
@@ -29,7 +34,7 @@
       <th>Nº formulario</th>
       <th>Nombre</th>
       <th>Inmueble / proyecto</th>
-      <th>Firmas</th>
+      <th>Documentos</th>
       <th>Acciones</th>
     </tr>
   </thead>
@@ -50,11 +55,19 @@
         {% endif %}
       </td>
       <td>
-        {% if f.firmas_completas %}
-        <span class="badge badge--disponible">Listo PDF</span>
-        {% else %}
-        <span class="badge badge--reservado">Pendiente</span>
-        {% endif %}
+        <div class="formato-list-docs">
+          {% if f.firmas_completas %}
+          <span class="badge badge--disponible">Listo PDF</span>
+          {% else %}
+          <span class="badge badge--reservado">Pendiente</span>
+          {% endif %}
+          {% if formato_promesa_lista_ok and f.promesa_venta_escaneada and f.promesa_venta_escaneada.name %}
+          <span class="badge badge--disponible" title="Promesa de venta en expediente">Promesa</span>
+          {% endif %}
+          {% if formato_compraventa_lista_ok and f.contrato_compraventa_escaneado and f.contrato_compraventa_escaneado.name %}
+          <span class="badge badge--disponible" title="Compraventa en expediente">Compraventa</span>
+          {% endif %}
+        </div>
       </td>
       <td>
         <div class="action-cluster">
@@ -68,7 +81,6 @@
           <a href="{% url 'app:formato_aceptacion_promesa_descargar' f.pk %}" class="link-action" target="_blank" rel="noopener"
             title="Promesa de venta guardada (PDF)">Descargar promesa</a>
           {% endif %}
-          {% endif %}
           <form method="post" action="{% url 'app:formato_aceptacion_promesa_subir' f.pk %}" enctype="multipart/form-data" class="formato-list-promesa-form">
             {% csrf_token %}
             <input type="hidden" name="promesa_origen" value="lista">
@@ -79,6 +91,23 @@
             <button type="button" class="link-action formato-list-promesa-trigger" title="Subir PDF de promesa de venta — {{ f.nombre_cliente }}"
               onclick="document.getElementById('promesa-pdf-{{ f.pk }}').click();">Subir promesa PDF</button>
           </form>
+          {% endif %}
+          {% if formato_compraventa_lista_ok %}
+          {% if f.contrato_compraventa_escaneado and f.contrato_compraventa_escaneado.name %}
+          <a href="{% url 'app:formato_aceptacion_compraventa_descargar' f.pk %}" class="link-action" target="_blank" rel="noopener"
+            title="Contrato de compraventa guardado (PDF)">Descargar compraventa</a>
+          {% endif %}
+          <form method="post" action="{% url 'app:formato_aceptacion_compraventa_subir' f.pk %}" enctype="multipart/form-data" class="formato-list-promesa-form">
+            {% csrf_token %}
+            <input type="hidden" name="compraventa_origen" value="lista">
+            <input type="file" name="contrato_compraventa_escaneado" id="compraventa-pdf-{{ f.pk }}" class="formato-list-promesa-file"
+              accept=".pdf,application/pdf"
+              aria-label="Elegir PDF de compraventa para {{ f.nombre_cliente }}"
+              onchange="if (this.files.length) this.form.submit();">
+            <button type="button" class="link-action formato-list-promesa-trigger" title="Subir PDF de compraventa — {{ f.nombre_cliente }}"
+              onclick="document.getElementById('compraventa-pdf-{{ f.pk }}').click();">Subir compraventa PDF</button>
+          </form>
+          {% endif %}
           <a href="{% url 'app:formato_aceptacion_delete' f.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a>
         </div>
       </td>

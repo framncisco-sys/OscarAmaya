@@ -11,50 +11,76 @@ from django.urls import reverse
 
 
 from inmobiliaria.contratos_acceso import aplica_restriccion_contratos_por_vendedor
-from usuarios.roles import puede_gestionar_vendedores
+from usuarios.roles import (
+    marcas_permitidas,
+    puede_acceder_marca,
+    puede_gestionar_vendedores,
+    slug_unica_permitida,
+)
 
 from .dashboard_data import build_dashboard_bienes_raices_context, build_dashboard_context
 from .forms import LoginForm
-from .marcas import MARCAS, SESSION_KEY, es_bienes_raices, marca_from_session, set_marca
+from .marcas import SESSION_KEY, es_bienes_raices, marca_from_session, set_marca
 
 
 class PortalLoginView(LoginView):
-    """Tras Entrar, siempre pasa por la elección de marca (no al dashboard directo)."""
+    """Tras Entrar: si solo tiene una empresa, entra directo; si no, elige marca."""
 
     template_name = "core/login.html"
     authentication_form = LoginForm
     redirect_authenticated_user = True
 
     def form_valid(self, form):
-        # Nueva sesión de trabajo: debe elegir marca otra vez.
+        # Nueva sesión de trabajo: debe resolver marca otra vez.
         self.request.session.pop(SESSION_KEY, None)
         return super().form_valid(form)
 
     def get_success_url(self):
+        unica = slug_unica_permitida(self.request.user)
+        if unica:
+            set_marca(self.request, unica)
+            return reverse("dashboard")
         return reverse("elegir_marca")
 
 
 def home(request: HttpRequest) -> HttpResponse:
+    """La raíz solo muestra el login (misma pantalla que /login/)."""
     if request.user.is_authenticated:
-        if marca_from_session(request) is None:
+        marca = marca_from_session(request)
+        if marca is None:
+            unica = slug_unica_permitida(request.user)
+            if unica:
+                set_marca(request, unica)
+                return redirect("dashboard")
+            return redirect("elegir_marca")
+        if not puede_acceder_marca(request.user, marca.get("slug")):
+            request.session.pop(SESSION_KEY, None)
             return redirect("elegir_marca")
         return redirect("dashboard")
-    return render(request, "core/entrada.html")
+    return PortalLoginView.as_view()(request)
 
 
 @login_required
 def elegir_marca(request: HttpRequest) -> HttpResponse:
-    """Después del login: elegir Paredes Bienes Raíces o Paredes Desarrollos Inmobiliarios."""
+    """Después del login: elegir empresa permitida (admin: ambas; resto: solo la asignada)."""
+    permitidas = marcas_permitidas(request.user)
+    if len(permitidas) == 1:
+        set_marca(request, permitidas[0]["slug"])
+        return redirect("dashboard")
+    if not permitidas:
+        return redirect("dashboard")
     return render(
         request,
         "core/elegir_marca.html",
-        {"marcas": list(MARCAS.values())},
+        {"marcas": permitidas},
     )
 
 
 @login_required
 def portal_marca(request: HttpRequest, slug: str) -> HttpResponse:
-    """Guarda la marca elegida y entra al sistema."""
+    """Guarda la marca elegida y entra al sistema (solo si el usuario tiene permiso)."""
+    if not puede_acceder_marca(request.user, slug):
+        return redirect("elegir_marca")
     marca = set_marca(request, slug)
     if marca is None:
         return redirect("elegir_marca")
@@ -115,7 +141,20 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 
     marca = marca_from_session(request)
     if marca is None:
-        return redirect("elegir_marca")
+        unica = slug_unica_permitida(request.user)
+        if unica:
+            set_marca(request, unica)
+            marca = marca_from_session(request)
+        else:
+            return redirect("elegir_marca")
+    elif not puede_acceder_marca(request.user, marca.get("slug")):
+        request.session.pop(SESSION_KEY, None)
+        unica = slug_unica_permitida(request.user)
+        if unica:
+            set_marca(request, unica)
+            marca = marca_from_session(request)
+        else:
+            return redirect("elegir_marca")
 
     # Vendedor de campo: no ve el dashboard completo, solo el flujo de venta.
     if es_vendedor_restringido(request.user):

@@ -23,11 +23,24 @@ class AuditContextMiddleware:
         ua = request.META.get("HTTP_USER_AGENT")
         request_id = request.headers.get("X-Request-Id") or str(uuid.uuid4())
 
+        marca_slug = ""
+        try:
+            from core.marcas import SESSION_KEY
+
+            marca_slug = (request.session.get(SESSION_KEY) or "") if hasattr(request, "session") else ""
+        except Exception:
+            marca_slug = ""
+
         set_request_context(
-            RequestContext(user_id=user_id, ip_address=ip, user_agent=ua, request_id=request_id)
+            RequestContext(
+                user_id=user_id,
+                ip_address=ip,
+                user_agent=ua,
+                request_id=request_id,
+                marca_slug=marca_slug or "",
+            )
         )
         try:
             return self.get_response(request)
         finally:
             set_request_context(None)
-

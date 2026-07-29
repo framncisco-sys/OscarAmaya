@@ -4,7 +4,7 @@
 <header class="page-toolbar">
   <div class="page-toolbar__intro">
     <h1 class="page-title">Historial de actividad</h1>
-    <p class="page-toolbar__meta">Registro de creación, edición y eliminación en el sistema. Solo visible para administradores.</p>
+    <p class="page-toolbar__meta">Registro de creación, edición y eliminación en el sistema.{% if filtro_marca_fijo %} Mostrando solo su empresa.{% else %} Administradores ven ambas empresas; puede filtrar.{% endif %}</p>
   </div>
 </header>
 
@@ -26,6 +26,19 @@
       </select>
     </div>
   </div>
+  {% if not filtro_marca_fijo %}
+  <div class="field" style="margin:0;">
+    <label class="field__label" for="id_marca">Empresa</label>
+    <div class="field__control">
+      <select name="marca" id="id_marca" class="form-control" style="padding:0.5rem;border-radius:10px;border:1px solid var(--pbr-border);">
+        <option value="">Todas</option>
+        {% for m in marcas_filtro %}
+        <option value="{{ m.slug }}"{% if request.GET.marca == m.slug %} selected{% endif %}>{{ m.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  {% endif %}
   <div class="field" style="margin:0;">
     <label class="field__label" for="id_actor_id">ID usuario actor</label>
     <div class="field__control">
@@ -33,7 +46,7 @@
     </div>
   </div>
   <button type="submit" class="btn-primary btn-sm">Filtrar</button>
-  {% if request.GET.q or request.GET.action or request.GET.actor_id %}
+  {% if request.GET.q or request.GET.action or request.GET.actor_id or request.GET.marca %}
   <a href="{% url 'app:audit_log_list' %}" class="btn-secondary btn-sm">Limpiar</a>
   {% endif %}
 </form>
@@ -45,6 +58,7 @@
       <th>Fecha</th>
       <th>Quién</th>
       <th>Acción</th>
+      <th>Empresa</th>
       <th>Modelo</th>
       <th>Id registro</th>
       <th>IP</th>
@@ -64,13 +78,19 @@
         {% endif %}
       </td>
       <td><span class="badge {% if row.action == 'DELETE' %}badge--bloqueado{% else %}badge--activo{% endif %}">{{ row.get_action_display }}</span></td>
+      <td style="font-size:0.8rem;">
+        {% if row.marca_slug == "bienes-raices" %}Bienes Raíces
+        {% elif row.marca_slug == "desarrollos" %}Desarrollos
+        {% elif row.marca_slug %}<code>{{ row.marca_slug }}</code>
+        {% else %}<span class="muted">—</span>{% endif %}
+      </td>
       <td><code style="font-size:0.8rem;">{{ row.app_label }}.{{ row.model_name }}</code></td>
       <td>{{ row.object_pk }}</td>
       <td class="muted" style="font-size:0.8rem;">{{ row.ip_address|default:"—" }}</td>
       <td><a href="{% url 'app:audit_log_detail' row.pk %}" class="link-action">Detalle</a></td>
     </tr>
     {% empty %}
-    <tr><td colspan="7" class="muted">No hay registros de auditoría{% if request.GET.q %} con ese criterio{% endif %}.</td></tr>
+    <tr><td colspan="8" class="muted">No hay registros de auditoría{% if request.GET.q %} con ese criterio{% endif %}.</td></tr>
     {% endfor %}
   </tbody>
 </table>

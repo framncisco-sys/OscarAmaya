@@ -899,7 +899,14 @@ html[data-pbr-reduced-motion="1"] .app-header--hide {
   align-items: center;
 }
 
-/* Subir promesa PDF desde el listado (mismo aspecto que Editar/PDF) */
+.formato-list-docs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+/* Subir promesa / compraventa PDF desde el listado (mismo aspecto que Editar/PDF) */
 .formato-list-promesa-form {
   position: relative;
   display: inline-flex;

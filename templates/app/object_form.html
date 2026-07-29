@@ -18,6 +18,34 @@
     <div class="alert" role="alert">{{ form.non_field_errors }}</div>
   {% endif %}
   {% for field in form.visible_fields %}
+    {% if field.name == "voucher_transferencia" %}
+    <div class="field pago-voucher-field" style="padding:1rem;border:2px solid #0f766e;border-radius:10px;background:#f0fdfa;">
+      <label class="field__label" for="{{ field.id_for_label }}" style="color:#0f766e;font-size:1rem;">
+        {{ field.label }}{% if field.field.required %} <span style="color:#b91c1c;">(obligatorio)</span>{% endif %}
+      </label>
+      <p class="field__help" style="margin:0 0 0.65rem;color:#115e59;font-weight:600;">
+        {% if field.field.required %}
+        El vendedor debe subir aquí el voucher PDF de la transferencia o depósito bancario.
+        {% else %}
+        Opcional: puede adjuntar el voucher PDF de la transferencia o depósito.
+        {% endif %}
+      </p>
+      <div class="field__control pago-voucher-picker" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;">
+        {{ field }}
+        <button type="button" class="btn-secondary btn-sm" id="pago-voucher-examinar">Examinar PDF</button>
+        <span id="pago-voucher-fname" class="muted" style="font-size:0.85rem;">Ningún archivo seleccionado</span>
+      </div>
+      {% if field.errors %}
+        <div class="field__error" role="alert">{{ field.errors }}</div>
+      {% endif %}
+      {% if object and object.voucher_transferencia %}
+      <p class="muted" style="margin:0.5rem 0 0;font-size:0.85rem;">
+        Archivo actual:
+        <a href="{{ object.voucher_transferencia.url }}" class="link-action" target="_blank" rel="noopener">Ver voucher guardado</a>
+      </p>
+      {% endif %}
+    </div>
+    {% else %}
     <div class="field{% if pago_contrato_panel and field.name == 'cuotas_incluidas' %} pago-field-cuotas-n{% endif %}"{% if pago_contrato_panel and field.name == 'cuotas_incluidas' %} id="pago-field-cuotas-n" style="display:none;"{% elif pago_ocultar_contrato and field.name == 'contrato' %} style="display:none;" aria-hidden="true"{% endif %}>
       <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
       <div class="field__control">
@@ -29,6 +57,9 @@
       {% if field.errors %}
         <div class="field__error" role="alert">{{ field.errors }}</div>
       {% endif %}
+      {% if form_contrato_credito_panel and field.name == "cliente" %}
+        {% include "app/_contrato_credito_plazos_panel.html" %}
+      {% endif %}
       {% if pago_contrato_panel and field.name == "formato_aceptacion" and pago_panel_debajo_formato %}
         {% include "app/_pago_contrato_panel.html" %}
       {% endif %}
@@ -36,12 +67,20 @@
         {% include "app/_pago_contrato_panel.html" %}
       {% endif %}
     </div>
+    {% endif %}
   {% endfor %}
   {% include "app/_cliente_documentos_subir.html" %}
   {% block form_before_actions %}{% endblock %}
   {% if pdf_report_url %}
   <p class="muted" style="margin: 0 0 1rem;">
     <a href="{{ pdf_report_url }}" class="link-action" target="_blank" rel="noopener">Descargar reporte del cliente (PDF)</a>
+    {% if estado_cuenta_pdf_url %}
+    · <a href="{{ estado_cuenta_pdf_url }}" class="link-action" target="_blank" rel="noopener">Estado de cuenta detallado (PDF)</a>
+    {% endif %}
+  </p>
+  {% elif estado_cuenta_pdf_url %}
+  <p class="muted" style="margin: 0 0 1rem;">
+    <a href="{{ estado_cuenta_pdf_url }}" class="link-action" target="_blank" rel="noopener">Estado de cuenta detallado (PDF)</a>
   </p>
   {% endif %}
   {% if sensitive_password_required %}
