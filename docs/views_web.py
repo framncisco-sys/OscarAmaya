@@ -292,22 +292,54 @@ def emitir_recibo_comision(request: HttpRequest, contrato_id: int) -> HttpRespon
 
 @login_required
 def emitir_promesa(request: HttpRequest, contrato_id: int) -> HttpResponse:
+    """POST obligatorio (CSRF). GET muestra confirmación para no romper enlaces antiguos."""
     contrato = get_object_or_404(
         filtrar_contratos_queryset_por_vendedor(Contrato.objects.all(), request.user),
         pk=contrato_id,
     )
+    if request.method != "POST":
+        return render(
+            request,
+            "app/confirm_emitir_documento.html",
+            {
+                "titulo": "Emitir promesa de venta",
+                "blurb": (
+                    f"Se generará el PDF de promesa para el contrato {contrato.numero}. "
+                    "Confirme para continuar."
+                ),
+                "submit_label": "Emitir promesa PDF",
+                "cancel_url": reverse("app:contrato_list"),
+            },
+        )
     doc = emitir_promesa_venta(contrato=contrato, emitido_por=request.user)
     return redirect("app:doc_download", doc_id=doc.id)
 
 
 @login_required
 def emitir_recibo(request: HttpRequest, pago_id: int) -> HttpResponse:
+    """POST obligatorio (CSRF). GET muestra confirmación."""
     pago = get_object_or_404(
-        Pago.objects.select_related("contrato"),
+        Pago.objects.select_related("contrato", "contrato__cliente"),
         pk=pago_id,
     )
     if not usuario_puede_ver_contrato(request.user, pago.contrato):
         raise Http404("Pago no disponible")
+    if request.method != "POST":
+        return render(
+            request,
+            "app/confirm_emitir_documento.html",
+            {
+                "titulo": "Actualizar / emitir recibo digital",
+                "blurb": (
+                    f"Se actualizará el PDF del recibo del pago #{pago.pk} "
+                    f"({pago.get_concepto_display()}, {pago.monto}) "
+                    f"del contrato {pago.contrato.numero}. "
+                    "Si ya existía un recibo, se conserva el mismo número y solo se regenera el archivo."
+                ),
+                "submit_label": "Actualizar recibo / PDF",
+                "cancel_url": reverse("app:pago_list"),
+            },
+        )
     if pago.pendiente_validacion_gerente:
         messages.error(
             request,
@@ -355,6 +387,20 @@ def doc_download(request: HttpRequest, doc_id: int) -> HttpResponse:
     if not doc.pdf_file or not doc.pdf_file.name:
         raise Http404("Documento sin PDF")
     safe_name = f"{doc.numero.replace('/', '-')}.pdf"
+
+    # Recibo de ingreso: siempre regenerar al descargar para aplicar layout/reglas actuales.
+    if doc.tipo == DocumentoTipo.RECIBO_INGRESO:
+        try:
+            pdf_bytes = regenerar_pdf_y_persistir(doc)
+        except ValueError as exc:
+            raise Http404(str(exc)) from exc
+        return FileResponse(
+            BytesIO(pdf_bytes),
+            as_attachment=True,
+            filename=safe_name,
+            content_type="application/pdf",
+        )
+
     storage = doc.pdf_file.storage
     path = doc.pdf_file.name
     if storage.exists(path):

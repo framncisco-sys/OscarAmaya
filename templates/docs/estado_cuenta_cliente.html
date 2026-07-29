@@ -121,9 +121,11 @@
         <th>#</th>
         <th>Vence</th>
         <th class="right">Cuota</th>
+        <th class="right">Recargo</th>
+        <th class="right">Capital</th>
+        <th class="right">Total</th>
         <th>Estado</th>
-        <th>Pagó</th>
-        <th class="right">Monto pago</th>
+        <th>Realizó</th>
         <th>Ref.</th>
         <th>Cumplimiento</th>
       </tr>
@@ -134,18 +136,32 @@
       <tr class="{% if row.es_proxima %}proxima{% elif c.estado == 'VENCIDA' %}vencida{% endif %}">
         <td>{{ c.numero }}{% if row.es_proxima %} *{% endif %}</td>
         <td>{{ c.vence_en|date:"d/m/Y" }}</td>
+        <td class="right">${{ c.monto }}</td>
         <td class="right">
-          ${{ c.monto }}
-          {% if row.es_proxima and row.a_cobrar_recargo %}
-          <br><span class="warn">+${{ row.a_cobrar_recargo }} → ${{ row.a_cobrar_total }}</span>
-          {% endif %}
+          {% if row.es_proxima and row.a_cobrar_recargo %}<span class="warn">${{ row.a_cobrar_recargo }}</span>
+          {% elif row.recargo_cobrado %}<span class="warn">${{ row.recargo_cobrado }}</span>
+          {% else %}—{% endif %}
+        </td>
+        <td class="right">
+          {% if row.abono_capital %}<span class="ok">${{ row.abono_capital }}</span>{% else %}—{% endif %}
+        </td>
+        <td class="right">
+          {% if row.es_proxima and row.a_cobrar_total %}<strong>${{ row.a_cobrar_total }}</strong>
+          {% elif row.total_pago_fila is not None %}<strong>${{ row.total_pago_fila }}</strong>
+          {% elif row.pago_monto is not None %}${{ row.pago_monto }}
+          {% else %}—{% endif %}
         </td>
         <td>{{ c.get_estado_display }}</td>
-        <td>{% if row.fecha_pago %}{{ row.fecha_pago|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-        <td class="right">{% if row.pago_monto is not None %}${{ row.pago_monto }}{% else %}—{% endif %}</td>
+        <td>
+          {% if row.fecha_pago %}{{ row.fecha_pago|date:"d/m/Y" }}
+          {% if row.fecha_registro and row.fecha_registro != row.fecha_pago %}<br><span class="muted">Reg. {{ row.fecha_registro|date:"d/m/Y" }}</span>{% endif %}
+          {% else %}—{% endif %}
+        </td>
         <td>{{ row.pago_referencia|default:"—" }}</td>
         <td>
-          {% if row.dias_tarde_al_pagar is not None %}
+          {% if row.es_proxima and row.a_cobrar_recargo %}
+            <span class="warn">Recargo por atraso(s) anterior(es)</span>
+          {% elif row.dias_tarde_al_pagar is not None %}
             {% if row.dias_tarde_al_pagar > 0 %}<span class="warn">{{ row.dias_tarde_al_pagar }} d después</span>{% else %}<span class="ok">A tiempo</span>{% endif %}
           {% elif row.genera_recargo %}
             <span class="bad">Genera recargo</span>

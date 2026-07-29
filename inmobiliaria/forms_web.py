@@ -9,7 +9,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
-from django.db.models import Count, Prefetch, Q, Sum
+from django.db.models import Count, Prefetch, Q
 from django.forms import BaseInlineFormSet, inlineformset_factory
 from django.urls import reverse
 
@@ -127,6 +127,8 @@ def _formato_sin_contrato_catalogo(f: FormatoAceptacion) -> dict[str, str]:
         "recargo_cantidad": "0",
         "recargo_total_mes": "",
         "recargo_nota": "",
+        "recargo_unitario": "0",
+        "dias_gracia": "0",
         "valor_lote": (
             str(f.valor_inmueble.quantize(Decimal("0.01")))
             if f.valor_inmueble is not None
@@ -625,6 +627,8 @@ def _pago_contrato_catalog_option_attrs(c: dict) -> dict[str, str]:
         "data-recargo-cantidad": c.get("recargo_cantidad", "0"),
         "data-recargo-total-mes": c.get("recargo_total_mes", ""),
         "data-recargo-nota": c.get("recargo_nota", ""),
+        "data-recargo-unitario": c.get("recargo_unitario", "0"),
+        "data-dias-gracia": c.get("dias_gracia", "0"),
         "data-valor-lote": c.get("valor_lote", ""),
         "data-tipo-financiamiento": c.get("tipo_financiamiento", ""),
     }
@@ -1192,16 +1196,15 @@ class PagoForm(forms.ModelForm):
 
         ff = self.fields.get("fecha")
         if ff:
-            ff.label = "Fecha del pago"
+            ff.label = "Fecha en que se realizó el pago"
             wattrs = {**ff.widget.attrs, "type": "date"}
             ff.widget = forms.DateInput(attrs=wattrs, format="%Y-%m-%d")
             ff.input_formats = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"]
             ff.help_text = (
-                "Día en que usted recibe o registra este dinero (ingreso real en el sistema). "
-                "El vencimiento de cada cuota está en las cuotas programadas del contrato. "
-                "Si no pagan un mes y pasan los días de gracia, al siguiente mes corresponde "
-                "cuota + recargo administrativo (Parámetros de recargo). "
-                "La fecha de este movimiento es cuando se recibió el dinero, no el vencimiento."
+                "Día real en que el cliente pagó / usted recibió el dinero. "
+                "NO ponga aquí el vencimiento de la cuota (eso está en la columna «Vence» del calendario). "
+                "El atraso y el recargo se calculan comparando esta fecha con el vencimiento + días de gracia. "
+                "Si esta cuota se atrasa, el recargo se cobra en la siguiente."
             )
 
         m = self.fields.get("monto")
@@ -1276,7 +1279,17 @@ class PagoForm(forms.ModelForm):
 
         r = self.fields.get("referencia")
         if r:
-            r.help_text = "Opcional: número de transferencia, depósito, cheque u otra referencia bancaria."
+            if self._concepto_fijo == Pago.Concepto.CUOTA or (
+                (self.data.get("concepto") if self.is_bound else None) or ""
+            ).strip().upper() == Pago.Concepto.CUOTA:
+                r.help_text = (
+                    "Se completa solo al marcar cuota(s): «PAGO DE CUOTA 18» o «PAGO DE CUOTA 18-19». "
+                    "Puede editarlo si necesita otra referencia (transferencia, depósito, etc.)."
+                )
+            else:
+                r.help_text = (
+                    "Opcional: número de transferencia, depósito, cheque u otra referencia bancaria."
+                )
 
         vch = self.fields.get("voucher_transferencia")
         if vch:
@@ -1339,6 +1352,7 @@ class PagoForm(forms.ModelForm):
                 from django.utils import timezone as dj_tz
 
                 from inmobiliaria.recargo_administrativo import (
+                    contar_eventos_recargo,
                     cuota_genera_recargo,
                     parametro_recargo_activo,
                 )
@@ -1351,16 +1365,6 @@ class PagoForm(forms.ModelForm):
                     else Decimal("0")
                 )
                 hoy_r = dj_tz.localdate()
-                mora_pagado_por_ct = {
-                    r["contrato_id"]: r["t"] or Decimal("0")
-                    for r in Pago.objects.filter(
-                        contrato_id__in=pks,
-                        concepto=Pago.Concepto.MORA,
-                    )
-                    .exclude(validacion_abono=Pago.ValidacionAbono.RECHAZADO)
-                    .values("contrato_id")
-                    .annotate(t=Sum("monto"))
-                }
                 stats_rows = (
                     CuotaProgramada.objects.filter(contrato_id__in=pks)
                     .values("contrato_id")
@@ -1392,30 +1396,50 @@ class PagoForm(forms.ModelForm):
                 )
                 pref_all = Prefetch(
                     "cuotas_programadas",
-                    queryset=CuotaProgramada.objects.order_by("numero", "id"),
+                    queryset=CuotaProgramada.objects.select_related("pago")
+                    .prefetch_related("pago__cuotas_aplicadas")
+                    .order_by("numero", "id"),
                     to_attr="_todas_cuotas_pref",
                 )
                 for c in Contrato.objects.filter(pk__in=pks).prefetch_related(pref, pref_all):
+                    from inmobiliaria.pago_desglose import desglose_aplicado_por_cuota
+
                     todas = getattr(c, "_todas_cuotas_pref", [])
-                    todas_payload = [
-                        {
-                            "id": x.id,
-                            "n": x.numero,
-                            "v": x.vence_en.isoformat(),
-                            "m": str(x.monto.quantize(Decimal("0.01"))),
-                            "e": x.estado,
-                            "abierta": x.pago_id is None
-                            and x.estado
-                            in (
-                                CuotaProgramada.Estado.PENDIENTE,
-                                CuotaProgramada.Estado.VENCIDA,
-                            ),
-                            "rg": cuota_genera_recargo(
-                                x, hoy=hoy_r, dias_gracia=dias_gracia_r
-                            ),
-                        }
-                        for x in todas
-                    ]
+                    todas_payload = []
+                    for x in todas:
+                        dg = desglose_aplicado_por_cuota(x)
+                        fecha_pago = ""
+                        if x.pago_id and x.pago is not None and x.pago.fecha:
+                            fecha_pago = x.pago.fecha.isoformat()
+                        elif x.pagado_en:
+                            fecha_pago = x.pagado_en.isoformat()
+                        todas_payload.append(
+                            {
+                                "id": x.id,
+                                "n": x.numero,
+                                "v": x.vence_en.isoformat(),
+                                "fp": fecha_pago,
+                                "m": str(x.monto.quantize(Decimal("0.01"))),
+                                "e": x.estado,
+                                "abierta": x.pago_id is None
+                                and x.estado
+                                in (
+                                    CuotaProgramada.Estado.PENDIENTE,
+                                    CuotaProgramada.Estado.VENCIDA,
+                                ),
+                                "rg": cuota_genera_recargo(
+                                    x, hoy=hoy_r, dias_gracia=dias_gracia_r
+                                ),
+                                "rec": str(dg["recargo"]),
+                                "cap": str(dg["capital"]),
+                                "tot": (
+                                    str(dg["total_pago"])
+                                    if dg["total_pago"] is not None
+                                    else ""
+                                ),
+                                "ult": bool(dg["es_ultima_del_pago"]),
+                            }
+                        )
                     cm = c.cuota_mensual_estimada
                     if cm is None:
                         cm = _cuota_mensual_estimada(
@@ -1461,23 +1485,11 @@ class PagoForm(forms.ModelForm):
                     elif cm is not None:
                         cuota_ref = str(cm.quantize(Decimal("0.01")))
                         cuota_fuente = "contrato"
-                    generadoras_r = [
-                        x
-                        for x in todas
-                        if cuota_genera_recargo(
-                            x, hoy=hoy_r, dias_gracia=dias_gracia_r
-                        )
-                    ]
-                    pagado_r = mora_pagado_por_ct.get(c.pk, Decimal("0"))
-                    if unitario_r > 0:
-                        cubiertos_r = int(pagado_r // unitario_r)
-                        n_recargos = max(0, len(generadoras_r) - cubiertos_r)
-                        monto_recargos = (unitario_r * n_recargos).quantize(
-                            Decimal("0.01")
-                        )
-                    else:
-                        n_recargos = 0
-                        monto_recargos = Decimal("0.00")
+                    n_recargos, monto_recargos, _, _gens = contar_eventos_recargo(
+                        c,
+                        fecha=hoy_r,
+                        cuotas_a_liquidar=[first] if first else None,
+                    )
                     total_mes = (
                         (first.monto + monto_recargos).quantize(Decimal("0.01"))
                         if first
@@ -1521,6 +1533,8 @@ class PagoForm(forms.ModelForm):
                         "recargo_cantidad": str(n_recargos),
                         "recargo_total_mes": str(total_mes) if first else "",
                         "recargo_nota": nota_r,
+                        "recargo_unitario": str(unitario_r.quantize(Decimal("0.01"))),
+                        "dias_gracia": str(dias_gracia_r),
                     }
             ct.widget = ContratoPagoSelect(catalog=catalog)
             ct.widget.choices = ct.choices
@@ -1822,10 +1836,15 @@ class PagoForm(forms.ModelForm):
                 }
             )
         esperado = sum((c.monto for c in pend), Decimal("0")).quantize(Decimal("0.01"))
-        from inmobiliaria.recargo_administrativo import resumen_cobro_contrato
+        from inmobiliaria.recargo_administrativo import monto_recargo_para_liquidacion
 
-        cobro = resumen_cobro_contrato(contrato, hoy=cleaned_data.get("fecha"))
-        monto_recargo = Decimal(cobro.monto_recargo or 0).quantize(Decimal("0.01"))
+        fecha_pago = cleaned_data.get("fecha")
+        monto_recargo = monto_recargo_para_liquidacion(
+            contrato,
+            fecha=fecha_pago,
+            cuotas_a_liquidar=pend,
+            excluir_pago_id=getattr(self.instance, "pk", None),
+        )
         minimo = (esperado + monto_recargo).quantize(Decimal("0.01"))
         cleaned_data["monto_recargo_incluido"] = monto_recargo
         if monto_q is not None and monto_q < minimo:
@@ -1840,12 +1859,24 @@ class PagoForm(forms.ModelForm):
                         f"Para {n} cuota(s) el monto mínimo es ${minimo} "
                         f"(cuotas n.º {pend[0].numero} al {pend[-1].numero}: ${esperado}"
                         f"{detalle_recargo}). "
-                        "Si el cliente abona de más (ej. cuota $200 y paga $250), "
-                        "registre $250: el excedente sale como abono a capital en el mismo recibo "
-                        "y se descuenta del saldo. El recargo administrativo no reduce capital."
+                        "Si esta cuota viene atrasada, el recargo se cobra en la siguiente. "
+                        "Si el cliente abona de más, el excedente va a capital en el mismo recibo."
                     )
                 }
             )
+
+        # Referencia automática según cuota(s) marcada(s).
+        ref_actual = (cleaned_data.get("referencia") or "").strip()
+        ref_auto = (
+            f"PAGO DE CUOTA {pend[0].numero}"
+            if len(pend) == 1
+            else f"PAGO DE CUOTA {pend[0].numero}-{pend[-1].numero}"
+        )
+        if not ref_actual or re.fullmatch(
+            r"PAGO DE CUOTA\s+\d+(-\d+)?", ref_actual, flags=re.IGNORECASE
+        ):
+            cleaned_data["referencia"] = ref_auto
+
         return cleaned_data
 
     class Media:

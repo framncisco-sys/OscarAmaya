@@ -123,6 +123,21 @@ SECRET_KEY = env.str(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG", default=True)
 
+# PaaS (PORT presente): no arrancar con DEBUG o SECRET_KEY de ejemplo.
+# Escape: DJANGO_ALLOW_INSECURE_PROD=1 (solo diagnóstico).
+if os.environ.get("PORT") and not env.bool("DJANGO_ALLOW_INSECURE_PROD", default=False):
+    from django.core.exceptions import ImproperlyConfigured
+
+    if DEBUG:
+        raise ImproperlyConfigured(
+            "DEBUG debe ser False en producción (variable PORT presente). "
+            "Defina DEBUG=False en el panel del Web Service."
+        )
+    if str(SECRET_KEY).startswith("django-insecure") or len(str(SECRET_KEY)) < 40:
+        raise ImproperlyConfigured(
+            "Defina SECRET_KEY fuerte y aleatoria en producción (mín. 40 caracteres)."
+        )
+
 # Auditoría por señales (crear/editar/borrar en modelos de negocio). Desactívela con AUDIT_SIGNALS_ENABLED=0 si no la necesita.
 AUDIT_SIGNALS_ENABLED = env.bool("AUDIT_SIGNALS_ENABLED", default=True)
 

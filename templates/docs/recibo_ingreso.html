@@ -101,7 +101,7 @@
       font-weight: bold;
       color: #c62828;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.5px;
     }
     .rd-box-num .nro {
       margin: 0;
@@ -160,32 +160,38 @@
       width: 100%;
       border-collapse: collapse;
       border: 1.5px solid #111;
-      margin: 0 0 10px;
-      table-layout: fixed;
+      margin: 0 0 8px;
     }
-    .rd-table th {
-      background: #f1f1f1;
-      border: 1px solid #111;
-      padding: 4px 6px;
-      font-size: 8.5px;
-      font-weight: bold;
-      text-transform: uppercase;
-      text-align: center;
-      color: #111;
-    }
+    .rd-table th,
     .rd-table td {
       border: 1px solid #111;
-      padding: 6px;
-      font-size: 9.5px;
+      padding: 4px 6px;
+      font-size: 9px;
       font-weight: bold;
       text-transform: uppercase;
       color: #111;
       vertical-align: middle;
     }
+    .rd-table th {
+      background: #e8e8e8;
+      font-size: 8px;
+      text-align: center;
+      padding: 5px 4px;
+    }
     .rd-table .c { text-align: center; }
-    .rd-table .r { text-align: right; }
-    .rd-table .concepto { text-align: left; font-size: 9px; }
-    .rd-table tr.total td { background: #fafafa; }
+    .rd-table .r { text-align: right; white-space: nowrap; }
+    .rd-table .concepto { text-align: left; font-size: 8.5px; line-height: 1.3; }
+    .rd-table tr.meta td {
+      font-size: 7.5px;
+      font-weight: 700;
+      color: #333;
+      background: #f7f7f7;
+      padding: 3px 6px;
+    }
+    .rd-table tr.total td {
+      background: #f0f0f0;
+      padding: 5px 6px;
+    }
 
     .rd-foot { width: 100%; border-collapse: collapse; margin-top: 2px; table-layout: fixed; }
     .rd-foot > tbody > tr > td { vertical-align: top; padding: 0 4px; border: none; }
@@ -207,7 +213,7 @@
       margin: 0 0 5px;
       font-size: 11px;
       font-weight: bold;
-      letter-spacing: 0.08em;
+      letter-spacing: 1px;
       text-transform: uppercase;
     }
     .rd-msg .aviso {
@@ -298,41 +304,44 @@
   </tr>
 </table>
 
-<table class="rd-table">
-  <colgroup>
-    <col style="width:14%;">
-    <col style="width:62%;">
-    <col style="width:24%;">
-  </colgroup>
-  <thead>
-    <tr>
-      <th>Cantidad</th>
-      <th>Concepto</th>
-      <th>Valor</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for etiqueta, monto_linea_fmt in desglose_lineas_fmt %}
-    <tr>
-      <td class="c">{% if forloop.first %}1.0{% else %}{% endif %}</td>
-      <td class="concepto">
-        {% if forloop.first %}{{ etiqueta|upper }}{% if forloop.last %} / VALOR DEL INMUEBLE {{ precio_inmueble_fmt }}{% endif %}
-        {% else %}{{ etiqueta|upper }}{% endif %}
-      </td>
-      <td class="r">{{ monto_linea_fmt }}</td>
-    </tr>
-    {% empty %}
-    <tr>
-      <td class="c">1.0</td>
-      <td class="concepto">{{ concepto_detalle }}</td>
-      <td class="r">{{ monto_fmt }}</td>
-    </tr>
-    {% endfor %}
-    <tr class="total">
-      <td colspan="2" class="r">TOTAL</td>
-      <td class="r">{{ monto_fmt }}</td>
-    </tr>
-  </tbody>
+<table class="rd-table" width="100%" cellspacing="0" cellpadding="0" style="width:100%; border-collapse:collapse; border:1.5px solid #111;">
+  <tr>
+    <th class="c" width="15%" style="width:15%;">Cantidad</th>
+    <th width="60%" style="width:60%;">Concepto</th>
+    <th class="r" width="25%" style="width:25%;">Valor</th>
+  </tr>
+  {% for etiqueta, monto_linea_fmt, cantidad_fmt in desglose_lineas_fmt %}
+  <tr>
+    <td class="c" width="15%" style="width:15%;">{{ cantidad_fmt }}</td>
+    <td class="concepto" width="60%" style="width:60%;">{{ etiqueta|upper }}{% if desglose_lineas_fmt|length == 1 and precio_inmueble_fmt %} / VALOR DEL INMUEBLE {{ precio_inmueble_fmt }}{% endif %}</td>
+    <td class="r" width="25%" style="width:25%;">{{ monto_linea_fmt }}</td>
+  </tr>
+  {% empty %}
+  <tr>
+    <td class="c" width="15%" style="width:15%;">1.0</td>
+    <td class="concepto" width="60%" style="width:60%;">{{ concepto_detalle }}</td>
+    <td class="r" width="25%" style="width:25%;">{{ monto_fmt }}</td>
+  </tr>
+  {% endfor %}
+  {% if recargo_no_cobrado_fmt %}
+  <tr class="meta">
+    <td class="c" width="15%" style="width:15%;"></td>
+    <td width="60%" style="width:60%;">Recargo administrativo adeudado (gracia vencida; no cobrado en este pago)</td>
+    <td class="r" width="25%" style="width:25%;">{{ recargo_no_cobrado_fmt }}</td>
+  </tr>
+  {% endif %}
+  {% if precio_inmueble_fmt and desglose_lineas_fmt|length > 1 %}
+  <tr class="meta">
+    <td class="c" width="15%" style="width:15%;"></td>
+    <td width="60%" style="width:60%;">Valor del inmueble {{ precio_inmueble_fmt }}</td>
+    <td class="r" width="25%" style="width:25%;"></td>
+  </tr>
+  {% endif %}
+  <tr class="total">
+    <td class="c" width="15%" style="width:15%;"></td>
+    <td class="r" width="60%" style="width:60%;">TOTAL</td>
+    <td class="r" width="25%" style="width:25%;">{{ monto_fmt }}</td>
+  </tr>
 </table>
 
 <table class="rd-foot">

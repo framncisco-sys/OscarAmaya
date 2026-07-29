@@ -36,3 +36,48 @@ def check_database_not_localhost_on_paas(app_configs, **kwargs):
             id="pbr.E001",
         )
     ]
+
+
+@register(Tags.security, deploy=True)
+def check_debug_and_secret_on_paas(app_configs, **kwargs):
+    """En PaaS, DEBUG=True o SECRET_KEY de ejemplo son inaceptables."""
+    if not os.environ.get("PORT"):
+        return []
+    if os.environ.get("DJANGO_ALLOW_INSECURE_PROD", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        return []
+    from django.conf import settings
+
+    errors = []
+    if settings.DEBUG:
+        errors.append(
+            Error(
+                "DEBUG=True con PORT definido (producción/PaaS).",
+                hint="Ponga DEBUG=False en el panel de DigitalOcean (Environment).",
+                id="pbr.E002",
+            )
+        )
+    sk = str(getattr(settings, "SECRET_KEY", "") or "")
+    if sk.startswith("django-insecure") or len(sk) < 40:
+        errors.append(
+            Error(
+                "SECRET_KEY insegura o demasiado corta en PaaS.",
+                hint="Genere una clave larga y aleatoria y defínala como SECRET_KEY en el Web Service.",
+                id="pbr.E003",
+            )
+        )
+    if getattr(settings, "DJANGO_SERVE_MEDIA_PUBLIC", False) and not getattr(
+        settings, "DJANGO_USE_S3_MEDIA", False
+    ):
+        errors.append(
+            Error(
+                "DJANGO_SERVE_MEDIA_PUBLIC=1 sirve /media/ sin login (PDFs, DUI, vouchers).",
+                hint="Desactive DJANGO_SERVE_MEDIA_PUBLIC y use Spaces/S3 (DJANGO_USE_S3_MEDIA=1).",
+                id="pbr.E004",
+            )
+        )
+    return errors

@@ -26,9 +26,9 @@
 <div class="card" style="margin-bottom:1rem;max-width:42rem;border-left:4px solid #1e3a5f;">
   <p style="margin:0 0 0.5rem;font-weight:600;">Recibo a plazos: cuotas, recargo y capital</p>
   <ol class="muted" style="margin:0;padding-left:1.2rem;font-size:0.9rem;line-height:1.45;">
-    <li>Elija el <strong>formato</strong> y marque una o varias <strong>cuotas consecutivas</strong> en la tabla.</li>
-    <li>Si ya pasaron los <strong>días de gracia</strong>, el monto incluye <strong>recargo administrativo</strong> (no reduce capital).</li>
-    <li>Si abona de más (ej. cuota $200 + recargo $0 y paga $250), los <strong>$50 van a capital</strong> en el mismo recibo.</li>
+    <li><strong>Vence</strong> = fecha de la cuota en el calendario. <strong>Fecha en que se realizó el pago</strong> = día real del dinero (por defecto hoy; no ponga el vencimiento).</li>
+    <li>Elija el <strong>formato</strong> y marque cuotas <strong>consecutivas</strong>. Si hay atraso anterior, el monto incluye <strong>recargo</strong> (se cobra en esta cuota, no en la atrasada).</li>
+    <li>Si abona de más, el excedente es <strong>abono a capital</strong> en el mismo recibo.</li>
   </ol>
   <p class="muted" style="margin:0.65rem 0 0;font-size:0.875rem;">
     Gerencia valida el abono y se genera un solo recibo con el desglose.
@@ -87,6 +87,65 @@
       sugerirMontoContado();
     }
   }
+
+  // Referencia automática «PAGO DE CUOTA N» (independiente de caché del JS externo).
+  function esConceptoCuota() {
+    var sel = document.getElementById("id_concepto");
+    if (sel && String(sel.value || "").toUpperCase() === "CUOTA") return true;
+    if (concepto === "CUOTA") return true;
+    try {
+      return String(new URLSearchParams(window.location.search).get("concepto") || "")
+        .toUpperCase() === "CUOTA";
+    } catch (e) {
+      return false;
+    }
+  }
+  function esRefAuto(v) {
+    var s = String(v || "").trim();
+    return !s || /^PAGO DE CUOTA\s+\d+(-\d+)?$/i.test(s);
+  }
+  function syncReferenciaPago() {
+    var ref = document.getElementById("id_referencia");
+    var wrap = document.getElementById("pago-cuotas-tabla-wrap");
+    if (!ref || !wrap || !esConceptoCuota()) return;
+    if (!esRefAuto(ref.value)) return;
+    var nums = [];
+    var checks = wrap.querySelectorAll(
+      'input[type="checkbox"][data-cuota-id]:not(:disabled):checked'
+    );
+    for (var i = 0; i < checks.length; i++) {
+      var tr = checks[i].closest("tr");
+      if (!tr) continue;
+      var tds = tr.querySelectorAll("td");
+      if (tds.length < 2) continue;
+      var n = parseInt(String(tds[1].textContent || "").trim(), 10);
+      if (!isNaN(n)) nums.push(n);
+    }
+    if (!nums.length) {
+      ref.value = "";
+      return;
+    }
+    ref.value =
+      nums.length === 1
+        ? "PAGO DE CUOTA " + nums[0]
+        : "PAGO DE CUOTA " + nums[0] + "-" + nums[nums.length - 1];
+  }
+  var wrapCuotas = document.getElementById("pago-cuotas-tabla-wrap");
+  if (wrapCuotas) {
+    wrapCuotas.addEventListener("change", syncReferenciaPago);
+    try {
+      new MutationObserver(function () {
+        syncReferenciaPago();
+      }).observe(wrapCuotas, { childList: true, subtree: true });
+    } catch (e) {}
+  }
+  var selFmtRef = document.getElementById("id_formato_aceptacion");
+  if (selFmtRef) selFmtRef.addEventListener("change", function () {
+    setTimeout(syncReferenciaPago, 50);
+  });
+  setTimeout(syncReferenciaPago, 0);
+  setTimeout(syncReferenciaPago, 200);
+  setTimeout(syncReferenciaPago, 800);
 })();
 </script>
 {% endblock %}

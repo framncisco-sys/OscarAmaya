@@ -250,7 +250,7 @@ def branding_pdf_context(proyecto=None, *, empresa_default: str = "desarrollos")
         "razon_social_desarrollos": "Paredes Desarrollos Inmobiliarios, S.A.S. de C.V.",
         "proyecto_logo_src": proy_logo,
         # Sombra atenuada (solo para recibo / fondo). No usar como logo de cabecera.
-        "watermark_logo_src": _watermark_faded_src(proyecto, opacity=0.12),
+        "watermark_logo_src": _watermark_faded_src(proyecto, opacity=0.18),
         "proyecto_nombre": (proyecto.nombre if proyecto is not None else "") or "",
         "recibo_contacto_nombre": "Karen Patricia Vásquez Merlos",
         "formato_aceptacion_direccion": (
@@ -288,35 +288,126 @@ def _numero_recibo_corto(numero: str) -> str:
     return digits[-4:].zfill(4)
 
 
-def _saldos_recibo(pago) -> dict:
-    """Saldo anterior / recibido / nuevo saldo (capital) para pie del recibo digital."""
+def _saldos_desde_calendario(pago, *, capital_este):
+    """
+    Saldo según cuotas aún pendientes del plan.
+    Si la suma de pagos supera el precio pero el calendario sigue abierto,
+    evita mostrar $0,00.
+    """
     from decimal import Decimal
 
     from django.db.models import Sum
 
-    contrato = pago.contrato
-    precio = contrato.precio_final or Decimal("0")
-    qs = contrato.pagos.exclude(pk=pago.pk)
-    # Aprox. capital pagado antes: total − mora − recargo incluido
-    bruto = qs.aggregate(t=Sum("monto"))["t"] or Decimal("0")
-    mora = (
-        qs.filter(concepto=pago.Concepto.MORA).aggregate(t=Sum("monto"))["t"]
+    from inmobiliaria.models import CuotaProgramada
+    from inmobiliaria.pago_desglose import desglose_para_recibo
+
+    monto_pend = (
+        CuotaProgramada.objects.filter(
+            contrato_id=pago.contrato_id,
+            estado__in=[
+                CuotaProgramada.Estado.PENDIENTE,
+                CuotaProgramada.Estado.VENCIDA,
+            ],
+        ).aggregate(t=Sum("monto"))["t"]
         or Decimal("0")
     )
+    monto_pend = Decimal(monto_pend).quantize(Decimal("0.01"))
+    desglose = desglose_para_recibo(pago)
+    abono = Decimal(desglose.monto_abono_capital or 0).quantize(Decimal("0.01"))
+    if abono < 0:
+        abono = Decimal("0.00")
+
+    # Tras liquidar cuota(s), el pendiente ya no las incluye.
+    # El abono a capital (excedente) también baja el saldo mostrado.
+    nuevo = (monto_pend - abono).quantize(Decimal("0.01"))
+    if nuevo < 0:
+        nuevo = Decimal("0.00")
+    # Reserva / prima / contado / abono puro: no quitan filas del calendario.
+    if (
+        pago.concepto
+        in {
+            pago.Concepto.RESERVA,
+            pago.Concepto.PRIMA,
+            pago.Concepto.CONTADO,
+            pago.Concepto.ABONO_CAPITAL,
+        }
+        and desglose.monto_cuotas <= 0
+    ):
+        nuevo = (monto_pend - capital_este).quantize(Decimal("0.01"))
+        if nuevo < 0:
+            nuevo = Decimal("0.00")
+
+    saldo_anterior = (nuevo + capital_este).quantize(Decimal("0.01"))
+    return saldo_anterior, nuevo
+
+
+def _saldos_recibo(pago) -> dict:
+    """
+    Saldo anterior / recibido / nuevo saldo para el pie del recibo digital.
+
+    1) Preferente: precio del inmueble − capital pagado antes de este movimiento.
+    2) Si eso da 0/negativo pero aún hay cuotas pendientes, usa el saldo del
+       calendario (no mostrar $0 cuando el plan sigue abierto).
+    """
+    from decimal import Decimal
+
+    from django.db.models import Q, Sum
+
+    from inmobiliaria.models import CuotaProgramada, Pago
+
+    contrato = pago.contrato
+    precio = Decimal(contrato.precio_final or 0).quantize(Decimal("0.01"))
+
+    conceptos_capital = {
+        Pago.Concepto.RESERVA,
+        Pago.Concepto.PRIMA,
+        Pago.Concepto.CONTADO,
+        Pago.Concepto.CUOTA,
+        Pago.Concepto.ABONO_CAPITAL,
+    }
+    qs = contrato.pagos.filter(concepto__in=conceptos_capital).filter(
+        Q(fecha__lt=pago.fecha) | Q(fecha=pago.fecha, pk__lt=pago.pk)
+    )
+    bruto = qs.aggregate(t=Sum("monto"))["t"] or Decimal("0")
     rec_inc = qs.aggregate(t=Sum("monto_recargo_incluido"))["t"] or Decimal("0")
-    capital_antes = (bruto - mora - rec_inc).quantize(Decimal("0.01"))
+    if rec_inc < 0:
+        rec_inc = Decimal("0")
+    capital_antes = (bruto - rec_inc).quantize(Decimal("0.01"))
     if capital_antes < 0:
         capital_antes = Decimal("0.00")
-    saldo_anterior = (precio - capital_antes).quantize(Decimal("0.01"))
-    # Este pago: capital = monto − recargo incluido (si aplica)
-    rec_este = pago.monto_recargo_incluido or Decimal("0")
-    if pago.concepto == pago.Concepto.MORA:
+
+    saldo_por_precio = (precio - capital_antes).quantize(Decimal("0.01"))
+
+    rec_este = Decimal(pago.monto_recargo_incluido or 0).quantize(Decimal("0.01"))
+    if rec_este < 0:
+        rec_este = Decimal("0.00")
+    if pago.concepto == Pago.Concepto.MORA:
         capital_este = Decimal("0.00")
-    else:
-        capital_este = (pago.monto - rec_este).quantize(Decimal("0.01"))
+    elif pago.concepto in conceptos_capital:
+        capital_este = (Decimal(pago.monto) - rec_este).quantize(Decimal("0.01"))
         if capital_este < 0:
             capital_este = Decimal("0.00")
-    nuevo_saldo = (saldo_anterior - capital_este).quantize(Decimal("0.01"))
+    else:
+        capital_este = Decimal("0.00")
+
+    usar_calendario = saldo_por_precio <= 0 and CuotaProgramada.objects.filter(
+        contrato_id=pago.contrato_id,
+        estado__in=[
+            CuotaProgramada.Estado.PENDIENTE,
+            CuotaProgramada.Estado.VENCIDA,
+        ],
+    ).exists()
+
+    if usar_calendario:
+        saldo_anterior, nuevo_saldo = _saldos_desde_calendario(
+            pago, capital_este=capital_este
+        )
+    else:
+        saldo_anterior = saldo_por_precio if saldo_por_precio > 0 else Decimal("0.00")
+        nuevo_saldo = (saldo_anterior - capital_este).quantize(Decimal("0.01"))
+        if nuevo_saldo < 0:
+            nuevo_saldo = Decimal("0.00")
+
     return {
         "saldo_anterior": saldo_anterior,
         "saldo_anterior_fmt": format_monto_sv(saldo_anterior),
@@ -432,6 +523,132 @@ def _html_to_pdf_bytes(html: str) -> bytes:
         return _html_to_pdf_bytes_xhtml2pdf(html)
 
 
+def _ruta_local_desde_src_pdf(src: str) -> Path | None:
+    """Convierte file://, ruta absoluta o nombre estático a Path local."""
+    s = (src or "").strip()
+    if not s:
+        return None
+    if s.startswith("file:"):
+        parsed = urlparse(s)
+        path = unquote(parsed.path)
+        if len(path) >= 3 and path[0] == "/" and path[2] == ":":
+            path = path[1:]
+        p = Path(path)
+        return p if p.is_file() else None
+    p = Path(s)
+    if p.is_file():
+        return p
+    found = finders.find(s) or finders.find(s.rsplit("/", 1)[-1])
+    return Path(found) if found else None
+
+
+def _aplicar_marca_agua_recibo(pdf_bytes: bytes, watermark_src: str) -> bytes:
+    """
+    Estampa el logo del proyecto (atenuado) detrás del cuadro central del recibo.
+    Se hace en una capa PDF aparte para no abrir huecos en el HTML (xhtml2pdf).
+    """
+    if not pdf_bytes or not (watermark_src or "").strip():
+        return pdf_bytes
+    wm_path = _ruta_local_desde_src_pdf(watermark_src)
+    if wm_path is None:
+        return pdf_bytes
+    try:
+        from pypdf import PdfReader, PdfWriter
+    except ImportError:
+        return pdf_bytes
+
+    # Posición: zona del cliente + tabla (debajo del encabezado).
+    wm_html = f"""<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<style>
+  @page {{ size: A4; margin: 0; }}
+  html, body {{ margin: 0; padding: 0; }}
+  .wm {{
+    width: 100%;
+    text-align: center;
+    padding-top: 270px;
+  }}
+  .wm img {{
+    width: 240px;
+    max-width: 55%;
+    height: auto;
+  }}
+</style>
+</head><body>
+  <div class="wm"><img src="{wm_path.as_uri()}" alt=""></div>
+</body></html>"""
+    try:
+        wm_pdf = _html_to_pdf_bytes(wm_html)
+        content = PdfReader(BytesIO(pdf_bytes))
+        stamp = PdfReader(BytesIO(wm_pdf))
+        if not stamp.pages:
+            return pdf_bytes
+        stamp_page = stamp.pages[0]
+        writer = PdfWriter()
+        for page in content.pages:
+            try:
+                # under=True visual: logo detrás del texto del cuadro
+                page.merge_page(stamp_page, over=False)
+            except Exception:
+                logger.exception("No se pudo fusionar marca de agua en una página del recibo")
+            writer.add_page(page)
+        out = BytesIO()
+        writer.write(out)
+        return out.getvalue() or pdf_bytes
+    except Exception:
+        logger.exception("Fallo al estampar logo del proyecto en el recibo PDF")
+        return pdf_bytes
+
+
+def _sincronizar_recargo_incluido_pago(pago) -> None:
+    """
+    Ajusta monto_recargo_incluido según la regla: el atraso de una cuota
+    se cobra en la siguiente (no en la misma cuota atrasada).
+    """
+    from decimal import Decimal
+
+    from inmobiliaria.models import Pago
+    from inmobiliaria.pago_desglose import cuotas_del_pago
+    from inmobiliaria.recargo_administrativo import monto_recargo_para_liquidacion
+
+    if pago.concepto != Pago.Concepto.CUOTA or not pago.contrato_id:
+        return
+    cuotas = cuotas_del_pago(pago)
+    if not cuotas:
+        return
+    correcto = monto_recargo_para_liquidacion(
+        pago.contrato,
+        fecha=pago.fecha,
+        cuotas_a_liquidar=cuotas,
+        excluir_pago_id=pago.pk,
+    )
+    stored = Decimal(pago.monto_recargo_incluido or 0).quantize(Decimal("0.01"))
+    if correcto == stored:
+        return
+    # No inventar dinero: el recargo guardado no puede superar el excedente sobre cuotas.
+    from inmobiliaria.pago_desglose import _suma_cuotas
+
+    disponible = (Decimal(pago.monto) - _suma_cuotas(cuotas)).quantize(Decimal("0.01"))
+    if disponible < 0:
+        disponible = Decimal("0.00")
+    nuevo = min(correcto, disponible).quantize(Decimal("0.01"))
+    if nuevo == stored:
+        return
+    Pago.objects.filter(pk=pago.pk).update(monto_recargo_incluido=nuevo)
+    pago.monto_recargo_incluido = nuevo
+
+
+def _pdf_recibo_ingreso_bytes(*, doc, pago) -> bytes:
+    _sincronizar_recargo_incluido_pago(pago)
+    ctx = _contexto_recibo_ingreso(doc=doc, pago=pago)
+    html = render_to_string("docs/recibo_ingreso.html", ctx)
+    pdf_bytes = _html_to_pdf_bytes(html)
+    return _aplicar_marca_agua_recibo(
+        pdf_bytes,
+        ctx.get("watermark_logo_src") or ctx.get("proyecto_logo_src") or "",
+    )
+
+
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -451,15 +668,15 @@ def _contexto_recibo_ingreso(*, doc, pago) -> dict:
     proyecto = inmueble.proyecto
     desglose = desglose_para_recibo(pago)
     lineas_fmt = [
-        (etiqueta, format_monto_sv(monto))
-        for etiqueta, monto in desglose.lineas
+        (etiqueta, format_monto_sv(monto), f"{float(cantidad):.1f}")
+        for etiqueta, monto, cantidad in desglose.lineas
     ]
     poligono = ""
     if getattr(inmueble, "poligono_id", None) and inmueble.poligono_id:
         poligono = (inmueble.poligono.nombre or "").strip()
     concepto_detalle = pago.get_concepto_display()
     if lineas_fmt:
-        concepto_detalle = " / ".join(et for et, _ in lineas_fmt)
+        concepto_detalle = " / ".join(et for et, _monto, _cant in lineas_fmt)
     concepto_detalle = (
         f"{concepto_detalle} / VALOR DEL INMUEBLE {format_monto_sv(contrato.precio_final)}"
     )
@@ -485,6 +702,11 @@ def _contexto_recibo_ingreso(*, doc, pago) -> dict:
         "monto_abono_capital_fmt": (
             format_monto_sv(desglose.monto_abono_capital)
             if desglose.monto_abono_capital > 0
+            else ""
+        ),
+        "recargo_no_cobrado_fmt": (
+            format_monto_sv(desglose.monto_recargo_debido - desglose.monto_recargo)
+            if desglose.monto_recargo_debido > desglose.monto_recargo
             else ""
         ),
         "concepto_detalle": concepto_detalle,
@@ -526,6 +748,27 @@ def emitir_recibo_ingreso(*, pago, emitido_por=None) -> tuple[DocumentoEmitido, 
         .first()
         or pago
     )
+
+    # Si ya hay recibo de este pago: actualizar PDF (mismo número, sin duplicar).
+    existente = (
+        DocumentoEmitido.objects.filter(
+            tipo=DocumentoTipo.RECIBO_INGRESO,
+            pago_id=pago.pk,
+        )
+        .order_by("-id")
+        .first()
+    )
+    if existente is not None:
+        regenerar_pdf_y_persistir(existente)
+        return existente, ReciboNotificacionInfo(
+            correo_enviado=False,
+            correo_entrega_real=False,
+            whatsapp_pdf_por_api=False,
+            meta_configurado=False,
+            meta_solo_texto=False,
+            twilio_pdf=False,
+        )
+
     numero = _next_correlativo(tipo=DocumentoTipo.RECIBO_INGRESO, cfg=CorrelativoConfig())
     doc = DocumentoEmitido.objects.create(
         tipo=DocumentoTipo.RECIBO_INGRESO,
@@ -536,11 +779,7 @@ def emitir_recibo_ingreso(*, pago, emitido_por=None) -> tuple[DocumentoEmitido, 
         emitido_por=emitido_por,
     )
 
-    html = render_to_string(
-        "docs/recibo_ingreso.html",
-        _contexto_recibo_ingreso(doc=doc, pago=pago),
-    )
-    pdf_bytes = _html_to_pdf_bytes(html)
+    pdf_bytes = _pdf_recibo_ingreso_bytes(doc=doc, pago=pago)
     doc.hash_sha256 = _sha256(pdf_bytes)
     doc.pdf_file.save(f"{numero}.pdf", ContentFile(pdf_bytes), save=False)
     doc.save(update_fields=["hash_sha256", "pdf_file"])
@@ -853,12 +1092,7 @@ def regenerar_pdf_documento(doc: DocumentoEmitido) -> bytes:
         contrato = pago.contrato
         if contrato is None or contrato.inmueble_id is None:
             raise ValueError("Datos del contrato incompletos; no se puede regenerar el recibo.")
-        proyecto = contrato.inmueble.proyecto
-        html = render_to_string(
-            "docs/recibo_ingreso.html",
-            _contexto_recibo_ingreso(doc=doc, pago=pago),
-        )
-        return _html_to_pdf_bytes(html)
+        return _pdf_recibo_ingreso_bytes(doc=doc, pago=pago)
 
     if doc.tipo == DocumentoTipo.PROMESA_VENTA:
         contrato = doc.contrato

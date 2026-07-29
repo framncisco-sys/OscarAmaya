@@ -25,10 +25,10 @@
   </ul>
   <p id="pago-hint-aplicacion-cuota" class="field__help" style="margin:0.75rem 0 0;padding:0.5rem 0.65rem;background:#f1f5f9;border-radius:6px;font-size:0.9rem;display:none;" role="status"></p>
   <p class="field__help muted" style="margin-bottom:0;margin-top:0.65rem;">
-    La <strong>fecha del pago</strong> es cuándo ingresa el dinero.
-    Si no pagaron un mes (tras los días de gracia), corresponde
-    <strong>cuota + recargo administrativo</strong> (el recargo <strong>no</strong> reduce capital).
-    Si abona de más, el excedente es <strong>abono a capital</strong> en el mismo recibo.
+    <strong>Vence</strong> = fecha de la cuota en el plan.
+    <strong>Fecha en que se realizó el pago</strong> = día real en que entró el dinero (campo del formulario; por defecto hoy).
+    No las confunda: el recargo se calcula con la fecha real frente al vencimiento + gracia,
+    y se cobra en la <strong>siguiente</strong> cuota.
     <a href="{% url 'app:parametro_mora_list' %}">Configurar recargo</a>.
   </p>
   <p id="pago-hint-recargo" class="field__help" style="margin:0.5rem 0 0;padding:0.5rem 0.65rem;background:#fff7ed;border-radius:6px;font-size:0.9rem;display:none;" role="status"></p>
@@ -49,10 +49,11 @@
   {% if form.cuotas_seleccionadas.errors %}
   <div class="field__error" role="alert" style="margin-top:0.75rem;">{{ form.cuotas_seleccionadas.errors }}</div>
   {% endif %}
-  <div id="pago-cuotas-tabla-wrap" class="pago-cuotas-tabla-wrap" style="margin-top:1rem;" data-enabled="1" aria-live="polite">
+  <div id="pago-cuotas-tabla-wrap" class="pago-cuotas-tabla-wrap" style="margin-top:1rem;" data-enabled="1" data-recargo-unitario="0" data-dias-gracia="0" aria-live="polite">
     <p class="field__label" style="margin-top:0;">Cuotas a pagar (calendario)</p>
     <p class="muted" style="margin:0 0 0.5rem;font-size:0.9rem;line-height:1.45;">
       Marque desde la <strong>primera cuota pendiente</strong> una o más cuotas <strong>consecutivas</strong>.
+      <strong>Vence</strong> = fecha del plan; <strong>Realizó el pago</strong> = día en que entró el dinero.
       El monto sugerido incluye recargo si ya pasaron los días de gracia.
       Si paga de más, el excedente (después de cuotas + recargo) es <strong>abono a capital</strong>.
     </p>
@@ -64,9 +65,12 @@
             <th id="pago-cuotas-th-accion" style="padding:0.35rem 0.5rem 0.35rem 0;">Pagar</th>
             <th style="padding:0.35rem;">N.º</th>
             <th style="padding:0.35rem;">Vence</th>
-            <th style="padding:0.35rem;">Monto</th>
-            <th style="padding:0.35rem;">Estado</th>
+            <th style="padding:0.35rem;">Realizó el pago</th>
+            <th style="padding:0.35rem;">Cuota</th>
             <th style="padding:0.35rem;">Recargo</th>
+            <th style="padding:0.35rem;">A capital</th>
+            <th style="padding:0.35rem;">Total</th>
+            <th style="padding:0.35rem;">Estado</th>
           </tr>
         </thead>
         <tbody id="pago-cuotas-tabla-body"></tbody>

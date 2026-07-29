@@ -16,11 +16,17 @@ from inmobiliaria.recargo_administrativo import (
 
 
 def _filas_cuotas_contrato(contrato: Contrato, *, hoy, param) -> list[dict]:
+    from inmobiliaria.pago_desglose import desglose_aplicado_por_cuota
+
     dias_gracia = int(param.dias_gracia) if param else 0
     monto_unitario = (param.monto_recargo if param else None) or Decimal("0")
     cobro = resumen_cobro_contrato(contrato, hoy=hoy)
     filas: list[dict] = []
-    cuotas_qs = contrato.cuotas_programadas.select_related("pago").order_by("numero")
+    cuotas_qs = (
+        contrato.cuotas_programadas.select_related("pago")
+        .prefetch_related("pago__cuotas_aplicadas")
+        .order_by("numero")
+    )
     for c in cuotas_qs:
         liquidada = c.estado == CuotaProgramada.Estado.PAGADA or c.pago_id is not None
         fecha_pago = None
@@ -39,10 +45,15 @@ def _filas_cuotas_contrato(contrato: Contrato, *, hoy, param) -> list[dict]:
             c, hoy=hoy, dias_gracia=dias_gracia, monto_unitario=monto_unitario
         )
         es_proxima = cobro.cuota is not None and cobro.cuota.pk == c.pk
+        dg = desglose_aplicado_por_cuota(c)
+        fecha_registro = None
+        if c.pago_id and getattr(c.pago, "creado_en", None):
+            fecha_registro = timezone.localtime(c.pago.creado_en).date()
         filas.append(
             {
                 "cuota": c,
                 "fecha_pago": fecha_pago,
+                "fecha_registro": fecha_registro,
                 "dias_tarde_al_pagar": dias_tarde,
                 "dias_impago_tras_venc": dias_impago,
                 "pago_monto": c.pago.monto if c.pago_id else None,
@@ -54,6 +65,10 @@ def _filas_cuotas_contrato(contrato: Contrato, *, hoy, param) -> list[dict]:
                 "es_proxima": es_proxima,
                 "a_cobrar_total": cobro.monto_total if es_proxima else None,
                 "a_cobrar_recargo": cobro.monto_recargo if es_proxima else None,
+                "recargo_cobrado": dg["recargo"] if dg["tiene_pago"] else None,
+                "abono_capital": dg["capital"] if dg["tiene_pago"] else None,
+                "total_pago_fila": dg["total_pago"],
+                "es_ultima_del_pago": dg["es_ultima_del_pago"],
             }
         )
     return filas

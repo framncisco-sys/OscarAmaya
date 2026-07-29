@@ -17,15 +17,20 @@
 </header>
 
 {% if cobro_mes.cuota %}
-<section class="card" style="border-left:4px solid #1e3a5f;">
-  <h2 style="font-size:1rem;margin:0 0 0.5rem;">A cobrar este mes</h2>
+<section class="card" style="border-left:4px solid {% if cobro_mes.monto_recargo %}#c2410c{% else %}#1e3a5f{% endif %};">
+  <h2 style="font-size:1rem;margin:0 0 0.5rem;">A cobrar en la próxima cuota</h2>
   <p style="margin:0 0 0.5rem;">{{ cobro_mes.nota }}</p>
   <p style="margin:0;font-size:1.25rem;font-weight:700;">
     Total: ${{ cobro_mes.monto_total }}
     <span class="muted" style="font-size:0.9rem;font-weight:500;">
-      (cuota ${{ cobro_mes.monto_cuota }}{% if cobro_mes.monto_recargo %} + recargo administrativo ${{ cobro_mes.monto_recargo }}{% endif %})
+      (cuota ${{ cobro_mes.monto_cuota }}{% if cobro_mes.monto_recargo %} + <span style="color:#c2410c;font-weight:700;">recargo administrativo ${{ cobro_mes.monto_recargo }}</span>{% endif %})
     </span>
   </p>
+  {% if cobro_mes.monto_recargo %}
+  <p style="margin:0.75rem 0 0;font-size:0.9rem;color:#9a3412;">
+    Ese recargo corresponde a atraso(s) de cuota(s) anterior(es). No se cobró en el recibo de la cuota atrasada; se suma aquí.
+  </p>
+  {% endif %}
   {% if param_recargo %}
   <p class="muted" style="margin:0.75rem 0 0;font-size:0.875rem;">
     Política activa: ${{ param_recargo.monto_recargo }} de recargo · {{ param_recargo.dias_gracia }} día(s) de gracia.
@@ -96,42 +101,77 @@
 <section class="card">
   <h2 style="font-size:1rem;margin:0 0 0.75rem;">Detalle de cada cuota</h2>
   <p class="muted" style="font-size:0.875rem;margin:0 0 0.75rem;">
-    Fechas en formato día/mes/año. Tras el vencimiento + gracia, la cuota genera recargo administrativo
-    (corte {{ hoy|date:"d/m/Y" }}).
+    <strong>Vencimiento</strong> = fecha de la cuota en el plan.
+    <strong>Realizó el pago</strong> = día en que entró el dinero (no el vencimiento).
+    El recargo de un atraso se cobra en la <strong>próxima</strong> cuota (fila resaltada).
+    Corte {{ hoy|date:"d/m/Y" }}.
   </p>
   <table class="table">
     <thead>
       <tr>
         <th>#</th>
         <th>Vencimiento</th>
-        <th class="right">Monto cuota</th>
+        <th class="right">Cuota</th>
+        <th class="right">Recargo</th>
+        <th class="right">A capital</th>
+        <th class="right">Total a pagar / pagado</th>
         <th>Estado</th>
-        <th>Fecha del pago</th>
-        <th class="right">Monto del pago</th>
+        <th>Realizó el pago</th>
         <th>Ref. pago</th>
-        <th>Cumplimiento / recargo</th>
+        <th>Cumplimiento</th>
       </tr>
     </thead>
     <tbody>
       {% for row in filas_cuotas %}
       {% with c=row.cuota %}
-      <tr{% if row.es_proxima %} style="background:#f0f7ff;"{% endif %}>
-        <td>{{ c.numero }}{% if row.es_proxima %} <span class="muted">(próxima)</span>{% endif %}</td>
-        <td>{{ c.vence_en|date:"d/m/Y" }} <span class="muted">({{ c.vence_en|date:"l" }})</span></td>
+      <tr{% if row.es_proxima %} style="background:#fff7ed;"{% endif %}>
+        <td>{{ c.numero }}{% if row.es_proxima %} <span style="color:#c2410c;font-weight:600;">(próxima)</span>{% endif %}</td>
+        <td>{{ c.vence_en|date:"d/m/Y" }}</td>
+        <td class="right">${{ c.monto }}</td>
         <td class="right">
-          ${{ c.monto }}
           {% if row.es_proxima and row.a_cobrar_recargo %}
-          <br><span style="color:#b45309;font-size:0.85rem;">+ recargo ${{ row.a_cobrar_recargo }} → total ${{ row.a_cobrar_total }}</span>
+            <span style="color:#c2410c;font-weight:700;">${{ row.a_cobrar_recargo }}</span>
+          {% elif row.recargo_cobrado %}
+            <span style="color:#c2410c;">${{ row.recargo_cobrado }}</span>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td class="right">
+          {% if row.abono_capital %}
+            <span style="color:#047857;">${{ row.abono_capital }}</span>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td class="right">
+          {% if row.es_proxima and row.a_cobrar_total %}
+            <strong style="color:#c2410c;">${{ row.a_cobrar_total }}</strong>
+          {% elif row.total_pago_fila is not None %}
+            <strong>${{ row.total_pago_fila }}</strong>
+          {% elif row.pago_monto is not None %}
+            ${{ row.pago_monto }}
+          {% else %}
+            —
           {% endif %}
         </td>
         <td>{{ c.get_estado_display }}</td>
-        <td>{% if row.fecha_pago %}{{ row.fecha_pago|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-        <td class="right">{% if row.pago_monto is not None %}${{ row.pago_monto }}{% else %}—{% endif %}</td>
+        <td>
+          {% if row.fecha_pago %}
+            {{ row.fecha_pago|date:"d/m/Y" }}
+            {% if row.fecha_registro and row.fecha_registro != row.fecha_pago %}
+              <span class="muted" style="display:block;font-size:0.75rem;">Registrado {{ row.fecha_registro|date:"d/m/Y" }}</span>
+            {% endif %}
+          {% else %}—{% endif %}
+        </td>
         <td>{{ row.pago_referencia|default:"—" }}</td>
         <td>
-          {% if row.dias_tarde_al_pagar is not None %}
+          {% if row.es_proxima and row.a_cobrar_recargo %}
+            <span style="color:#c2410c;font-weight:600;">Incluye recargo por atraso(s) anterior(es)</span>
+          {% elif row.dias_tarde_al_pagar is not None %}
             {% if row.dias_tarde_al_pagar > 0 %}
               <span style="color:#b45309;font-weight:600;">{{ row.dias_tarde_al_pagar }} día{% if row.dias_tarde_al_pagar != 1 %}s{% endif %} después del vencimiento</span>
+              <span class="muted" style="display:block;font-size:0.8rem;">El recargo se cobra en la cuota siguiente</span>
             {% else %}
               A tiempo o antes
             {% endif %}
@@ -148,7 +188,7 @@
       </tr>
       {% endwith %}
       {% empty %}
-      <tr><td colspan="8" class="muted">No hay cuotas cargadas para este contrato.</td></tr>
+      <tr><td colspan="10" class="muted">No hay cuotas cargadas para este contrato.</td></tr>
       {% endfor %}
     </tbody>
   </table>

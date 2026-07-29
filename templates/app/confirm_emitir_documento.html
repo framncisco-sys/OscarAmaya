@@ -1,0 +1,17 @@
+{% extends "app/base_app.html" %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">{{ titulo }}</h1>
+    <p class="page-toolbar__meta">{{ blurb }}</p>
+  </div>
+</header>
+<form method="post" class="form-stack" style="max-width: 32rem;">
+  {% csrf_token %}
+  <div class="action-cluster" style="gap: 0.75rem;">
+    <button type="submit" class="btn-primary">{{ submit_label }}</button>
+    <a href="{{ cancel_url }}" class="btn-secondary">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

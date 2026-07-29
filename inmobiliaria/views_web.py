@@ -124,6 +124,25 @@ def _formato_aceptacion_qs_pk():
     return formato_aceptacion_defer_missing_columns(FormatoAceptacion.objects.all())
 
 
+def _formato_aceptacion_qs_para_usuario(user):
+    """Evita IDOR: el vendedor solo ve/edita formatos que él creó."""
+    from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
+    qs = _formato_aceptacion_qs_contrato_pdf()
+    if es_vendedor_restringido(user):
+        qs = qs.filter(creado_por_id=user.pk)
+    return qs
+
+
+def _formato_aceptacion_qs_pk_para_usuario(user):
+    from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
+    qs = _formato_aceptacion_qs_pk()
+    if es_vendedor_restringido(user):
+        qs = qs.filter(creado_por_id=user.pk)
+    return qs
+
+
 # Editar/eliminar formato de aceptación: credenciales de superusuario (sesión temporal).
 PBR_SESSION_FORMATO_SUPER_GATE = "PBR_FORMATO_SUPERUSER_GATE_UNTIL"
 
@@ -2247,7 +2266,7 @@ class FormatoAceptacionUpdateView(
     template_name = "app/formato_aceptacion_form.html"
 
     def get_queryset(self):
-        return _formato_aceptacion_qs_contrato_pdf()
+        return _formato_aceptacion_qs_para_usuario(self.request.user)
 
     def get_form_kwargs(self):
         kw = super().get_form_kwargs()
@@ -2306,8 +2325,7 @@ class FormatoAceptacionDeleteView(
     success_url = reverse_lazy("app:formato_aceptacion_list")
 
     def get_queryset(self):
-        qs = formato_aceptacion_defer_missing_columns(FormatoAceptacion.objects.all())
-        return qs
+        return _formato_aceptacion_qs_pk_para_usuario(self.request.user)
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -2334,7 +2352,7 @@ class FormatoAceptacionDeleteView(
 
 @login_required
 def formato_aceptacion_pdf(request: HttpRequest, pk: int) -> HttpResponse:
-    formato = get_object_or_404(_formato_aceptacion_qs_contrato_pdf(), pk=pk)
+    formato = get_object_or_404(_formato_aceptacion_qs_para_usuario(request.user), pk=pk)
     if not formato.firmas_completas:
         messages.error(
             request,
@@ -2373,7 +2391,7 @@ def formato_firma_preview(request: HttpRequest, pk: int, tipo: str) -> HttpRespo
     """
     if tipo not in _FORMATO_FIRMA_PREVIEW_ROLES:
         raise Http404()
-    formato = get_object_or_404(_formato_aceptacion_qs_pk(), pk=pk)
+    formato = get_object_or_404(_formato_aceptacion_qs_pk_para_usuario(request.user), pk=pk)
     field = getattr(formato, _FORMATO_FIRMA_PREVIEW_ROLES[tipo])
     if not field or not field.name:
         raise Http404()
@@ -2398,7 +2416,7 @@ def formato_aceptacion_adjunto_descargar(
         nxt = request.get_full_path()
         gate = f"{reverse('app:formato_superuser_gate')}?{urlencode({'next': nxt})}"
         return HttpResponseRedirect(gate)
-    formato = get_object_or_404(_formato_aceptacion_qs_pk(), pk=pk)
+    formato = get_object_or_404(_formato_aceptacion_qs_pk_para_usuario(request.user), pk=pk)
     field = getattr(formato, _FORMATO_ADJUNTO_ROLES[tipo])
     if not field or not field.name:
         raise Http404()
@@ -2438,7 +2456,7 @@ def formato_aceptacion_promesa_subir(request: HttpRequest, pk: int) -> HttpRespo
             "En el servidor ejecute: python manage.py migrate --noinput",
         )
         return HttpResponseRedirect(redir)
-    formato = get_object_or_404(_formato_aceptacion_qs_pk(), pk=pk)
+    formato = get_object_or_404(_formato_aceptacion_qs_pk_para_usuario(request.user), pk=pk)
     form = forms.FormatoAceptacionPromesaForm(request.POST, request.FILES)
     if not form.is_valid():
         messages.error(request, "Revise el archivo (PDF, JPG o PNG).")
@@ -2471,7 +2489,7 @@ def formato_aceptacion_promesa_descargar(request: HttpRequest, pk: int) -> HttpR
         return HttpResponseRedirect(gate)
     if not _formato_aceptacion_promesa_column_ready():
         raise Http404()
-    formato = get_object_or_404(_formato_aceptacion_qs_pk(), pk=pk)
+    formato = get_object_or_404(_formato_aceptacion_qs_pk_para_usuario(request.user), pk=pk)
     field = formato.promesa_venta_escaneada
     if not field or not field.name:
         raise Http404()
@@ -2511,7 +2529,7 @@ def formato_aceptacion_compraventa_subir(request: HttpRequest, pk: int) -> HttpR
             "En el servidor ejecute: python manage.py migrate --noinput",
         )
         return HttpResponseRedirect(redir)
-    formato = get_object_or_404(_formato_aceptacion_qs_pk(), pk=pk)
+    formato = get_object_or_404(_formato_aceptacion_qs_pk_para_usuario(request.user), pk=pk)
     form = forms.FormatoAceptacionCompraventaForm(request.POST, request.FILES)
     if not form.is_valid():
         messages.error(request, "Revise el archivo (PDF, JPG o PNG).")
@@ -2534,7 +2552,7 @@ def formato_aceptacion_compraventa_descargar(request: HttpRequest, pk: int) -> H
         return HttpResponseRedirect(gate)
     if not _formato_aceptacion_compraventa_column_ready():
         raise Http404()
-    formato = get_object_or_404(_formato_aceptacion_qs_pk(), pk=pk)
+    formato = get_object_or_404(_formato_aceptacion_qs_pk_para_usuario(request.user), pk=pk)
     field = formato.contrato_compraventa_escaneado
     if not field or not field.name:
         raise Http404()
@@ -2569,7 +2587,9 @@ def contrato_estado_cuenta(request: HttpRequest, pk: int) -> HttpResponse:
     )
     pagos = contrato.pagos.all().order_by("-fecha", "-id")
     cuotas_qs = (
-        contrato.cuotas_programadas.select_related("pago").order_by("numero")
+        contrato.cuotas_programadas.select_related("pago")
+        .prefetch_related("pago__cuotas_aplicadas")
+        .order_by("numero")
     )
     hoy = timezone.localdate()
     param = parametro_recargo_activo()
@@ -2578,6 +2598,8 @@ def contrato_estado_cuenta(request: HttpRequest, pk: int) -> HttpResponse:
     cobro = resumen_cobro_contrato(contrato, hoy=hoy)
 
     filas_cuotas: list[dict] = []
+    from inmobiliaria.pago_desglose import desglose_aplicado_por_cuota
+
     for c in cuotas_qs:
         liquidada = (
             c.estado == CuotaProgramada.Estado.PAGADA or c.pago_id is not None
@@ -2606,10 +2628,15 @@ def contrato_estado_cuenta(request: HttpRequest, pk: int) -> HttpResponse:
             monto_unitario=monto_unitario,
         )
         es_proxima = cobro.cuota is not None and cobro.cuota.pk == c.pk
+        dg = desglose_aplicado_por_cuota(c)
+        fecha_registro = None
+        if c.pago_id and getattr(c.pago, "creado_en", None):
+            fecha_registro = timezone.localtime(c.pago.creado_en).date()
         filas_cuotas.append(
             {
                 "cuota": c,
                 "fecha_pago": fecha_pago,
+                "fecha_registro": fecha_registro,
                 "dias_tarde_al_pagar": dias_tarde_al_pagar,
                 "dias_impago_tras_venc": dias_impago_tras_venc,
                 "pago_monto": pago_monto,
@@ -2619,6 +2646,10 @@ def contrato_estado_cuenta(request: HttpRequest, pk: int) -> HttpResponse:
                 "es_proxima": es_proxima,
                 "a_cobrar_total": cobro.monto_total if es_proxima else None,
                 "a_cobrar_recargo": cobro.monto_recargo if es_proxima else None,
+                "recargo_cobrado": dg["recargo"] if dg["tiene_pago"] else None,
+                "abono_capital": dg["capital"] if dg["tiene_pago"] else None,
+                "total_pago_fila": dg["total_pago"],
+                "es_ultima_del_pago": dg["es_ultima_del_pago"],
             }
         )
 
