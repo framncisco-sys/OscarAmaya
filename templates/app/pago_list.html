@@ -1,19 +1,31 @@
 {% extends "app/base_app.html" %}
-{% block title %}{% if filtro_validacion == 'pendiente' %}Abonos pendientes de gerencia{% else %}Pagos{% endif %} | {{ marca_portal.nombre }}{% endblock %}
+{% block title %}{% if pago_list_vendedor %}Estado de mis recibos{% elif filtro_validacion == 'pendiente' %}Abonos pendientes de gerencia{% else %}Pagos{% endif %} | {{ marca_portal.nombre }}{% endblock %}
 {% block app_content %}
 {% if contrato_filtro %}
 <p class="alert" role="status" style="margin-bottom:1rem;">
   Mostrando solo pagos del contrato <strong>{{ contrato_filtro.numero }}</strong>
   ({{ contrato_filtro.cliente }}).
   <a href="{% url 'app:pago_list' %}">Quitar filtro</a>
-  · <a href="{% url 'app:contrato_estado_cuenta' contrato_filtro.pk %}">Plan de cuotas</a>
 </p>
 {% endif %}
 <header class="page-toolbar">
   <div class="page-toolbar__intro">
-    <h1 class="page-title">{% if filtro_validacion == 'pendiente' %}Abonos pendientes de gerencia{% else %}Pagos{% endif %}</h1>
+    <h1 class="page-title">
+      {% if pago_list_vendedor %}
+        Estado de mis recibos
+      {% elif filtro_validacion == 'pendiente' %}
+        Abonos pendientes de gerencia
+      {% else %}
+        Pagos
+      {% endif %}
+    </h1>
     <p class="page-toolbar__meta">
-      {% if filtro_validacion == 'pendiente' %}
+      {% if pago_list_vendedor %}
+      Aquí ve sus abonos. Mientras diga <strong>Pendiente gerencia</strong> aún no hay recibo.
+      Cuando gerencia confirme el depósito en cuenta, el estado pasa a <strong>Validado</strong>
+      y podrá <strong>imprimir / PDF</strong>; el sistema también intenta enviarlo
+      al cliente por <strong>correo</strong> (si tiene email) y/o <strong>WhatsApp</strong> (si tiene teléfono).
+      {% elif filtro_validacion == 'pendiente' %}
       Aquí el <strong>administrador o gerencia</strong> confirma el depósito en cuenta.
       Solo después de validar se genera el recibo (reserva, prima o cuota mensual) y el vendedor puede imprimirlo.
       {% else %}
@@ -22,6 +34,15 @@
     </p>
   </div>
   <div class="page-toolbar__actions">
+    {% if pago_list_vendedor %}
+    <a href="{% url 'app:pago_list' %}" class="btn-secondary btn-sm"{% if not filtro_validacion %} aria-current="page"{% endif %}>Todos</a>
+    <a href="{% url 'app:pago_list' %}?validacion=pendiente" class="btn-secondary btn-sm"{% if filtro_validacion == 'pendiente' %} aria-current="page"{% endif %}>
+      Pendientes{% if pagos_pendientes_validacion_ct %} ({{ pagos_pendientes_validacion_ct }}){% endif %}
+    </a>
+    <a href="{% url 'app:pago_list' %}?validacion=validado" class="btn-secondary btn-sm"{% if filtro_validacion == 'validado' %} aria-current="page"{% endif %}>
+      Validados (imprimir)
+    </a>
+    {% else %}
     {% if puede_validar_abonos_app %}
     <a href="{% url 'app:pago_list' %}?validacion=pendiente" class="btn-secondary btn-sm"{% if filtro_validacion == 'pendiente' %} aria-current="page"{% endif %}>
       Pendientes{% if pagos_pendientes_validacion_ct %} ({{ pagos_pendientes_validacion_ct }}){% endif %}
@@ -29,10 +50,23 @@
     {% endif %}
     <a href="{% url 'app:pago_create' %}" class="btn-primary btn-sm">Registrar pago</a>
     <a href="{% url 'app:export_pagos_csv' %}" class="btn-secondary btn-sm">Exportar CSV</a>
+    {% endif %}
   </div>
 </header>
 
+{% if pago_list_vendedor and not filtro_validacion %}
+<section class="card" style="margin-bottom:1rem;border-left:4px solid #0f766e;max-width:48rem;">
+  <p style="margin:0 0 0.45rem;font-weight:700;color:#0f766e;">Cómo funciona</p>
+  <ol class="muted" style="margin:0;padding-left:1.2rem;font-size:0.9rem;line-height:1.5;">
+    <li>Usted registra el pago (reserva, prima, contado o cuota) con voucher.</li>
+    <li>Gerencia verifica el depósito en cuenta → marca <strong>Validado</strong>.</li>
+    <li>Ahí aparece <strong>Imprimir / PDF</strong>; además se envía solo al cliente por correo y/o WhatsApp si hay datos.</li>
+  </ol>
+</section>
+{% endif %}
+
 {% if filtro_validacion == 'pendiente' %}
+{% if puede_validar_abonos_app %}
 <section class="card" style="margin-bottom:1rem;border-left:4px solid #1e3a5f;max-width:48rem;">
   <p style="margin:0 0 0.5rem;font-weight:700;">Flujo obligatorio</p>
   <ol class="muted" style="margin:0;padding-left:1.2rem;font-size:0.9rem;line-height:1.5;">
@@ -46,16 +80,23 @@
   Solo reservas, primas, pagos de contado, cuotas a plazos y abonos a capital a la espera de confirmación.
   <a href="{% url 'app:pago_list' %}">Ver todos los pagos</a>
 </p>
+{% elif pago_list_vendedor %}
+<p class="alert" role="status" style="margin-bottom:1rem;">
+  Abonos esperando que gerencia confirme el depósito. Aquí <strong>aún no</strong> puede imprimir el recibo.
+  <a href="{% url 'app:pago_list' %}?validacion=validado">Ver validados (imprimir)</a>
+</p>
+{% endif %}
 {% elif pagos_pendientes_validacion_ct and puede_validar_abonos_app %}
 <p class="alert" role="status" style="margin-bottom:1rem;">
   Hay <strong>{{ pagos_pendientes_validacion_ct }}</strong> abono(s) pendiente(s) de validación.
   <a href="{% url 'app:pago_list' %}?validacion=pendiente">Revisar y aprobar ahora</a>
 </p>
-{% elif not puede_validar_abonos_app and pagos_pendientes_validacion_ct %}
+{% elif pago_list_vendedor and pagos_pendientes_validacion_ct %}
 <p class="alert" role="status" style="margin-bottom:1rem;">
   Tiene <strong>{{ pagos_pendientes_validacion_ct }}</strong> abono(s) esperando validación de gerencia.
   Cuando aprueben el depósito podrá imprimir el recibo.
   <a href="{% url 'app:pago_list' %}?validacion=pendiente">Ver pendientes</a>
+  · <a href="{% url 'app:pago_list' %}?validacion=validado">Ver validados</a>
 </p>
 {% endif %}
 
@@ -101,15 +142,17 @@
           {% elif p.puede_emitir_recibo_cliente %}
           <form method="post" action="{% url 'app:emitir_recibo' p.pk %}" class="inline-form" style="display:inline;">
             {% csrf_token %}
-            <button type="submit" class="link-action" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit;">Imprimir / PDF</button>
+            <button type="submit" class="link-action" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit;font-weight:700;">Imprimir / PDF</button>
           </form>
           {% elif p.validacion_abono == 'RECHAZADO' %}
           <span class="muted" style="font-size:0.85rem;">Sin recibo (rechazado)</span>
           {% else %}
           <span class="muted">—</span>
           {% endif %}
+          {% if not pago_list_vendedor %}
           {% if filtro_validacion != 'pendiente' or puede_validar_abonos_app %}
           <a href="{% url 'app:pago_update' p.pk %}" class="link-action">Editar</a>
+          {% endif %}
           {% endif %}
         </div>
       </td>
@@ -119,8 +162,10 @@
       <td colspan="7" class="muted" style="padding:1rem;line-height:1.5;">
         {% if filtro_validacion == 'pendiente' %}
         No hay abonos pendientes de validación.
-        Cuando el vendedor registre una <strong>reserva</strong>, <strong>prima</strong> o <strong>cuota del mes</strong>,
-        aparecerán aquí para que admin/gerencia confirme el depósito y se genere el recibo imprimible.
+        {% elif filtro_validacion == 'validado' %}
+        Aún no hay recibos validados. Cuando gerencia confirme un depósito, aparecerán aquí con <strong>Imprimir / PDF</strong>.
+        {% elif pago_list_vendedor %}
+        Aún no ha registrado pagos. Use el flujo (contado, reserva, prima o cuota) para registrar un abono.
         {% else %}
         No hay pagos registrados.
         {% endif %}

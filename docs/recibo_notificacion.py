@@ -96,43 +96,77 @@ def _telefono_a_whatsapp(telefono: str) -> str | None:
     return digitos_telefono_e164_sv(telefono)
 
 
-def construir_url_whatsapp_recibo(cliente, doc: "DocumentoEmitido", pago: "Pago") -> str | None:
-    """
-    URL wa.me con mensaje prellenado.
-
-    El enlace wa.me solo abre el chat con texto; no adjunta archivos (así funciona WhatsApp).
-    Si PUBLIC_BASE_URL está definida, el texto puede incluir un enlace directo al PDF (http o https).
-    Para que el cliente reciba el PDF como documento en WhatsApp, active Meta Cloud API o Twilio (ver .env.example).
-    """
-    tel = _telefono_a_whatsapp(getattr(cliente, "telefono", "") or "")
-    if not tel:
-        return None
+def construir_mensaje_whatsapp_recibo(
+    cliente,
+    doc: "DocumentoEmitido",
+    pago: "Pago",
+    *,
+    incluir_enlace_pdf: bool = True,
+) -> str:
+    """Texto del recibo para WhatsApp (el mismo mensaje que ya usábamos)."""
     nombre = (getattr(cliente, "nombres", "") or "").strip() or "estimado cliente"
-    pdf_url = url_pdf_enlace_absoluto(doc) or url_pdf_publica_https(doc)
-
     partes = [
         f"Hola {nombre}, le informamos que su recibo *{doc.numero}* "
         f"por *${pago.monto}* (contrato {pago.contrato.numero}) fue registrado.",
         "",
-        "Por este enlace de WhatsApp no se adjunta el archivo; use el enlace de descarga abajo o revise su correo.",
     ]
-    if pdf_url:
-        partes.append("Descargue su recibo en PDF aquí (toque el enlace):")
-        partes.append(pdf_url)
-        partes.append("")
-        partes.append("También puede habérselo enviado a su correo si tenemos su email.")
+    if incluir_enlace_pdf:
+        pdf_url = url_pdf_enlace_absoluto(doc) or url_pdf_publica_https(doc)
+        if pdf_url:
+            partes.append("Descargue su recibo en PDF aquí:")
+            partes.append(pdf_url)
+            partes.append("")
+        else:
+            partes.append("El PDF del recibo va adjunto en este mensaje.")
+            partes.append("")
     else:
-        partes.append(
-            "Le enviamos el PDF a su correo si lo tenemos registrado. "
-            "Si no, puede solicitarlo en oficina."
-        )
-    partes.append("")
+        # Al compartir con archivo adjunto no hace falta el enlace.
+        partes.append("Le compartimos el PDF del recibo adjunto en este mensaje.")
+        partes.append("")
     empresa_wa = (getattr(settings, "RECIBO_NOTIFICACION_EMPRESA_NOMBRE", "") or "").strip()
     if not empresa_wa:
         empresa_wa = "Paredes Desarrollos Inmobiliarios"
     partes.append(f"— {empresa_wa}")
-    texto = "\n".join(partes)
+    return "\n".join(partes)
+
+
+def construir_url_whatsapp_recibo(cliente, doc: "DocumentoEmitido", pago: "Pago") -> str | None:
+    """
+    URL wa.me con mensaje prellenado.
+
+    El enlace wa.me solo abre el chat con texto; no adjunta archivos.
+    Para PDF + mensaje juntos use la pantalla de compartir (teléfono) o Meta Cloud API.
+    """
+    tel = _telefono_a_whatsapp(getattr(cliente, "telefono", "") or "")
+    if not tel:
+        return None
+    texto = construir_mensaje_whatsapp_recibo(cliente, doc, pago, incluir_enlace_pdf=True)
     return f"https://wa.me/{tel}?text={urllib.parse.quote(texto)}"
+
+
+def datos_envio_whatsapp_personal(
+    cliente, doc: "DocumentoEmitido", pago: "Pago"
+) -> dict | None:
+    """
+    Datos para que el vendedor envíe con su WhatsApp personal:
+    URL wa.me + mensaje (con y sin enlace) para compartir PDF+texto de un solo.
+    """
+    tel = _telefono_a_whatsapp(getattr(cliente, "telefono", "") or "")
+    if not tel:
+        return None
+    msg_con_enlace = construir_mensaje_whatsapp_recibo(
+        cliente, doc, pago, incluir_enlace_pdf=True
+    )
+    msg_con_adjunto = construir_mensaje_whatsapp_recibo(
+        cliente, doc, pago, incluir_enlace_pdf=False
+    )
+    return {
+        "telefono": tel,
+        "wa_url": f"https://wa.me/{tel}?text={urllib.parse.quote(msg_con_enlace)}",
+        "mensaje": msg_con_adjunto,
+        "mensaje_con_enlace": msg_con_enlace,
+        "pdf_nombre": f"{doc.numero.replace('/', '-')}.pdf",
+    }
 
 
 def enviar_recibo_por_email(doc: "DocumentoEmitido", pago: "Pago") -> bool:
@@ -264,7 +298,8 @@ def _enviar_whatsapp_meta_cloud(
 
     if not getattr(settings, "WHATSAPP_CLOUD_ENABLED", False):
         return None
-    if not getattr(settings, "RECIBO_ENVIAR_WHATSAPP_META", False):
+    # Opt-out: RECIBO_ENVIAR_WHATSAPP_META=0. Por defecto, si Meta Cloud está activo, se envía.
+    if not getattr(settings, "RECIBO_ENVIAR_WHATSAPP_META", True):
         return None
     to = _telefono_a_whatsapp(pago.contrato.cliente.telefono or "")
     if not to:
@@ -313,8 +348,9 @@ def _enviar_whatsapp_meta_cloud(
 
 def notificar_recibo_emitido(doc: "DocumentoEmitido", pago: "Pago") -> ReciboNotificacionInfo:
     """
-    Tras generar el PDF: correo con adjunto; WhatsApp Meta (sube el PDF a la API, sin URL pública)
-    o Twilio si aplica; URL pública opcional como respaldo para Meta.
+    Tras generar el PDF: envía automáticamente al cliente
+    - correo con PDF adjunto si tiene email;
+    - WhatsApp (Meta Cloud o Twilio) si hay teléfono y la API está configurada.
     """
     correo_ok = enviar_recibo_por_email(doc, pago)
 
@@ -336,7 +372,7 @@ def notificar_recibo_emitido(doc: "DocumentoEmitido", pago: "Pago") -> ReciboNot
 
     meta_r = None
     meta_on = getattr(settings, "WHATSAPP_CLOUD_ENABLED", False) and getattr(
-        settings, "RECIBO_ENVIAR_WHATSAPP_META", False
+        settings, "RECIBO_ENVIAR_WHATSAPP_META", True
     )
     if meta_on:
         meta_r = _enviar_whatsapp_meta_cloud(doc, pago, media_url)

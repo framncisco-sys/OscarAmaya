@@ -112,6 +112,43 @@
     padding-bottom: 0.3rem;
     border-bottom: 2px solid #003366;
   }
+  .fmt-lote-alerta {
+    margin-top: 0.5rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    line-height: 1.4;
+    border-left: 4px solid #b45309;
+    background: #fffbeb;
+    color: #92400e;
+  }
+  .fmt-lote-alerta--reservado {
+    border-left-color: #b45309;
+    background: #fffbeb;
+    color: #92400e;
+  }
+  .fmt-lote-alerta--vendido {
+    border-left-color: #1d4ed8;
+    background: #eff6ff;
+    color: #1e3a8a;
+  }
+  .fmt-lote-alerta--bloqueado {
+    border-left-color: #475569;
+    background: #f1f5f9;
+    color: #334155;
+  }
+  .fmt-lote-alerta--disponible {
+    border-left-color: #15803d;
+    background: #f0fdf4;
+    color: #166534;
+  }
+  .fmt-lote-alerta--consultando {
+    border-left-color: #64748b;
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 500;
+  }
   .formato-acept-row {
     display: grid;
     gap: 0.85rem;
@@ -335,7 +372,8 @@
               <option value="">— No. de lote —</option>
             </select>
           </div>
-          <div class="field__help muted">Valor del inmueble y áreas salen del inmueble registrado.</div>
+          <div id="fmt-lote-estado-alerta" class="fmt-lote-alerta" hidden role="alert" aria-live="polite"></div>
+          <div class="field__help muted">Al elegir el lote, el sistema consulta al instante si está disponible, reservado o vendido (por si otro vendedor lo tomó al mismo tiempo). No hace falta guardar el formato para ver el aviso.</div>
         </div>
       </div>
       {% endif %}
@@ -449,6 +487,7 @@
 
 {{ proyectos_formato|json_script:"formato-proyectos-data" }}
 {{ formato_catalogo_inmuebles|json_script:"formato-catalogo-inmuebles-data" }}
+{{ formato_lote_estado_url_tpl|json_script:"formato-lote-estado-url-tpl" }}
 <script src="{% static 'js/formato_aceptacion_credito.js' %}" defer></script>
 <script src="{% static 'js/formato_aceptacion_masks.js' %}" defer></script>
 <script>

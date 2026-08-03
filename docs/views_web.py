@@ -6,7 +6,6 @@ from io import BytesIO
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Q
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -16,8 +15,9 @@ from django.utils.safestring import mark_safe
 from inmobiliaria.contratos_acceso import (
     aplica_restriccion_contratos_por_vendedor,
     filtrar_contratos_queryset_por_vendedor,
+    filtrar_documentos_queryset_por_vendedor,
     usuario_puede_ver_contrato,
-    vendedor_catalogo_activo_vinculado,
+    usuario_puede_ver_documento,
 )
 from inmobiliaria.models import Contrato, Inmueble, Pago
 
@@ -63,31 +63,34 @@ def _documento_emitido_queryset_para_descarga():
 def _html_estado_correo_recibo(notif: ReciboNotificacionInfo) -> str:
     if notif.correo_entrega_real:
         return (
-            '<p class="alert-recibo__meta">Correo: el PDF se envió al email del cliente vía SMTP.</p>'
+            '<p class="alert-recibo__meta">Correo: el PDF se enviÃ³ al email del cliente.</p>'
         )
     if notif.correo_enviado:
         return (
             '<p class="alert-recibo__meta alert-recibo__meta--warn">'
-            "Correo: el servidor <strong>no</strong> está usando SMTP real (falta <code>EMAIL_HOST</code> o usa backend de consola). "
-            "El cliente <strong>no</strong> recibió el correo. Configure SMTP en App Platform: "
-            "<code>EMAIL_HOST</code>, <code>EMAIL_PORT</code>, <code>EMAIL_HOST_USER</code>, "
-            "<code>EMAIL_HOST_PASSWORD</code>, <code>DEFAULT_FROM_EMAIL</code> (véase <code>.env.example</code>).</p>"
+            "Correo: el servidor no estÃ¡ usando SMTP real; el cliente puede no haber recibido el email. "
+            "Revise <code>EMAIL_HOST</code> y credenciales."
+            "</p>"
         )
     return (
-        '<p class="alert-recibo__meta alert-recibo__meta--warn">'
-        "Correo: no se envió (confirme que el cliente tenga email o revise los logs del servidor).</p>"
+        '<p class="alert-recibo__meta">'
+        "Correo: no enviado (cliente sin email o fallo de envÃ­o)."
+        "</p>"
     )
 
 
-def _html_whatsapp_enlace_manual() -> str:
+def _html_whatsapp_enlace_manual(*, auto_abierto: bool) -> str:
+    if auto_abierto:
+        return (
+            '<p class="alert-recibo__meta">'
+            "WhatsApp: se prepara PDF + mensaje juntos. En el telÃ©fono elija WhatsApp y Enviar."
+            "</p>"
+        )
     return (
         '<p class="alert-recibo__meta">'
-        "<strong>Abrir WhatsApp</strong> usa <code>wa.me</code>: solo abre el chat con texto; "
-        "<strong>no adjunta el PDF</strong> (así funciona WhatsApp). "
-        "Para que el mensaje incluya un enlace de descarga HTTPS al PDF: "
-        "<code>PUBLIC_BASE_URL=https://su-app.ondigitalocean.app</code> y, en producción, "
-        "<code>DJANGO_SERVE_MEDIA_PUBLIC=1</code> (sirve <code>/media/</code> sin login; evalúe privacidad). "
-        "Alternativa: API Meta/Twilio para enviar el PDF como documento.</p>"
+        "Pulse <strong>Abrir WhatsApp</strong> / enviar PDF + mensaje "
+        "(en telÃ©fono van juntos; en PC el chat abre con el texto)."
+        "</p>"
     )
 
 
@@ -98,15 +101,17 @@ def _alerta_html_recibo_emitido(
     wa_url: str | None,
     notif: ReciboNotificacionInfo,
 ) -> str:
-    """HTML del aviso tras emitir recibo: compacto y en bloques."""
+    """HTML del aviso tras emitir recibo: descarga + WhatsApp personal (wa.me) + estado correo/API."""
     bloque_correo = _html_estado_correo_recibo(notif)
+    # Abrir WhatsApp del vendedor si hay telÃ©fono y la API no entregÃ³ el PDF sola.
+    auto_wa = bool(wa_url) and not notif.whatsapp_pdf_por_api
 
     if wa_url:
         acciones = format_html(
             '<p class="alert-recibo__actions">'
-            '<a href="{}">Descargar PDF</a>'
-            '<span class="alert-recibo__sep">·</span>'
-            '<a href="{}" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>'
+            '<a href="{}" class="alert-recibo__pdf" data-pbr-pdf-download>Descargar PDF</a>'
+            '<span class="alert-recibo__sep">Â·</span>'
+            '<a href="{}" class="alert-recibo__wa" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>'
             "</p>",
             url_pdf,
             wa_url,
@@ -114,39 +119,54 @@ def _alerta_html_recibo_emitido(
         partes = [bloque_correo]
         if notif.whatsapp_pdf_por_api:
             partes.append(
-                '<p class="alert-recibo__meta">WhatsApp: el PDF se entregó como documento (API Meta o Twilio).</p>'
+                '<p class="alert-recibo__meta">WhatsApp: el PDF se enviÃ³ automÃ¡ticamente al cliente (API).</p>'
             )
         elif notif.meta_solo_texto:
             partes.append(
                 '<p class="alert-recibo__meta alert-recibo__meta--warn">'
-                "WhatsApp (Meta) solo entregó texto, no el archivo. Revise token, "
-                "<code>PUBLIC_BASE_URL</code> HTTPS, MIME <code>application/pdf</code> o tamaño del PDF."
+                "WhatsApp API enviÃ³ solo texto. Use Abrir WhatsApp (se abre solo) para completar con su app."
                 "</p>"
             )
+            partes.append(_html_whatsapp_enlace_manual(auto_abierto=auto_wa))
         elif notif.meta_configurado:
             partes.append(
                 '<p class="alert-recibo__meta alert-recibo__meta--warn">'
-                "WhatsApp (Meta) no pudo completar el envío. Revise la consola del servidor."
+                "WhatsApp API no completÃ³ el envÃ­o. Se abre su WhatsApp personal para enviarlo."
                 "</p>"
             )
+            partes.append(_html_whatsapp_enlace_manual(auto_abierto=auto_wa))
         else:
-            partes.append(_html_whatsapp_enlace_manual())
+            partes.append(_html_whatsapp_enlace_manual(auto_abierto=auto_wa))
         detalle = mark_safe("".join(partes))
+        root_attrs = format_html(
+            ' class="alert-recibo" data-pbr-wa-open="{}" data-pbr-pdf-href="{}"',
+            wa_url if auto_wa else "",
+            url_pdf,
+        )
     else:
         acciones = format_html(
-            '<p class="alert-recibo__actions"><a href="{}">Descargar PDF</a></p>',
+            '<p class="alert-recibo__actions">'
+            '<a href="{}" class="alert-recibo__pdf" data-pbr-pdf-download>Descargar PDF</a>'
+            "</p>",
             url_pdf,
         )
         detalle = mark_safe(
             bloque_correo
-            + '<p class="alert-recibo__meta">Agregue teléfono al cliente para generar el enlace de WhatsApp.</p>'
+            + '<p class="alert-recibo__meta">'
+            "WhatsApp: agregue el telÃ©fono del cliente para abrir el chat automÃ¡ticamente."
+            "</p>"
+        )
+        root_attrs = format_html(
+            ' class="alert-recibo" data-pbr-pdf-href="{}"',
+            url_pdf,
         )
 
     return format_html(
-        '<div class="alert-recibo">'
+        "<div{}>"
         '<p class="alert-recibo__title">Recibo <strong>{}</strong> generado.</p>'
         "{}{}"
         "</div>",
+        root_attrs,
         doc_numero,
         acciones,
         detalle,
@@ -168,7 +188,7 @@ def _contrato_para_recibo_comision(contrato_id: int, user):
 
 
 def _contratos_venta_queryset(user):
-    """Contratos de venta (lotes/casas), no alquiler — para comisión al vendedor."""
+    """Contratos de venta (lotes/casas), no alquiler â€” para comisiÃ³n al vendedor."""
     qs = (
         Contrato.objects.select_related(
             "cliente",
@@ -191,12 +211,12 @@ def _contratos_casa_venta_queryset(user):
 
 
 def _cancel_url_recibo_comision(contrato: Contrato) -> tuple[str, str]:
-    return reverse("app:recibo_comision_hub"), "Recibos de comisión al vendedor"
+    return reverse("app:recibo_comision_hub"), "Recibos de comisiÃ³n al vendedor"
 
 
 @login_required
 def recibo_comision_casa_venta_elegir(request: HttpRequest) -> HttpResponse:
-    """Elige contrato de venta para emitir recibo de comisión al vendedor."""
+    """Elige contrato de venta para emitir recibo de comisiÃ³n al vendedor."""
     from inmobiliaria.comision_vendedor import (
         prefetch_pagos_para_comision,
         requisitos_comision_venta,
@@ -205,20 +225,35 @@ def recibo_comision_casa_venta_elegir(request: HttpRequest) -> HttpResponse:
     qs = prefetch_pagos_para_comision(_contratos_venta_queryset(request.user))
     paginator = Paginator(qs, 25)
     page = paginator.get_page(request.GET.get("page"))
+    from docs.models import DocumentoEmitido, DocumentoTipo
+
+    contrato_ids = [c.pk for c in page]
+    docs_por_contrato: dict[int, DocumentoEmitido] = {}
+    if contrato_ids:
+        for d in (
+            DocumentoEmitido.objects.filter(
+                contrato_id__in=contrato_ids,
+                tipo=DocumentoTipo.RECIBO_COMISION_VENDEDOR,
+            )
+            .order_by("contrato_id", "-emitido_en", "-id")
+        ):
+            if d.contrato_id not in docs_por_contrato:
+                docs_por_contrato[d.contrato_id] = d
     for contrato in page:
         contrato.monto_comision_ref = contrato.monto_comision_efectivo()
         contrato.req_comision = requisitos_comision_venta(contrato)
+        contrato.doc_comision = docs_por_contrato.get(contrato.pk)
     return render(
         request,
         "app/recibo_comision_casa_venta_elegir.html",
         {
             "items": page,
             "page_obj": page,
-            "page_title": "Recibo de comisión — venta",
+            "page_title": "Recibo de comisiÃ³n â€” venta",
             "page_meta": (
-                "1) Vendedor con su comisión en el contrato · "
-                "2) Reserva y prima pagadas y validadas en cuenta · "
-                "3) Generar el recibo de comisión de venta."
+                "1) Vendedor con su comisiÃ³n en el contrato Â· "
+                "2) Reserva y prima pagadas y validadas en cuenta Â· "
+                "3) Generar o ver el recibo de comisiÃ³n de venta."
             ),
         },
     )
@@ -236,7 +271,7 @@ def emitir_recibo_comision(request: HttpRequest, contrato_id: int) -> HttpRespon
         if not req.puede_emitir:
             messages.error(
                 request,
-                "Aún no se puede generar la comisión: " + " ".join(req.motivos),
+                "AÃºn no se puede generar la comisiÃ³n: " + " ".join(req.motivos),
             )
             return redirect("app:emitir_recibo_comision", contrato_id=contrato.pk)
         form = ReciboComisionVendedorForm(request.POST, contrato=contrato)
@@ -259,7 +294,7 @@ def emitir_recibo_comision(request: HttpRequest, contrato_id: int) -> HttpRespon
             messages.success(
                 request,
                 format_html(
-                    'Recibo de comisión al vendedor <strong>{}</strong> generado. '
+                    'Recibo de comisiÃ³n al vendedor <strong>{}</strong> generado. '
                     '<a href="{}">Descargar PDF</a>.',
                     doc.numero,
                     url_pdf,
@@ -272,27 +307,36 @@ def emitir_recibo_comision(request: HttpRequest, contrato_id: int) -> HttpRespon
 
     monto_sugerido = contrato.monto_comision_efectivo()
     cancel_url, cancel_label = _cancel_url_recibo_comision(contrato)
+    liquidacion_preview = None
+    if monto_sugerido is not None:
+        from inmobiliaria.retencion_comision_sv import liquidar_comision_vendedor
+
+        liquidacion_preview = liquidar_comision_vendedor(
+            monto_sugerido,
+            vendedor=getattr(contrato, "vendedor_perfil", None),
+        )
     return render(
         request,
         "app/recibo_comision_preparar.html",
         {
             "form": form,
             "contrato": contrato,
-            "vendedor_nombre": nombre_v or "— (sin vendedor)",
+            "vendedor_nombre": nombre_v or "â€” (sin vendedor)",
             "monto_sugerido": monto_sugerido,
             "precio_final": contrato.precio_final,
-            "form_title": "Recibo de comisión al vendedor",
+            "form_title": "Recibo de comisiÃ³n al vendedor",
             "cancel_url": cancel_url,
             "cancel_label": cancel_label,
             "req_comision": req,
             "puede_emitir_comision": req.puede_emitir,
+            "liquidacion_preview": liquidacion_preview,
         },
     )
 
 
 @login_required
 def emitir_promesa(request: HttpRequest, contrato_id: int) -> HttpResponse:
-    """POST obligatorio (CSRF). GET muestra confirmación para no romper enlaces antiguos."""
+    """POST obligatorio (CSRF). GET muestra confirmaciÃ³n para no romper enlaces antiguos."""
     contrato = get_object_or_404(
         filtrar_contratos_queryset_por_vendedor(Contrato.objects.all(), request.user),
         pk=contrato_id,
@@ -304,7 +348,7 @@ def emitir_promesa(request: HttpRequest, contrato_id: int) -> HttpResponse:
             {
                 "titulo": "Emitir promesa de venta",
                 "blurb": (
-                    f"Se generará el PDF de promesa para el contrato {contrato.numero}. "
+                    f"Se generarÃ¡ el PDF de promesa para el contrato {contrato.numero}. "
                     "Confirme para continuar."
                 ),
                 "submit_label": "Emitir promesa PDF",
@@ -317,7 +361,7 @@ def emitir_promesa(request: HttpRequest, contrato_id: int) -> HttpResponse:
 
 @login_required
 def emitir_recibo(request: HttpRequest, pago_id: int) -> HttpResponse:
-    """POST obligatorio (CSRF). GET muestra confirmación."""
+    """POST obligatorio (CSRF). GET muestra confirmaciÃ³n."""
     pago = get_object_or_404(
         Pago.objects.select_related("contrato", "contrato__cliente"),
         pk=pago_id,
@@ -331,10 +375,10 @@ def emitir_recibo(request: HttpRequest, pago_id: int) -> HttpResponse:
             {
                 "titulo": "Actualizar / emitir recibo digital",
                 "blurb": (
-                    f"Se actualizará el PDF del recibo del pago #{pago.pk} "
+                    f"Se actualizarÃ¡ el PDF del recibo del pago #{pago.pk} "
                     f"({pago.get_concepto_display()}, {pago.monto}) "
                     f"del contrato {pago.contrato.numero}. "
-                    "Si ya existía un recibo, se conserva el mismo número y solo se regenera el archivo."
+                    "Si ya existÃ­a un recibo, se conserva el mismo nÃºmero y solo se regenera el archivo."
                 ),
                 "submit_label": "Actualizar recibo / PDF",
                 "cancel_url": reverse("app:pago_list"),
@@ -343,8 +387,8 @@ def emitir_recibo(request: HttpRequest, pago_id: int) -> HttpResponse:
     if pago.pendiente_validacion_gerente:
         messages.error(
             request,
-            "Este abono (reserva, prima, cuota o abono a capital) aún no está validado por gerencia. "
-            "No se puede emitir el recibo ni notificar al cliente hasta confirmar el depósito en cuenta.",
+            "Este abono (reserva, prima, cuota o abono a capital) aÃºn no estÃ¡ validado por gerencia. "
+            "No se puede emitir el recibo ni notificar al cliente hasta confirmar el depÃ³sito en cuenta.",
         )
         return redirect("app:pago_list")
     if pago.validacion_abono == Pago.ValidacionAbono.RECHAZADO:
@@ -366,24 +410,38 @@ def emitir_recibo(request: HttpRequest, pago_id: int) -> HttpResponse:
         ),
         extra_tags="allow_html",
     )
+    # Sin Meta Cloud: abrir WhatsApp personal del vendedor (PDF + mensaje de un solo).
+    if wa and not notif.whatsapp_pdf_por_api:
+        from docs.recibo_notificacion import datos_envio_whatsapp_personal
+
+        datos = datos_envio_whatsapp_personal(pago.contrato.cliente, doc, pago) or {}
+        return render(
+            request,
+            "app/recibo_abrir_whatsapp.html",
+            {
+                "doc_numero": doc.numero,
+                "wa_url": wa,
+                "url_pdf": url_pdf,
+                "continue_url": reverse("app:docs_list"),
+                "share_payload": {
+                    "doc_numero": doc.numero,
+                    "pdf_url": url_pdf,
+                    "pdf_nombre": datos.get("pdf_nombre")
+                    or f"{doc.numero.replace('/', '-')}.pdf",
+                    "wa_url": wa,
+                    "mensaje": datos.get("mensaje") or "",
+                    "mensaje_con_enlace": datos.get("mensaje_con_enlace") or "",
+                },
+            },
+        )
     return redirect("app:docs_list")
 
 
 @login_required
 def doc_download(request: HttpRequest, doc_id: int) -> HttpResponse:
     doc = get_object_or_404(_documento_emitido_queryset_para_descarga(), pk=doc_id)
-    c_perm = _contrato_desde_documento(doc)
-    if c_perm is not None and not usuario_puede_ver_contrato(request.user, c_perm):
+    if not usuario_puede_ver_documento(request.user, doc):
         raise Http404("Documento no disponible")
-    if (
-        c_perm is None
-        and doc.tipo == DocumentoTipo.RECIBO_COMISION_VENDEDOR
-        and doc.vendedor_id
-        and aplica_restriccion_contratos_por_vendedor(request.user)
-    ):
-        vc = vendedor_catalogo_activo_vinculado(request.user)
-        if vc is None or doc.vendedor_id != vc.pk:
-            raise Http404("Documento no disponible")
     if not doc.pdf_file or not doc.pdf_file.name:
         raise Http404("Documento sin PDF")
     safe_name = f"{doc.numero.replace('/', '-')}.pdf"
@@ -408,7 +466,7 @@ def doc_download(request: HttpRequest, doc_id: int) -> HttpResponse:
             fh = doc.pdf_file.open("rb")
         except FileNotFoundError:
             logger.warning(
-                "El almacenamiento indicó archivo existente pero no se pudo abrir; se regenera (doc_id=%s).",
+                "El almacenamiento indicÃ³ archivo existente pero no se pudo abrir; se regenera (doc_id=%s).",
                 doc.id,
             )
         else:
@@ -437,29 +495,13 @@ def doc_download(request: HttpRequest, doc_id: int) -> HttpResponse:
 
 @login_required
 def docs_list(request: HttpRequest) -> HttpResponse:
-    items = DocumentoEmitido.objects.select_related(
-        "contrato",
-        "pago",
-        "pago__contrato",
-        "pago__formato_aceptacion",
-        "vendedor",
-    ).prefetch_related("contrato__formatos_aceptacion").order_by("-id")
-    if aplica_restriccion_contratos_por_vendedor(request.user):
-        vc = vendedor_catalogo_activo_vinculado(request.user)
-        allowed = filtrar_contratos_queryset_por_vendedor(Contrato.objects.all(), request.user)
-        q_vis = Q(contrato__in=allowed) | Q(pago__contrato__in=allowed)
-        if vc is not None:
-            q_vis |= Q(vendedor_id=vc.pk, tipo=DocumentoTipo.RECIBO_COMISION_VENDEDOR)
-        items = items.filter(q_vis).distinct()
-    items = list(items[:200])
-    for d in items:
-        fmt = getattr(getattr(d, "pago", None), "formato_aceptacion", None)
-        if fmt is None and getattr(d, "contrato_id", None):
-            relacionados = list(d.contrato.formatos_aceptacion.all())
-            if relacionados:
-                fmt = max(relacionados, key=lambda f: f.numero_formulario)
-        d.formato_relacionado = fmt
-    from django.shortcuts import render
+    from docs.expediente_docs import docs_list as _docs_list
 
-    return render(request, "app/docs_list.html", {"items": items})
+    return _docs_list(request)
 
+
+@login_required
+def docs_cliente(request: HttpRequest) -> HttpResponse:
+    from docs.expediente_docs import docs_cliente as _docs_cliente
+
+    return _docs_cliente(request)

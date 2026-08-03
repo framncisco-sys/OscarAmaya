@@ -144,6 +144,7 @@ _DOCS = frozenset(
         "formato_aceptacion_promesa_subir",
         "formato_aceptacion_promesa_descargar",
         "docs_list",
+        "docs_cliente",
         "doc_download",
         "emitir_promesa",
         "emitir_recibo",
@@ -181,6 +182,11 @@ def build_sidebar_nav(url_name: str | None, *, pago_concepto: str | None = None)
             "vendedor_delete",
         },
         "vendedor_create_active": u == "vendedor_create",
+        "recibo_comision_vendedor_active": u
+        in {
+            "recibo_comision_casa_venta",
+            "emitir_recibo_comision",
+        },
         "asesores_alquiler_active": in_set(_ASESORES_ALQUILER),
         "asesor_alquiler_list_active": u
         in {
@@ -216,15 +222,12 @@ def build_sidebar_nav(url_name: str | None, *, pago_concepto: str | None = None)
         in {"mapa_catastral", "api_mapa_catastral", "api_mapa_catastral_guardar"},
         "contrato_active": u
         in {
-            "contrato_list",
             "contrato_create",
             "contrato_update",
             "contrato_delete",
-            "contrato_estado_cuenta",
-            "contrato_estado_cuenta_pdf",
-            "estado_cuenta_hub",
             "contrato_credito_cliente_json",
         },
+        "contrato_list_active": u == "contrato_list",
         "estado_cuenta_active": u
         in {
             "estado_cuenta_hub",
@@ -233,6 +236,7 @@ def build_sidebar_nav(url_name: str | None, *, pago_concepto: str | None = None)
             "contrato_estado_cuenta",
         },
         "pago_active": u in {"pago_list", "pago_create", "pago_update", "export_pagos_csv"},
+        "pago_list_active": u in {"pago_list", "pago_update", "export_pagos_csv"},
         "pago_reserva_active": pago_create and concepto == "RESERVA",
         "pago_prima_active": pago_create and concepto == "PRIMA",
         "pago_contado_active": pago_create and concepto == "CONTADO",
@@ -248,11 +252,11 @@ def build_sidebar_nav(url_name: str | None, *, pago_concepto: str | None = None)
         in {
             "formato_aceptacion",
             "formato_aceptacion_nuevo",
-            "formato_aceptacion_list",
             "formato_aceptacion_edit",
             "formato_aceptacion_pdf",
         },
-        "docs_active": u in {"docs_list", "doc_download", "emitir_promesa", "emitir_recibo"},
+        "formato_list_active": u == "formato_aceptacion_list",
+        "docs_active": u in {"docs_list", "docs_cliente", "doc_download", "emitir_promesa", "emitir_recibo"},
         "usuario_active": u
         in {
             "usuario_list",

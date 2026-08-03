@@ -46,9 +46,9 @@
     </article>
     <article class="card kpi dash-kpi dash-kpi--sold">
       <span class="dash-kpi__icon" aria-hidden="true">🏠</span>
-      <h3>Vendidos</h3>
+      <h3>Pagados totalmente</h3>
       <p>{{ vendidos }}</p>
-      <span class="dash-kpi__hint">Cerrados en inventario</span>
+      <span class="dash-kpi__hint">Contado o cuotas liquidadas</span>
     </article>
     <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:contrato_list' %}">
       <span class="dash-kpi__icon" aria-hidden="true">📄</span>
@@ -102,6 +102,57 @@
       </table>
     </div>
     {% endif %}
+  </section>
+  {% endif %}
+
+  {% if proyecto_rows %}
+  <section class="card dash-panel dash-proyectos" aria-label="Lotes por proyecto activo">
+    <h2>Lotes por proyecto activo</h2>
+    <p class="muted dash-panel__sub">
+      Disponibles, en reserva y pagados totalmente (contado liquidado o todas las cuotas pagadas).
+    </p>
+    <ul class="dash-proy-list">
+      {% for row in proyecto_rows %}
+      <li class="dash-proy">
+        <div class="dash-proy__head">
+          <div>
+            <strong class="dash-proy__name">{{ row.obj.nombre }}</strong>
+            {% if row.obj.municipio %}<span class="muted dash-proy__loc">{{ row.obj.municipio }}{% if row.obj.departamento %}, {{ row.obj.departamento }}{% endif %}</span>{% endif %}
+          </div>
+          <a href="{% url 'app:inmueble_list' %}?proyecto={{ row.obj.pk }}" class="link-action">Ver lotes</a>
+        </div>
+        <div class="dash-proy__stats" role="group" aria-label="Resumen de lotes">
+          <div class="dash-proy__stat dash-proy__stat--disp">
+            <span class="dash-proy__stat-n">{{ row.disponibles }}</span>
+            <span class="dash-proy__stat-l">Disponibles</span>
+            {% if row.valor_disponible %}<span class="dash-proy__stat-h">${{ row.valor_disponible|floatformat:0 }} lista</span>{% endif %}
+          </div>
+          <div class="dash-proy__stat dash-proy__stat--res">
+            <span class="dash-proy__stat-n">{{ row.reservados }}</span>
+            <span class="dash-proy__stat-l">En reserva</span>
+            <span class="dash-proy__stat-h">Apartados</span>
+          </div>
+          <div class="dash-proy__stat dash-proy__stat--pag">
+            <span class="dash-proy__stat-n">{{ row.pagados_totales }}</span>
+            <span class="dash-proy__stat-l">Pagados totalmente</span>
+            <span class="dash-proy__stat-h">Cerrados</span>
+          </div>
+          <div class="dash-proy__stat dash-proy__stat--tot">
+            <span class="dash-proy__stat-n">{{ row.total }}</span>
+            <span class="dash-proy__stat-l">Total lotes</span>
+            <span class="dash-proy__stat-h">En inventario</span>
+          </div>
+        </div>
+        {% if row.total %}
+        <div class="dash-heat__stack dash-proy__bar" role="presentation" title="{{ row.pagados_totales }} pagados, {{ row.reservados }} reserva, {{ row.disponibles }} disponibles">
+          {% if row.pagados_pct %}<span class="dash-heat__seg dash-heat__seg--vendido" style="width:{{ row.pagados_pct }}%;"></span>{% endif %}
+          {% if row.reservados_pct %}<span class="dash-heat__seg dash-heat__seg--reservado" style="width:{{ row.reservados_pct }}%;"></span>{% endif %}
+          {% if row.disponibles_pct %}<span class="dash-heat__seg dash-heat__seg--disponible" style="width:{{ row.disponibles_pct }}%;"></span>{% endif %}
+        </div>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
   </section>
   {% endif %}
 
@@ -213,7 +264,7 @@
         {% endfor %}
       </ul>
       <p class="dash-heat__note muted">
-        <span class="dash-heat__dot dash-heat__dot--vendido"></span> Vendido
+            <span class="dash-heat__dot dash-heat__dot--vendido"></span> Pagado totalmente
         <span class="dash-heat__dot dash-heat__dot--reservado"></span> Reservado
         <span class="dash-heat__dot dash-heat__dot--disponible"></span> Disponible
       </p>

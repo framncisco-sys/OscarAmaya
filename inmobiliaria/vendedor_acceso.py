@@ -1,4 +1,4 @@
-"""Acceso limitado del vendedor al flujo de venta (formato → contrato → pagos)."""
+"""Acceso limitado del vendedor al flujo de venta (formato → pagos)."""
 
 from __future__ import annotations
 
@@ -28,16 +28,7 @@ RUTAS_VENDEDOR_FLUJO: frozenset[str] = frozenset(
         "formato_aceptacion_compraventa_subir",
         "formato_aceptacion_compraventa_descargar",
         "formato_superuser_gate",
-        # 2. Contrato
-        "contrato_list",
-        "contrato_create",
-        "contrato_update",
-        "contrato_credito_cliente_json",
-        "contrato_delete",
-        "contrato_estado_cuenta",
-        "contrato_estado_cuenta_pdf",
-        "estado_cuenta_hub",
-        # 3–5. Pagos (reserva, prima, cuotas)
+        # Pagos (reserva, prima, contado, cuotas). Planes/estado de cuenta: solo gerencia.
         "pago_list",
         "pago_create",
         "pago_update",
@@ -45,9 +36,12 @@ RUTAS_VENDEDOR_FLUJO: frozenset[str] = frozenset(
         "export_pagos_csv",
         # Documentos / promesa ligados al flujo
         "docs_list",
+        "docs_cliente",
         "doc_download",
         "emitir_promesa",
         "emitir_recibo",
+        # Consulta en vivo del estado del lote (formato, sin guardar)
+        "api_inmueble_estado",
     }
 )
 
@@ -94,6 +88,6 @@ def redirigir_vendedor_si_fuera_de_flujo(request):
     messages.warning(
         request,
         "Su acceso de vendedor solo incluye el flujo de venta: "
-        "formato, contrato, reserva, prima, plazos y listado de contratos.",
+        "formato, reserva, prima, contado, cuotas y documentos.",
     )
     return HttpResponseRedirect(reverse("app:index"))

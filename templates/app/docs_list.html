@@ -1,77 +1,67 @@
 {% extends "app/base_app.html" %}
-{% block title %}Documentos{% endblock %}
+{% block title %}Documentos PDF{% endblock %}
 {% block app_content %}
 <header class="page-toolbar">
   <div class="page-toolbar__intro">
-    <h1 class="page-title">Documentos</h1>
-    <p class="page-toolbar__meta">Últimos documentos emitidos (recibos de reserva, prima, cuotas y otros).</p>
+    <h1 class="page-title">{% if docs_solo_mios %}Mis documentos PDF{% else %}Documentos PDF{% endif %}</h1>
+    <p class="page-toolbar__meta">
+      Elija un cliente para ver y descargar sus PDFs (formato, reserva, prima, cuota, comisión…).
+      {% if total_clientes %}{{ total_clientes }} cliente{{ total_clientes|pluralize }} · {{ total_docs }} documento{{ total_docs|pluralize }}.{% endif %}
+    </p>
   </div>
 </header>
+
+<form method="get" class="pbr-docs-search" style="margin:0 0 1rem;display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;">
+  <label class="field__label" for="docs-q" style="margin:0;">Buscar cliente</label>
+  <input id="docs-q" class="input" type="search" name="q" value="{{ q }}"
+         placeholder="Nombre del cliente…" style="max-width:22rem;flex:1 1 14rem;">
+  <button type="submit" class="btn-primary btn-sm">Buscar</button>
+  {% if q %}
+  <a href="{% url 'app:docs_list' %}" class="btn-secondary btn-sm">Limpiar</a>
+  {% endif %}
+</form>
+
+{% if clientes %}
 <div class="data-panel">
-<table class="table">
-  <thead>
-    <tr>
-      <th>Tipo</th>
-      <th>Concepto</th>
-      <th>Número</th>
-      <th>Monto</th>
-      <th>Emitido</th>
-      <th>Relacionado</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for d in items %}
-    <tr>
-      <td>{{ d.get_tipo_display }}</td>
-      <td>
-        {% if d.pago %}
-          <strong>{{ d.pago.get_concepto_display }}</strong>
-          {% if d.pago.validacion_abono == 'VALIDADO' %}
-            <span class="badge badge--activo" style="margin-left:0.35rem;">Autorizado</span>
-          {% elif d.pago.validacion_abono == 'PENDIENTE' %}
-            <span class="badge" style="margin-left:0.35rem;">Pendiente</span>
-          {% endif %}
-        {% elif d.tipo == 'RECIBO_COMISION_VENDEDOR' %}
-          Comisión vendedor
-        {% elif d.tipo == 'PROMESA_VENTA' %}
-          Promesa de venta
-        {% else %}
-          —
-        {% endif %}
-      </td>
-      <td><strong>{{ d.numero }}</strong></td>
-      <td class="right">
-        {% if d.pago %}
-          ${{ d.pago.monto }}
-        {% elif d.monto_comision_usd %}
-          ${{ d.monto_comision_usd }}
-        {% else %}
-          —
-        {% endif %}
-      </td>
-      <td>{{ d.emitido_en }}</td>
-      <td>
-        {% if d.formato_relacionado %}
-          Formato Nº {{ d.formato_relacionado.numero_formulario|stringformat:"04d" }}{% if d.formato_relacionado.nombre_cliente %} — {{ d.formato_relacionado.nombre_cliente }}{% endif %}
-        {% elif d.contrato %}
-          Contrato {{ d.contrato.numero }}
-        {% endif %}
-        {% if d.vendedor %} · Vendedor {{ d.vendedor.nombre_completo }}{% endif %}
-      </td>
-      <td>
-        {% if d.pdf_file %}
-          <a href="{% url 'app:doc_download' d.id %}" class="link-action">Descargar</a>
-        {% else %}
-          <span class="muted">—</span>
-        {% endif %}
-      </td>
-    </tr>
-    {% empty %}
-    <tr><td colspan="7" class="muted">No hay documentos.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Cliente</th>
+        <th class="right">Documentos</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in clientes %}
+      <tr>
+        <td>
+          <a href="{{ c.url }}" class="pbr-docs-cliente-link"><strong>{{ c.cliente }}</strong></a>
+        </td>
+        <td class="right">{{ c.total }}</td>
+        <td>
+          <a href="{{ c.url }}" class="link-action">Ver documentos</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
-{% include "app/pagination.html" %}
+{% else %}
+<div class="data-panel">
+  <p class="muted" style="margin:0;padding:1rem;">
+    {% if q %}No hay clientes que coincidan con «{{ q }}».{% else %}No hay documentos.{% endif %}
+  </p>
+</div>
+{% endif %}
+
+<style>
+  .pbr-docs-cliente-link {
+    color: inherit;
+    text-decoration: none;
+  }
+  .pbr-docs-cliente-link:hover {
+    color: #003366;
+    text-decoration: underline;
+  }
+</style>
 {% endblock %}

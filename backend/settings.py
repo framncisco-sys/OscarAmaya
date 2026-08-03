@@ -710,6 +710,12 @@ VENDEDOR_RECIBO_COMISION_EMAIL_ASUNTO = env.str(
     "VENDEDOR_RECIBO_COMISION_EMAIL_ASUNTO",
     default="Recibo de comisión — PDF adjunto",
 )
+# Retenciones SV en recibo de comisión al vendedor (referencia operativa; no es asesoría fiscal).
+COMISION_SV_RENTA_PCT = env.str("COMISION_SV_RENTA_PCT", default="10")
+COMISION_SV_IVA_PCT = env.str("COMISION_SV_IVA_PCT", default="13")
+COMISION_SV_IVA_RETENCION_PCT = env.str("COMISION_SV_IVA_RETENCION_PCT", default="1")
+COMISION_SV_IVA_RETENCION_MIN = env.str("COMISION_SV_IVA_RETENCION_MIN", default="100")
+COMISION_SV_RETENER_IVA_1PCT = env.bool("COMISION_SV_RETENER_IVA_1PCT", default=True)
 # Prefijo telefónico para armar enlaces wa.me (El Salvador = 503)
 RECIBO_WHATSAPP_PAIS = env.str("RECIBO_WHATSAPP_PAIS", default="503")
 # URL pública HTTPS del sitio (sin barra final). Ej. https://ventas.suempresa.com
@@ -726,7 +732,7 @@ WHATSAPP_CLOUD_ACCESS_TOKEN = env.str("WHATSAPP_CLOUD_ACCESS_TOKEN", default="")
 WHATSAPP_CLOUD_PHONE_NUMBER_ID = env.str("WHATSAPP_CLOUD_PHONE_NUMBER_ID", default="")
 WHATSAPP_CLOUD_API_VERSION = env.str("WHATSAPP_CLOUD_API_VERSION", default="v21.0")
 WHATSAPP_WEBHOOK_VERIFY_TOKEN = env.str("WHATSAPP_WEBHOOK_VERIFY_TOKEN", default="")
-RECIBO_ENVIAR_WHATSAPP_META = env.bool("RECIBO_ENVIAR_WHATSAPP_META", default=False)
+RECIBO_ENVIAR_WHATSAPP_META = env.bool("RECIBO_ENVIAR_WHATSAPP_META", default=True)
 # Formato de aceptación: envío automático al guardar (correo + WhatsApp Meta si aplica)
 FORMATO_ACEPTACION_ENVIAR_AL_GUARDAR = env.bool("FORMATO_ACEPTACION_ENVIAR_AL_GUARDAR", default=True)
 FORMATO_ACEPTACION_NOTIFICAR_CADA_GUARDADO = env.bool(

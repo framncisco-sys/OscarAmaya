@@ -30,21 +30,30 @@
       </div>
 
       <p class="portal-hero__kicker">Portal Paredes</p>
-      <h1 class="portal-hero__title">Elija con qué <span class="portal-hero__accent">empresa continuar</span></h1>
+      <h1 class="portal-hero__title">
+        {% if marcas|length == 1 %}
+        Su empresa asignada
+        {% else %}
+        Elija con qué <span class="portal-hero__accent">empresa continuar</span>
+        {% endif %}
+      </h1>
       <p class="portal-hero__lead">
         {% if marcas|length == 1 %}
-        Entrará al sistema de su empresa.
+        Su usuario tiene acceso solo a <strong>{{ marcas.0.nombre }}</strong>.
+        Al continuar entrará directamente a ese sistema.
         {% else %}
         Dos sistemas independientes. Seleccione uno para entrar;
         podrá cambiar después desde el menú lateral si tiene acceso a ambas.
         {% endif %}
       </p>
+      {% if marcas|length != 1 %}
       <div class="portal-hero__hint" aria-hidden="true">
         <span>Pase el cursor o use</span>
         <kbd>1</kbd>
         <span>/</span>
         <kbd>2</kbd>
       </div>
+      {% endif %}
     </header>
 
     <div class="portal-doors" role="list">
@@ -69,7 +78,11 @@
           <span class="portal-door__sub">{{ m.subtitulo }}</span>
         </span>
         <span class="portal-door__cta">
+          {% if marcas|length == 1 %}
+          <span>Entrar a mi empresa</span>
+          {% else %}
           <span>Entrar al sistema</span>
+          {% endif %}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
             <path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>
           </svg>

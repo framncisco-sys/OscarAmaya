@@ -865,9 +865,32 @@ class ClienteDocumento(models.Model):
 class Vendedor(models.Model):
     """Asesor o corredor de venta de proyectos (lotes, casas). No aplica al módulo de alquileres."""
 
+    class TipoPersona(models.TextChoices):
+        NATURAL = "NATURAL", "Natural"
+        CONTRIBUYENTE = "CONTRIBUYENTE", "Contribuyente"
+
     nombres = models.CharField(max_length=120)
     apellidos = models.CharField(max_length=120)
+    tipo_persona = models.CharField(
+        max_length=20,
+        choices=TipoPersona.choices,
+        default=TipoPersona.NATURAL,
+        help_text="Persona natural o contribuyente (con NIT, NRC y giro).",
+    )
     dui = models.CharField(max_length=20, blank=True, validators=[validar_dui_sv])
+    nit = models.CharField(
+        "NIT",
+        max_length=20,
+        blank=True,
+        validators=[validar_nit_sv],
+    )
+    nrc = models.CharField("NRC", max_length=30, blank=True)
+    giro = models.CharField(
+        "Giro",
+        max_length=200,
+        blank=True,
+        help_text="Actividad económica (solo si es contribuyente).",
+    )
     telefono = models.CharField(max_length=40, blank=True)
     email = models.EmailField(blank=True)
     porcentaje_comision_default = models.DecimalField(
@@ -885,6 +908,28 @@ class Vendedor(models.Model):
         related_name="vendedor_catalogo",
         help_text="Usuario interno opcional si el vendedor tiene cuenta en el sistema.",
     )
+    dui_frente = models.FileField(
+        "Copia de DUI (enfrente)",
+        upload_to="vendedores/dui/%Y/%m/",
+        blank=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["pdf", "png", "jpg", "jpeg", "webp"],
+                message="Use PDF o imagen (JPG, PNG, WEBP).",
+            )
+        ],
+    )
+    dui_reverso = models.FileField(
+        "Copia de DUI (reverso)",
+        upload_to="vendedores/dui/%Y/%m/",
+        blank=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["pdf", "png", "jpg", "jpeg", "webp"],
+                message="Use PDF o imagen (JPG, PNG, WEBP).",
+            )
+        ],
+    )
     activo = models.BooleanField(default=True)
     notas = models.TextField(blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
@@ -900,6 +945,10 @@ class Vendedor(models.Model):
     @property
     def nombre_completo(self) -> str:
         return f"{self.nombres} {self.apellidos}".strip()
+
+    @property
+    def es_contribuyente(self) -> bool:
+        return self.tipo_persona == self.TipoPersona.CONTRIBUYENTE
 
 
 class AsesorAlquiler(models.Model):

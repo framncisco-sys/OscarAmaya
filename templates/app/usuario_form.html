@@ -4,11 +4,17 @@
 <h1 class="page-title">{{ form_title }}</h1>
 {% if es_crear %}
 <p class="muted" style="max-width:42rem;">
-  Complete los datos básicos. El <strong>rol</strong> y la <strong>empresa</strong> definen a qué sistema podrá entrar.
+  Complete los datos básicos. El <strong>rol</strong> y la <strong>empresa</strong> definen a qué sistema podrá entrar:
+  el usuario <strong>ya identifica</strong> su empresa al iniciar sesión (entra directo si solo tiene una).
   Si elige <strong>Ventas / comercial</strong>, después vincule la cuenta en el módulo Vendedores.
 </p>
 {% elif edit_user %}
-<p class="muted">Usuario: <strong>{{ edit_user.username }}</strong></p>
+<p class="muted">Usuario: <strong>{{ edit_user.username }}</strong>
+  {% if edit_user.perfil_app %}
+  · Empresa: <strong>{{ edit_user.perfil_app.get_empresa_display }}</strong>
+  · Rol: <strong>{{ edit_user.perfil_app.get_rol_display }}</strong>
+  {% endif %}
+</p>
 {% endif %}
 <form method="post" class="form-stack" style="max-width:min(100%,520px);" autocomplete="off">
   {% csrf_token %}

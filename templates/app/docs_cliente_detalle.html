@@ -1,0 +1,81 @@
+{% extends "app/base_app.html" %}
+{% block title %}Documentos — {{ cliente }}{% endblock %}
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">{{ cliente }}</h1>
+    <p class="page-toolbar__meta">
+      {{ total_docs }} documento{{ total_docs|pluralize }} PDF · formato, reserva, prima, cuota y más.
+    </p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{{ volver_url }}" class="btn-secondary">← Todos los clientes</a>
+  </div>
+</header>
+
+{% if categorias %}
+<div class="pbr-docs-cliente-detalle">
+  {% for cat in categorias %}
+  <section class="pbr-docs-cat">
+    <h2 class="pbr-docs-cat__title">{{ cat.label }}</h2>
+    <div class="data-panel" style="margin:0 0 1rem;">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Documento</th>
+            <th>Número</th>
+            <th class="right">Monto</th>
+            <th>Emitido</th>
+            <th>Detalle</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in cat.docs %}
+          <tr>
+            <td>
+              <strong>{{ d.titulo }}</strong>
+              {% if d.badge == 'autorizado' %}
+                <span class="badge badge--activo" style="margin-left:0.35rem;">Autorizado</span>
+              {% elif d.badge == 'pendiente' %}
+                <span class="badge" style="margin-left:0.35rem;">Pendiente</span>
+              {% endif %}
+            </td>
+            <td><strong>{{ d.numero }}</strong></td>
+            <td class="right">{% if d.monto %}${{ d.monto }}{% else %}—{% endif %}</td>
+            <td>{% if d.emitido %}{{ d.emitido }}{% else %}—{% endif %}</td>
+            <td class="muted" style="font-size:0.86rem;">{{ d.extra|default:"—" }}</td>
+            <td>
+              {% if d.url %}
+              <a href="{{ d.url }}" class="link-action" target="_blank" rel="noopener">Descargar</a>
+              {% else %}
+              <span class="muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+<div class="data-panel">
+  <p class="muted" style="margin:0;padding:1rem;">Este cliente no tiene documentos PDF.</p>
+</div>
+{% endif %}
+
+<style>
+  .pbr-docs-cat__title {
+    margin: 0 0 0.45rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #334155;
+    border-bottom: 2px solid #003366;
+    padding-bottom: 0.3rem;
+  }
+</style>
+{% endblock %}

@@ -1,346 +1,381 @@
 {% extends "docs/_base_pdf.html" %}
-{% block pdf_body_class %} class="pdf-recibo pdf-comision-vendedor"{% endblock %}
-{% block pdf_brand_captions %}
-{% include "docs/_pdf_brand_captions.html" with razon_social=razon_social_emisor pie_inmobiliaria="Liquidación de comisión al vendedor" %}
-{% endblock %}
+{% block pdf_body_class %} class="pdf-recibo-digital"{% endblock %}
+{% block pdf_header %}{% endblock %}
+{% block pdf_watermark %}{% endblock %}
 {% block pdf_extra_styles %}
-    body.pdf-recibo {
+    body.pdf-recibo-digital {
       margin: 0;
       padding: 0;
-      color: #334155;
-      font-size: 11px;
-      line-height: 1.35;
-    }
-    body.pdf-recibo .pdf-header {
-      margin: 0 0 8px;
-      padding: 0 0 8px;
-      border-bottom: 1px solid #d4d4d8;
-    }
-
-    .rec-wrap { overflow: visible; max-width: 100%; }
-
-    .rec-hero {
-      text-align: center;
-      margin: 0 0 8px;
-      padding: 0 0 8px;
-      border-bottom: 2px solid #0f172a;
-    }
-    .rec-hero h1 {
-      margin: 0 0 3px;
-      font-size: 19px;
-      font-weight: 800;
-      color: #0f172a;
-      letter-spacing: -0.02em;
-    }
-    .rec-hero .sub {
-      margin: 0;
+      color: #111;
       font-size: 10px;
-      color: #64748b;
-      line-height: 1.4;
+      line-height: 1.3;
     }
-    .rec-hero .sub strong { color: #475569; }
 
-    .rec-context {
+    .rd-proy-top {
       width: 100%;
       border-collapse: collapse;
-      margin: 0 0 7px;
-      background: #fafafa;
-      border: 1px solid #e4e4e7;
+      margin: 0 0 6px;
     }
-    .rec-context td {
-      width: 50%;
-      vertical-align: top;
-      padding: 5px 10px 6px;
-      font-size: 10px;
-      color: #64748b;
-      border-right: 1px solid #e4e4e7;
+    .rd-proy-top td {
+      text-align: center;
+      vertical-align: middle;
+      padding: 0;
+      border: none;
     }
-    .rec-context td:last-child { border-right: none; }
-    .rec-context .ctx-k {
+    .rd-proy-top img {
+      height: 95px;
+      max-height: 95px;
+      width: auto;
+      max-width: 280px;
+    }
+
+    /* Encabezado: 3 columnas (logos | texto | caja roja). */
+    .rd-top {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 8px;
+      table-layout: fixed;
+    }
+    .rd-top > tr > td,
+    .rd-top td.rd-logos,
+    .rd-top td.rd-center,
+    .rd-top td.rd-num {
+      vertical-align: middle;
+      padding: 2px 6px;
+    }
+    .rd-top td.rd-logos { width: 26%; padding-left: 0; }
+    .rd-top td.rd-center { width: 48%; text-align: center; }
+    .rd-top td.rd-num { width: 26%; text-align: right; padding-right: 0; }
+
+    .rd-logo-stack img {
       display: block;
-      font-size: 8px;
+      height: 42px;
+      max-width: 190px;
+      width: auto;
+      margin: 0 0 5px;
+    }
+    .rd-logo-stack img:last-child { margin-bottom: 0; height: 40px; }
+
+    .rd-center .proy {
+      margin: 0;
+      font-size: 11.5px;
+      font-weight: bold;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: #94a3b8;
-      margin: 0 0 2px;
-    }
-    .rec-context td:first-child .ctx-n {
-      display: block;
-      font-size: 13px;
-      font-weight: 700;
-      color: #1e293b;
-      margin: 0 0 2px;
+      color: #111;
       line-height: 1.2;
     }
-    .rec-context__inmo .ctx-n {
-      display: block;
-      font-size: 10.5px;
-      font-weight: 600;
-      color: #334155;
-      margin: 0 0 2px;
-      line-height: 1.25;
-    }
-    .rec-context .ctx-m { margin: 0; font-size: 9.5px; line-height: 1.35; color: #64748b; }
-
-    .rec-amount-block {
-      margin: 0 0 7px;
-      padding: 6px 10px;
-      background: #fff;
-      border: 1px solid #e4e4e7;
-    }
-    .rec-amount-block .who {
+    .rd-center .muni {
       margin: 0 0 3px;
-      font-size: 11px;
-      color: #334155;
-      line-height: 1.35;
+      font-size: 11.5px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #111;
+      line-height: 1.2;
     }
-    .rec-amount-block .who strong { color: #0f172a; }
-    .rec-amount-block .ids { color: #64748b; font-size: 10.5px; }
-    .rec-amount-block .monto {
+    .rd-center .contacto,
+    .rd-center .empresa,
+    .rd-center .dir {
       margin: 0;
-      padding-top: 5px;
-      border-top: 1px dashed #d4d4d8;
-      font-size: 10.5px;
-      color: #475569;
-      line-height: 1.35;
+      font-size: 8.5px;
+      color: #222;
+      line-height: 1.4;
+      font-weight: normal;
     }
 
-    .rec-pair {
-      width: 100%;
+    /* Caja roja: tabla (xhtml2pdf respeta mejor border en table que en div) */
+    .rd-box-num {
+      width: 130px;
+      margin-left: auto;
       border-collapse: collapse;
-      margin: 0 0 7px;
-      border: 1px solid #e4e4e7;
-      table-layout: fixed;
+      border: 2px solid #c62828;
     }
-    .rec-pair td {
-      width: 50%;
-      vertical-align: top;
-      padding: 6px 10px 7px;
-      background: #fff;
-      border-right: 1px solid #e4e4e7;
-    }
-    .rec-pair td:last-child { border-right: none; }
-    .rec-pair .sec {
-      margin: 0 0 4px;
-      padding-bottom: 3px;
-      border-bottom: 1px solid #e4e4e7;
-      font-size: 8.5px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: #64748b;
-    }
-    .rec-pair p { margin: 0 0 2px; font-size: 10.5px; line-height: 1.35; color: #334155; }
-    .rec-pair p:last-child { margin-bottom: 0; }
-
-    .rec-h2 {
-      margin: 0 0 3px;
-      font-size: 9px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: #64748b;
-    }
-
-    .rec-table-wrap { margin: 0 0 5px; overflow: visible; }
-    .rec-table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 1px solid #e4e4e7;
-      table-layout: fixed;
-      font-size: 10.5px;
-    }
-    .rec-table thead th {
-      background: #f4f4f5;
-      color: #3f3f46;
-      font-size: 8.5px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      padding: 4px 7px;
-      text-align: left;
-      border-bottom: 1px solid #d4d4d8;
-    }
-    .rec-table thead th + th { border-left: 1px solid #e4e4e7; }
-    .rec-table th.rec-col-monto { text-align: right; }
-    .rec-table tbody td {
-      padding: 4px 7px;
-      border-bottom: 1px solid #f4f4f5;
-      vertical-align: middle;
-      color: #334155;
-    }
-    .rec-table tbody td + td { border-left: 1px solid #fafafa; }
-    .rec-table .rec-monto-celda {
-      text-align: right;
-      font-weight: 700;
-      color: #0f172a;
-      font-size: 11px;
-    }
-    .rec-table tr.rec-total-row td {
-      background: #fafafa;
-      border-bottom: none;
-      border-top: 1px solid #d4d4d8;
-      padding: 4px 7px;
-    }
-    .rec-table .rec-total-lbl {
-      text-align: right;
-      font-size: 9px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: #71717a;
-    }
-    .rec-table .rec-total-val {
-      text-align: right;
-      font-size: 13px;
-      font-weight: 800;
-      color: #0f172a;
-    }
-
-    .rec-firma { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    .rec-firma td { width: 50%; text-align: center; vertical-align: top; padding: 2px 8px; }
-    .rec-line {
-      border-top: 1px solid #a1a1aa;
-      margin: 18px 8px 0;
-      padding-top: 4px;
-      font-size: 9px;
-      color: #71717a;
-    }
-    .rec-pie {
-      margin-top: 8px;
-      font-size: 8.5px;
-      color: #a1a1aa;
-      line-height: 1.5;
+    .rd-box-num td {
+      padding: 8px 10px;
       text-align: center;
+      vertical-align: middle;
+      border: none;
     }
-    body.pdf-recibo .box {
-      padding: 6px 10px;
-      font-size: 10.5px;
-      border: 1px solid #e4e4e7;
-      background: #fafafa;
-      color: #475569;
+    .rd-box-num .ttl {
+      margin: 0 0 2px;
+      font-size: 11px;
+      font-weight: bold;
+      color: #c62828;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .rd-box-num .nro {
+      margin: 0;
+      font-size: 14px;
+      font-weight: bold;
+      color: #c62828;
+    }
+
+    .rd-fecha-row { width: 100%; border-collapse: collapse; margin: 0 0 3px; }
+    .rd-fecha-row td {
+      text-align: right;
+      font-size: 9.5px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #111;
+      padding: 0;
+      border: none;
+    }
+
+    .rd-band {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1.5px solid #111;
+      margin: 0 0 6px;
+      table-layout: fixed;
+    }
+    .rd-band td {
+      padding: 5px 7px;
+      font-size: 9px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #111;
+      border-right: 1px solid #999;
+      vertical-align: middle;
+    }
+    .rd-band td:last-child { border-right: none; }
+
+    .rd-cliente {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1.5px solid #111;
+      margin: 0 0 7px;
+    }
+    .rd-cliente td {
+      padding: 6px 9px;
+      font-size: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #111;
+      line-height: 1.35;
+      border: none;
+    }
+    .rd-cliente .lbl { color: #333; }
+
+    .rd-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1.5px solid #111;
+      margin: 0 0 8px;
+    }
+    .rd-table th,
+    .rd-table td {
+      border: 1px solid #111;
+      padding: 4px 6px;
+      font-size: 9px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #111;
+      vertical-align: middle;
+    }
+    .rd-table th {
+      background: #e8e8e8;
+      font-size: 8px;
+      text-align: center;
+      padding: 5px 4px;
+    }
+    .rd-table .c { text-align: center; }
+    .rd-table .r { text-align: right; white-space: nowrap; }
+    .rd-table .concepto { text-align: left; font-size: 8.5px; line-height: 1.3; }
+    .rd-table tr.meta td {
+      font-size: 7.5px;
+      font-weight: 700;
+      color: #333;
+      background: #f7f7f7;
+      padding: 3px 6px;
+    }
+    .rd-table tr.total td {
+      background: #f0f0f0;
+      padding: 5px 6px;
+    }
+
+    .rd-foot { width: 100%; border-collapse: collapse; margin-top: 2px; table-layout: fixed; }
+    .rd-foot > tbody > tr > td { vertical-align: top; padding: 0 4px; border: none; }
+    .rd-foot .col-saldo { width: 28%; padding-left: 0; }
+    .rd-foot .col-msg { width: 36%; text-align: center; padding-top: 6px; }
+    .rd-foot .col-firma { width: 36%; text-align: center; padding-top: 2px; padding-right: 0; }
+
+    .rd-saldo { width: 100%; border-collapse: collapse; border: 1.5px solid #111; }
+    .rd-saldo td {
+      border: 1px solid #111;
+      padding: 4px 6px;
+      font-size: 8.5px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .rd-saldo .r { text-align: right; }
+
+    .rd-msg .aut {
+      margin: 0 0 5px;
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .rd-msg .aviso {
+      margin: 0;
+      font-size: 8.5px;
+      font-weight: bold;
+      text-transform: uppercase;
+      line-height: 1.35;
+      color: #333;
+    }
+    .rd-firma-line {
+      margin: 26px 10px 4px;
+      border-top: 1.5px solid #111;
+      padding-top: 4px;
+      font-size: 8.5px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .rd-pie {
+      margin-top: 8px;
+      font-size: 7.5px;
+      color: #666;
+      text-align: center;
     }
 {% endblock %}
 
 {% block content %}
-<div class="rec-wrap">
+{# Mismo formato visual que recibo_ingreso (cliente) #}
+<table class="rd-proy-top" style="width:100%; border-collapse:collapse; margin:0 0 6px;">
+  <tr>
+    <td style="text-align:center; vertical-align:middle; padding:0; border:none;">
+      <img src="{% firstof proyecto_logo_src 'logo_valle_alegre.png' %}"
+           alt="Valle Alegre"
+           style="height:95px; width:auto; max-width:280px;">
+    </td>
+  </tr>
+</table>
 
-<div class="rec-hero">
-  <h1>Recibo de comisión</h1>
-  <p class="sub">
-    El Salvador · N.º <strong>{{ doc.numero }}</strong>
-    · Emitido {{ doc.emitido_en|date:"d/m/Y H:i" }}
-    {% if lugar_emision %}<br>{{ lugar_emision }}{% endif %}
-  </p>
-</div>
+{# ENCABEZADO: logos Paredes | datos fijos | caja RECIBO DIGITAL #}
+<table class="rd-top">
+  <tr>
+    <td class="rd-logos">
+      <div class="rd-logo-stack">
+        <img src="logo_paredes_desarrollos.png" alt="Paredes Desarrollos Inmobiliarios" height="42">
+        <img src="logo_paredes_bienes_raices.png" alt="Paredes Bienes Raíces" height="40">
+      </div>
+    </td>
+    <td class="rd-center">
+      <p class="proy">{{ proyecto.nombre|default:"RESIDENCIAL VALLE ALEGRE"|upper }}</p>
+      {% if proyecto.municipio %}<p class="muni">{{ proyecto.municipio|upper }}</p>{% endif %}
+      <p class="contacto">Karen Patricia Vásquez Merlos</p>
+      <p class="empresa">Paredes Desarrollos Inmobiliarios, S.A.S. de C.V.</p>
+      <p class="dir">16a Calle Oriente, Pol. C-1 #24, Col. El Molino, Distrito de San Miguel, San Miguel Centro, 7547-0186</p>
+    </td>
+    <td class="rd-num">
+      <table class="rd-box-num">
+        <tr>
+          <td>
+            <p class="ttl">RECIBO DIGITAL</p>
+            <p class="nro">No. {{ recibo_numero_corto }}</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
 
-<table class="rec-context">
+<table class="rd-fecha-row">
+  <tr><td>{{ fecha_emision_larga }}</td></tr>
+</table>
+
+<table class="rd-band">
+  <tr>
+    <td>LOTE No. {{ inmueble.codigo }}</td>
+    <td>POLÍGONO No. {% if poligono_nombre %}«{{ poligono_nombre }}»{% else %}—{% endif %}</td>
+    <td>REF. CONTRATO No. {{ contrato.numero }}</td>
+    <td>DE FECHA {{ fecha_contrato_fmt }}</td>
+  </tr>
+</table>
+
+<table class="rd-cliente">
   <tr>
     <td>
-      <span class="ctx-k">Proyecto</span>
-      <span class="ctx-n">{{ proyecto.nombre|title }}</span>
-      {% if proyecto.direccion or proyecto.municipio or proyecto.departamento %}
-      <p class="ctx-m">
-        {% if proyecto.direccion %}{{ proyecto.direccion }}{% endif %}
-        {% if proyecto.municipio %}{% if proyecto.direccion %} · {% endif %}{{ proyecto.municipio|title }}{% endif %}
-        {% if proyecto.departamento %}{% if proyecto.direccion or proyecto.municipio %} · {% endif %}Dpto. {{ proyecto.departamento|title }}{% endif %}
-      </p>
+      <span class="lbl">SR. (A):</span> {{ vendedor_nombre|upper }}
+      {% if vendedor and vendedor.dui %}<br><span class="lbl">DUI:</span> {{ vendedor.dui }}{% endif %}
+      {% if liq.es_contribuyente and vendedor %}
+        {% if vendedor.nit %}<br><span class="lbl">NIT:</span> {{ vendedor.nit }}{% endif %}
+        {% if vendedor.nrc %} · <span class="lbl">NRC:</span> {{ vendedor.nrc }}{% endif %}
+        {% if vendedor.giro %}<br><span class="lbl">GIRO:</span> {{ vendedor.giro|upper }}{% endif %}
       {% endif %}
-    </td>
-    <td class="rec-context__inmo">
-      <span class="ctx-k">Inmobiliaria</span>
-      <span class="ctx-n">{{ razon_social_emisor }}</span>
-      {% if emisor_nit %}<p class="ctx-m"><strong style="color:#52525b;">NIT</strong> {{ emisor_nit }}</p>{% endif %}
-      <p class="ctx-m">Liquidación de comisión por operación inmobiliaria</p>
+      <br><span class="lbl">DIRECCIÓN:</span> {{ vendedor_direccion|default:"—"|upper }}
+      <br><span class="lbl">TIPO:</span> {{ liq.tipo_persona_label|upper }} (COMISIÓN VENTA)
     </td>
   </tr>
 </table>
 
-<div class="rec-amount-block">
-  <p class="who"><strong>Pagué a:</strong> {{ vendedor_nombre }}
-    {% if contrato.vendedor_perfil and contrato.vendedor_perfil.dui %}<span class="ids"> · DUI {{ contrato.vendedor_perfil.dui }}</span>{% endif %}
-  </p>
-  <p class="monto">{{ monto_letras }} · <strong>{{ monto_fmt }} USD</strong></p>
-</div>
-
-<table class="rec-pair">
+<table class="rd-table" width="100%" cellspacing="0" cellpadding="0" style="width:100%; border-collapse:collapse; border:1.5px solid #111;">
   <tr>
-    <td>
-      <p class="sec">Datos del vendedor</p>
-      {% if contrato.vendedor_perfil %}
-        {% if contrato.vendedor_perfil.telefono %}<p>Tel. {{ contrato.vendedor_perfil.telefono }}</p>{% endif %}
-        {% if contrato.vendedor_perfil.email %}<p>{{ contrato.vendedor_perfil.email }}</p>{% endif %}
-        {% if not contrato.vendedor_perfil.telefono and not contrato.vendedor_perfil.email %}<p style="color:#cbd5e1;">—</p>{% endif %}
-      {% else %}
-        <p style="color:#cbd5e1;">Nombre según contrato (sin ficha en catálogo).</p>
-      {% endif %}
-      {% if cliente %}<p>Comprador: {{ cliente.nombres }} {{ cliente.apellidos }}</p>{% endif %}
-    </td>
-    <td>
-      <p class="sec">Contrato e inmueble</p>
-      <p>N.º <strong>{{ contrato.numero }}</strong> · Firma {{ contrato.fecha_firma|date:"d/m/Y" }} · {{ contrato.get_estado_display }}</p>
-      <p>Lote <strong>{{ inmueble.codigo }}</strong> — {{ proyecto.nombre|title }}</p>
-      <p>Precio venta: <strong>{{ precio_final_fmt }} USD</strong></p>
-    </td>
+    <th class="c" width="15%" style="width:15%;">Cantidad</th>
+    <th width="60%" style="width:60%;">Concepto</th>
+    <th class="r" width="25%" style="width:25%;">Valor</th>
   </tr>
-</table>
-
-<p class="rec-h2">Detalle de la comisión</p>
-<div class="rec-table-wrap">
-<table class="rec-table">
-  <colgroup>
-    <col style="width: 16%;">
-    <col style="width: 38%;">
-    <col style="width: 20%;">
-    <col style="width: 26%;">
-  </colgroup>
-  <thead>
-    <tr>
-      <th>Fecha</th>
-      <th>Concepto</th>
-      <th>Referencia</th>
-      <th class="rec-col-monto">Monto</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>{{ doc.emitido_en|date:"d/m/Y" }}</td>
-      <td>
-        {{ comision_concepto }}
-        {% if comision_porcentaje_txt %}
-          <span class="ids"> ({{ comision_porcentaje_txt }} sobre {{ precio_final_fmt }})</span>
-        {% endif %}
-      </td>
-      <td>Contrato {{ contrato.numero }}</td>
-      <td class="rec-monto-celda">{{ monto_fmt }}</td>
-    </tr>
-    <tr class="rec-total-row">
-      <td colspan="3" class="rec-total-lbl">Total comisión (USD)</td>
-      <td class="rec-total-val">{{ monto_fmt }}</td>
-    </tr>
-  </tbody>
-</table>
-</div>
-
-{% if contrato.notas %}
-<p class="rec-h2">Observaciones</p>
-<div class="box">{{ contrato.notas }}</div>
-{% endif %}
-
-<table class="rec-firma">
   <tr>
-    <td>
-      <div class="rec-line">Firma y sello — quien autoriza ({{ razon_social_emisor }})</div>
+    <td class="c" width="15%" style="width:15%;">1.0</td>
+    <td class="concepto" width="60%" style="width:60%;">{{ concepto_detalle }}</td>
+    <td class="r" width="25%" style="width:25%;">{{ bruto_fmt }}</td>
+  </tr>
+  {% if liq.es_contribuyente %}
+  <tr class="meta">
+    <td class="c" width="15%" style="width:15%;"></td>
+    <td width="60%" style="width:60%;">(+) IVA {{ liq.pct_iva }}%</td>
+    <td class="r" width="25%" style="width:25%;">{{ iva_fmt }}</td>
+  </tr>
+  {% endif %}
+  <tr class="meta">
+    <td class="c" width="15%" style="width:15%;"></td>
+    <td width="60%" style="width:60%;">(-) Retención renta {{ liq.pct_renta }}%</td>
+    <td class="r" width="25%" style="width:25%;">{{ retencion_renta_fmt }}</td>
+  </tr>
+  {% if liq.retencion_iva and liq.retencion_iva > 0 %}
+  <tr class="meta">
+    <td class="c" width="15%" style="width:15%;"></td>
+    <td width="60%" style="width:60%;">(-) Retención IVA {{ liq.pct_retencion_iva }}%</td>
+    <td class="r" width="25%" style="width:25%;">{{ retencion_iva_fmt }}</td>
+  </tr>
+  {% endif %}
+  {% if precio_final_fmt %}
+  <tr class="meta">
+    <td class="c" width="15%" style="width:15%;"></td>
+    <td width="60%" style="width:60%;">Valor del inmueble {{ precio_final_fmt }}</td>
+    <td class="r" width="25%" style="width:25%;"></td>
+  </tr>
+  {% endif %}
+  <tr class="total">
+    <td class="c" width="15%" style="width:15%;"></td>
+    <td class="r" width="60%" style="width:60%;">TOTAL</td>
+    <td class="r" width="25%" style="width:25%;">{{ neto_fmt }}</td>
+  </tr>
+</table>
+
+<table class="rd-foot">
+  <tr>
+    <td class="col-saldo">
+      <table class="rd-saldo">
+        <tr><td>Recibido</td><td class="r">{{ recibido_fmt }}</td></tr>
+        <tr><td>Comisión bruta</td><td class="r">{{ saldo_anterior_fmt }}</td></tr>
+        <tr><td>Retenciones</td><td class="r">{{ nuevo_saldo_fmt }}</td></tr>
+      </table>
     </td>
-    <td>
-      <div class="rec-line">Firma — quien recibe ({{ vendedor_nombre }})</div>
+    <td class="col-msg">
+      <div class="rd-msg">
+        <p class="aut">AUTORIZADO</p>
+        <p class="aviso">EVITE CONTRATIEMPOS<br>MANTENGA AL DÍA SU CRÉDITO</p>
+      </div>
+    </td>
+    <td class="col-firma">
+      <div class="rd-firma-line">RECIBIDO POR</div>
     </td>
   </tr>
 </table>
 
-<p class="rec-pie">
-  Comprobante de liquidación de comisión al vendedor en USD. Conserve este documento. Consultas: <strong>{{ doc.numero }}</strong>.
+<p class="rd-pie">
+  {{ monto_letras }} · Comprobante {{ doc.numero }} · Emitido {{ doc.emitido_en|date:"d/m/Y H:i" }}.
 </p>
-
-</div>
 {% endblock %}

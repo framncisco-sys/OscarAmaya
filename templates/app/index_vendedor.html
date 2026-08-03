@@ -1,79 +1,117 @@
 {% extends "app/base_app.html" %}
+{% load static %}
 {% block title %}Mi flujo de venta | {{ marca_portal.nombre }}{% endblock %}
 
 {% block app_content %}
-<header class="dash-header">
-  <div>
-    <h1 class="page-title dash-header__title">Mi flujo de venta</h1>
-    <p class="page-lead dash-header__lead">
-      1 formato → 2 contado <em>o</em> 3–6 a plazos. Sus contratos y pagos quedan filtrados a su cartera.
+<div class="vend-home">
+  <header class="vend-home__hero">
+    <p class="vend-home__eyebrow">Portal del vendedor</p>
+    <h1 class="page-title vend-home__title">
+      {% if vend_nombre %}Hola, {{ vend_nombre }}{% else %}Mi flujo de venta{% endif %}
+    </h1>
+    {% if empresa_asignada_label or marca_portal %}
+    <div class="vend-home__empresa" role="status">
+      {% if empresa_asignada_marca %}
+      <img src="{% static empresa_asignada_marca.logo %}" alt="" class="vend-home__empresa-logo" decoding="async">
+      {% elif marca_portal %}
+      <img src="{% static marca_portal.logo %}" alt="" class="vend-home__empresa-logo" decoding="async">
+      {% endif %}
+      <div>
+        <span class="vend-home__empresa-label">Trabaja en</span>
+        <strong>{{ empresa_asignada_label|default:marca_portal.nombre }}</strong>
+        <span class="vend-home__empresa-note">Su usuario solo tiene acceso a esta empresa</span>
+      </div>
+    </div>
+    {% endif %}
+    <p class="page-lead vend-home__lead">
+      Solo tiene acceso a este flujo. Empiece siempre por el <strong>formato de aceptación</strong>
+      y luego elija Contado <em>o</em> A plazos.
     </p>
-  </div>
-</header>
+  </header>
 
-<ol class="gestion-flujo" aria-label="Pasos de venta">
-  <li class="gestion-flujo__paso">
-    <a class="gestion-flujo__card" href="{% url 'app:formato_aceptacion' %}">
-      <span class="gestion-flujo__num" aria-hidden="true">1</span>
-      <span class="gestion-flujo__body">
+  <section class="vend-home__start" aria-label="Paso inicial">
+    <a class="vend-home__start-card" href="{% url 'app:formato_aceptacion' %}">
+      <span class="vend-home__start-num" aria-hidden="true">1</span>
+      <span class="vend-home__start-body">
         <strong>Formato de aceptación (nuevo)</strong>
-        <small>Registre primero el formato (Contado o A plazos).</small>
+        <small>Registre Contado o A plazos. Revise que el lote esté disponible (no reservado ni vendido).</small>
       </span>
+      <span class="vend-home__start-cta" aria-hidden="true">Empezar →</span>
     </a>
-  </li>
-  <li class="gestion-flujo__paso">
-    <a class="gestion-flujo__card" href="{% url 'app:pago_create' %}?concepto=CONTADO">
-      <span class="gestion-flujo__num" aria-hidden="true">2</span>
-      <span class="gestion-flujo__body">
-        <strong>Contado: recibo total del lote</strong>
-        <small>Si el formato es Contado: un solo recibo por el valor completo.</small>
-      </span>
-    </a>
-  </li>
-  <li class="gestion-flujo__paso">
-    <a class="gestion-flujo__card" href="{% url 'app:pago_create' %}?concepto=RESERVA">
-      <span class="gestion-flujo__num" aria-hidden="true">3</span>
-      <span class="gestion-flujo__body">
-        <strong>Reserva pagada (recibo)</strong>
-        <small>Camino a plazos; gerencia valida en cuenta.</small>
-      </span>
-    </a>
-  </li>
-  <li class="gestion-flujo__paso">
-    <a class="gestion-flujo__card" href="{% url 'app:pago_create' %}?concepto=PRIMA">
-      <span class="gestion-flujo__num" aria-hidden="true">4</span>
-      <span class="gestion-flujo__body">
-        <strong>Prima pagada (recibo)</strong>
-        <small>Tras validar, se emite la promesa de venta.</small>
-      </span>
-    </a>
-  </li>
-  <li class="gestion-flujo__paso">
-    <a class="gestion-flujo__card" href="{% url 'app:contrato_create' %}">
-      <span class="gestion-flujo__num" aria-hidden="true">5</span>
-      <span class="gestion-flujo__body">
-        <strong>Nuevo plan de pagos</strong>
-        <small>Solo si el formato es a plazos.</small>
-      </span>
-    </a>
-  </li>
-  <li class="gestion-flujo__paso">
-    <a class="gestion-flujo__card" href="{% url 'app:pago_create' %}?concepto=CUOTA">
-      <span class="gestion-flujo__num" aria-hidden="true">6</span>
-      <span class="gestion-flujo__body">
-        <strong>Recibos a plazos</strong>
-        <small>Cuotas del financiamiento.</small>
-      </span>
-    </a>
-  </li>
-  <li class="gestion-flujo__paso">
-    <a class="gestion-flujo__card" href="{% url 'app:contrato_list' %}">
-      <span class="gestion-flujo__num" aria-hidden="true">7</span>
-      <span class="gestion-flujo__body">
-        <strong>Listado de planes de pagos</strong>
-        <small>Solo sus ventas / cartera asignada.</small>
-      </span>
-    </a>
-  </li>
-</ol>
+  </section>
+
+  <div class="vend-home__paths">
+    <section class="vend-path vend-path--contado" aria-labelledby="vend-path-contado">
+      <header class="vend-path__head">
+        <h2 id="vend-path-contado">Camino Contado</h2>
+        <p>Si el formato es de contado: un solo recibo por el valor del lote.</p>
+      </header>
+      <ol class="vend-path__steps">
+        <li>
+          <a href="{% url 'app:pago_create' %}?concepto=CONTADO">
+            <span class="vend-path__n">2</span>
+            <span>
+              <strong>Contado: recibo total del lote</strong>
+              <small>Gerencia valida el depósito y se genera el PDF.</small>
+            </span>
+          </a>
+        </li>
+      </ol>
+    </section>
+
+    <section class="vend-path vend-path--plazos" aria-labelledby="vend-path-plazos">
+      <header class="vend-path__head">
+        <h2 id="vend-path-plazos">Camino a plazos</h2>
+        <p>Reserva → prima → cuotas. Cada abono lo valida gerencia. El plan de pagos lo arma gerencia.</p>
+      </header>
+      <ol class="vend-path__steps">
+        <li>
+          <a href="{% url 'app:pago_create' %}?concepto=RESERVA">
+            <span class="vend-path__n">3</span>
+            <span>
+              <strong>Reserva pagada</strong>
+              <small>Aparta el lote; gerencia confirma en cuenta.</small>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'app:pago_create' %}?concepto=PRIMA">
+            <span class="vend-path__n">4</span>
+            <span>
+              <strong>Prima pagada</strong>
+              <small>Tras validar, se puede emitir la promesa.</small>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'app:pago_create' %}?concepto=CUOTA">
+            <span class="vend-path__n">5</span>
+            <span>
+              <strong>Recibos a plazos</strong>
+              <small>Cuotas del financiamiento (el plan lo arma gerencia).</small>
+            </span>
+          </a>
+        </li>
+      </ol>
+    </section>
+  </div>
+
+  <section class="vend-home__consultas" aria-label="Consultas de su cartera">
+    <h2 class="vend-home__section-title">Mi cartera</h2>
+    <div class="vend-home__links">
+      <a class="vend-home__link" href="{% url 'app:formato_aceptacion_list' %}">
+        <strong>Formatos guardados</strong>
+        <small>Los que usted elaboró</small>
+      </a>
+      <a class="vend-home__link" href="{% url 'app:pago_list' %}">
+        <strong>Estado de mis recibos</strong>
+        <small>Pendientes y validados{% if vend_pagos_pendientes %} · {{ vend_pagos_pendientes }} pendiente{{ vend_pagos_pendientes|pluralize }}{% endif %}</small>
+      </a>
+      <a class="vend-home__link" href="{% url 'app:docs_list' %}">
+        <strong>Mis documentos PDF</strong>
+        <small>Solo los de su cartera</small>
+      </a>
+    </div>
+  </section>
+</div>
 {% endblock %}

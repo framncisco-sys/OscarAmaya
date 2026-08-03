@@ -310,6 +310,183 @@
         selLote.appendChild(oL);
       }
 
+      function etiquetaLote(L) {
+        var cod = L.codigo || "—";
+        var est = (L.estado_label || L.estado || "").trim();
+        if (!est || String(L.estado || "") === "DISPONIBLE") return cod;
+        return cod + " · " + est;
+      }
+
+      function ocultarAlertaLote() {
+        var box = document.getElementById("fmt-lote-estado-alerta");
+        if (!box) return;
+        box.hidden = true;
+        box.textContent = "";
+        box.className = "fmt-lote-alerta";
+      }
+
+      function pintarAlertaLote(opts) {
+        var box = document.getElementById("fmt-lote-estado-alerta");
+        if (!box) return;
+        opts = opts || {};
+        var msg = opts.mensaje || "";
+        if (!msg) {
+          ocultarAlertaLote();
+          return;
+        }
+        var cls = "fmt-lote-alerta";
+        if (opts.cls) cls += " " + opts.cls;
+        box.className = cls;
+        box.textContent = msg;
+        box.hidden = false;
+      }
+
+      function mostrarAlertaLote(L) {
+        if (!L) {
+          ocultarAlertaLote();
+          return false;
+        }
+        var est = String(L.estado || "").toUpperCase();
+        if (est === "DISPONIBLE" || !est) {
+          pintarAlertaLote({
+            mensaje:
+              "✓ Este lote figura DISPONIBLE. Consultando estado actual…",
+            cls: "fmt-lote-alerta--disponible",
+          });
+          return false;
+        }
+        var msg = "";
+        var cls = "fmt-lote-alerta";
+        if (est === "VENDIDO") {
+          msg =
+            "⚠ Este lote ya está PAGADO TOTALMENTE / VENDIDO. No se puede ofrecer a otro cliente. Elija un lote disponible.";
+          cls += " fmt-lote-alerta--vendido";
+        } else if (est === "RESERVADO") {
+          var quien = (L.cliente_reserva || "").trim() || "otro cliente";
+          var hasta = L.reserva_hasta
+            ? " (vence " +
+              String(L.reserva_hasta).slice(0, 10).split("-").reverse().join("/") +
+              ")"
+            : "";
+          msg =
+            "⚠ Este lote ya está RESERVADO por " +
+            quien +
+            hasta +
+            ". No lo ofrezca a otro comprador: elija un lote disponible o espere a que se libere.";
+          cls += " fmt-lote-alerta--reservado";
+        } else if (est === "BLOQUEADO") {
+          msg =
+            "⚠ Este lote está BLOQUEADO. Consulte con gerencia antes de usarlo.";
+          cls += " fmt-lote-alerta--bloqueado";
+        } else {
+          msg =
+            "⚠ Este lote no está disponible (" +
+            (L.estado_label || est) +
+            ").";
+          cls += " fmt-lote-alerta--bloqueado";
+        }
+        pintarAlertaLote({ mensaje: msg, cls: cls.replace("fmt-lote-alerta ", "") });
+        return true;
+      }
+
+      var estadoUrlTpl = "";
+      try {
+        var tplRaw = parseJSONScript("formato-lote-estado-url-tpl");
+        if (typeof tplRaw === "string") estadoUrlTpl = tplRaw;
+      } catch (e) {}
+      var estadoAbort = null;
+      var estadoSeq = 0;
+
+      function sincronizarCatalogoDesdeApi(data) {
+        if (!data || data.id == null) return null;
+        var id = String(data.id);
+        var L = porId[id] || {};
+        L.id = data.id;
+        L.codigo = data.codigo != null ? data.codigo : L.codigo;
+        L.estado = data.estado;
+        L.estado_label = data.estado_label;
+        L.cliente_reserva = data.cliente_reserva || "";
+        L.reserva_hasta = data.reserva_hasta || "";
+        L.ocupado = !!data.ocupado;
+        porId[id] = L;
+        var opt = selLote.querySelector('option[value="' + id + '"]');
+        if (opt) {
+          opt.textContent = etiquetaLote(L);
+          if (L.ocupado) opt.dataset.ocupado = "1";
+          else delete opt.dataset.ocupado;
+        }
+        return L;
+      }
+
+      function consultarEstadoLoteVivo(invId, opts) {
+        opts = opts || {};
+        if (!estadoUrlTpl || !invId) return;
+        if (estadoAbort) {
+          try {
+            estadoAbort.abort();
+          } catch (e) {}
+        }
+        estadoAbort = typeof AbortController !== "undefined" ? new AbortController() : null;
+        var seq = ++estadoSeq;
+        var url = estadoUrlTpl.replace("__ID__", encodeURIComponent(String(invId)));
+        pintarAlertaLote({
+          mensaje: "Consultando si el lote sigue disponible…",
+          cls: "fmt-lote-alerta--consultando",
+        });
+        fetch(url, {
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+          signal: estadoAbort ? estadoAbort.signal : undefined,
+          cache: "no-store",
+        })
+          .then(function (r) {
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            return r.json();
+          })
+          .then(function (data) {
+            if (seq !== estadoSeq) return;
+            if (!data || !data.ok) throw new Error("respuesta inválida");
+            var L = sincronizarCatalogoDesdeApi(data);
+            var allowExisting = !!opts.allowExisting;
+            if (data.disponible) {
+              pintarAlertaLote({
+                mensaje: data.mensaje,
+                cls: "fmt-lote-alerta--disponible",
+              });
+              return;
+            }
+            pintarAlertaLote({
+              mensaje: data.mensaje,
+              cls:
+                data.estado === "VENDIDO"
+                  ? "fmt-lote-alerta--vendido"
+                  : data.estado === "RESERVADO"
+                    ? "fmt-lote-alerta--reservado"
+                    : "fmt-lote-alerta--bloqueado",
+            });
+            if (!allowExisting) {
+              hidLote.value = "";
+              if (areaM2) areaM2.value = "";
+              if (areaV2) areaV2.value = "";
+              selLote.value = "";
+              if (L) hidPol.value = L.poligono_nombre || hidPol.value;
+            }
+          })
+          .catch(function (err) {
+            if (err && err.name === "AbortError") return;
+            if (seq !== estadoSeq) return;
+            // Si falla la red, deja el aviso del catálogo local.
+            var L = porId[String(invId)];
+            if (L) mostrarAlertaLote(L);
+            else
+              pintarAlertaLote({
+                mensaje:
+                  "No se pudo consultar el estado en vivo. Intente de nuevo o elija otro lote.",
+                cls: "fmt-lote-alerta--consultando",
+              });
+          });
+      }
+
       function fillLotes(clavePol) {
         selLote.innerHTML = "";
         var o0 = document.createElement("option");
@@ -321,14 +498,30 @@
         lotes.forEach(function (L) {
           var o = document.createElement("option");
           o.value = String(L.id);
-          o.textContent = L.codigo;
+          o.textContent = etiquetaLote(L);
+          if (L.ocupado) {
+            o.dataset.ocupado = "1";
+          }
           selLote.appendChild(o);
         });
       }
 
-      function aplicarInmueble(invId) {
+      function aplicarInmueble(invId, opts) {
+        opts = opts || {};
+        var allowExisting = !!opts.allowExisting;
         var L = porId[String(invId)];
         if (!L) return;
+        var ocupado = mostrarAlertaLote(L);
+        if (ocupado && !allowExisting) {
+          // No rellenar el formato con un lote no disponible (catálogo local).
+          hidLote.value = "";
+          hidPol.value = L.poligono_nombre || "";
+          if (areaM2) areaM2.value = "";
+          if (areaV2) areaV2.value = "";
+          selLote.value = "";
+          consultarEstadoLoteVivo(invId, opts);
+          return;
+        }
         hidLote.value = L.codigo || "";
         hidPol.value = L.poligono_nombre || "";
         if (areaM2) areaM2.value = L.area_m2 || "";
@@ -338,12 +531,15 @@
           if (isFinite(p)) setMoney(valorInm, p);
         }
         recalcFin();
+        // Consulta en vivo: otro vendedor pudo reservar el lote al mismo tiempo.
+        consultarEstadoLoteVivo(invId, opts);
       }
 
       selPol.addEventListener("change", function () {
         var v = selPol.value;
         fillLotes(v);
         hidLote.value = "";
+        ocultarAlertaLote();
         if (areaM2) areaM2.value = "";
         if (areaV2) areaV2.value = "";
         if (!v) {
@@ -362,6 +558,7 @@
         var id = selLote.value;
         if (!id) {
           hidLote.value = "";
+          ocultarAlertaLote();
           return;
         }
         aplicarInmueble(id);
@@ -379,6 +576,7 @@
             }
           }
           fillPoligonos(id);
+          ocultarAlertaLote();
         });
       }
 
@@ -403,9 +601,15 @@
         if (selProyecto) selProyecto.value = proyId;
         fillPoligonos(proyId);
         selPol.value = found.clave_poligono;
-        selPol.dispatchEvent(new Event("change", { bubbles: true }));
+        fillLotes(found.clave_poligono);
+        if (String(found.clave_poligono).startsWith("np:")) {
+          hidPol.value = "";
+        } else {
+          hidPol.value = found.poligono_nombre || "";
+        }
         selLote.value = String(found.id);
-        selLote.dispatchEvent(new Event("change", { bubbles: true }));
+        // Al editar un formato ya guardado, conservar el lote aunque esté reservado.
+        aplicarInmueble(found.id, { allowExisting: true });
       }
 
       restoreLote();

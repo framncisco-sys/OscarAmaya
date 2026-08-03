@@ -1,3 +1,4 @@
+{% load static %}
 {% if request.user.is_authenticated %}
 <section class="app-sidebar__session" aria-label="Sesión de usuario">
   <div class="app-sidebar__session-card">
@@ -29,6 +30,23 @@
         </span>
       </div>
     </div>
+
+    {% if empresa_asignada_label %}
+    <div class="app-sidebar__session-empresa" title="Empresa a la que tiene acceso su usuario">
+      {% if empresa_asignada_marca %}
+      <img src="{% static empresa_asignada_marca.logo %}" alt="" class="app-sidebar__session-empresa-logo" decoding="async" aria-hidden="true">
+      {% endif %}
+      <div class="app-sidebar__session-empresa-text">
+        <span class="app-sidebar__session-meta-label">Su empresa</span>
+        <strong>{{ empresa_asignada_label }}</strong>
+        {% if not puede_cambiar_empresa %}
+        <span class="app-sidebar__session-empresa-note">Acceso fijo · no cambia de sistema</span>
+        {% else %}
+        <span class="app-sidebar__session-empresa-note">Puede entrar a ambas empresas</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
 
     {% if vendedor_catalogo_vinculado_ctx %}
     <p class="app-sidebar__session-meta">

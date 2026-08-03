@@ -10,7 +10,7 @@
   </div>
 </header>
 
-<form method="post" class="form-stack form-stack--vendedor pbr-vendedor-form" id="vendedor-form">
+<form method="post" class="form-stack form-stack--vendedor pbr-vendedor-form" id="vendedor-form" enctype="multipart/form-data">
   {% csrf_token %}
   {% if form.non_field_errors %}
     <div class="alert" role="alert">{{ form.non_field_errors }}</div>
@@ -30,6 +30,17 @@
       {% if form.apellidos.errors %}<div class="field__error" role="alert">{{ form.apellidos.errors }}</div>{% endif %}
     </div>
 
+    <div class="field pbr-form-grid__full">
+      <span class="field__label">{{ form.tipo_persona.label }}</span>
+      <div class="field__control pbr-vendedor-tipo" id="vendedor-tipo-persona">
+        {% for radio in form.tipo_persona %}
+          <label class="pbr-vendedor-tipo__opt">{{ radio.tag }} <span>{{ radio.choice_label }}</span></label>
+        {% endfor %}
+      </div>
+      {% if form.tipo_persona.help_text %}<div class="field__help muted">{{ form.tipo_persona.help_text|safe }}</div>{% endif %}
+      {% if form.tipo_persona.errors %}<div class="field__error" role="alert">{{ form.tipo_persona.errors }}</div>{% endif %}
+    </div>
+
     <div class="field">
       <label class="field__label" for="{{ form.dui.id_for_label }}">{{ form.dui.label }}</label>
       <div class="field__control">{{ form.dui }}</div>
@@ -41,6 +52,29 @@
       <div class="field__control">{{ form.telefono }}</div>
       {% if form.telefono.help_text %}<div class="field__help muted">{{ form.telefono.help_text|safe }}</div>{% endif %}
       {% if form.telefono.errors %}<div class="field__error" role="alert">{{ form.telefono.errors }}</div>{% endif %}
+    </div>
+
+    <div class="field pbr-form-grid__full" id="vendedor-contribuyente-fields" hidden>
+      <div class="pbr-form-grid pbr-form-grid--vendedor" style="margin:0;">
+        <div class="field">
+          <label class="field__label" for="{{ form.nit.id_for_label }}">{{ form.nit.label }}</label>
+          <div class="field__control">{{ form.nit }}</div>
+          {% if form.nit.help_text %}<div class="field__help muted">{{ form.nit.help_text|safe }}</div>{% endif %}
+          {% if form.nit.errors %}<div class="field__error" role="alert">{{ form.nit.errors }}</div>{% endif %}
+        </div>
+        <div class="field">
+          <label class="field__label" for="{{ form.nrc.id_for_label }}">{{ form.nrc.label }}</label>
+          <div class="field__control">{{ form.nrc }}</div>
+          {% if form.nrc.help_text %}<div class="field__help muted">{{ form.nrc.help_text|safe }}</div>{% endif %}
+          {% if form.nrc.errors %}<div class="field__error" role="alert">{{ form.nrc.errors }}</div>{% endif %}
+        </div>
+        <div class="field pbr-form-grid__full">
+          <label class="field__label" for="{{ form.giro.id_for_label }}">{{ form.giro.label }}</label>
+          <div class="field__control">{{ form.giro }}</div>
+          {% if form.giro.help_text %}<div class="field__help muted">{{ form.giro.help_text|safe }}</div>{% endif %}
+          {% if form.giro.errors %}<div class="field__error" role="alert">{{ form.giro.errors }}</div>{% endif %}
+        </div>
+      </div>
     </div>
 
     <div class="field pbr-form-grid__full">
@@ -61,6 +95,29 @@
       <div class="field__control">{{ form.usuario_vinculo }}</div>
       {% if form.usuario_vinculo.help_text %}<div class="field__help muted">{{ form.usuario_vinculo.help_text|safe }}</div>{% endif %}
       {% if form.usuario_vinculo.errors %}<div class="field__error" role="alert">{{ form.usuario_vinculo.errors }}</div>{% endif %}
+    </div>
+
+    <div class="field">
+      <label class="field__label" for="{{ form.dui_frente.id_for_label }}">{{ form.dui_frente.label }}</label>
+      <div class="field__control">{{ form.dui_frente }}</div>
+      {% if form.dui_frente.help_text %}<div class="field__help muted">{{ form.dui_frente.help_text|safe }}</div>{% endif %}
+      {% if object.dui_frente and object.dui_frente.name %}
+      <div class="field__help muted">Actual:
+        <a href="{{ object.dui_frente.url }}" target="_blank" rel="noopener">Ver / descargar frente</a>
+      </div>
+      {% endif %}
+      {% if form.dui_frente.errors %}<div class="field__error" role="alert">{{ form.dui_frente.errors }}</div>{% endif %}
+    </div>
+    <div class="field">
+      <label class="field__label" for="{{ form.dui_reverso.id_for_label }}">{{ form.dui_reverso.label }}</label>
+      <div class="field__control">{{ form.dui_reverso }}</div>
+      {% if form.dui_reverso.help_text %}<div class="field__help muted">{{ form.dui_reverso.help_text|safe }}</div>{% endif %}
+      {% if object.dui_reverso and object.dui_reverso.name %}
+      <div class="field__help muted">Actual:
+        <a href="{{ object.dui_reverso.url }}" target="_blank" rel="noopener">Ver / descargar reverso</a>
+      </div>
+      {% endif %}
+      {% if form.dui_reverso.errors %}<div class="field__error" role="alert">{{ form.dui_reverso.errors }}</div>{% endif %}
     </div>
 
     <div class="field pbr-form-grid__full pbr-form-grid__checkbox">
@@ -101,4 +158,42 @@
 {% block extra_js %}
 {{ block.super }}
 {{ form.media }}
+<style>
+  .pbr-vendedor-tipo {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    align-items: center;
+  }
+  .pbr-vendedor-tipo__opt {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .pbr-vendedor-tipo input {
+    margin: 0;
+  }
+</style>
+<script>
+(function () {
+  var box = document.getElementById("vendedor-contribuyente-fields");
+  var root = document.getElementById("vendedor-tipo-persona");
+  if (!box || !root) return;
+  function sync() {
+    var checked = root.querySelector('input[type="radio"]:checked');
+    var esContrib = checked && checked.value === "CONTRIBUYENTE";
+    box.hidden = !esContrib;
+    ["id_nit", "id_nrc", "id_giro"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (esContrib) el.setAttribute("required", "required");
+      else el.removeAttribute("required");
+    });
+  }
+  root.addEventListener("change", sync);
+  sync();
+})();
+</script>
 {% endblock %}

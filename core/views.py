@@ -36,38 +36,52 @@ class PortalLoginView(LoginView):
         return super().form_valid(form)
 
     def get_success_url(self):
+        from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
         unica = slug_unica_permitida(self.request.user)
         if unica:
             set_marca(self.request, unica)
+            if es_vendedor_restringido(self.request.user):
+                return reverse("app:index")
             return reverse("dashboard")
         return reverse("elegir_marca")
 
-
 def home(request: HttpRequest) -> HttpResponse:
     """La raíz solo muestra el login (misma pantalla que /login/)."""
+    from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
     if request.user.is_authenticated:
         marca = marca_from_session(request)
         if marca is None:
             unica = slug_unica_permitida(request.user)
             if unica:
                 set_marca(request, unica)
+                if es_vendedor_restringido(request.user):
+                    return redirect("app:index")
                 return redirect("dashboard")
             return redirect("elegir_marca")
         if not puede_acceder_marca(request.user, marca.get("slug")):
             request.session.pop(SESSION_KEY, None)
             return redirect("elegir_marca")
+        if es_vendedor_restringido(request.user):
+            return redirect("app:index")
         return redirect("dashboard")
     return PortalLoginView.as_view()(request)
-
 
 @login_required
 def elegir_marca(request: HttpRequest) -> HttpResponse:
     """Después del login: elegir empresa permitida (admin: ambas; resto: solo la asignada)."""
+    from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
     permitidas = marcas_permitidas(request.user)
     if len(permitidas) == 1:
         set_marca(request, permitidas[0]["slug"])
+        if es_vendedor_restringido(request.user):
+            return redirect("app:index")
         return redirect("dashboard")
     if not permitidas:
+        if es_vendedor_restringido(request.user):
+            return redirect("app:index")
         return redirect("dashboard")
     return render(
         request,
@@ -75,17 +89,19 @@ def elegir_marca(request: HttpRequest) -> HttpResponse:
         {"marcas": permitidas},
     )
 
-
 @login_required
 def portal_marca(request: HttpRequest, slug: str) -> HttpResponse:
     """Guarda la marca elegida y entra al sistema (solo si el usuario tiene permiso)."""
+    from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
     if not puede_acceder_marca(request.user, slug):
         return redirect("elegir_marca")
     marca = set_marca(request, slug)
     if marca is None:
         return redirect("elegir_marca")
+    if es_vendedor_restringido(request.user):
+        return redirect("app:index")
     return redirect("dashboard")
-
 
 def admin_login_to_web(request: HttpRequest) -> HttpResponse:
     """Bookmarks viejos: /admin/login/ -> nuestro /login/ (no el login del admin)."""
@@ -94,9 +110,13 @@ def admin_login_to_web(request: HttpRequest) -> HttpResponse:
 
 def admin_legacy_redirect(request: HttpRequest) -> HttpResponse:
     """Cualquier otra ruta bajo /admin/... -> app web o login."""
+    from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
     if request.user.is_authenticated:
         if marca_from_session(request) is None:
             return redirect("elegir_marca")
+        if es_vendedor_restringido(request.user):
+            return redirect("app:index")
         return redirect("dashboard")
     return redirect(f"{reverse('login')}?next={reverse('elegir_marca')}")
 

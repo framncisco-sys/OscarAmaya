@@ -27,12 +27,28 @@ def perfil_app(request):
             "puede_ver_historial_auditoria": False,
             "puede_cambiar_empresa": False,
             "empresa_app_codigo": None,
+            "empresa_asignada_label": None,
+            "empresa_asignada_marca": None,
             "rol_app_codigo": None,
             "vendedor_catalogo_vinculado_ctx": None,
             "contratos_restriccion_vendedor": False,
             "es_vendedor_restringido": False,
         }
+    from core.marcas import get_marca
+
     vc = vendedor_catalogo_activo_vinculado(request.user)
+    emp_cod = codigo_empresa(request.user)
+    marca_asig = None
+    label = None
+    if emp_cod == "ambas":
+        label = "Ambas empresas"
+    else:
+        marca_asig = get_marca(emp_cod)
+        if marca_asig:
+            label = marca_asig.get("nombre")
+        else:
+            p = obtener_perfil(request.user)
+            label = p.get_empresa_display() if p else emp_cod
     return {
         "perfil_app_ctx": obtener_perfil(request.user),
         "puede_gestionar_usuarios_app": puede_gestionar_usuarios(request.user),
@@ -40,7 +56,9 @@ def perfil_app(request):
         "puede_validar_abonos_app": puede_validar_abonos(request.user),
         "puede_ver_historial_auditoria": puede_ver_historial_auditoria(request.user),
         "puede_cambiar_empresa": puede_cambiar_empresa(request.user),
-        "empresa_app_codigo": codigo_empresa(request.user),
+        "empresa_app_codigo": emp_cod,
+        "empresa_asignada_label": label,
+        "empresa_asignada_marca": marca_asig,
         "rol_app_codigo": codigo_rol(request.user),
         "vendedor_catalogo_vinculado_ctx": vc,
         "contratos_restriccion_vendedor": aplica_restriccion_contratos_por_vendedor(

@@ -44,6 +44,56 @@ M2_POR_V2 = Decimal("0.698896")  # 1 v² ≈ 0.698896 m² (vara salvadoreña ~0.
 PROYECTO_CONTENEDOR_CASA_VENTA = "Casas en venta"
 
 
+def mensaje_alerta_lote_ocupado(
+    inv: Inmueble | None,
+    *,
+    cliente: Cliente | None = None,
+    permitir_misma_reserva: bool = True,
+) -> str | None:
+    """
+    Aviso si el lote no está libre para ofrecer / vender.
+    None = disponible (o reserva del mismo cliente si permitir_misma_reserva).
+    """
+    if inv is None:
+        return None
+    estado = inv.estado
+    codigo = (inv.codigo or "").strip() or "—"
+    if estado == Inmueble.Estado.VENDIDO:
+        return (
+            f"El lote {codigo} ya está PAGADO TOTALMENTE / VENDIDO. "
+            "No se puede ofrecer ni registrar otra venta sobre ese lote."
+        )
+    if estado == Inmueble.Estado.BLOQUEADO:
+        return (
+            f"El lote {codigo} está BLOQUEADO. "
+            "Consulte con gerencia antes de usarlo en un formato o venta."
+        )
+    if estado == Inmueble.Estado.RESERVADO:
+        if (
+            permitir_misma_reserva
+            and cliente is not None
+            and inv.cliente_reserva_id
+            and cliente.pk == inv.cliente_reserva_id
+        ):
+            return None
+        quien = ""
+        if inv.cliente_reserva_id:
+            c = inv.cliente_reserva
+            quien = f"{(c.nombres or '').strip()} {(c.apellidos or '').strip()}".strip()
+        quien = quien or "otro cliente"
+        hasta = (
+            f" (vence {inv.reserva_hasta.strftime('%d/%m/%Y')})"
+            if inv.reserva_hasta
+            else ""
+        )
+        return (
+            f"El lote {codigo} ya está RESERVADO por {quien}{hasta}. "
+            "No lo ofrezca a otro comprador: elija un lote disponible o "
+            "espere a que se libere la reserva."
+        )
+    return None
+
+
 def proyecto_contenedor_casa_venta() -> Proyecto:
     """Proyecto técnico para casas sueltas en venta (sin elegir lotificación en el alta)."""
     proyecto, _ = Proyecto.objects.get_or_create(
@@ -546,14 +596,26 @@ class VendedorForm(forms.ModelForm):
         fields = [
             "nombres",
             "apellidos",
+            "tipo_persona",
             "dui",
+            "nit",
+            "nrc",
+            "giro",
             "telefono",
             "email",
             "porcentaje_comision_default",
             "usuario_vinculo",
+            "dui_frente",
+            "dui_reverso",
             "activo",
             "notas",
         ]
+        widgets = {
+            "tipo_persona": forms.RadioSelect,
+            "giro": forms.TextInput(attrs={"placeholder": "Ej. intermediación inmobiliaria"}),
+            "nrc": forms.TextInput(attrs={"placeholder": "NRC"}),
+            "nit": forms.TextInput(attrs={"placeholder": "0000-000000-000-0"}),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -571,12 +633,50 @@ class VendedorForm(forms.ModelForm):
             "y al generar el recibo de comisión (solo si el cliente ya pagó reserva y prima "
             "validadas, y este registro está completo: DUI, teléfono y correo)."
         )
+        self.fields["tipo_persona"].label = "Tipo de persona"
+        self.fields["tipo_persona"].help_text = (
+            "Si elige Contribuyente, debe indicar NIT, NRC y giro."
+        )
+        self.fields["dui_frente"].help_text = "Imagen o PDF del frente del DUI."
+        self.fields["dui_reverso"].help_text = "Imagen o PDF del reverso del DUI."
+        for name in ("nit", "nrc", "giro"):
+            self.fields[name].required = False
+        # En alta pedimos ambas caras; en edición solo si aún no hay archivo.
+        es_nuevo = self.instance.pk is None
+        self.fields["dui_frente"].required = es_nuevo or not bool(
+            getattr(self.instance, "dui_frente", None)
+            and getattr(self.instance.dui_frente, "name", "")
+        )
+        self.fields["dui_reverso"].required = es_nuevo or not bool(
+            getattr(self.instance, "dui_reverso", None)
+            and getattr(self.instance.dui_reverso, "name", "")
+        )
         vt = self.fields.get("telefono")
         if vt:
             aplicar_attrs_telefono(vt)
 
     def clean_telefono(self):
         return limpiar_telefono_formulario(self.cleaned_data.get("telefono"))
+
+    def clean(self):
+        cleaned = super().clean()
+        tipo = cleaned.get("tipo_persona") or Vendedor.TipoPersona.NATURAL
+        if tipo == Vendedor.TipoPersona.CONTRIBUYENTE:
+            for campo, etiqueta in (
+                ("nit", "NIT"),
+                ("nrc", "NRC"),
+                ("giro", "giro"),
+            ):
+                val = (cleaned.get(campo) or "").strip()
+                cleaned[campo] = val
+                if not val:
+                    self.add_error(campo, f"Obligatorio para contribuyente: indique el {etiqueta}.")
+        else:
+            # Natural: no exigir datos fiscales (se pueden dejar en blanco).
+            cleaned["nit"] = (cleaned.get("nit") or "").strip()
+            cleaned["nrc"] = (cleaned.get("nrc") or "").strip()
+            cleaned["giro"] = (cleaned.get("giro") or "").strip()
+        return cleaned
 
 
 class InmuebleSelect(forms.Select):
@@ -909,6 +1009,22 @@ class ContratoForm(forms.ModelForm):
         if vp is not None and pct in (None, ""):
             cleaned_data["comision_porcentaje"] = vp.porcentaje_comision_default
         _montos_calculados_contrato(cleaned_data)
+
+        inv = cleaned_data.get("inmueble")
+        cli = cleaned_data.get("cliente")
+        if inv is not None:
+            # Al editar el mismo contrato, no bloquear por el estado actual del lote.
+            mismo = (
+                getattr(self.instance, "pk", None)
+                and getattr(self.instance, "inmueble_id", None) == inv.pk
+            )
+            if not mismo:
+                # En contrato nuevo: vendido/bloqueado siempre; reserva solo si es de otro cliente.
+                alerta = mensaje_alerta_lote_ocupado(
+                    inv, cliente=cli, permitir_misma_reserva=True
+                )
+                if alerta:
+                    self.add_error("inmueble", alerta)
         return cleaned_data
 
     def save(self, commit=True):
@@ -1687,6 +1803,29 @@ class PagoForm(forms.ModelForm):
 
         concepto = cleaned_data.get("concepto")
         contrato = cleaned_data.get("contrato")
+
+        if (
+            concepto
+            in {
+                Pago.Concepto.RESERVA,
+                Pago.Concepto.PRIMA,
+                Pago.Concepto.CONTADO,
+            }
+            and contrato is not None
+            and getattr(contrato, "inmueble_id", None)
+        ):
+            inv = (
+                Inmueble.objects.select_related("cliente_reserva")
+                .filter(pk=contrato.inmueble_id)
+                .first()
+            )
+            cli = getattr(contrato, "cliente", None)
+            # Mismo cliente con su reserva: OK. Vendido / reserva ajena / bloqueado: no.
+            alerta = mensaje_alerta_lote_ocupado(
+                inv, cliente=cli, permitir_misma_reserva=True
+            )
+            if alerta:
+                self.add_error("formato_aceptacion", alerta)
 
         if concepto in {
             Pago.Concepto.RESERVA,
@@ -2615,6 +2754,43 @@ class FormatoAceptacionForm(forms.ModelForm):
                     "numero_formulario",
                     "No coincide con el número del PDF del formato físico.",
                 )
+
+        # Alerta / bloqueo: lote ya reservado, vendido o bloqueado.
+        num_lote = (cleaned.get("num_lote") or "").strip()
+        if num_lote:
+            from inmobiliaria.credito_contrato import resolver_inmueble_desde_formato
+
+            # Construir un stub mínimo con los campos que usa el resolver.
+            class _FmtStub:
+                pass
+
+            stub = _FmtStub()
+            stub.num_lote = num_lote
+            stub.nombre_proyecto = (cleaned.get("nombre_proyecto") or "").strip()
+            inv = resolver_inmueble_desde_formato(stub)
+            # Si el resolver excluyó VENDIDO, buscar también vendidos para el mensaje.
+            if inv is None and num_lote:
+                qs = Inmueble.objects.select_related("cliente_reserva").filter(
+                    codigo__iexact=num_lote
+                )
+                proy = stub.nombre_proyecto
+                if proy:
+                    inv = qs.filter(proyecto__nombre__icontains=proy).first() or qs.first()
+                else:
+                    inv = qs.first()
+            mismo_lote_edit = False
+            if (
+                inv is not None
+                and self.instance
+                and getattr(self.instance, "pk", None)
+            ):
+                prev = (self.instance.num_lote or "").strip()
+                mismo_lote_edit = prev.casefold() == num_lote.casefold()
+            if inv is not None and not mismo_lote_edit:
+                alerta = mensaje_alerta_lote_ocupado(inv, permitir_misma_reserva=False)
+                if alerta:
+                    self.add_error("num_lote", alerta)
+
         return cleaned
 
     def save(self, commit=True):

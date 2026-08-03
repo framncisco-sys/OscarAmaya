@@ -7,7 +7,7 @@
     <div class="app-sidebar__brand-chip" title="{{ marca_portal.nombre }}">
       <img src="{% static marca_portal.logo %}" alt="" class="app-sidebar__brand-chip-logo" decoding="async" aria-hidden="true">
       <div class="app-sidebar__brand-chip-text">
-        <span class="app-sidebar__brand-chip-label">Sistema</span>
+        <span class="app-sidebar__brand-chip-label">{% if es_vendedor_restringido or not puede_cambiar_empresa %}Su empresa{% else %}Sistema{% endif %}</span>
         <strong class="app-sidebar__brand-chip-name">{{ marca_portal.eyebrow|default:marca_portal.nombre }}</strong>
       </div>
     </div>

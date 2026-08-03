@@ -188,6 +188,54 @@ def build_dashboard_context(*, user, incluir_vendedores: bool, contratos_restrin
         reserva_hasta__lt=hoy,
     ).count()
 
+    # Resumen por proyecto activo: disponibles / reserva / pagados totalmente.
+    lote_proy_q = Q(inmuebles__tipo=_LOTE, inmuebles__en_alquiler=False)
+    proyectos_activos = (
+        _qs_proyectos_lotificacion()
+        .annotate(
+            total_lotes=Count("inmuebles", filter=lote_proy_q, distinct=True),
+            disp=Count(
+                "inmuebles",
+                filter=lote_proy_q & Q(inmuebles__estado=_EST.DISPONIBLE),
+                distinct=True,
+            ),
+            res=Count(
+                "inmuebles",
+                filter=lote_proy_q & Q(inmuebles__estado=_EST.RESERVADO),
+                distinct=True,
+            ),
+            pagados=Count(
+                "inmuebles",
+                filter=lote_proy_q & Q(inmuebles__estado=_EST.VENDIDO),
+                distinct=True,
+            ),
+            valor_disp=Sum(
+                "inmuebles__precio_lista",
+                filter=lote_proy_q & Q(inmuebles__estado=_EST.DISPONIBLE),
+            ),
+        )
+        .order_by("nombre")
+    )
+    proyecto_rows = []
+    for p in proyectos_activos:
+        total = p.total_lotes or 0
+        d = p.disp or 0
+        r = p.res or 0
+        pag = p.pagados or 0
+        proyecto_rows.append(
+            {
+                "obj": p,
+                "total": total,
+                "disponibles": d,
+                "reservados": r,
+                "pagados_totales": pag,
+                "valor_disponible": p.valor_disp or Decimal("0"),
+                "disponibles_pct": round(d * 100 / total, 1) if total else 0,
+                "reservados_pct": round(r * 100 / total, 1) if total else 0,
+                "pagados_pct": round(pag * 100 / total, 1) if total else 0,
+            }
+        )
+
     ultimos_inmuebles = (
         inventario.select_related("proyecto", "poligono")
         .order_by("-id")[:8]
@@ -210,6 +258,7 @@ def build_dashboard_context(*, user, incluir_vendedores: bool, contratos_restrin
         "total_contratos_activos": contratos_activos,
         "ultimos_inmuebles": ultimos_inmuebles,
         "poligono_rows": poligono_rows,
+        "proyecto_rows": proyecto_rows,
         "reservas_por_vencer": reservas_por_vencer,
         "reservas_vencidas_ct": reservas_vencidas_ct,
         # Compatibilidad con plantilla antigua

@@ -77,7 +77,7 @@ class DocumentoEmitido(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="Comisión liquidada en el recibo al vendedor (snapshot al emitir).",
+        help_text="Comisión bruta (sin IVA) liquidada en el recibo al vendedor.",
     )
     comision_porcentaje_recibo = models.DecimalField(
         "Porcentaje comisión (recibo)",
@@ -90,6 +90,40 @@ class DocumentoEmitido(models.Model):
     comision_concepto = models.TextField(
         blank=True,
         help_text="Concepto o detalle impreso en el recibo de comisión al vendedor.",
+    )
+    comision_tipo_persona = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="NATURAL o CONTRIBUYENTE al momento de emitir el recibo.",
+    )
+    comision_iva_usd = models.DecimalField(
+        "IVA comisión (USD)",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    comision_retencion_renta_usd = models.DecimalField(
+        "Retención renta (USD)",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    comision_retencion_iva_usd = models.DecimalField(
+        "Retención IVA (USD)",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    comision_neto_usd = models.DecimalField(
+        "Neto a pagar comisión (USD)",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Importe neto que recibe el vendedor tras retenciones.",
     )
     recibo_beneficiario_nombre = models.CharField(
         "Beneficiario del recibo",

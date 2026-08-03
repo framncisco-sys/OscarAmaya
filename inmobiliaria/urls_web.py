@@ -282,6 +282,11 @@ urlpatterns = [
         views.api_mapa_catastral_guardar,
         name="api_mapa_catastral_guardar",
     ),
+    path(
+        "api/inmueble/<int:inmueble_id>/estado/",
+        views.api_inmueble_estado,
+        name="api_inmueble_estado",
+    ),
     path("", include("audit.urls_web")),
     path("", include("usuarios.urls_web")),
     path("", include("docs.urls_web")),

@@ -40,7 +40,7 @@ from django.utils.decorators import method_decorator
 from django.utils.formats import date_format
 from django.utils.html import format_html
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from django.views import View
 from django.views.generic import (
     CreateView,
@@ -472,11 +472,15 @@ def _catalogo_inmuebles_formato_aceptacion() -> dict:
     inmueble_por_id: dict[str, dict] = {}
     for inv in (
         Inmueble.objects.filter(proyecto__activo=True)
-        .select_related("poligono", "proyecto")
+        .select_related("poligono", "proyecto", "cliente_reserva")
         .order_by("proyecto_id", "poligono_id", "codigo")
     ):
         clave = str(inv.poligono_id) if inv.poligono_id else f"np:{inv.proyecto_id}"
         pol_nombre = inv.poligono.nombre if inv.poligono_id else ""
+        cli = inv.cliente_reserva
+        cli_txt = ""
+        if cli is not None:
+            cli_txt = f"{(cli.nombres or '').strip()} {(cli.apellidos or '').strip()}".strip()
         entry = {
             "id": inv.pk,
             "codigo": inv.codigo,
@@ -488,6 +492,18 @@ def _catalogo_inmuebles_formato_aceptacion() -> dict:
             "poligono_nombre": pol_nombre,
             "proyecto_id": inv.proyecto_id,
             "clave_poligono": clave,
+            "estado": inv.estado,
+            "estado_label": inv.get_estado_display(),
+            "cliente_reserva": cli_txt,
+            "reserva_hasta": (
+                inv.reserva_hasta.isoformat() if inv.reserva_hasta else ""
+            ),
+            "ocupado": inv.estado
+            in (
+                Inmueble.Estado.RESERVADO,
+                Inmueble.Estado.VENDIDO,
+                Inmueble.Estado.BLOQUEADO,
+            ),
         }
         lotes_por_clave[clave].append(entry)
         inmueble_por_id[str(inv.pk)] = entry
@@ -742,10 +758,33 @@ class AppIndexView(AppLoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         from core.dashboard_data import build_gestion_hub_context
+        from inmobiliaria.contratos_acceso import (
+            filtrar_contratos_queryset_por_vendedor,
+            vendedor_catalogo_activo_vinculado,
+        )
+        from inmobiliaria.models import Contrato, Pago
         from inmobiliaria.vendedor_acceso import es_vendedor_restringido
 
         ctx = super().get_context_data(**kwargs)
         if es_vendedor_restringido(self.request.user):
+            user = self.request.user
+            vc = vendedor_catalogo_activo_vinculado(user)
+            nombre = ""
+            if vc is not None:
+                nombre = (vc.nombre_completo or "").strip()
+            if not nombre:
+                nombre = (user.get_full_name() or "").strip() or user.get_username()
+            contratos_qs = filtrar_contratos_queryset_por_vendedor(
+                Contrato.objects.all(), user
+            )
+            pagos_qs = Pago.objects.filter(contrato__in=contratos_qs)
+            ctx["vend_nombre"] = nombre.split()[0] if nombre else ""
+            ctx["vend_contratos_activos"] = contratos_qs.filter(
+                estado=Contrato.Estado.ACTIVO
+            ).count()
+            ctx["vend_pagos_pendientes"] = pagos_qs.filter(
+                validacion_abono=Pago.ValidacionAbono.PENDIENTE
+            ).count()
             return ctx
         ctx.update(
             build_gestion_hub_context(
@@ -757,7 +796,6 @@ class AppIndexView(AppLoginRequiredMixin, TemplateView):
             )
         )
         return ctx
-
 
 class MapaEditorView(AppLoginRequiredMixin, TemplateView):
     template_name = "app/mapa_editor.html"
@@ -946,6 +984,9 @@ class InmuebleLoteListView(AppLoginRequiredMixin, ListView):
         # Desarrollos: solo lotes de lotificación (sin locales ni casas).
         if es_desarrollos(marca_from_session(self.request)):
             qs = qs.filter(tipo=Inmueble.Tipo.LOTE)
+        pid = (self.request.GET.get("proyecto") or "").strip()
+        if pid.isdigit():
+            qs = qs.filter(proyecto_id=int(pid))
         return qs
 
     def get_context_data(self, **kwargs):
@@ -960,10 +1001,18 @@ class InmuebleLoteListView(AppLoginRequiredMixin, ListView):
             ctx["listado_page_title"] = "Inmueble lote"
             ctx["listado_meta"] = "Lotes y locales comerciales por proyecto y polígono (sin casas)."
             ctx["nuevo_boton_label"] = "Nuevo lote o local"
+        pid = (self.request.GET.get("proyecto") or "").strip()
+        if pid.isdigit():
+            proy = Proyecto.objects.filter(pk=int(pid)).first()
+            if proy:
+                ctx["listado_page_title"] = f"Lotes · {proy.nombre}"
+                ctx["listado_meta"] = (
+                    f"Inventario del proyecto activo «{proy.nombre}» "
+                    "(disponibles, reserva y pagados)."
+                )
         ctx["nuevo_url"] = reverse("app:inmueble_create")
         ctx["es_listado_casas"] = False
         return ctx
-
 
 class InmuebleCasaListView(AppLoginRequiredMixin, ListView):
     """Solo casas nuevas o de segunda en venta (excluye módulo de alquiler)."""
@@ -2222,6 +2271,9 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
         ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
         ctx["proyectos_formato"] = _proyectos_para_formato_aceptacion()
         ctx["formato_catalogo_inmuebles"] = _catalogo_inmuebles_formato_aceptacion()
+        ctx["formato_lote_estado_url_tpl"] = reverse(
+            "app:api_inmueble_estado", args=[0]
+        ).replace("/0/", "/__ID__/")
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
         ctx.update(_formato_ctx_expediente_archivos(getattr(self, "object", None)))
@@ -2311,6 +2363,9 @@ class FormatoAceptacionUpdateView(
         ctx["formato_encabezado_direccion"] = _formato_aceptacion_direccion_impreso()
         ctx["proyectos_formato"] = _proyectos_para_formato_aceptacion()
         ctx["formato_catalogo_inmuebles"] = _catalogo_inmuebles_formato_aceptacion()
+        ctx["formato_lote_estado_url_tpl"] = reverse(
+            "app:api_inmueble_estado", args=[0]
+        ).replace("/0/", "/__ID__/")
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
         ctx.update(_formato_ctx_expediente_archivos(self.object))
@@ -2766,8 +2821,10 @@ class PagoListView(AppLoginRequiredMixin, ListView):
         )
         pendientes = filtrar_pagos_queryset_por_vendedor(pendientes, self.request.user)
         ctx["pagos_pendientes_validacion_ct"] = pendientes.count()
-        return ctx
+        from inmobiliaria.vendedor_acceso import es_vendedor_restringido
 
+        ctx["pago_list_vendedor"] = es_vendedor_restringido(self.request.user)
+        return ctx
 
 class PagoCreateView(AppLoginRequiredMixin, CreateView):
     model = Pago
@@ -2908,9 +2965,26 @@ def pago_validar_abono(request: HttpRequest, pk: int) -> HttpResponse:
             ),
             extra_tags="allow_html",
         )
+        enviados = []
+        if notif.correo_enviado:
+            enviados.append("correo")
+        if notif.whatsapp_pdf_por_api:
+            enviados.append("WhatsApp API")
+        if enviados:
+            msg_envio = " y enviado al cliente por " + " y ".join(enviados)
+        elif wa:
+            msg_envio = (
+                ". Se abre WhatsApp en su equipo para enviarlo con su WhatsApp personal "
+                "(adjunte el PDF y pulse Enviar)"
+            )
+        else:
+            msg_envio = (
+                ". Agregue teléfono/email del cliente para notificar, "
+                "o use Descargar PDF"
+            )
         messages.info(
             request,
-            f"Validación OK ({nota}). Recibo {doc.numero} generado y enviado al cliente.",
+            f"Validación OK ({nota}). Recibo {doc.numero} generado{msg_envio}.",
         )
         if pago.concepto in (
             Pago.Concepto.RESERVA,
@@ -2946,6 +3020,30 @@ def pago_validar_abono(request: HttpRequest, pk: int) -> HttpResponse:
                         request,
                         "Comisión al vendedor aún no generada: " + " ".join(req_c.motivos),
                     )
+        # Sin API Meta: PDF + mensaje juntos con WhatsApp personal del vendedor.
+        if wa and not notif.whatsapp_pdf_por_api:
+            from docs.recibo_notificacion import datos_envio_whatsapp_personal
+
+            datos = datos_envio_whatsapp_personal(pago.contrato.cliente, doc, pago) or {}
+            return render(
+                request,
+                "app/recibo_abrir_whatsapp.html",
+                {
+                    "doc_numero": doc.numero,
+                    "wa_url": wa,
+                    "url_pdf": url_pdf,
+                    "continue_url": reverse("app:docs_list"),
+                    "share_payload": {
+                        "doc_numero": doc.numero,
+                        "pdf_url": url_pdf,
+                        "pdf_nombre": datos.get("pdf_nombre")
+                        or f"{doc.numero.replace('/', '-')}.pdf",
+                        "wa_url": wa,
+                        "mensaje": datos.get("mensaje") or "",
+                        "mensaje_con_enlace": datos.get("mensaje_con_enlace") or "",
+                    },
+                },
+            )
         return HttpResponseRedirect(reverse("app:docs_list"))
     except Exception:
         logger.exception("Error al emitir recibo tras validar pago id=%s", pago.pk)
@@ -3356,6 +3454,55 @@ def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
                 }
                 for i in lotes
             ],
+        }
+    )
+
+
+@login_required
+@require_GET
+@never_cache
+def api_inmueble_estado(request: HttpRequest, inmueble_id: int) -> JsonResponse:
+    """
+    Estado actual del lote (disponible / reservado / vendido / bloqueado).
+    Para avisar al vendedor al elegir el lote, sin guardar el formato.
+    """
+    from inmobiliaria.forms_web import mensaje_alerta_lote_ocupado
+
+    inv = get_object_or_404(
+        Inmueble.objects.select_related("cliente_reserva", "proyecto", "poligono"),
+        pk=inmueble_id,
+    )
+    cli = inv.cliente_reserva
+    cli_txt = ""
+    if cli is not None:
+        cli_txt = f"{(cli.nombres or '').strip()} {(cli.apellidos or '').strip()}".strip()
+    alerta = mensaje_alerta_lote_ocupado(inv, permitir_misma_reserva=False)
+    disponible = inv.estado == Inmueble.Estado.DISPONIBLE
+    if disponible:
+        mensaje = (
+            f"✓ El lote {(inv.codigo or '').strip() or '—'} está DISPONIBLE. "
+            "Puede continuar con el formato (revise de nuevo si otro vendedor lo reserva)."
+        )
+    else:
+        mensaje = alerta or (
+            f"El lote {(inv.codigo or '').strip() or '—'} no está disponible "
+            f"({inv.get_estado_display()})."
+        )
+    return JsonResponse(
+        {
+            "ok": True,
+            "id": inv.pk,
+            "codigo": inv.codigo,
+            "estado": inv.estado,
+            "estado_label": inv.get_estado_display(),
+            "cliente_reserva": cli_txt,
+            "reserva_hasta": (
+                inv.reserva_hasta.isoformat() if inv.reserva_hasta else ""
+            ),
+            "ocupado": not disponible,
+            "disponible": disponible,
+            "mensaje": mensaje,
+            "consultado_en": timezone.localtime().isoformat(timespec="seconds"),
         }
     )
 

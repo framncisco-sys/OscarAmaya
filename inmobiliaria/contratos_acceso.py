@@ -68,6 +68,37 @@ def filtrar_pagos_queryset_por_vendedor(qs, user):
     return qs.filter(contrato__in=allowed)
 
 
+def filtrar_documentos_queryset_por_vendedor(qs, user):
+    """
+    Solo documentos del vendedor: emitidos por él, de formatos que elaboró,
+    de contratos donde figura como asesor, o recibos de su comisión.
+    """
+    if not aplica_restriccion_contratos_por_vendedor(user):
+        return qs
+    v = vendedor_catalogo_activo_vinculado(user)
+    q = Q(emitido_por_id=user.pk) | Q(
+        pago__formato_aceptacion__creado_por_id=user.pk
+    )
+    if v is not None:
+        q |= Q(vendedor_id=v.pk)
+        q |= Q(contrato__vendedor_perfil_id=v.pk) | Q(contrato__vendedor_id=user.pk)
+        q |= Q(pago__contrato__vendedor_perfil_id=v.pk) | Q(
+            pago__contrato__vendedor_id=user.pk
+        )
+    else:
+        q |= Q(contrato__vendedor_id=user.pk) | Q(pago__contrato__vendedor_id=user.pk)
+    return qs.filter(q).distinct()
+
+
+def usuario_puede_ver_documento(user, doc) -> bool:
+    """True si el documento entra en la cartera visible del usuario."""
+    if not aplica_restriccion_contratos_por_vendedor(user):
+        return True
+    return filtrar_documentos_queryset_por_vendedor(
+        type(doc).objects.filter(pk=doc.pk), user
+    ).exists()
+
+
 def totales_comision_contratos(qs):
     """
     Recorre el queryset (idealmente .only(...) ligero) y acumula comisiones calculables.

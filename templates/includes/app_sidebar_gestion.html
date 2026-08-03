@@ -17,7 +17,7 @@
       </span>
     </a>
 
-    <details class="app-sidebar__accord" data-pbr-accord{% if sidebar_nav.open_docs or sidebar_nav.open_cartera or sidebar_nav.formato_active or sidebar_nav.contrato_active or sidebar_nav.pago_active %} open{% endif %}>
+    <details class="app-sidebar__accord" data-pbr-accord{% if sidebar_nav.open_docs or sidebar_nav.open_cartera or sidebar_nav.formato_active or sidebar_nav.contrato_active or sidebar_nav.pago_active or sidebar_nav.recibo_comision_vendedor_active or sidebar_nav.vendedores_active %} open{% endif %}>
       <summary class="app-sidebar__accord-summary">
         <span class="app-sidebar__accord-icon" aria-hidden="true">①</span>
         <span class="app-sidebar__accord-label">Flujo de venta</span>
@@ -52,6 +52,9 @@
         {% if puede_gestionar_vendedores_app %}
         <a href="{% url 'app:vendedor_list' %}"{% if sidebar_nav.vendedor_list_active or sidebar_nav.vendedor_create_active %} class="is-active" aria-current="page"{% endif %}>
           Vendedores (registro){% if sidebar_stats and sidebar_stats.vendedores %}<span class="app-sidebar__stat">{{ sidebar_stats.vendedores }}</span>{% endif %}
+        </a>
+        <a href="{% url 'app:recibo_comision_casa_venta' %}"{% if sidebar_nav.recibo_comision_vendedor_active %} class="is-active" aria-current="page"{% endif %}>
+          Generar recibo de comisión de vendedor
         </a>
         {% endif %}
         <a href="{% url 'app:pago_list' %}">

@@ -760,7 +760,7 @@ def emitir_recibo_ingreso(*, pago, emitido_por=None) -> tuple[DocumentoEmitido, 
     )
     if existente is not None:
         regenerar_pdf_y_persistir(existente)
-        return existente, ReciboNotificacionInfo(
+        notif = ReciboNotificacionInfo(
             correo_enviado=False,
             correo_entrega_real=False,
             whatsapp_pdf_por_api=False,
@@ -768,6 +768,16 @@ def emitir_recibo_ingreso(*, pago, emitido_por=None) -> tuple[DocumentoEmitido, 
             meta_solo_texto=False,
             twilio_pdf=False,
         )
+        try:
+            from .recibo_notificacion import notificar_recibo_emitido
+
+            notif = notificar_recibo_emitido(existente, pago)
+        except Exception:
+            logger.exception(
+                "Fallo al notificar recibo existente %s (correo/WhatsApp); el PDF sí se actualizó.",
+                existente.numero,
+            )
+        return existente, notif
 
     numero = _next_correlativo(tipo=DocumentoTipo.RECIBO_INGRESO, cfg=CorrelativoConfig())
     doc = DocumentoEmitido.objects.create(
@@ -852,6 +862,55 @@ def _monto_comision_documento(doc: DocumentoEmitido, contrato: Contrato):
     return contrato.monto_comision_efectivo()
 
 
+def _liquidacion_comision_para_doc(doc: "DocumentoEmitido", contrato: Contrato, monto):
+    """Snapshot guardado o recálculo desde tipo de vendedor / monto bruto."""
+    from decimal import Decimal
+
+    from inmobiliaria.retencion_comision_sv import liquidar_comision_vendedor
+
+    vp = getattr(contrato, "vendedor_perfil", None)
+    tipo = (doc.comision_tipo_persona or "").strip().upper()
+    if not tipo and vp is not None:
+        tipo = (vp.tipo_persona or "").strip().upper()
+
+    # Si el documento ya tiene desglose fiscal, úselo (auditoría).
+    if (
+        doc.comision_neto_usd is not None
+        and doc.comision_retencion_renta_usd is not None
+        and monto is not None
+    ):
+        from inmobiliaria.retencion_comision_sv import LiquidacionComisionVendedor
+        from inmobiliaria.models import Vendedor
+
+        bruto = Decimal(monto).quantize(Decimal("0.01"))
+        iva = Decimal(doc.comision_iva_usd or 0).quantize(Decimal("0.01"))
+        ret_r = Decimal(doc.comision_retencion_renta_usd or 0).quantize(Decimal("0.01"))
+        ret_i = Decimal(doc.comision_retencion_iva_usd or 0).quantize(Decimal("0.01"))
+        neto = Decimal(doc.comision_neto_usd).quantize(Decimal("0.01"))
+        tipo_ok = tipo or Vendedor.TipoPersona.NATURAL
+        label = (
+            "Contribuyente"
+            if tipo_ok == Vendedor.TipoPersona.CONTRIBUYENTE
+            else "Natural"
+        )
+        return LiquidacionComisionVendedor(
+            tipo_persona=tipo_ok,
+            tipo_persona_label=label,
+            bruto=bruto,
+            iva=iva,
+            retencion_renta=ret_r,
+            retencion_iva=ret_i,
+            total_con_iva=(bruto + iva).quantize(Decimal("0.01")),
+            neto=neto,
+            pct_renta=Decimal("10"),
+            pct_iva=Decimal("13"),
+            pct_retencion_iva=Decimal("1"),
+            notas=(),
+        )
+
+    return liquidar_comision_vendedor(monto, tipo_persona=tipo or None, vendedor=vp)
+
+
 def _contexto_recibo_comision_vendedor(
     *,
     doc: DocumentoEmitido,
@@ -860,6 +919,7 @@ def _contexto_recibo_comision_vendedor(
     comision_porcentaje=None,
     concepto: str = "",
     marca_slug: str | None = None,
+    liquidacion=None,
 ) -> dict:
     nombre_v = contrato.nombre_vendedor_documentos()
     proyecto = contrato.inmueble.proyecto
@@ -871,26 +931,101 @@ def _contexto_recibo_comision_vendedor(
         from .forms import _concepto_comision_default
 
         concepto_txt = _concepto_comision_default(contrato)
-    # Comisión de venta: ambos logos corporativos + watermark del proyecto.
+
+    liq = liquidacion or _liquidacion_comision_para_doc(doc, contrato, monto)
+    vp = getattr(contrato, "vendedor_perfil", None)
+    poligono = getattr(contrato.inmueble, "poligono", None)
+    from decimal import Decimal
+
+    retenciones_total = (liq.retencion_renta + liq.retencion_iva).quantize(Decimal("0.01"))
+    concepto_detalle = concepto_txt.upper()
+    if pct is not None:
+        concepto_detalle = (
+            f"{concepto_detalle} / {(_pct_txt_comision(pct) or '').upper()} "
+            f"SOBRE {format_monto_sv(contrato.precio_final)}"
+        )
+    vendedor_direccion = "—"
+    if vp is not None:
+        partes_dir = []
+        if (vp.email or "").strip():
+            partes_dir.append(vp.email.strip())
+        if (vp.telefono or "").strip():
+            partes_dir.append(f"Tel. {vp.telefono.strip()}")
+        if (vp.notas or "").strip():
+            partes_dir.append(vp.notas.strip()[:120])
+        if partes_dir:
+            vendedor_direccion = " · ".join(partes_dir)
+
     return {
         "doc": doc,
         "contrato": contrato,
         "cliente": contrato.cliente,
         "proyecto": proyecto,
         "inmueble": contrato.inmueble,
+        "poligono_nombre": poligono.nombre if poligono else "",
         "vendedor_nombre": nombre_v,
-        "monto": monto,
-        "monto_fmt": format_monto_sv(monto),
-        "monto_letras": monto_usd_letras_es(monto),
+        "vendedor": vp,
+        "vendedor_direccion": vendedor_direccion,
+        "monto": liq.bruto,
+        "monto_fmt": format_monto_sv(liq.neto),
+        "monto_letras": monto_usd_letras_es(liq.neto),
         "comision_porcentaje": pct,
         "comision_porcentaje_txt": _pct_txt_comision(pct),
         "comision_concepto": concepto_txt,
+        "concepto_detalle": concepto_detalle,
         "precio_final_fmt": format_monto_sv(contrato.precio_final),
         "lugar_emision": _lugar_emision_republica(proyecto),
         "razon_social_emisor": _razon_social_negocio_pdf(),
         "emisor_nit": (getattr(settings, "PBR_EMPRESA_NIT", None) or "").strip(),
+        "recibo_numero_corto": _numero_recibo_corto(doc.numero),
+        "fecha_emision_larga": _fecha_espanol_larga(
+            timezone.localtime(doc.emitido_en).date()
+            if getattr(doc, "emitido_en", None)
+            else timezone.localdate()
+        ),
+        "fecha_contrato_fmt": contrato.fecha_firma.strftime("%d/%m/%Y")
+        if contrato.fecha_firma
+        else "—",
+        "liq": liq,
+        "bruto_fmt": format_monto_sv(liq.bruto),
+        "iva_fmt": format_monto_sv(liq.iva),
+        "retencion_renta_fmt": format_monto_sv(liq.retencion_renta),
+        "retencion_iva_fmt": format_monto_sv(liq.retencion_iva),
+        "total_con_iva_fmt": format_monto_sv(liq.total_con_iva),
+        "neto_fmt": format_monto_sv(liq.neto),
+        "recibido_fmt": format_monto_sv(liq.neto),
+        "saldo_anterior_fmt": format_monto_sv(liq.bruto),
+        "nuevo_saldo_fmt": format_monto_sv(retenciones_total),
         **branding_pdf_context(proyecto),
     }
+
+
+def _pdf_recibo_comision_vendedor_bytes(
+    *,
+    doc: DocumentoEmitido,
+    contrato: Contrato,
+    monto,
+    comision_porcentaje=None,
+    concepto: str = "",
+    marca_slug: str | None = None,
+    liquidacion=None,
+) -> bytes:
+    """Mismo pipeline visual que el recibo del cliente (HTML + marca de agua)."""
+    ctx = _contexto_recibo_comision_vendedor(
+        doc=doc,
+        contrato=contrato,
+        monto=monto,
+        comision_porcentaje=comision_porcentaje,
+        concepto=concepto,
+        marca_slug=marca_slug,
+        liquidacion=liquidacion,
+    )
+    html = render_to_string("docs/recibo_comision_vendedor.html", ctx)
+    pdf_bytes = _html_to_pdf_bytes(html)
+    return _aplicar_marca_agua_recibo(
+        pdf_bytes,
+        ctx.get("watermark_logo_src") or ctx.get("proyecto_logo_src") or "",
+    )
 
 
 def emitir_recibo_comision_vendedor(
@@ -902,10 +1037,11 @@ def emitir_recibo_comision_vendedor(
     concepto: str = "",
     marca_slug: str | None = None,
 ) -> DocumentoEmitido:
-    """PDF de liquidación de comisión al vendedor (diseño distinto al recibo de ingreso del cliente)."""
+    """PDF de comisión al vendedor (mismo formato visual del recibo digital del cliente)."""
     from decimal import Decimal
 
     from inmobiliaria.comision_vendedor import requisitos_comision_venta
+    from inmobiliaria.retencion_comision_sv import liquidar_comision_vendedor
 
     req = requisitos_comision_venta(contrato)
     if not req.puede_emitir:
@@ -924,6 +1060,9 @@ def emitir_recibo_comision_vendedor(
     if not (nombre_v or "").strip():
         raise ValueError("Indique el vendedor en el contrato (catálogo o nombre).")
 
+    vp = getattr(contrato, "vendedor_perfil", None)
+    liq = liquidar_comision_vendedor(monto, vendedor=vp)
+
     numero = _next_correlativo(
         tipo=DocumentoTipo.RECIBO_COMISION_VENDEDOR, cfg=CorrelativoConfig()
     )
@@ -934,23 +1073,25 @@ def emitir_recibo_comision_vendedor(
         inmueble=contrato.inmueble,
         vendedor=contrato.vendedor_perfil,
         emitido_por=emitido_por,
-        monto_comision_usd=monto,
+        monto_comision_usd=liq.bruto,
         comision_porcentaje_recibo=comision_porcentaje,
         comision_concepto=(concepto or "").strip(),
+        comision_tipo_persona=liq.tipo_persona,
+        comision_iva_usd=liq.iva,
+        comision_retencion_renta_usd=liq.retencion_renta,
+        comision_retencion_iva_usd=liq.retencion_iva,
+        comision_neto_usd=liq.neto,
     )
 
-    html = render_to_string(
-        "docs/recibo_comision_vendedor.html",
-        _contexto_recibo_comision_vendedor(
-            doc=doc,
-            contrato=contrato,
-            monto=monto,
-            comision_porcentaje=comision_porcentaje,
-            concepto=concepto,
-            marca_slug=marca_slug,
-        ),
+    pdf_bytes = _pdf_recibo_comision_vendedor_bytes(
+        doc=doc,
+        contrato=contrato,
+        monto=liq.bruto,
+        comision_porcentaje=comision_porcentaje,
+        concepto=concepto,
+        marca_slug=marca_slug,
+        liquidacion=liq,
     )
-    pdf_bytes = _html_to_pdf_bytes(html)
     doc.hash_sha256 = _sha256(pdf_bytes)
     doc.pdf_file.save(f"{numero}.pdf", ContentFile(pdf_bytes), save=False)
     doc.save(
@@ -960,6 +1101,11 @@ def emitir_recibo_comision_vendedor(
             "monto_comision_usd",
             "comision_porcentaje_recibo",
             "comision_concepto",
+            "comision_tipo_persona",
+            "comision_iva_usd",
+            "comision_retencion_renta_usd",
+            "comision_retencion_iva_usd",
+            "comision_neto_usd",
         ]
     )
     if getattr(settings, "VENDEDOR_NOTIFICAR_RECIBO_COMISION_EMAIL", True):
@@ -1124,6 +1270,7 @@ def regenerar_pdf_documento(doc: DocumentoEmitido) -> bytes:
                 "cliente",
                 "inmueble",
                 "inmueble__proyecto",
+                "inmueble__poligono",
                 "vendedor_perfil",
             )
             .filter(pk=doc.contrato_id)
@@ -1138,11 +1285,9 @@ def regenerar_pdf_documento(doc: DocumentoEmitido) -> bytes:
             )
         if not (contrato.nombre_vendedor_documentos() or "").strip():
             raise ValueError("Falta el vendedor en el contrato; no se puede regenerar el PDF.")
-        html = render_to_string(
-            "docs/recibo_comision_vendedor.html",
-            _contexto_recibo_comision_vendedor(doc=doc, contrato=contrato, monto=monto),
+        return _pdf_recibo_comision_vendedor_bytes(
+            doc=doc, contrato=contrato, monto=monto
         )
-        return _html_to_pdf_bytes(html)
 
     if doc.tipo == DocumentoTipo.RECIBO_COMISION_ARRENDAMIENTO:
         inmueble = doc.inmueble

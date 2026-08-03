@@ -196,10 +196,46 @@ class CuotaProgramadaInline(admin.TabularInline):
 
 @admin.register(Vendedor)
 class VendedorAdmin(admin.ModelAdmin):
-    list_display = ("apellidos", "nombres", "dui", "telefono", "porcentaje_comision_default", "activo")
-    list_filter = ("activo",)
-    search_fields = ("nombres", "apellidos", "dui", "email", "telefono")
+    list_display = (
+        "apellidos",
+        "nombres",
+        "tipo_persona",
+        "dui",
+        "nit",
+        "telefono",
+        "porcentaje_comision_default",
+        "activo",
+    )
+    list_filter = ("activo", "tipo_persona")
+    search_fields = ("nombres", "apellidos", "dui", "nit", "nrc", "email", "telefono")
     raw_id_fields = ("usuario_vinculo",)
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "nombres",
+                    "apellidos",
+                    "tipo_persona",
+                    "dui",
+                    "telefono",
+                    "email",
+                    "porcentaje_comision_default",
+                    "usuario_vinculo",
+                    "activo",
+                    "notas",
+                )
+            },
+        ),
+        (
+            "Contribuyente",
+            {"fields": ("nit", "nrc", "giro"), "classes": ("collapse",)},
+        ),
+        (
+            "Documentos DUI",
+            {"fields": ("dui_frente", "dui_reverso")},
+        ),
+    )
 
 
 @admin.register(AsesorAlquiler)

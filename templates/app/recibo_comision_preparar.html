@@ -82,20 +82,45 @@
 <section class="card pbr-card--info" style="margin-bottom:1rem;">
   <h2 class="page-title" style="font-size:1.05rem;margin:0 0 0.5rem;">Contrato {{ contrato.numero }}</h2>
   <p class="muted" style="margin:0;">
-    <strong>Vendedor:</strong> {{ vendedor_nombre }}<br>
+    <strong>Vendedor:</strong> {{ vendedor_nombre }}
+    {% if contrato.vendedor_perfil %}
+      ({{ contrato.vendedor_perfil.get_tipo_persona_display }})
+    {% endif %}
+    <br>
     <strong>Cliente:</strong> {{ contrato.cliente }}<br>
     <strong>Inmueble:</strong> {{ contrato.inmueble.codigo }} — {{ contrato.inmueble.proyecto.nombre }}<br>
     <strong>Precio de venta:</strong> ${{ precio_final|floatformat:2 }} USD
     {% if monto_sugerido %}
-      · <strong>Comisión sugerida:</strong> ${{ monto_sugerido|floatformat:2 }} USD
+      · <strong>Comisión bruta sugerida:</strong> ${{ monto_sugerido|floatformat:2 }} USD
     {% endif %}
   </p>
+  {% if liquidacion_preview %}
+  <div style="margin-top:0.85rem;padding-top:0.75rem;border-top:1px solid #e2e8f0;font-size:0.92rem;line-height:1.5;">
+    <strong>Retenciones (El Salvador) — vista previa:</strong>
+    <ul style="margin:0.4rem 0 0;padding-left:1.2rem;">
+      <li>Tipo: {{ liquidacion_preview.tipo_persona_label }}</li>
+      <li>Comisión bruta: ${{ liquidacion_preview.bruto }}</li>
+      {% if liquidacion_preview.es_contribuyente %}
+      <li>(+) IVA {{ liquidacion_preview.pct_iva }}%: ${{ liquidacion_preview.iva }}</li>
+      {% endif %}
+      <li>(−) Retención renta {{ liquidacion_preview.pct_renta }}%: ${{ liquidacion_preview.retencion_renta }}</li>
+      {% if liquidacion_preview.retencion_iva %}
+      <li>(−) Retención IVA {{ liquidacion_preview.pct_retencion_iva }}%: ${{ liquidacion_preview.retencion_iva }}</li>
+      {% endif %}
+      <li><strong>Neto a pagar al vendedor: ${{ liquidacion_preview.neto }}</strong></li>
+    </ul>
+    <p class="muted" style="margin:0.5rem 0 0;font-size:0.82rem;">
+      Natural: renta 10%. Contribuyente: IVA 13% + renta 10% + retención IVA 1% si la base ≥ $100
+      (agente de retención). Ajuste el monto abajo si cambia la base; el PDF usa el mismo formato del recibo del cliente.
+    </p>
+  </div>
+  {% endif %}
 </section>
 
 {% if puede_emitir_comision %}
 <p class="muted page-lead" style="max-width:42rem;margin-bottom:1rem;">
-  Requisitos cumplidos. Revise el monto y genere el PDF de comisión al vendedor
-  (distinto al recibo de ingreso del cliente).
+  Requisitos cumplidos. Revise el monto bruto y genere el PDF (formato recibo digital del cliente,
+  con desglose de retenciones).
 </p>
 
 <form method="post" class="form-stack">

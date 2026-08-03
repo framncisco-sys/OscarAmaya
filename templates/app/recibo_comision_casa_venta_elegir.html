@@ -32,13 +32,19 @@
       <td>{{ c.inmueble.codigo }} — {{ c.inmueble.proyecto.nombre }}</td>
       <td>
         {{ c.nombre_vendedor_documentos|default:"—" }}
+        {% if c.vendedor_perfil %}
+          <br><span class="muted">{{ c.vendedor_perfil.get_tipo_persona_display }}</span>
+        {% endif %}
         {% if c.monto_comision_ref %}<br><span class="muted">${{ c.monto_comision_ref|floatformat:2 }}</span>{% endif %}
       </td>
       <td>{% if c.req_comision.reserva.validado %}<span style="color:#15803d;">OK</span>{% elif c.req_comision.reserva.registrado %}<span style="color:#b45309;">Pendiente validar</span>{% else %}<span class="muted">Sin pago</span>{% endif %}</td>
       <td>{% if c.req_comision.prima.validado %}<span style="color:#15803d;">OK</span>{% elif c.req_comision.prima.registrado %}<span style="color:#b45309;">Pendiente validar</span>{% else %}<span class="muted">Sin pago</span>{% endif %}</td>
       <td>
+        {% if c.doc_comision %}
+        <a href="{% url 'app:doc_download' c.doc_comision.id %}" class="link-action" target="_blank" rel="noopener">Ver recibo de la comisión</a>
+        {% endif %}
         {% if c.req_comision.puede_emitir %}
-        <a href="{% url 'app:emitir_recibo_comision' c.pk %}" class="link-action">Generar comisión</a>
+        <a href="{% url 'app:emitir_recibo_comision' c.pk %}" class="link-action">{% if c.doc_comision %}Regenerar / nuevo{% else %}Generar comisión{% endif %}</a>
         {% else %}
         <a href="{% url 'app:emitir_recibo_comision' c.pk %}" class="link-action">Revisar requisitos</a>
         {% endif %}

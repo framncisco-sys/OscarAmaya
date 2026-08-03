@@ -16,8 +16,9 @@ _ROL_HELP = (
 )
 
 _EMPRESA_HELP = (
-    "Solo administradores pueden tener «Ambas empresas». "
-    "Gerencia y el resto deben quedar asignados a Bienes Raíces o Desarrollos."
+    "El usuario solo verá y usará esta empresa al iniciar sesión. "
+    "Vendedores y gerencia: asigne <strong>una</strong> (Bienes Raíces o Desarrollos). "
+    "Solo administradores pueden tener «Ambas empresas»."
 )
 
 
@@ -97,7 +98,7 @@ class UsuarioAppCrearForm(forms.Form):
         help_text=_ROL_HELP,
     )
     empresa = forms.ChoiceField(
-        label="Empresa",
+        label="Empresa (acceso al iniciar sesión)",
         choices=PerfilUsuario.Empresa.choices,
         help_text=_EMPRESA_HELP,
     )
@@ -187,7 +188,7 @@ class UsuarioAppEditarForm(forms.Form):
         help_text=_ROL_HELP,
     )
     empresa = forms.ChoiceField(
-        label="Empresa",
+        label="Empresa (acceso al iniciar sesión)",
         choices=PerfilUsuario.Empresa.choices,
         help_text=_EMPRESA_HELP,
     )
