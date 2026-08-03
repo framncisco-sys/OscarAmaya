@@ -44,6 +44,37 @@ class Proyecto(models.Model):
             )
         ],
     )
+    porcentaje_prima = models.DecimalField(
+        "Prima total (% del valor del lote)",
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(Decimal("0")),
+            MaxValueValidator(Decimal("100")),
+        ],
+        help_text=(
+            "Porcentaje del valor del lote que corresponde a la prima/enganche total. "
+            "En el formato: Reserva + Prima a pagar = valor × este %. "
+            "La prima a pagar se calcula sola (prima total − reserva)."
+        ),
+    )
+    porcentaje_reserva = models.DecimalField(
+        "Reserva (% del valor del lote)",
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(Decimal("0")),
+            MaxValueValidator(Decimal("100")),
+        ],
+        help_text=(
+            "Porcentaje del valor del lote que se cobra como reserva al llenar el formato. "
+            "Ej.: 5 = 5 %. Debe ser menor o igual a la prima total %."
+        ),
+    )
 
     class Meta:
         ordering = ["nombre"]
@@ -60,6 +91,55 @@ class Proyecto(models.Model):
     @property
     def tiene_plano(self) -> bool:
         return bool(self.plano_maestro and self.plano_maestro.name)
+
+    def etapa_venta_actual(self) -> dict:
+        from inmobiliaria.etapa_venta import etapa_para_proyecto
+
+        return etapa_para_proyecto(self)
+
+
+class ParametroEtapaVenta(models.Model):
+    """Configuración general de rangos de etapa (una sola fila en la práctica)."""
+
+    hasta_preventa = models.PositiveIntegerField(
+        "Hasta preventa (lotes comprometidos)",
+        default=20,
+        help_text="Con menos de este número de lotes comprometidos en el proyecto → Preventa.",
+    )
+    hasta_promocional = models.PositiveIntegerField(
+        "Hasta promocional",
+        default=40,
+        help_text="Desde preventa hasta este número → Promocional. Después → Pos preventa.",
+    )
+    hasta_pos_preventa = models.PositiveIntegerField(
+        "Tope pos preventa (referencia)",
+        default=63,
+        help_text="Solo informativo (rango mostrado en pantallas).",
+    )
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Parámetro de etapas de venta"
+        verbose_name_plural = "Parámetros de etapas de venta"
+
+    def __str__(self) -> str:
+        return (
+            f"Preventa 0–{self.hasta_preventa} · "
+            f"Promocional {self.hasta_preventa + 1}–{self.hasta_promocional} · "
+            f"Pos {self.hasta_promocional + 1}–{self.hasta_pos_preventa}"
+        )
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.hasta_preventa >= self.hasta_promocional:
+            raise ValidationError(
+                {"hasta_promocional": "Debe ser mayor que el tope de preventa."}
+            )
+        if self.hasta_promocional > self.hasta_pos_preventa:
+            raise ValidationError(
+                {"hasta_pos_preventa": "Debe ser mayor o igual al tope promocional."}
+            )
 
 
 class Poligono(models.Model):
@@ -236,6 +316,34 @@ class Inmueble(models.Model):
         max_digits=14,
         decimal_places=2,
         validators=[MinValueValidator(Decimal("0"))],
+        help_text="Precio vigente (se sincroniza con la etapa actual del proyecto).",
+    )
+    precio_preventa = models.DecimalField(
+        "Precio contado — Preventa",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Precio de contado en etapa Preventa.",
+    )
+    precio_promocional = models.DecimalField(
+        "Precio contado — Promocional",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Precio de contado en etapa Promocional.",
+    )
+    precio_pos_preventa = models.DecimalField(
+        "Precio contado — Pos preventa",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Precio de contado en etapa Pos preventa.",
     )
 
     area_varas_cuadradas = models.DecimalField(
@@ -1487,6 +1595,64 @@ class FormatoAceptacion(models.Model):
     valor_inmueble = models.DecimalField(
         "Valor del inmueble", max_digits=14, decimal_places=2, null=True, blank=True
     )
+    valor_inmueble_sistema = models.DecimalField(
+        "Valor según etapa (sistema)",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Precio automático del lote según la etapa del proyecto al elegir el lote.",
+    )
+    etapa_venta_aplicada = models.CharField(
+        "Etapa de venta aplicada",
+        max_length=20,
+        blank=True,
+        help_text="PREVENTA / PROMOCIONAL / POS_PREVENTA al momento de fijar el precio del sistema.",
+    )
+    valor_inmueble_solicitado = models.DecimalField(
+        "Valor solicitado (cambio)",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Nuevo valor pedido por ventas; aplica solo si gerencia aprueba.",
+    )
+    precio_solicitud_motivo = models.CharField(
+        "Motivo del cambio de precio",
+        max_length=255,
+        blank=True,
+    )
+
+    class ValidacionPrecio(models.TextChoices):
+        NO_APLICA = "NO_APLICA", "Sin cambio"
+        PENDIENTE = "PENDIENTE", "Pendiente de gerencia"
+        APROBADO = "APROBADO", "Cambio aprobado"
+        RECHAZADO = "RECHAZADO", "Cambio rechazado"
+
+    validacion_precio = models.CharField(
+        "Validación de precio",
+        max_length=20,
+        choices=ValidacionPrecio.choices,
+        default=ValidacionPrecio.NO_APLICA,
+        db_index=True,
+    )
+    precio_solicitado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="formatos_precio_solicitados",
+    )
+    precio_solicitado_en = models.DateTimeField(null=True, blank=True)
+    precio_validado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="formatos_precio_validados",
+    )
+    precio_validado_en = models.DateTimeField(null=True, blank=True)
+    precio_validacion_nota = models.CharField(max_length=255, blank=True)
     prima_1 = models.DecimalField(
         "Reserva $",
         max_digits=14,
@@ -1685,6 +1851,10 @@ class FormatoAceptacion(models.Model):
             if not f or not f.name:
                 return False
         return True
+
+    @property
+    def pendiente_validacion_precio(self) -> bool:
+        return self.validacion_precio == self.ValidacionPrecio.PENDIENTE
 
     def save(self, *args, **kwargs):
         # El vendedor ingresa el número; no se autoasigna.

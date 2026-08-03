@@ -100,6 +100,7 @@ from .models import (
     InmuebleDetalleLocalAlquiler,
     InmuebleImagen,
     Pago,
+    ParametroEtapaVenta,
     ParametroMora,
     Poligono,
     Proyecto,
@@ -451,15 +452,28 @@ def _proyecto_para_pdf_formato(formato: FormatoAceptacion):
 
 def _proyectos_para_formato_aceptacion() -> list[dict]:
     """Catálogo para el selector que rellena nombre y dirección del terreno en el formato."""
-    return list(
-        Proyecto.objects.filter(activo=True)
-        .order_by("nombre")
-        .values("id", "nombre", "direccion")
-    )
+    rows = []
+    for p in Proyecto.objects.filter(activo=True).order_by("nombre"):
+        rows.append(
+            {
+                "id": p.pk,
+                "nombre": p.nombre,
+                "direccion": p.direccion,
+                "porcentaje_prima": (
+                    str(p.porcentaje_prima) if p.porcentaje_prima is not None else ""
+                ),
+                "porcentaje_reserva": (
+                    str(p.porcentaje_reserva) if p.porcentaje_reserva is not None else ""
+                ),
+            }
+        )
+    return rows
 
 
 def _catalogo_inmuebles_formato_aceptacion() -> dict:
     """Polígonos por proyecto, lotes por polígono (o sin polígono) e índice por id de inmueble."""
+    from inmobiliaria.etapa_venta import etapa_para_proyecto, precio_lote_en_etapa
+
     polis_por_proyecto: dict[int, list[dict]] = defaultdict(list)
     for pol in (
         Poligono.objects.filter(proyecto__activo=True)
@@ -468,6 +482,7 @@ def _catalogo_inmuebles_formato_aceptacion() -> dict:
     ):
         polis_por_proyecto[pol.proyecto_id].append({"id": pol.pk, "nombre": pol.nombre})
 
+    etapas_por_proyecto: dict[int, dict] = {}
     lotes_por_clave: dict[str, list[dict]] = defaultdict(list)
     inmueble_por_id: dict[str, dict] = {}
     for inv in (
@@ -475,6 +490,10 @@ def _catalogo_inmuebles_formato_aceptacion() -> dict:
         .select_related("poligono", "proyecto", "cliente_reserva")
         .order_by("proyecto_id", "poligono_id", "codigo")
     ):
+        if inv.proyecto_id not in etapas_por_proyecto:
+            etapas_por_proyecto[inv.proyecto_id] = etapa_para_proyecto(inv.proyecto_id)
+        etapa = etapas_por_proyecto[inv.proyecto_id]
+        precio_etapa = precio_lote_en_etapa(inv, etapa["codigo"])
         clave = str(inv.poligono_id) if inv.poligono_id else f"np:{inv.proyecto_id}"
         pol_nombre = inv.poligono.nombre if inv.poligono_id else ""
         cli = inv.cliente_reserva
@@ -484,7 +503,18 @@ def _catalogo_inmuebles_formato_aceptacion() -> dict:
         entry = {
             "id": inv.pk,
             "codigo": inv.codigo,
-            "precio": str(inv.precio_lista),
+            "precio": str(precio_etapa if precio_etapa is not None else inv.precio_lista),
+            "precio_preventa": str(inv.precio_preventa) if inv.precio_preventa is not None else "",
+            "precio_promocional": str(inv.precio_promocional)
+            if inv.precio_promocional is not None
+            else "",
+            "precio_pos_preventa": str(inv.precio_pos_preventa)
+            if inv.precio_pos_preventa is not None
+            else "",
+            "etapa_codigo": etapa["codigo"],
+            "etapa_label": etapa["label"],
+            "etapa_rango": etapa["rango_label"],
+            "comprometidos": etapa["comprometidos"],
             "area_m2": str(inv.area_m2) if inv.area_m2 is not None else "",
             "area_v2": str(inv.area_varas_cuadradas)
             if inv.area_varas_cuadradas is not None
@@ -512,6 +542,7 @@ def _catalogo_inmuebles_formato_aceptacion() -> dict:
         "poligonosPorProyecto": {str(k): v for k, v in polis_por_proyecto.items()},
         "lotesPorClave": dict(lotes_por_clave),
         "inmueblePorId": inmueble_por_id,
+        "etapasPorProyecto": {str(k): v for k, v in etapas_por_proyecto.items()},
     }
 
 
@@ -576,7 +607,8 @@ def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list
             "title": "Datos del crédito",
             "rows": rows_compact(
                 row(G("area_m2_txt"), G("area_v2_txt")),
-                row(G("valor_inmueble")),
+                row(G("valor_inmueble_sistema"), G("valor_inmueble")),
+                row(G("valor_inmueble_solicitado"), G("precio_solicitud_motivo")),
                 row(G("prima_1"), G("prima_1_fecha")),
                 row(G("prima_2"), G("prima_2_fecha")),
                 row(G("tipo_financiamiento")),
@@ -785,6 +817,9 @@ class AppIndexView(AppLoginRequiredMixin, TemplateView):
             ctx["vend_pagos_pendientes"] = pagos_qs.filter(
                 validacion_abono=Pago.ValidacionAbono.PENDIENTE
             ).count()
+            from inmobiliaria.comision_vendedor import resumen_progreso_comision_vendedor
+
+            ctx["vend_progreso_comision"] = resumen_progreso_comision_vendedor(user)
             return ctx
         ctx.update(
             build_gestion_hub_context(
@@ -2832,6 +2867,18 @@ class PagoCreateView(AppLoginRequiredMixin, CreateView):
     template_name = "app/pago_form.html"
     success_url = reverse_lazy("app:pago_list")
 
+    def dispatch(self, request, *args, **kwargs):
+        from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
+        concepto = (request.GET.get("concepto") or "").strip().upper()
+        if es_vendedor_restringido(request.user) and concepto == Pago.Concepto.CUOTA:
+            messages.error(
+                request,
+                "Los recibos a plazos (cuotas) solo los registra gerencia o administrador.",
+            )
+            return HttpResponseRedirect(reverse("app:index"))
+        return super().dispatch(request, *args, **kwargs)
+
     def get_form_kwargs(self):
         kw = super().get_form_kwargs()
         kw["ocultar_contrato"] = True
@@ -3111,6 +3158,158 @@ def pago_rechazar_abono(request: HttpRequest, pk: int) -> HttpResponse:
         "Abono rechazado. No se generó recibo ni se notificó al cliente.",
     )
     return HttpResponseRedirect(reverse("app:pago_list") + "?validacion=pendiente")
+
+
+@login_required
+def formato_precio_pendiente_list(request: HttpRequest) -> HttpResponse:
+    from usuarios.roles import puede_aprobar_precio_formato
+
+    if not puede_aprobar_precio_formato(request.user):
+        messages.error(request, "Solo gerencia o administrador puede aprobar precios.")
+        return HttpResponseRedirect(reverse("app:formato_aceptacion_list"))
+
+    qs = (
+        FormatoAceptacion.objects.filter(
+            validacion_precio=FormatoAceptacion.ValidacionPrecio.PENDIENTE
+        )
+        .select_related("precio_solicitado_por")
+        .order_by("-precio_solicitado_en", "-pk")
+    )
+    return render(
+        request,
+        "app/formato_precio_pendiente_list.html",
+        {"formatos": qs},
+    )
+
+
+@login_required
+def formato_precio_aprobar(request: HttpRequest, pk: int) -> HttpResponse:
+    from usuarios.roles import puede_aprobar_precio_formato
+
+    if not puede_aprobar_precio_formato(request.user):
+        messages.error(request, "Solo gerencia o administrador puede aprobar precios.")
+        return HttpResponseRedirect(reverse("app:formato_aceptacion_list"))
+
+    fmt = get_object_or_404(FormatoAceptacion, pk=pk)
+    if not fmt.pendiente_validacion_precio:
+        messages.warning(request, "Este formato no tiene cambio de precio pendiente.")
+        return HttpResponseRedirect(reverse("app:formato_precio_pendiente_list"))
+
+    if request.method != "POST":
+        return render(
+            request,
+            "app/formato_precio_validar.html",
+            {"formato": fmt, "accion": "aprobar"},
+        )
+
+    nota = (request.POST.get("validacion_nota") or "").strip()[:255] or "Precio aprobado"
+    if fmt.valor_inmueble_solicitado is not None:
+        fmt.valor_inmueble = fmt.valor_inmueble_solicitado
+    fmt.validacion_precio = FormatoAceptacion.ValidacionPrecio.APROBADO
+    fmt.precio_validado_por = request.user
+    fmt.precio_validado_en = timezone.localtime()
+    fmt.precio_validacion_nota = nota
+    fmt.save(
+        update_fields=[
+            "valor_inmueble",
+            "validacion_precio",
+            "precio_validado_por",
+            "precio_validado_en",
+            "precio_validacion_nota",
+        ]
+    )
+    messages.success(
+        request,
+        f"Precio aprobado en formato #{fmt.numero_formulario:04d}: ${fmt.valor_inmueble}.",
+    )
+    return HttpResponseRedirect(reverse("app:formato_precio_pendiente_list"))
+
+
+@login_required
+def formato_precio_rechazar(request: HttpRequest, pk: int) -> HttpResponse:
+    from usuarios.roles import puede_aprobar_precio_formato
+
+    if not puede_aprobar_precio_formato(request.user):
+        messages.error(request, "Solo gerencia o administrador puede rechazar precios.")
+        return HttpResponseRedirect(reverse("app:formato_aceptacion_list"))
+
+    fmt = get_object_or_404(FormatoAceptacion, pk=pk)
+    if not fmt.pendiente_validacion_precio:
+        messages.warning(request, "Este formato no tiene cambio de precio pendiente.")
+        return HttpResponseRedirect(reverse("app:formato_precio_pendiente_list"))
+
+    if request.method != "POST":
+        return render(
+            request,
+            "app/formato_precio_validar.html",
+            {"formato": fmt, "accion": "rechazar"},
+        )
+
+    nota = (request.POST.get("validacion_nota") or "").strip()[:255]
+    if not nota:
+        messages.error(request, "Indique el motivo del rechazo.")
+        return render(
+            request,
+            "app/formato_precio_validar.html",
+            {"formato": fmt, "accion": "rechazar"},
+        )
+
+    if fmt.valor_inmueble_sistema is not None:
+        fmt.valor_inmueble = fmt.valor_inmueble_sistema
+    fmt.validacion_precio = FormatoAceptacion.ValidacionPrecio.RECHAZADO
+    fmt.precio_validado_por = request.user
+    fmt.precio_validado_en = timezone.localtime()
+    fmt.precio_validacion_nota = nota
+    fmt.save(
+        update_fields=[
+            "valor_inmueble",
+            "validacion_precio",
+            "precio_validado_por",
+            "precio_validado_en",
+            "precio_validacion_nota",
+        ]
+    )
+    messages.success(
+        request,
+        f"Cambio de precio rechazado en formato #{fmt.numero_formulario:04d}. "
+        f"Se mantiene ${fmt.valor_inmueble}.",
+    )
+    return HttpResponseRedirect(reverse("app:formato_precio_pendiente_list"))
+
+
+class ParametroEtapaVentaUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
+    """Editar rangos generales de etapa (una sola configuración)."""
+
+    model = ParametroEtapaVenta
+    fields = ("hasta_preventa", "hasta_promocional", "hasta_pos_preventa")
+    template_name = "app/object_form.html"
+    success_url = reverse_lazy("app:parametro_etapa_venta")
+
+    def get_object(self, queryset=None):
+        from inmobiliaria.etapa_venta import get_parametro_etapa
+
+        return get_parametro_etapa()
+
+    def dispatch(self, request, *args, **kwargs):
+        from usuarios.roles import puede_aprobar_precio_formato
+
+        if not puede_aprobar_precio_formato(request.user):
+            messages.error(request, "Solo gerencia o administrador puede editar etapas.")
+            return HttpResponseRedirect(reverse("app:proyecto_list"))
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form_title"] = "Etapas de venta (rangos generales)"
+        ctx["form_intro"] = (
+            "Preventa / Promocional / Pos preventa. El contador de lotes es por proyecto; "
+            "estos rangos son los mismos para todos."
+        )
+        return ctx
+
+    def form_valid(self, form):
+        messages.success(self.request, "Rangos de etapa actualizados.")
+        return super().form_valid(form)
 
 
 class PagoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):

@@ -143,6 +143,9 @@ _DOCS = frozenset(
         "formato_superuser_gate",
         "formato_aceptacion_promesa_subir",
         "formato_aceptacion_promesa_descargar",
+        "formato_precio_pendiente_list",
+        "formato_precio_aprobar",
+        "formato_precio_rechazar",
         "docs_list",
         "docs_cliente",
         "doc_download",
@@ -256,6 +259,13 @@ def build_sidebar_nav(url_name: str | None, *, pago_concepto: str | None = None)
             "formato_aceptacion_pdf",
         },
         "formato_list_active": u == "formato_aceptacion_list",
+        "precio_formato_active": u
+        in {
+            "formato_precio_pendiente_list",
+            "formato_precio_aprobar",
+            "formato_precio_rechazar",
+        },
+        "etapa_venta_active": u == "parametro_etapa_venta",
         "docs_active": u in {"docs_list", "docs_cliente", "doc_download", "emitir_promesa", "emitir_recibo"},
         "usuario_active": u
         in {

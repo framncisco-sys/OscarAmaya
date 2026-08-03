@@ -8,3 +8,8 @@ db.sqlite3
 staticfiles/
 # Archivos subidos por usuarios (PDFs, planos); no van al repositorio
 media/
+
+_local_sync/
+
+
+_local_seed_etapas.py

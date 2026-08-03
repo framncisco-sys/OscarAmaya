@@ -335,15 +335,19 @@ def build_gestion_hub_context(
         validacion_abono=Pago.ValidacionAbono.PENDIENTE
     ).count()
 
+    from docs.models import DocumentoEmitido
+    from inmobiliaria.models import FormatoAceptacion
+
+    precios_formato_pendientes = FormatoAceptacion.objects.filter(
+        validacion_precio=FormatoAceptacion.ValidacionPrecio.PENDIENTE
+    ).count()
+
     reservas_vencidas = inventario.filter(
         tipo=_LOTE,
         estado=_EST.RESERVADO,
         reserva_hasta__isnull=False,
         reserva_hasta__lt=hoy,
     ).count()
-
-    from docs.models import DocumentoEmitido
-    from inmobiliaria.models import FormatoAceptacion
 
     docs_total = DocumentoEmitido.objects.count()
     formatos_total = FormatoAceptacion.objects.count()
@@ -365,6 +369,7 @@ def build_gestion_hub_context(
             "contratos_total": contratos_qs.count(),
             "pagos_mes": pagos_mes,
             "pagos_pendientes_validacion": pagos_pendientes_validacion,
+            "precios_formato_pendientes": precios_formato_pendientes,
             "monto_mes": monto_mes,
             "documentos": docs_total,
             "formatos": formatos_total,
@@ -423,6 +428,7 @@ def build_sidebar_stats(
         "contratos_total": resumen["contratos_total"],
         "pagos_mes": resumen["pagos_mes"],
         "pagos_pendientes_validacion": resumen.get("pagos_pendientes_validacion", 0),
+        "precios_formato_pendientes": resumen.get("precios_formato_pendientes", 0),
         "documentos": resumen["documentos"],
         "formatos": resumen["formatos"],
         "parametros_mora": ParametroMora.objects.count(),

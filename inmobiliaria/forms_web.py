@@ -252,6 +252,8 @@ class ProyectoForm(forms.ModelForm):
             "direccion",
             "logo",
             "plano_maestro",
+            "porcentaje_prima",
+            "porcentaje_reserva",
             "permisos_notas",
             "activo",
         ]
@@ -264,6 +266,24 @@ class ProyectoForm(forms.ModelForm):
             ),
             "direccion": forms.Textarea(attrs={"rows": 2}),
             "permisos_notas": forms.Textarea(attrs={"rows": 3}),
+            "porcentaje_prima": forms.NumberInput(
+                attrs={
+                    "step": "0.01",
+                    "min": "0",
+                    "max": "100",
+                    "inputmode": "decimal",
+                    "placeholder": "ej. 20",
+                }
+            ),
+            "porcentaje_reserva": forms.NumberInput(
+                attrs={
+                    "step": "0.01",
+                    "min": "0",
+                    "max": "100",
+                    "inputmode": "decimal",
+                    "placeholder": "ej. 5",
+                }
+            ),
         }
 
     def __init__(self, *args, **kwargs):
@@ -276,6 +296,29 @@ class ProyectoForm(forms.ModelForm):
         self.fields["plano_maestro"].help_text = (
             "Plano completo (PDF o imagen). Se usa en el mapa de lotes y polígonos."
         )
+        pp = self.fields.get("porcentaje_prima")
+        if pp:
+            pp.help_text = (
+                "Prima total como % del valor del lote. En el formato: "
+                "Reserva + Prima a pagar = valor × este %."
+            )
+        pr = self.fields.get("porcentaje_reserva")
+        if pr:
+            pr.help_text = (
+                "% del valor del lote para la reserva. Debe ser ≤ prima total %. "
+                "Se calcula sola al elegir el lote."
+            )
+
+    def clean(self):
+        cleaned = super().clean()
+        pct_p = cleaned.get("porcentaje_prima")
+        pct_r = cleaned.get("porcentaje_reserva")
+        if pct_p is not None and pct_r is not None and pct_r > pct_p:
+            self.add_error(
+                "porcentaje_reserva",
+                "La reserva % no puede ser mayor que la prima total %.",
+            )
+        return cleaned
 
 
 class PoligonoForm(forms.ModelForm):
@@ -381,6 +424,18 @@ class InmuebleForm(forms.ModelForm):
             if not self.instance.pk and "tipo" not in self.initial:
                 tf.initial = Inmueble.Tipo.CASA_NUEVA
 
+        for fname in ("precio_preventa", "precio_promocional", "precio_pos_preventa", "precio_lista"):
+            f = self.fields.get(fname)
+            if f:
+                f.widget.attrs.setdefault("inputmode", "decimal")
+                f.widget.attrs.setdefault("placeholder", "0.00")
+        pl = self.fields.get("precio_lista")
+        if pl:
+            pl.help_text = (
+                "Precio vigente según la etapa del proyecto (se actualiza al guardar). "
+                "Si deja vacíos Preventa/Promocional/Pos, se copia este monto a los tres."
+            )
+
     def clean(self):
         cleaned = super().clean()
         t = cleaned.get("tipo")
@@ -405,7 +460,23 @@ class InmuebleForm(forms.ModelForm):
         else:
             cleaned["reserva_hasta"] = None
             cleaned["cliente_reserva"] = None
+
+        # Si solo hay precio_lista, copiar a las 3 etapas (carga rápida).
+        pl = cleaned.get("precio_lista")
+        for fname in ("precio_preventa", "precio_promocional", "precio_pos_preventa"):
+            if cleaned.get(fname) is None and pl is not None:
+                cleaned[fname] = pl
         return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        from inmobiliaria.etapa_venta import sync_precio_lista
+
+        sync_precio_lista(instance, save=False)
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
 
 
 class InmuebleCasaAltaForm(InmuebleForm):
@@ -1391,6 +1462,15 @@ class PagoForm(forms.ModelForm):
                     Pago.Concepto.MORA,
                     Pago.Concepto.OTRO,
                 ]
+                # Vendedor: no registra cuotas a plazos (solo gerencia/admin).
+                from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
+                if self._pago_user is not None and es_vendedor_restringido(self._pago_user):
+                    orden = [x for x in orden if x != Pago.Concepto.CUOTA]
+                    c.help_text = (
+                        "Puede registrar reserva, prima u otros conceptos de su flujo. "
+                        "Los recibos a plazos (cuotas) los registra gerencia o administrador."
+                    )
                 c.choices = [(x.value, x.label) for x in orden]
 
         r = self.fields.get("referencia")
@@ -1804,6 +1884,17 @@ class PagoForm(forms.ModelForm):
         concepto = cleaned_data.get("concepto")
         contrato = cleaned_data.get("contrato")
 
+        from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
+        if (
+            concepto == Pago.Concepto.CUOTA
+            and self._pago_user is not None
+            and es_vendedor_restringido(self._pago_user)
+        ):
+            raise ValidationError(
+                "Los recibos a plazos (cuotas) solo los registra gerencia o administrador."
+            )
+
         if (
             concepto
             in {
@@ -2142,6 +2233,12 @@ _FORMATO_ACEPTACION_EXCLUDE = (
     "promesa_venta_escaneada",
     "contrato_compraventa_escaneado",
     "boucher_pago_reserva",
+    "validacion_precio",
+    "precio_solicitado_por",
+    "precio_solicitado_en",
+    "precio_validado_por",
+    "precio_validado_en",
+    "precio_validacion_nota",
 )
 _FORMATO_ACEPTACION_FIELDS = [
     f.name
@@ -2534,12 +2631,18 @@ class FormatoAceptacionForm(forms.ModelForm):
         # Reserva primero, luego prima (mismos campos en BD: prima_1 / prima_2)
         if "prima_1" in self.fields:
             self.fields["prima_1"].label = "Reserva $"
-            self.fields["prima_1"].help_text = "Monto de la reserva al llenar el formato."
+            self.fields["prima_1"].help_text = (
+                "Se calcula con el % de reserva del proyecto sobre el valor del lote. "
+                "Puede corregirla si hace falta."
+            )
         if "prima_1_fecha" in self.fields:
             self.fields["prima_1_fecha"].label = "Fecha de pago de reserva"
         if "prima_2" in self.fields:
             self.fields["prima_2"].label = "Prima a pagar $"
-            self.fields["prima_2"].help_text = "Monto de la prima (se paga después de la reserva)."
+            self.fields["prima_2"].help_text = (
+                "Se calcula: (valor × % prima) − reserva. "
+                "Puede corregirla si hace falta."
+            )
         if "prima_2_fecha" in self.fields:
             self.fields["prima_2_fecha"].label = "Fecha de pago de prima"
 
@@ -2564,6 +2667,8 @@ class FormatoAceptacionForm(forms.ModelForm):
         for fname in (
             "sueldo",
             "valor_inmueble",
+            "valor_inmueble_sistema",
+            "valor_inmueble_solicitado",
             "prima_1",
             "prima_2",
             "valor_financiamiento",
@@ -2577,7 +2682,10 @@ class FormatoAceptacionForm(forms.ModelForm):
                 help_text=getattr(old, "help_text", "") or "",
                 max_digits=14,
                 decimal_places=2,
-                required=old.required,
+                required=False if fname in (
+                    "valor_inmueble_sistema",
+                    "valor_inmueble_solicitado",
+                ) else old.required,
                 widget=forms.TextInput(
                     attrs={
                         "class": "input input-monto-us",
@@ -2592,6 +2700,33 @@ class FormatoAceptacionForm(forms.ModelForm):
                 self.fields[fname].help_text = (
                     "La escribe el vendedor. Meses 1–12 sin interés; desde el mes 13 ya va con intereses."
                 )
+
+        sis = self.fields.get("valor_inmueble_sistema")
+        if sis:
+            sis.widget.attrs["readonly"] = True
+            sis.required = False
+        etapa_f = self.fields.get("etapa_venta_aplicada")
+        if etapa_f:
+            etapa_f.widget = forms.HiddenInput()
+            etapa_f.required = False
+        vin = self.fields.get("valor_inmueble")
+        if vin:
+            vin.widget.attrs["readonly"] = True
+            vin.help_text = (
+                "Precio automático según etapa del proyecto. "
+                "Para cambiarlo use «Valor solicitado» + motivo (requiere gerencia)."
+            )
+        sol = self.fields.get("valor_inmueble_solicitado")
+        if sol:
+            sol.required = False
+            sol.help_text = "Opcional. Si indica un monto distinto, gerencia debe aprobarlo."
+        mot = self.fields.get("precio_solicitud_motivo")
+        if mot:
+            mot.required = False
+            mot.widget.attrs.setdefault("class", "input")
+            mot.widget.attrs["placeholder"] = (
+                "Motivo del cambio (obligatorio si solicita otro monto)"
+            )
 
         if self.instance and getattr(self.instance, "pk", None):
             pa = _formato_plazo_guardado_a_anos_select(self.instance.plazo_txt)
@@ -2791,11 +2926,129 @@ class FormatoAceptacionForm(forms.ModelForm):
                 if alerta:
                     self.add_error("num_lote", alerta)
 
+        # Reserva / prima del proyecto (ambos % del valor del lote):
+        # reserva = valor × % reserva; prima_total = valor × % prima;
+        # prima_a_pagar = prima_total − reserva.
+        proy_nombre = (cleaned.get("nombre_proyecto") or "").strip()
+        if proy_nombre:
+            proy = (
+                Proyecto.objects.filter(nombre__iexact=proy_nombre, activo=True).first()
+                or Proyecto.objects.filter(
+                    nombre__icontains=proy_nombre, activo=True
+                ).first()
+            )
+        else:
+            proy = None
+
+        valor = cleaned.get("valor_inmueble")
+        if valor is None:
+            valor = cleaned.get("valor_inmueble_sistema")
+
+        if proy is not None and valor is not None:
+            valor_d = Decimal(valor)
+            if proy.porcentaje_reserva is not None and cleaned.get("prima_1") is None:
+                cleaned["prima_1"] = (
+                    valor_d * Decimal(proy.porcentaje_reserva) / Decimal("100")
+                ).quantize(Decimal("0.01"))
+
+            reserva = cleaned.get("prima_1")
+            if proy.porcentaje_prima is not None and reserva is not None:
+                prima_total = (
+                    valor_d * Decimal(proy.porcentaje_prima) / Decimal("100")
+                ).quantize(Decimal("0.01"))
+                restante = (prima_total - Decimal(reserva)).quantize(Decimal("0.01"))
+                if restante < 0:
+                    self.add_error(
+                        "prima_1",
+                        "La reserva no puede superar la prima total "
+                        f"({proy.porcentaje_prima}% del lote = ${prima_total}).",
+                    )
+                else:
+                    cleaned["prima_2"] = restante
+
+        # Cambio de precio: si piden otro monto, exige motivo.
+        from inmobiliaria.etapa_venta import decimales_iguales
+
+        sistema = cleaned.get("valor_inmueble_sistema")
+        solicitado = cleaned.get("valor_inmueble_solicitado")
+        motivo = (cleaned.get("precio_solicitud_motivo") or "").strip()
+        if solicitado is not None and sistema is not None:
+            if not decimales_iguales(solicitado, sistema) and not motivo:
+                self.add_error(
+                    "precio_solicitud_motivo",
+                    "Indique el motivo del cambio de precio para que gerencia lo revise.",
+                )
+        elif solicitado is not None and sistema is None and not motivo:
+            self.add_error(
+                "precio_solicitud_motivo",
+                "Indique el motivo del cambio de precio.",
+            )
+
+        # El valor vigente del documento es el del sistema (hasta que gerencia apruebe).
+        if (
+            self.instance
+            and self.instance.pk
+            and self.instance.validacion_precio
+            == FormatoAceptacion.ValidacionPrecio.APROBADO
+            and self.instance.valor_inmueble is not None
+            and not (solicitado is not None and sistema is not None and not decimales_iguales(solicitado, sistema) and motivo)
+        ):
+            cleaned["valor_inmueble"] = self.instance.valor_inmueble
+        elif sistema is not None:
+            cleaned["valor_inmueble"] = sistema
+
         return cleaned
 
     def save(self, commit=True):
+        from django.utils import timezone
+        from inmobiliaria.etapa_venta import decimales_iguales
+        from usuarios.roles import puede_aprobar_precio_formato
+
         instance = super().save(commit=False)
         _aplicar_elaborado_por_desde_vendedor(instance, getattr(self, "_formato_user", None))
+        user = getattr(self, "_formato_user", None)
+
+        sistema = instance.valor_inmueble_sistema
+        solicitado = instance.valor_inmueble_solicitado
+        motivo = (instance.precio_solicitud_motivo or "").strip()
+
+        pide_cambio = (
+            solicitado is not None
+            and sistema is not None
+            and not decimales_iguales(solicitado, sistema)
+        ) or (solicitado is not None and sistema is None)
+
+        if pide_cambio and motivo:
+            if user and puede_aprobar_precio_formato(user):
+                instance.valor_inmueble = solicitado
+                instance.validacion_precio = FormatoAceptacion.ValidacionPrecio.APROBADO
+                instance.precio_validado_por = user
+                instance.precio_validado_en = timezone.localtime()
+                instance.precio_validacion_nota = motivo or "Aplicado por gerencia/admin"
+                instance.precio_solicitado_por = user
+                instance.precio_solicitado_en = timezone.localtime()
+            else:
+                if sistema is not None:
+                    instance.valor_inmueble = sistema
+                instance.validacion_precio = FormatoAceptacion.ValidacionPrecio.PENDIENTE
+                instance.precio_solicitado_por = user if user and user.is_authenticated else None
+                instance.precio_solicitado_en = timezone.localtime()
+                instance.precio_validado_por = None
+                instance.precio_validado_en = None
+                instance.precio_validacion_nota = ""
+        elif instance.validacion_precio == FormatoAceptacion.ValidacionPrecio.APROBADO:
+            if solicitado is not None:
+                instance.valor_inmueble = solicitado
+        else:
+            if sistema is not None:
+                instance.valor_inmueble = sistema
+            instance.valor_inmueble_solicitado = None
+            instance.precio_solicitud_motivo = ""
+            if instance.validacion_precio == FormatoAceptacion.ValidacionPrecio.PENDIENTE:
+                instance.validacion_precio = FormatoAceptacion.ValidacionPrecio.NO_APLICA
+                instance.precio_solicitado_por = None
+                instance.precio_solicitado_en = None
+
         if formato_aceptacion_credito_extra_columns_ready():
             _aplicar_pistas_observaciones_financiamiento(instance)
         plazo_sync = (instance.plazo_txt or "").strip()

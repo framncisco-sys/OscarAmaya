@@ -132,6 +132,11 @@ def puede_validar_abonos(user: AbstractUser | None) -> bool:
     return p.rol in (p.Rol.ADMINISTRADOR, p.Rol.GERENCIA)
 
 
+def puede_aprobar_precio_formato(user: AbstractUser | None) -> bool:
+    """Aprobar cambios de precio en formato de aceptación (misma autoridad que validar abonos)."""
+    return puede_validar_abonos(user)
+
+
 def puede_gestionar_usuarios(user: AbstractUser | None) -> bool:
     """Crear/editar usuarios y perfiles en /app/usuarios/."""
     if not user or not user.is_authenticated:

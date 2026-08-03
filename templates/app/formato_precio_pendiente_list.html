@@ -1,0 +1,58 @@
+{% extends "app/base_app.html" %}
+{% load money_fmt %}
+{% block title %}Aprobar precios | {{ marca_portal.nombre }}{% endblock %}
+
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Cambios de precio pendientes</h1>
+    <p class="page-toolbar__meta">
+      Ventas solicitó un monto distinto al de la etapa. Apruebe o rechace como con los abonos.
+    </p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:parametro_etapa_venta' %}" class="btn-secondary btn-sm">Rangos de etapa</a>
+    <a href="{% url 'app:formato_aceptacion_list' %}" class="btn-secondary btn-sm">Formatos</a>
+  </div>
+</header>
+
+{% if formatos %}
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Formato</th>
+        <th>Cliente / lote</th>
+        <th>Etapa</th>
+        <th>Sistema</th>
+        <th>Solicitado</th>
+        <th>Motivo</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in formatos %}
+      <tr>
+        <td>#{{ f.numero_formulario|stringformat:"04d" }}</td>
+        <td>
+          {{ f.nombre_cliente }}<br>
+          <span class="muted">{{ f.nombre_proyecto }} · Lote {{ f.num_lote }}</span>
+        </td>
+        <td>{{ f.etapa_venta_aplicada|default:"—" }}</td>
+        <td>{% if f.valor_inmueble_sistema %}${{ f.valor_inmueble_sistema|money_us }}{% else %}—{% endif %}</td>
+        <td><strong>{% if f.valor_inmueble_solicitado %}${{ f.valor_inmueble_solicitado|money_us }}{% else %}—{% endif %}</strong></td>
+        <td>{{ f.precio_solicitud_motivo|default:"—" }}</td>
+        <td>
+          <a href="{% url 'app:formato_precio_aprobar' f.pk %}" class="link-action" style="font-weight:700;">Aprobar</a>
+          ·
+          <a href="{% url 'app:formato_precio_rechazar' f.pk %}" class="link-action">Rechazar</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="muted">No hay cambios de precio pendientes.</p>
+{% endif %}
+{% endblock %}

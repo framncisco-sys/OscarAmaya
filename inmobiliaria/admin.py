@@ -14,6 +14,7 @@ from .models import (
     InmuebleDetalleLocalAlquiler,
     InmuebleImagen,
     Pago,
+    ParametroEtapaVenta,
     ParametroMora,
     Poligono,
     Proyecto,
@@ -55,7 +56,16 @@ class InmuebleDetalleCasaAlquilerInline(admin.StackedInline):
 
 @admin.register(Proyecto)
 class ProyectoAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "municipio", "departamento", "activo", "logo", "plano_maestro")
+    list_display = (
+        "nombre",
+        "municipio",
+        "departamento",
+        "porcentaje_reserva",
+        "porcentaje_prima",
+        "activo",
+        "logo",
+        "plano_maestro",
+    )
     list_filter = ("activo", "departamento")
     search_fields = ("nombre", "municipio", "departamento", "direccion")
     fields = (
@@ -65,6 +75,8 @@ class ProyectoAdmin(admin.ModelAdmin):
         "direccion",
         "logo",
         "plano_maestro",
+        "porcentaje_prima",
+        "porcentaje_reserva",
         "permisos_notas",
         "activo",
     )
@@ -133,6 +145,9 @@ class InmuebleAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "precio_lista",
+                    "precio_preventa",
+                    "precio_promocional",
+                    "precio_pos_preventa",
                     "area_varas_cuadradas",
                     "area_m2",
                     "frente_m",
@@ -291,3 +306,10 @@ class ParametroMoraAdmin(admin.ModelAdmin):
     list_display = ("nombre", "monto_recargo", "dias_gracia", "activo")
     list_filter = ("activo",)
     fields = ("nombre", "monto_recargo", "dias_gracia", "activo")
+
+
+@admin.register(ParametroEtapaVenta)
+class ParametroEtapaVentaAdmin(admin.ModelAdmin):
+    list_display = ("hasta_preventa", "hasta_promocional", "hasta_pos_preventa", "actualizado_en")
+    fields = ("hasta_preventa", "hasta_promocional", "hasta_pos_preventa", "actualizado_en")
+    readonly_fields = ("actualizado_en",)

@@ -273,6 +273,102 @@
       recalcLetra();
     }
 
+    var porcentajePrimaProyecto = null;
+    var porcentajeReservaProyecto = null;
+
+    function proyectoPorId(id) {
+      for (var i = 0; i < proyectos.length; i++) {
+        if (String(proyectos[i].id) === String(id)) return proyectos[i];
+      }
+      return null;
+    }
+
+    function actualizarInfoPrimaProyecto() {
+      var box = document.getElementById("pbr-prima-proyecto-info");
+      if (!box) return;
+      var partes = [];
+      if (porcentajeReservaProyecto != null && isFinite(porcentajeReservaProyecto)) {
+        partes.push("Reserva: " + porcentajeReservaProyecto + "% del lote");
+      }
+      if (porcentajePrimaProyecto != null && isFinite(porcentajePrimaProyecto)) {
+        partes.push("Prima total: " + porcentajePrimaProyecto + "% del lote");
+      }
+      if (!partes.length) {
+        box.hidden = true;
+        box.textContent = "";
+        return;
+      }
+      var r = parseMoney(prima1);
+      var p2 = parseMoney(prima2);
+      box.hidden = false;
+      box.textContent =
+        partes.join(" · ") +
+        (isFinite(r) || isFinite(p2)
+          ? " → Reserva $" +
+            formatMoneyUS(r || 0) +
+            " + Prima a pagar $" +
+            formatMoneyUS(p2 || 0)
+          : "") +
+        ".";
+    }
+
+    function aplicarReservaYPrimaDesdeProyecto(opts) {
+      opts = opts || {};
+      if (!prima1) {
+        actualizarInfoPrimaProyecto();
+        return;
+      }
+      var vi = parseMoney(valorInm);
+      if (!isFinite(vi) || vi <= 0) {
+        actualizarInfoPrimaProyecto();
+        return;
+      }
+      if (porcentajeReservaProyecto != null && isFinite(porcentajeReservaProyecto)) {
+        var reservaCalc = (vi * porcentajeReservaProyecto) / 100;
+        if (reservaCalc < 0) reservaCalc = 0;
+        setMoney(prima1, reservaCalc);
+      } else if (opts.clearReserva) {
+        prima1.value = "";
+      }
+
+      if (porcentajePrimaProyecto != null && isFinite(porcentajePrimaProyecto) && prima2) {
+        var primaTotal = (vi * porcentajePrimaProyecto) / 100;
+        var r = parseMoney(prima1);
+        if (isFinite(r)) {
+          var rest = primaTotal - r;
+          if (rest < 0) rest = 0;
+          setMoney(prima2, rest);
+        }
+      }
+      actualizarInfoPrimaProyecto();
+      recalcFin();
+    }
+
+    function setConfigFinancieraDesdeProyectoId(id) {
+      var p = proyectoPorId(id);
+      porcentajePrimaProyecto = null;
+      porcentajeReservaProyecto = null;
+      if (p) {
+        if (
+          p.porcentaje_prima !== undefined &&
+          p.porcentaje_prima !== null &&
+          String(p.porcentaje_prima) !== ""
+        ) {
+          var np = parseFloat(String(p.porcentaje_prima).replace(/,/g, ""));
+          porcentajePrimaProyecto = isFinite(np) ? np : null;
+        }
+        if (
+          p.porcentaje_reserva !== undefined &&
+          p.porcentaje_reserva !== null &&
+          String(p.porcentaje_reserva) !== ""
+        ) {
+          var nr = parseFloat(String(p.porcentaje_reserva).replace(/,/g, ""));
+          porcentajeReservaProyecto = isFinite(nr) ? nr : null;
+        }
+      }
+      aplicarReservaYPrimaDesdeProyecto();
+    }
+
     if (mapOk) {
       function fillPoligonos(proyectoId) {
         selPol.innerHTML = "";
@@ -530,7 +626,54 @@
           var p = parseFloat(L.precio);
           if (isFinite(p)) setMoney(valorInm, p);
         }
-        recalcFin();
+        var valorSis = document.getElementById("id_valor_inmueble_sistema");
+        if (valorSis && L.precio) {
+          var ps = parseFloat(L.precio);
+          if (isFinite(ps)) setMoney(valorSis, ps);
+        }
+        var etapaHid = document.getElementById("id_etapa_venta_aplicada");
+        if (etapaHid && L.etapa_codigo) etapaHid.value = L.etapa_codigo;
+        var etapaInfo = document.getElementById("pbr-etapa-venta-info");
+        if (etapaInfo) {
+          if (L.etapa_label) {
+            etapaInfo.hidden = false;
+            etapaInfo.textContent =
+              "Etapa del proyecto: " +
+              L.etapa_label +
+              (L.etapa_rango ? " (" + L.etapa_rango + ")" : "") +
+              (typeof L.comprometidos === "number"
+                ? " · Comprometidos: " + L.comprometidos
+                : "");
+          } else {
+            etapaInfo.hidden = true;
+            etapaInfo.textContent = "";
+          }
+        }
+        if (L.proyecto_id) {
+          var yaTieneReserva = allowExisting && isFinite(parseMoney(prima1));
+          if (yaTieneReserva) {
+            // Edición: cargar config del proyecto sin pisar reserva/prima guardadas.
+            var pCfg = proyectoPorId(L.proyecto_id);
+            porcentajePrimaProyecto = null;
+            porcentajeReservaProyecto = null;
+            if (pCfg) {
+              if (pCfg.porcentaje_prima) {
+                var nm = parseFloat(String(pCfg.porcentaje_prima).replace(/,/g, ""));
+                porcentajePrimaProyecto = isFinite(nm) ? nm : null;
+              }
+              if (pCfg.porcentaje_reserva) {
+                var np = parseFloat(String(pCfg.porcentaje_reserva).replace(/,/g, ""));
+                porcentajeReservaProyecto = isFinite(np) ? np : null;
+              }
+            }
+            actualizarInfoPrimaProyecto();
+            recalcFin();
+          } else {
+            setConfigFinancieraDesdeProyectoId(L.proyecto_id);
+          }
+        } else {
+          recalcFin();
+        }
         // Consulta en vivo: otro vendedor pudo reservar el lote al mismo tiempo.
         consultarEstadoLoteVivo(invId, opts);
       }
@@ -575,6 +718,7 @@
               break;
             }
           }
+          setConfigFinancieraDesdeProyectoId(id);
           fillPoligonos(id);
           ocultarAlertaLote();
         });
@@ -582,6 +726,7 @@
 
       if (selProyecto && selProyecto.value) {
         fillPoligonos(selProyecto.value);
+        setConfigFinancieraDesdeProyectoId(selProyecto.value);
       }
 
       function restoreLote() {
@@ -619,6 +764,65 @@
       if (el) el.addEventListener("input", recalcFin);
       if (el) el.addEventListener("change", recalcFin);
     });
+    if (prima1) {
+      prima1.addEventListener("input", function () {
+        // Si corrigen la reserva a mano, recalcular solo la prima a pagar.
+        var vi = parseMoney(valorInm);
+        if (
+          porcentajePrimaProyecto != null &&
+          isFinite(porcentajePrimaProyecto) &&
+          isFinite(vi) &&
+          vi > 0 &&
+          prima2
+        ) {
+          var r = parseMoney(prima1);
+          if (isFinite(r)) {
+            var rest = (vi * porcentajePrimaProyecto) / 100 - r;
+            if (rest < 0) rest = 0;
+            setMoney(prima2, rest);
+          }
+        }
+        actualizarInfoPrimaProyecto();
+        recalcFin();
+      });
+      prima1.addEventListener("change", function () {
+        var vi = parseMoney(valorInm);
+        if (
+          porcentajePrimaProyecto != null &&
+          isFinite(porcentajePrimaProyecto) &&
+          isFinite(vi) &&
+          vi > 0 &&
+          prima2
+        ) {
+          var r = parseMoney(prima1);
+          if (isFinite(r)) {
+            var rest = (vi * porcentajePrimaProyecto) / 100 - r;
+            if (rest < 0) rest = 0;
+            setMoney(prima2, rest);
+          }
+        }
+        actualizarInfoPrimaProyecto();
+        recalcFin();
+      });
+    }
+    if (valorInm) {
+      valorInm.addEventListener("change", function () {
+        aplicarReservaYPrimaDesdeProyecto();
+      });
+    }
+    // Si no hay selector pero sí nombre de proyecto, intentar resolver config.
+    if ((!selProyecto || !selProyecto.value) && nomProyecto) {
+      var nom = String(nomProyecto.value || "").trim().toLowerCase();
+      if (nom) {
+        for (var pi = 0; pi < proyectos.length; pi++) {
+          if (String(proyectos[pi].nombre || "").trim().toLowerCase() === nom) {
+            setConfigFinancieraDesdeProyectoId(proyectos[pi].id);
+            break;
+          }
+        }
+      }
+    }
+    actualizarInfoPrimaProyecto();
     if (valorFin) {
       valorFin.addEventListener("input", recalcLetra);
       valorFin.addEventListener("change", recalcLetra);

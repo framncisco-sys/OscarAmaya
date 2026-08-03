@@ -2425,9 +2425,11 @@ a.btn-secondary:active {
 }
 
 /* ——— /app/ gestión ——— */
+/* DOM: content → sidebar. Desktop fuerza menú a la izquierda con grid-areas. */
 .app-layout {
   display: grid;
   grid-template-columns: var(--pbr-sidebar-cols);
+  grid-template-areas: "sidebar content";
   gap: 1.75rem;
   width: var(--pbr-layout-max);
   margin: 0 auto;
@@ -2436,6 +2438,7 @@ a.btn-secondary:active {
 }
 
 .app-sidebar {
+  grid-area: sidebar;
   position: sticky;
   top: 1rem;
   border: 1px solid var(--pbr-border-light);
@@ -3280,6 +3283,7 @@ html[data-pbr-reduced-motion="1"] .app-sidebar__session-avatar-dot {
 }
 
 .app-content {
+  grid-area: content;
   min-width: 0;
 }
 
@@ -3511,13 +3515,10 @@ html[data-pbr-reduced-motion="1"] .app-sidebar__session-avatar-dot {
   font-size: 0.8125rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .app-layout {
     grid-template-columns: 1fr;
-  }
-
-  .app-sidebar {
-    position: static;
+    grid-template-areas: "content";
   }
 }
 
@@ -3885,24 +3886,28 @@ html[data-pbr-view="phone"] .app-header .app-wrap.app-header__inner {
 }
 
 html[data-pbr-view="phone"] .app-header__right {
-  width: 100%;
-  margin-left: 0;
-  flex-direction: column;
-  align-items: stretch;
+  width: auto;
+  margin-left: auto;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
 }
 
 html[data-pbr-view="phone"] .app-user-chip {
-  max-width: none;
+  max-width: 11rem;
 }
 
 html[data-pbr-view="phone"] .app-header__logout-btn {
-  width: 100%;
+  width: auto;
   justify-content: center;
   min-height: var(--pbr-touch-min);
+  padding-left: 0.65rem;
+  padding-right: 0.65rem;
 }
 
 html[data-pbr-view="phone"] .app-nav {
-  width: 100%;
+  width: auto;
 }
 
 html[data-pbr-view="phone"] .app-nav__link,
@@ -3914,12 +3919,23 @@ html[data-pbr-view="phone"] .app-nav .link-btn {
 }
 
 html[data-pbr-view="phone"] .app-layout {
+  grid-template-columns: 1fr;
+  grid-template-areas: "content";
   gap: 1rem;
   padding: 1rem 0 2rem;
 }
 
-html[data-pbr-view="phone"] .app-sidebar {
-  position: static;
+/* Evita que el header oculto / resize mueva el layout (vaivén en móvil). */
+html[data-pbr-class="mobile"] .app-header--hide {
+  transform: none !important;
+}
+
+html[data-pbr-class="mobile"] .app-header--scrolled .brand__img {
+  max-height: 68px;
+}
+
+html[data-pbr-class="mobile"] .app-header--scrolled .app-wrap.app-header__inner {
+  min-height: auto;
 }
 
 html[data-pbr-view="phone"] .brand__img {
@@ -3948,11 +3964,14 @@ html[data-pbr-view="tablet"] {
 }
 
 html[data-pbr-view="tablet"] .app-layout {
+  grid-template-columns: 1fr;
+  grid-template-areas: "content";
   gap: 1.25rem;
 }
 
-html[data-pbr-view="tablet"] .app-sidebar {
-  position: static;
+html[data-pbr-view="tablet"][data-pbr-orientation="landscape"] .app-layout {
+  grid-template-columns: 1fr;
+  grid-template-areas: "content";
 }
 
 html[data-pbr-view="tablet"] .mapa-toolbar {
@@ -4120,13 +4139,231 @@ html[data-pbr-class="mobile"] {
   --pbr-touch-min: 44px;
 }
 
-html[data-pbr-class="mobile"] .app-layout {
-  grid-template-columns: 1fr;
+/* ========== Shell móvil tipo app (como otros sistemas) ==========
+   body fijo; solo .app-main hace scroll. Así el teclado no pelea con la página. */
+html[data-pbr-class="mobile"] {
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  touch-action: manipulation;
 }
 
+html[data-pbr-class="mobile"] body.app-body:not(.app-body--login) {
+  height: 100%;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+html[data-pbr-class="mobile"] body.app-body:not(.app-body--login) .app-header {
+  position: relative;
+  top: auto;
+  flex: 0 0 auto;
+  transform: none !important;
+  transition: none;
+}
+
+html[data-pbr-class="mobile"] body.app-body:not(.app-body--login) .app-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  padding: 0.75rem 0 max(1.25rem, env(safe-area-inset-bottom));
+}
+
+html[data-pbr-class="mobile"] .app-header .app-wrap.app-header__inner {
+  min-height: 52px;
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+}
+
+html[data-pbr-class="mobile"] .brand__img {
+  max-height: 40px !important;
+}
+
+html[data-pbr-class="mobile"] .app-header--hide,
+html[data-pbr-class="mobile"] .app-header--scrolled {
+  transform: none !important;
+}
+
+html[data-pbr-class="mobile"] .app-layout {
+  grid-template-columns: 1fr;
+  grid-template-areas: "content";
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.65rem max(0.65rem, env(safe-area-inset-right)) 1.25rem max(0.65rem, env(safe-area-inset-left));
+  gap: 0;
+  box-sizing: border-box;
+}
+
+html[data-pbr-class="mobile"] .app-content {
+  grid-area: content;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Menú fuera del flujo: cajón lateral. El formulario queda solo, como en PC. */
 html[data-pbr-class="mobile"] .app-sidebar {
-  position: static;
-  max-height: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(92vw, 340px);
+  max-height: 100dvh;
+  height: 100dvh;
+  margin: 0;
+  z-index: 420;
+  transform: translateX(-105%);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow-x: hidden;
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 0;
+  border-left: none;
+  border-right: 1px solid var(--pbr-border-light);
+  box-shadow: 8px 0 28px rgba(15, 23, 42, 0.18);
+  padding: max(0.65rem, env(safe-area-inset-top)) 0.7rem max(5.5rem, calc(env(safe-area-inset-bottom) + 4rem));
+  overscroll-behavior: contain;
+  /* block: evita que flex encoja los hubs y recorte opciones (overflow:hidden). */
+  display: block;
+  touch-action: pan-y;
+}
+
+html[data-pbr-class="mobile"] .app-sidebar > * {
+  flex-shrink: 0;
+}
+
+html[data-pbr-class="mobile"] .app-sidebar__hub {
+  overflow: visible;
+  margin-bottom: 0.65rem;
+}
+
+html[data-pbr-class="mobile"] .app-sidebar__hub-body {
+  gap: 0.3rem;
+}
+
+html[data-pbr-class="mobile"] .app-sidebar__quick {
+  min-height: 44px;
+}
+
+html[data-pbr-class="mobile"] .app-sidebar__accord {
+  overflow: visible;
+}
+
+html[data-pbr-class="mobile"] .app-sidebar__accord-panel {
+  display: block !important;
+}
+
+/* En móvil: secciones siempre abiertas (todas las opciones visibles al scrollear). */
+html[data-pbr-class="mobile"] .app-sidebar__accord > .app-sidebar__accord-panel {
+  padding-bottom: 0.35rem;
+}
+
+html[data-pbr-class="mobile"] .app-sidebar__session {
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+html.app-nav-open[data-pbr-class="mobile"] .app-sidebar {
+  transform: translateX(0);
+}
+
+html.app-nav-open[data-pbr-class="mobile"] body.app-body:not(.app-body--login) .app-main {
+  overflow: hidden;
+}
+
+.app-nav-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 410;
+  background: rgba(15, 23, 42, 0.45);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.app-nav-open .app-nav-backdrop,
+body.app-nav-open .app-nav-backdrop {
+  display: block;
+}
+
+.app-menu-toggle {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0.35rem 0.7rem;
+  margin: 0;
+  border: 1px solid rgba(0, 51, 102, 0.18);
+  border-radius: var(--pbr-radius);
+  background: #fff;
+  color: var(--pbr-accent, #003366);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.app-menu-toggle__icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex-shrink: 0;
+}
+
+html[data-pbr-class="mobile"] .app-menu-toggle {
+  display: inline-flex;
+}
+
+html[data-pbr-class="computer"] .app-menu-toggle,
+html[data-pbr-class="tv"] .app-menu-toggle {
+  display: none !important;
+}
+
+html[data-pbr-class="mobile"] .field__control input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]),
+html[data-pbr-class="mobile"] .field__control select,
+html[data-pbr-class="mobile"] .field__control textarea,
+html[data-pbr-class="mobile"] input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]),
+html[data-pbr-class="mobile"] select,
+html[data-pbr-class="mobile"] textarea {
+  font-size: 16px !important;
+  max-width: 100%;
+  touch-action: manipulation;
+}
+
+html[data-pbr-class="mobile"] .app-header__right {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  width: auto;
+  margin-left: auto;
+}
+
+html[data-pbr-class="mobile"] .app-user-chip__login,
+html[data-pbr-class="mobile"] .app-user-chip .app-role-badge {
+  display: none;
+}
+
+html[data-pbr-class="mobile"] .app-user-chip__body {
+  max-width: 7.5rem;
+}
+
+html[data-pbr-class="mobile"] .app-header__logout-btn span {
+  display: none;
 }
 
 html[data-pbr-class="mobile"] .table-wrap,
@@ -4179,6 +4416,7 @@ html[data-pbr-class="mobile"] .portal-door {
 
 html[data-pbr-class="computer"] .app-layout {
   grid-template-columns: var(--pbr-sidebar-cols);
+  grid-template-areas: "sidebar content";
 }
 
 html[data-pbr-class="tv"] {
@@ -4194,6 +4432,7 @@ html[data-pbr-class="tv"] .app-body {
 
 html[data-pbr-class="tv"] .app-layout {
   grid-template-columns: var(--pbr-sidebar-cols);
+  grid-template-areas: "sidebar content";
 }
 
 html[data-pbr-class="tv"] .login-stage__layout {
@@ -5611,6 +5850,153 @@ html[data-pbr-reduced-motion="1"] .pbr-system-loader__fill {
   font-size: 0.75rem;
   color: var(--pbr-muted, #64748b);
   line-height: 1.35;
+}
+
+.vend-comision {
+  margin: 0 0 1.35rem;
+  padding: 1rem 1.05rem 1.1rem;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f0fdf4 0%, #fff 55%);
+}
+
+.vend-comision__lead {
+  margin: 0.45rem 0 0.85rem;
+  font-size: 0.88rem;
+  color: var(--pbr-muted, #475569);
+  line-height: 1.4;
+}
+
+.vend-comision__kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+@media (max-width: 720px) {
+  .vend-comision__kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.vend-comision__kpi {
+  padding: 0.65rem 0.55rem;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #dcfce7;
+  text-align: center;
+}
+
+.vend-comision__kpi strong {
+  display: block;
+  font-size: 1.35rem;
+  line-height: 1.1;
+  color: #166534;
+}
+
+.vend-comision__kpi span {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.vend-comision__kpi--warn strong {
+  color: #b45309;
+}
+
+.vend-comision__kpi--warn {
+  border-color: #fde68a;
+}
+
+.vend-comision__monto {
+  margin: 0 0 0.85rem;
+  font-size: 0.88rem;
+}
+
+.vend-comision__list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.vend-comision__card {
+  padding: 0.8rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.vend-comision__card--ganada {
+  border-color: #86efac;
+}
+
+.vend-comision__card--lista {
+  border-color: #93c5fd;
+}
+
+.vend-comision__card--pendiente {
+  border-color: #fcd34d;
+}
+
+.vend-comision__card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.vend-comision__badge {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.45rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.vend-comision__card--ganada .vend-comision__badge {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.vend-comision__card--lista .vend-comision__badge {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.vend-comision__checks {
+  list-style: none;
+  margin: 0.55rem 0 0.35rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  font-size: 0.82rem;
+  color: #334155;
+}
+
+.vend-comision__next {
+  margin: 0.35rem 0 0.45rem;
+  font-size: 0.88rem;
+  color: #0f172a;
+  line-height: 1.35;
+}
+
+.vend-comision__action {
+  display: inline-flex;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #003366;
+  text-decoration: none;
+}
+
+.vend-comision__action:hover {
+  text-decoration: underline;
 }
 
 .app-sidebar__hub--vendedor .vend-side__hint {

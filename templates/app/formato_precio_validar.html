@@ -1,0 +1,48 @@
+{% extends "app/base_app.html" %}
+{% load money_fmt %}
+{% block title %}{% if accion == 'rechazar' %}Rechazar precio{% else %}Aprobar precio{% endif %} | {{ marca_portal.nombre }}{% endblock %}
+
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">
+      {% if accion == 'rechazar' %}Rechazar cambio de precio{% else %}Aprobar cambio de precio{% endif %}
+    </h1>
+    <p class="page-toolbar__meta">Formato #{{ formato.numero_formulario|stringformat:"04d" }}</p>
+  </div>
+</header>
+
+<section class="card" style="max-width:36rem;margin-bottom:1.25rem;">
+  <p style="margin:0 0 0.5rem;"><strong>Cliente:</strong> {{ formato.nombre_cliente }}</p>
+  <p style="margin:0 0 0.5rem;"><strong>Proyecto / lote:</strong> {{ formato.nombre_proyecto }} · {{ formato.num_lote }}</p>
+  <p style="margin:0 0 0.5rem;"><strong>Etapa:</strong> {{ formato.etapa_venta_aplicada|default:"—" }}</p>
+  <p style="margin:0 0 0.5rem;"><strong>Precio sistema:</strong> {% if formato.valor_inmueble_sistema %}${{ formato.valor_inmueble_sistema|money_us }}{% else %}—{% endif %}</p>
+  <p style="margin:0 0 0.5rem;"><strong>Precio solicitado:</strong> {% if formato.valor_inmueble_solicitado %}${{ formato.valor_inmueble_solicitado|money_us }}{% else %}—{% endif %}</p>
+  <p style="margin:0;"><strong>Motivo:</strong> {{ formato.precio_solicitud_motivo|default:"—" }}</p>
+</section>
+
+<form method="post" class="card" style="max-width:36rem;">
+  {% csrf_token %}
+  <label for="id_validacion_nota" style="display:block;font-weight:600;margin-bottom:0.35rem;">
+    {% if accion == 'rechazar' %}Motivo del rechazo (obligatorio){% else %}Nota de aprobación{% endif %}
+  </label>
+  <input
+    type="text"
+    name="validacion_nota"
+    id="id_validacion_nota"
+    maxlength="255"
+    class="input"
+    style="width:100%;margin-bottom:1rem;"
+    {% if accion == 'rechazar' %}required{% endif %}
+    placeholder="{% if accion == 'rechazar' %}Ej. No autorizado por gerencia{% else %}Ej. Autorizado — excepción comercial{% endif %}"
+  >
+  <div class="page-toolbar__actions" style="justify-content:flex-start;gap:0.5rem;">
+    {% if accion == 'rechazar' %}
+    <button type="submit" class="btn-primary" style="background:#b91c1c;">Rechazar — mantener precio de etapa</button>
+    {% else %}
+    <button type="submit" class="btn-primary">Aprobar nuevo precio</button>
+    {% endif %}
+    <a href="{% url 'app:formato_precio_pendiente_list' %}" class="btn-secondary">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

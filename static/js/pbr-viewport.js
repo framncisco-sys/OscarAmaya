@@ -23,10 +23,11 @@
   ];
   var CLASS_CLASSES = ["pbr-class-mobile", "pbr-class-computer", "pbr-class-tv"];
 
-  function classify(w, ua, fine, coarse) {
+  function classify(w, h, ua, fine, coarse) {
     var mobileUA = UA_MOBILE.test(ua);
     var tabletUA = UA_TABLET.test(ua);
     var tvUA = UA_TV.test(ua);
+    var touchNarrow = coarse && !fine && Math.min(w, h || w) < 920;
 
     var view;
     var device;
@@ -34,10 +35,10 @@
     if (tvUA || w >= 3840 || (w >= 2560 && !fine && !mobileUA && !tabletUA)) {
       view = "tv";
       device = "tv";
-    } else if (w < 640 || (mobileUA && !tabletUA && w < 900)) {
+    } else if (w < 640 || (mobileUA && !tabletUA && w < 900) || (touchNarrow && w < 700)) {
       view = "phone";
       device = "phone";
-    } else if (w < 1024 || tabletUA || (coarse && w < 1100 && !fine)) {
+    } else if (w < 1024 || tabletUA || touchNarrow || (coarse && w < 1100 && !fine)) {
       view = "tablet";
       device = "tablet";
     } else if (w < 1440) {
@@ -64,7 +65,17 @@
     return { view: view, device: device, deviceClass: deviceClass };
   }
 
-  function detect() {
+  function isTyping() {
+    var ae = document.activeElement;
+    if (!ae) return false;
+    if (!/^(INPUT|TEXTAREA|SELECT)$/i.test(ae.tagName)) return false;
+    var t = ae.type || "";
+    return t !== "checkbox" && t !== "radio" && t !== "button" && t !== "submit" && t !== "file" && t !== "hidden";
+  }
+
+  function detect(force) {
+    if (!force && isTyping()) return;
+
     var html = document.documentElement;
     var w = window.innerWidth || html.clientWidth || 1024;
     var h = window.innerHeight || html.clientHeight || 768;
@@ -83,12 +94,20 @@
       /* ignore */
     }
 
-    var result = classify(w, ua, fine, coarse);
+    var result = classify(w, h, ua, fine, coarse);
     var view = result.view;
     var device = result.device;
     var deviceClass = result.deviceClass;
     var orientation = w >= h ? "landscape" : "portrait";
     var touch = coarse || !hover;
+
+    var prevKey =
+      (html.dataset.pbrView || "") +
+      "|" +
+      (html.dataset.pbrClass || "") +
+      "|" +
+      (html.dataset.pbrOrientation || "");
+    var nextKey = view + "|" + deviceClass + "|" + orientation;
 
     html.dataset.pbrView = view;
     html.dataset.pbrDevice = device;
@@ -130,6 +149,9 @@
       /* private mode */
     }
 
+    // No re-disparar layout si no cambió la clasificación (evita saltos con teclado).
+    if (!force && prevKey === nextKey) return;
+
     global.dispatchEvent(
       new CustomEvent("pbr:viewport", {
         detail: {
@@ -151,40 +173,40 @@
   function schedule() {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(function () {
+      if (isTyping()) return;
       var w = window.innerWidth || document.documentElement.clientWidth || 0;
-      var ae = document.activeElement;
-      var typing =
-        ae &&
-        /^(INPUT|TEXTAREA|SELECT)$/i.test(ae.tagName) &&
-        ae.type !== "checkbox" &&
-        ae.type !== "radio" &&
-        ae.type !== "button" &&
-        ae.type !== "submit";
-      // Teclado móvil cambia la altura (visualViewport) pero no el ancho:
-      // no reclasificar layout ni disparar pbr:viewport (evita que la página “salte”).
-      if (lastWidth && Math.abs(w - lastWidth) < 2 && typing) {
-        return;
-      }
+      // Solo reclasificar si el ANCHO cambió de verdad (rotar / partir pantalla).
+      // El teclado cambia la altura y a veces 1–2 px el ancho → ignora.
+      if (lastWidth && Math.abs(w - lastWidth) < 48) return;
       lastWidth = w;
-      detect();
-    }, 120);
+      detect(false);
+    }, 180);
   }
 
-  detect();
+  detect(true);
   lastWidth = window.innerWidth || document.documentElement.clientWidth || 0;
   window.addEventListener("resize", schedule);
-  window.addEventListener("orientationchange", schedule);
-  // No escuchar visualViewport.resize: en iOS/Android solo refleja el teclado.
+  window.addEventListener("orientationchange", function () {
+    window.setTimeout(function () {
+      lastWidth = 0;
+      detect(true);
+    }, 250);
+  });
 
   try {
-    window.matchMedia("(pointer: coarse)").addEventListener("change", detect);
-    window.matchMedia("(hover: hover)").addEventListener("change", detect);
-    window.matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", detect);
+    window.matchMedia("(pointer: coarse)").addEventListener("change", function () {
+      detect(true);
+    });
+    window.matchMedia("(hover: hover)").addEventListener("change", function () {
+      detect(true);
+    });
   } catch (e) {
     /* older browsers */
   }
 
-  global.pbrApplyViewport = detect;
+  global.pbrApplyViewport = function () {
+    detect(true);
+  };
   global.pbrGetViewport = function () {
     return {
       view: document.documentElement.dataset.pbrView,

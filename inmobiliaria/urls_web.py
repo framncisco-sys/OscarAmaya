@@ -251,6 +251,26 @@ urlpatterns = [
         views.pago_rechazar_abono,
         name="pago_rechazar_abono",
     ),
+    path(
+        "formatos-aceptacion/precios-pendientes/",
+        views.formato_precio_pendiente_list,
+        name="formato_precio_pendiente_list",
+    ),
+    path(
+        "formatos-aceptacion/<int:pk>/aprobar-precio/",
+        views.formato_precio_aprobar,
+        name="formato_precio_aprobar",
+    ),
+    path(
+        "formatos-aceptacion/<int:pk>/rechazar-precio/",
+        views.formato_precio_rechazar,
+        name="formato_precio_rechazar",
+    ),
+    path(
+        "parametros-etapa-venta/",
+        views.ParametroEtapaVentaUpdateView.as_view(),
+        name="parametro_etapa_venta",
+    ),
     path("pagos/<int:pk>/editar/", views.PagoUpdateView.as_view(), name="pago_update"),
     path("pagos/<int:pk>/eliminar/", views.PagoDeleteView.as_view(), name="pago_delete"),
     path("avisos-cobro/", views.aviso_cobro_list, name="aviso_cobro_list"),

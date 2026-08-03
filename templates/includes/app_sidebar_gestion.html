@@ -65,6 +65,14 @@
           Validar abonos (gerencia){% if sidebar_stats and sidebar_stats.pagos_pendientes_validacion %}<span class="app-sidebar__stat">{{ sidebar_stats.pagos_pendientes_validacion }}</span>{% endif %}
         </a>
         {% endif %}
+        {% if puede_aprobar_precio_formato_app %}
+        <a href="{% url 'app:formato_precio_pendiente_list' %}"{% if sidebar_nav.precio_formato_active %} class="is-active" aria-current="page"{% endif %}>
+          Aprobar precios (formato){% if sidebar_stats and sidebar_stats.precios_formato_pendientes %}<span class="app-sidebar__stat">{{ sidebar_stats.precios_formato_pendientes }}</span>{% endif %}
+        </a>
+        <a href="{% url 'app:parametro_etapa_venta' %}"{% if sidebar_nav.etapa_venta_active %} class="is-active" aria-current="page"{% endif %}>
+          Etapas de venta (rangos)
+        </a>
+        {% endif %}
         <a href="{% url 'app:formato_aceptacion_list' %}">Formatos guardados</a>
         <a href="{% url 'app:docs_list' %}"{% if sidebar_nav.docs_active %} class="is-active" aria-current="page"{% endif %}>
           Documentos PDF{% if sidebar_stats %}<span class="app-sidebar__stat">{{ sidebar_stats.documentos }}</span>{% endif %}

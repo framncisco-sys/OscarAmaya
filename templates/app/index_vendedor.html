@@ -29,6 +29,82 @@
     </p>
   </header>
 
+  {% if vend_progreso_comision %}
+  <section class="vend-comision" aria-label="Avance de ventas y comisión">
+    <header class="vend-comision__head">
+      <h2 class="vend-home__section-title" style="margin:0;">Sus ventas y comisión</h2>
+      <p class="vend-comision__lead">
+        Para ganar la comisión: en <strong>a plazos</strong> reserva + prima validadas por gerencia;
+        en <strong>contado</strong>, el pago total del lote validado.
+      </p>
+    </header>
+    <div class="vend-comision__kpis" role="list">
+      <div class="vend-comision__kpi" role="listitem">
+        <strong>{{ vend_progreso_comision.lotes_vendidos }}</strong>
+        <span>Lotes vendidos</span>
+      </div>
+      <div class="vend-comision__kpi" role="listitem">
+        <strong>{{ vend_progreso_comision.lotes_reservados }}</strong>
+        <span>Reservados</span>
+      </div>
+      <div class="vend-comision__kpi" role="listitem">
+        <strong>{{ vend_progreso_comision.comisiones_emitidas }}</strong>
+        <span>Comisiones ganadas</span>
+      </div>
+      <div class="vend-comision__kpi vend-comision__kpi--warn" role="listitem">
+        <strong>{{ vend_progreso_comision.comisiones_pendientes }}</strong>
+        <span>En camino</span>
+      </div>
+    </div>
+    {% if vend_progreso_comision.monto_comision_estimada %}
+    <p class="vend-comision__monto muted">
+      Comisión estimada de su cartera:
+      <strong>${{ vend_progreso_comision.monto_comision_estimada|floatformat:2 }}</strong>
+    </p>
+    {% endif %}
+
+    {% if vend_progreso_comision.items %}
+    <div class="vend-comision__list">
+      {% for it in vend_progreso_comision.items %}
+      <article class="vend-comision__card vend-comision__card--{{ it.estado }}">
+        <div class="vend-comision__card-top">
+          <div>
+            <strong>Lote {{ it.lote }}</strong>
+            {% if it.proyecto %}<span class="muted"> · {{ it.proyecto }}</span>{% endif %}
+            <div class="muted" style="font-size:0.85rem;">{{ it.cliente }} · {{ it.estado_lote_label }}</div>
+          </div>
+          <div class="vend-comision__badge">
+            {% if it.estado == 'ganada' %}Comisión ganada
+            {% elif it.estado == 'lista' %}Lista para comisión
+            {% else %}Falta para comisión{% endif %}
+          </div>
+        </div>
+        {% if not it.es_contado %}
+        <ul class="vend-comision__checks">
+          <li>{% if it.reserva_ok %}✓{% else %}○{% endif %} Reserva validada</li>
+          <li>{% if it.prima_ok %}✓{% else %}○{% endif %} Prima validada</li>
+        </ul>
+        {% else %}
+        <ul class="vend-comision__checks">
+          <li>{% if it.contado_ok %}✓{% else %}○{% endif %} Contado validado</li>
+        </ul>
+        {% endif %}
+        <p class="vend-comision__next">{{ it.siguiente }}</p>
+        {% if it.comision_monto %}
+        <p class="muted" style="margin:0.25rem 0 0.55rem;font-size:0.86rem;">
+          Comisión ref.: ${{ it.comision_monto|floatformat:2 }}
+        </p>
+        {% endif %}
+        <a class="vend-comision__action" href="{{ it.accion_url }}">{{ it.accion_label }} →</a>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">Aún no tiene ventas en cartera. Empiece con un formato de aceptación.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
   <section class="vend-home__start" aria-label="Paso inicial">
     <a class="vend-home__start-card" href="{% url 'app:formato_aceptacion' %}">
       <span class="vend-home__start-num" aria-hidden="true">1</span>
@@ -62,7 +138,7 @@
     <section class="vend-path vend-path--plazos" aria-labelledby="vend-path-plazos">
       <header class="vend-path__head">
         <h2 id="vend-path-plazos">Camino a plazos</h2>
-        <p>Reserva → prima → cuotas. Cada abono lo valida gerencia. El plan de pagos lo arma gerencia.</p>
+        <p>Reserva → prima. Cada abono lo valida gerencia. Los recibos a plazos los registra gerencia/admin.</p>
       </header>
       <ol class="vend-path__steps">
         <li>
@@ -79,16 +155,7 @@
             <span class="vend-path__n">4</span>
             <span>
               <strong>Prima pagada</strong>
-              <small>Tras validar, se puede emitir la promesa.</small>
-            </span>
-          </a>
-        </li>
-        <li>
-          <a href="{% url 'app:pago_create' %}?concepto=CUOTA">
-            <span class="vend-path__n">5</span>
-            <span>
-              <strong>Recibos a plazos</strong>
-              <small>Cuotas del financiamiento (el plan lo arma gerencia).</small>
+              <small>Tras validar, se puede emitir la promesa. Las cuotas a plazos las registra gerencia/admin.</small>
             </span>
           </a>
         </li>

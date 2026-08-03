@@ -1,17 +1,17 @@
 /* PBR — Service Worker: caché de estáticos + páginas visitadas para modo sin conexión.
  * Versión de caché: subir el sufijo tras cambios importantes. */
-const CACHE_STATIC = "pbr-static-v9";
-const CACHE_PAGES = "pbr-pages-v9";
+const CACHE_STATIC = "pbr-static-v15";
+const CACHE_PAGES = "pbr-pages-v15";
 
 const PRECACHE_URLS = [
   "/static/offline.html",
-  "/static/theme.css",
+  "/static/theme.css?v=15",
   "/static/favicon.svg",
-  "/static/js/pbr-viewport.js",
-  "/static/js/pbr-offline.js",
-  "/static/js/pbr-loader.js",
-  "/static/js/pbr-header.js",
-  "/static/js/pbr-sidebar.js",
+  "/static/js/pbr-viewport.js?v=15",
+  "/static/js/pbr-offline.js?v=15",
+  "/static/js/pbr-loader.js?v=15",
+  "/static/js/pbr-header.js?v=15",
+  "/static/js/pbr-sidebar.js?v=15",
 ];
 
 /** No cachear HTML con tokens CSRF / sesión (provoca 403 al enviar formularios). */
@@ -33,6 +33,14 @@ function isGetNavigation(request) {
   if (request.destination === "document") return true;
   const accept = request.headers.get("accept") || "";
   return accept.includes("text/html");
+}
+
+function isCriticalStatic(pathname) {
+  return (
+    pathname === "/static/theme.css" ||
+    pathname.startsWith("/static/js/pbr-") ||
+    pathname === "/static/pbr-sw.js"
+  );
 }
 
 self.addEventListener("install", (event) => {
@@ -117,6 +125,22 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/static/")) {
     event.respondWith(
       (async () => {
+        // Layout crítico: red primero (evita CSS/JS móvil viejo en el teléfono).
+        if (isCriticalStatic(url.pathname)) {
+          try {
+            const fresh = await fetch(request, { cache: "no-cache" });
+            if (fresh && fresh.ok) {
+              const copy = fresh.clone();
+              caches.open(CACHE_STATIC).then((cache) => cache.put(request, copy));
+            }
+            return fresh;
+          } catch (_) {
+            const cached = await caches.match(request);
+            if (cached) return cached;
+            return new Response("", { status: 504, statusText: "Sin conexión" });
+          }
+        }
+
         const cached = await caches.match(request);
         const networkFetch = fetch(request)
           .then((response) => {

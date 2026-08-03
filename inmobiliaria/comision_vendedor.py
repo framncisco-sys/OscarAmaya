@@ -316,3 +316,173 @@ def vendedor_por_nombre_elaborado(nombre: str) -> Vendedor | None:
         if v.nombre_completo.strip().casefold() == n:
             return v
     return None
+
+
+def _siguiente_paso_comision(req: RequisitosComisionVenta) -> str:
+    """Texto corto: qué falta para ganar la comisión."""
+    if req.puede_emitir:
+        return "Listo: ya puede generarse su comisión (reserva/prima o contado validados)."
+    if req.motivos:
+        return req.motivos[0]
+    return "Complete el flujo de venta para ganar la comisión."
+
+
+def _accion_sugerida(req: RequisitosComisionVenta) -> dict:
+    """Enlace útil dentro del flujo del vendedor."""
+    if req.puede_emitir:
+        return {
+            "label": "Ver mis documentos",
+            "url_name": "docs_list",
+            "query": "",
+        }
+    if req.es_venta_contado:
+        if not req.contado.registrado:
+            return {
+                "label": "Registrar pago de contado",
+                "url_name": "pago_create",
+                "query": "?concepto=CONTADO",
+            }
+        if not req.contado.validado:
+            return {
+                "label": "Ver estado del recibo (pendiente gerencia)",
+                "url_name": "pago_list",
+                "query": "",
+            }
+    else:
+        if not req.reserva.registrado:
+            return {
+                "label": "Registrar reserva",
+                "url_name": "pago_create",
+                "query": "?concepto=RESERVA",
+            }
+        if not req.reserva.validado:
+            return {
+                "label": "Reserva pendiente de validar",
+                "url_name": "pago_list",
+                "query": "",
+            }
+        if not req.prima.registrado:
+            return {
+                "label": "Registrar prima",
+                "url_name": "pago_create",
+                "query": "?concepto=PRIMA",
+            }
+        if not req.prima.validado:
+            return {
+                "label": "Prima pendiente de validar",
+                "url_name": "pago_list",
+                "query": "",
+            }
+    return {
+        "label": "Ver mis recibos",
+        "url_name": "pago_list",
+        "query": "",
+    }
+
+
+def resumen_progreso_comision_vendedor(user) -> dict:
+    """
+    Resumen para el portal del vendedor:
+    lotes en cartera, comisiones ganadas y qué falta en cada venta.
+    """
+    from django.urls import reverse
+
+    from inmobiliaria.contratos_acceso import filtrar_contratos_queryset_por_vendedor
+    from inmobiliaria.models import Inmueble
+
+    qs = filtrar_contratos_queryset_por_vendedor(
+        Contrato.objects.exclude(estado=Contrato.Estado.CANCELADO)
+        .select_related(
+            "cliente",
+            "inmueble",
+            "inmueble__proyecto",
+            "vendedor_perfil",
+        )
+        .order_by("-fecha_firma", "-id"),
+        user,
+    )
+    qs = prefetch_pagos_para_comision(qs)
+
+    items: list[dict] = []
+    lotes_vendidos = 0
+    lotes_reservados = 0
+    comisiones_emitidas = 0
+    comisiones_listas = 0
+    comisiones_pendientes = 0
+    monto_comision_estimada = None
+    from decimal import Decimal
+
+    monto_acum = Decimal("0.00")
+    con_monto = 0
+
+    for c in qs[:40]:
+        req = requisitos_comision_venta(c)
+        emitido = ya_existe_recibo_comision(c.pk)
+        inv = c.inmueble
+        estado_lote = inv.estado if inv is not None else ""
+        if estado_lote == Inmueble.Estado.VENDIDO:
+            lotes_vendidos += 1
+        elif estado_lote == Inmueble.Estado.RESERVADO:
+            lotes_reservados += 1
+
+        if emitido:
+            comisiones_emitidas += 1
+            estado = "ganada"
+            siguiente = "Comisión ya emitida (revise Mis documentos PDF)."
+        elif req.puede_emitir:
+            comisiones_listas += 1
+            estado = "lista"
+            siguiente = _siguiente_paso_comision(req)
+        else:
+            comisiones_pendientes += 1
+            estado = "pendiente"
+            siguiente = _siguiente_paso_comision(req)
+
+        if req.comision_monto is not None and req.comision_monto > 0:
+            monto_acum += Decimal(req.comision_monto)
+            con_monto += 1
+
+        accion = _accion_sugerida(req)
+        try:
+            href = reverse(f"app:{accion['url_name']}") + (accion.get("query") or "")
+        except Exception:
+            href = reverse("app:pago_list")
+
+        cliente = ""
+        if c.cliente_id:
+            cliente = f"{(c.cliente.nombres or '').strip()} {(c.cliente.apellidos or '').strip()}".strip()
+        lote = inv.codigo if inv is not None else "—"
+        proy = inv.proyecto.nombre if inv is not None and inv.proyecto_id else ""
+
+        items.append(
+            {
+                "contrato_id": c.pk,
+                "lote": lote,
+                "proyecto": proy,
+                "cliente": cliente or "—",
+                "estado_lote": estado_lote,
+                "estado_lote_label": inv.get_estado_display() if inv else "—",
+                "comision_monto": req.comision_monto,
+                "es_contado": req.es_venta_contado,
+                "estado": estado,
+                "siguiente": siguiente,
+                "accion_label": accion["label"],
+                "accion_url": href,
+                "reserva_ok": req.reserva.validado,
+                "prima_ok": req.prima.validado,
+                "contado_ok": req.contado.validado,
+                "emitido": emitido,
+            }
+        )
+
+    total = qs.count()
+    return {
+        "total_contratos": total,
+        "lotes_vendidos": lotes_vendidos,
+        "lotes_reservados": lotes_reservados,
+        "comisiones_emitidas": comisiones_emitidas,
+        "comisiones_listas": comisiones_listas,
+        "comisiones_pendientes": comisiones_pendientes,
+        "monto_comision_estimada": monto_acum if con_monto else None,
+        "items": items,
+    }
