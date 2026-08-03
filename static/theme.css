@@ -118,6 +118,7 @@ a.button:hover {
 .app-body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   font-family: var(--pbr-font);
   font-size: 15px;
   line-height: 1.5;
@@ -126,6 +127,7 @@ a.button:hover {
     var(--pbr-bg);
   color: var(--pbr-text);
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
 }
 
 .app-wrap {
@@ -1865,7 +1867,7 @@ html[data-pbr-reduced-motion="1"] .login-stage__orb {
   grid-column: 1 / -1;
 }
 
-.pbr-form-grid--vendedor .field__control input,
+.pbr-form-grid--vendedor .field__control input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]),
 .pbr-form-grid--vendedor .field__control select,
 .pbr-form-grid--vendedor .field__control textarea {
   max-width: 100%;
@@ -3313,7 +3315,8 @@ html[data-pbr-reduced-motion="1"] .app-sidebar__session-avatar-dot {
   margin-bottom: 0.35rem;
 }
 
-.field__control input,
+/* Inputs de texto: no aplicar a radio/checkbox (si no, en móvil se ven círculos blancos enormes). */
+.field__control input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]):not([type="submit"]):not([type="button"]):not([type="image"]),
 .field__control select,
 .field__control textarea {
   width: 100%;
@@ -3329,12 +3332,35 @@ html[data-pbr-reduced-motion="1"] .app-sidebar__session-avatar-dot {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.field__control input:focus,
+.field__control input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]):focus,
 .field__control select:focus,
 .field__control textarea:focus {
   outline: none;
   border-color: var(--pbr-accent);
   box-shadow: var(--pbr-focus-ring);
+}
+
+.field__control input[type="radio"],
+.field__control input[type="checkbox"] {
+  width: 1.125rem;
+  height: 1.125rem;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  accent-color: var(--pbr-accent);
+  vertical-align: middle;
+}
+
+.field__control input[type="radio"]:focus,
+.field__control input[type="checkbox"]:focus {
+  outline: 2px solid var(--pbr-accent);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 /* Quitar el fondo amarillo del autofill (Chrome/Safari) en formularios /app/ */
@@ -3828,8 +3854,22 @@ html[data-pbr-view="phone"] .app-body {
   font-size: 16px;
 }
 
+/* Evita zoom automático de iOS al enfocar (< 16px) y estabiliza el ancho del form. */
+html[data-pbr-class="mobile"] .field__control input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]),
+html[data-pbr-class="mobile"] .field__control select,
+html[data-pbr-class="mobile"] .field__control textarea {
+  font-size: 16px;
+  max-width: 100%;
+}
+
 html[data-pbr-view="phone"] .app-main {
-  padding: 1rem 0 2.25rem;
+  padding: 1rem 0 max(2.25rem, env(safe-area-inset-bottom));
+}
+
+html[data-pbr-view="phone"] .form-stack,
+html[data-pbr-view="phone"] .pbr-form-grid {
+  width: 100%;
+  max-width: 100%;
 }
 
 html[data-pbr-view="phone"] .app-wrap {
@@ -4190,7 +4230,7 @@ html[data-pbr-class="tv"] .portal-door__cta {
 
 html[data-pbr-class="tv"] .btn-primary,
 html[data-pbr-class="tv"] .btn-secondary,
-html[data-pbr-class="tv"] .field__control input,
+html[data-pbr-class="tv"] .field__control input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]),
 html[data-pbr-class="tv"] .field__control select,
 html[data-pbr-class="tv"] .field__control textarea {
   min-height: var(--pbr-touch-min);

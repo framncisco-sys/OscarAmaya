@@ -146,17 +146,35 @@
   }
 
   var resizeTimer;
+  var lastWidth = 0;
+
   function schedule() {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(detect, 80);
+    resizeTimer = setTimeout(function () {
+      var w = window.innerWidth || document.documentElement.clientWidth || 0;
+      var ae = document.activeElement;
+      var typing =
+        ae &&
+        /^(INPUT|TEXTAREA|SELECT)$/i.test(ae.tagName) &&
+        ae.type !== "checkbox" &&
+        ae.type !== "radio" &&
+        ae.type !== "button" &&
+        ae.type !== "submit";
+      // Teclado móvil cambia la altura (visualViewport) pero no el ancho:
+      // no reclasificar layout ni disparar pbr:viewport (evita que la página “salte”).
+      if (lastWidth && Math.abs(w - lastWidth) < 2 && typing) {
+        return;
+      }
+      lastWidth = w;
+      detect();
+    }, 120);
   }
 
   detect();
+  lastWidth = window.innerWidth || document.documentElement.clientWidth || 0;
   window.addEventListener("resize", schedule);
   window.addEventListener("orientationchange", schedule);
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener("resize", schedule);
-  }
+  // No escuchar visualViewport.resize: en iOS/Android solo refleja el teclado.
 
   try {
     window.matchMedia("(pointer: coarse)").addEventListener("change", detect);

@@ -1,7 +1,7 @@
 /* PBR — Service Worker: caché de estáticos + páginas visitadas para modo sin conexión.
  * Versión de caché: subir el sufijo tras cambios importantes. */
-const CACHE_STATIC = "pbr-static-v8";
-const CACHE_PAGES = "pbr-pages-v8";
+const CACHE_STATIC = "pbr-static-v9";
+const CACHE_PAGES = "pbr-pages-v9";
 
 const PRECACHE_URLS = [
   "/static/offline.html",

@@ -1,9 +1,11 @@
 (function () {
   "use strict";
 
-  function applySidebarForView() {
+  function applySidebarForView(opts) {
     var hubs = document.querySelectorAll("[data-pbr-sidebar-hub]");
     if (!hubs.length) return;
+    opts = opts || {};
+    var scrollActive = opts.scrollActive !== false;
 
     var view = document.documentElement.getAttribute("data-pbr-view") || "desktop";
     var deviceClass = document.documentElement.getAttribute("data-pbr-class") || "computer";
@@ -41,7 +43,8 @@
         if (parentAccord) {
           parentAccord.open = true;
         }
-        if (isMobile) {
+        // Solo al cargar: si se hace en cada pbr:viewport la página salta con el teclado.
+        if (isMobile && scrollActive) {
           window.requestAnimationFrame(function () {
             active.scrollIntoView({ block: "nearest", behavior: "smooth" });
           });
@@ -50,6 +53,8 @@
     });
   }
 
-  applySidebarForView();
-  window.addEventListener("pbr:viewport", applySidebarForView);
+  applySidebarForView({ scrollActive: true });
+  window.addEventListener("pbr:viewport", function () {
+    applySidebarForView({ scrollActive: false });
+  });
 })();

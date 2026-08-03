@@ -10,7 +10,15 @@
   function onScroll() {
     var y = window.scrollY || document.documentElement.scrollTop || 0;
     header.classList.toggle("app-header--scrolled", y > 8);
-    header.classList.toggle("app-header--hide", y > lastScroll && y > 120);
+    var ae = document.activeElement;
+    var typing =
+      ae &&
+      /^(INPUT|TEXTAREA|SELECT)$/i.test(ae.tagName) &&
+      ae.type !== "checkbox" &&
+      ae.type !== "radio";
+    // Con el teclado abierto el scroll “salta”; no ocultar el header en ese momento.
+    var hide = !typing && y > lastScroll && y > 120;
+    header.classList.toggle("app-header--hide", hide);
     lastScroll = y;
     ticking = false;
   }
