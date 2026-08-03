@@ -31,6 +31,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.NOTICE("--- Configuración actual (sin contraseña) ---"))
         self.stdout.write(f"  EMAIL_BACKEND: {backend}")
+        self.stdout.write(f"  BREVO_API_KEY: {'***' if getattr(settings, 'BREVO_API_KEY', '') else '(vacía)'}")
         self.stdout.write(f"  EMAIL_HOST:    {host or '(vacío — no hay SMTP)'}")
         self.stdout.write(f"  EMAIL_PORT:    {getattr(settings, 'EMAIL_PORT', '')}")
         self.stdout.write(f"  USE_TLS/SSL:   {getattr(settings, 'EMAIL_USE_TLS', '')} / {getattr(settings, 'EMAIL_USE_SSL', '')}")
@@ -39,17 +40,19 @@ class Command(BaseCommand):
         self.stdout.write(f"  DEFAULT_FROM_EMAIL: {from_email}")
         self.stdout.write("")
 
-        if not host.strip():
+        brevo = (getattr(settings, "BREVO_API_KEY", "") or "").strip()
+        if not host.strip() and not brevo:
             self.stderr.write(
                 self.style.ERROR(
-                    "No hay EMAIL_HOST en el entorno (.env). "
-                    "Copie .env.example a .env en la raíz del proyecto y rellene EMAIL_HOST, "
-                    "EMAIL_HOST_USER y EMAIL_HOST_PASSWORD."
+                    "No hay BREVO_API_KEY ni EMAIL_HOST en el entorno (.env).\n"
+                    "Recomendado en DigitalOcean: cree una API key en https://app.brevo.com/ "
+                    "(SMTP & API → API keys) y ponga BREVO_API_KEY=... en .env.\n"
+                    "Alternativa: EMAIL_HOST + EMAIL_HOST_USER + EMAIL_HOST_PASSWORD (SMTP)."
                 )
             )
             raise SystemExit(1)
 
-        if not user or not pwd:
+        if host.strip() and not brevo and (not user or not pwd):
             self.stderr.write(
                 self.style.WARNING(
                     "Falta EMAIL_HOST_USER o EMAIL_HOST_PASSWORD. "

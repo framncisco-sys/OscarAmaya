@@ -617,8 +617,9 @@ if DJANGO_USE_S3_MEDIA:
     }
 
 # Correo (recibos, recordatorios). Toda la configuración sale del entorno / .env — ver .env.example
-# - Si define EMAIL_HOST y no fuerza otro EMAIL_BACKEND, se usa SMTP.
-# - Sin EMAIL_HOST: QuietConsole (una línea en terminal, no llega al cliente).
+# - Preferido en DigitalOcean Droplet: BREVO_API_KEY (API HTTPS; no usa puertos SMTP bloqueados).
+# - Si define EMAIL_HOST y no fuerza otro EMAIL_BACKEND, se usa SMTP (Gmail, etc.).
+# - Sin EMAIL_HOST ni Brevo: QuietConsole (una línea en terminal, no llega al cliente).
 # - EMAIL_FULL_CONSOLE=true: consola Django con MIME completo (PDF en base64).
 # - EMAIL_USE_TLS y EMAIL_USE_SSL son mutuamente excluyentes en Django (465+SSL vs 587+TLS).
 # - DEFAULT_FROM_EMAIL: si no lo define o deja el placeholder, se alinea con EMAIL_HOST_USER (recomendado en hosting).
@@ -631,6 +632,9 @@ def _default_email_backend() -> str:
         return _eb
     if env.str("EMAIL_FULL_CONSOLE", default="") == "1":
         return "django.core.mail.backends.console.EmailBackend"
+    # Brevo por API HTTPS (recomendado en Droplets: DO bloquea 25/465/587).
+    if env.str("BREVO_API_KEY", default="").strip():
+        return "backend.brevo_backend.BrevoAPIEmailBackend"
     if env.str("EMAIL_HOST", default="").strip():
         return "django.core.mail.backends.smtp.EmailBackend"
     return "backend.mail_backends.QuietConsoleEmailBackend"
@@ -643,6 +647,8 @@ EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
 EMAIL_HOST_USER = env.str("EMAIL_HOST_USER", default="").strip()
 EMAIL_HOST_PASSWORD = env.str("EMAIL_HOST_PASSWORD", default="")
+# API key de Brevo (app.brevo.com → SMTP & API → API keys). Plan Free alcanza para recibos.
+BREVO_API_KEY = env.str("BREVO_API_KEY", default="").strip()
 
 
 def _solo_direccion_correo(valor: str) -> str:
