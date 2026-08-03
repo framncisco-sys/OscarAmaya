@@ -169,17 +169,37 @@ def datos_envio_whatsapp_personal(
     }
 
 
+def _destino_email_recibo(cliente) -> tuple[str, bool]:
+    """
+    Correo destino del recibo.
+    Returns: (email, es_fallback)
+    """
+    destino = (getattr(cliente, "email", None) or "").strip()
+    if destino:
+        return destino, False
+    fallback = (getattr(settings, "RECIBO_EMAIL_FALLBACK", "") or "").strip()
+    if not fallback:
+        fallback = "paredesinmobi@gmail.com"
+    return fallback, True
+
+
 def enviar_recibo_por_email(doc: "DocumentoEmitido", pago: "Pago") -> bool:
     if not getattr(settings, "RECIBO_ENVIAR_EMAIL", True):
         return False
     cliente = pago.contrato.cliente
-    destino = (getattr(cliente, "email", None) or "").strip()
+    destino, es_fallback = _destino_email_recibo(cliente)
     if not destino:
         logger.warning(
-            "Recibo %s: el cliente no tiene email registrado; no se envía correo.",
+            "Recibo %s: sin email de cliente ni RECIBO_EMAIL_FALLBACK; no se envía correo.",
             doc.numero,
         )
         return False
+    if es_fallback:
+        logger.info(
+            "Recibo %s: cliente sin email; se envía a correo principal %s",
+            doc.numero,
+            destino,
+        )
     if not doc.pdf_file or not doc.pdf_file.name:
         return False
 
@@ -213,8 +233,15 @@ def enviar_recibo_por_email(doc: "DocumentoEmitido", pago: "Pago") -> bool:
             "nombre_cliente_completo": nombre_completo,
             "monto_fmt": format_monto_sv(pago.monto),
             "empresa_nombre": empresa,
+            "email_es_fallback": es_fallback,
         },
     ).strip()
+    if es_fallback:
+        body = (
+            f"[Aviso interno] El cliente «{nombre_completo}» no tiene correo registrado. "
+            f"Este recibo se envió a la bandeja principal ({destino}).\n\n"
+            + body
+        )
 
     nombre_archivo = f"recibo_{doc.numero.replace('/', '-')}.pdf"
     msg = EmailMessage(
@@ -349,8 +376,9 @@ def _enviar_whatsapp_meta_cloud(
 def notificar_recibo_emitido(doc: "DocumentoEmitido", pago: "Pago") -> ReciboNotificacionInfo:
     """
     Tras generar el PDF: envía automáticamente al cliente
-    - correo con PDF adjunto si tiene email;
-    - WhatsApp (Meta Cloud o Twilio) si hay teléfono y la API está configurada.
+    - correo con PDF adjunto (email del cliente o RECIBO_EMAIL_FALLBACK);
+    - WhatsApp (Meta Cloud o Twilio) si hay teléfono y la API está configurada;
+      si no hay API, se deja enlace wa.me para abrir el chat con el mensaje.
     """
     correo_ok = enviar_recibo_por_email(doc, pago)
 

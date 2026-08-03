@@ -688,6 +688,11 @@ else:
     ADMINS = []
     MANAGERS = []
 RECIBO_ENVIAR_EMAIL = env.bool("RECIBO_ENVIAR_EMAIL", default=True)
+# Si el cliente no tiene email, los recibos se envían a este correo (oficina / respaldo).
+RECIBO_EMAIL_FALLBACK = env.str(
+    "RECIBO_EMAIL_FALLBACK",
+    default="paredesinmobi@gmail.com",
+).strip()
 # Nombre comercial en cuerpo/asunto de recibos y pies de mensaje WhatsApp (wa.me, Twilio, Meta).
 RECIBO_NOTIFICACION_EMPRESA_NOMBRE = env.str(
     "RECIBO_NOTIFICACION_EMPRESA_NOMBRE",
