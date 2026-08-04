@@ -3,7 +3,7 @@
 import json
 import re
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from django import forms
 from django.contrib.auth import get_user_model
@@ -493,7 +493,8 @@ class InmuebleForm(forms.ModelForm):
             )
         if "area_m2" in self.fields:
             self.fields["area_m2"].help_text = (
-                "Se calcula automáticamente al ingresar las varas cuadradas (1 v² ≈ 0.698896 m²)."
+                "Se calcula automáticamente al ingresar las varas (1 v² ≈ 0.698896 m²) "
+                "y se redondea a 2 decimales (ej. 286.16 v² → 200.00 m²)."
             )
         if "area_varas_cuadradas" in self.fields:
             self.fields["area_varas_cuadradas"].help_text = (
@@ -512,11 +513,15 @@ class InmuebleForm(forms.ModelForm):
             self.add_error("tipo", "Seleccione casa nueva o casa de segunda.")
         m2 = cleaned.get("area_m2")
         v2 = cleaned.get("area_varas_cuadradas")
-        # Prioridad: si hay varas, m² se calcula siempre desde varas.
+        # Prioridad: si hay varas, m² se calcula siempre desde varas (redondeo a 2 decimales).
         if v2 is not None:
-            cleaned["area_m2"] = (v2 * M2_POR_V2).quantize(Decimal("0.0001"))
+            cleaned["area_m2"] = (v2 * M2_POR_V2).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
         elif m2 is not None:
-            cleaned["area_varas_cuadradas"] = (m2 / M2_POR_V2).quantize(Decimal("0.0001"))
+            cleaned["area_varas_cuadradas"] = (m2 / M2_POR_V2).quantize(
+                Decimal("0.0001"), rounding=ROUND_HALF_UP
+            )
 
         estado = cleaned.get("estado")
         if estado == Inmueble.Estado.RESERVADO:

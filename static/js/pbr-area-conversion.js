@@ -1,6 +1,6 @@
 /**
  * Conversión automática: varas cuadradas → m² en formularios de inmueble.
- * 1 v² ≈ 0.698896 m²
+ * 1 v² ≈ 0.698896 m²; el m² se redondea a 2 decimales (ej. 286.16 v² → 200.00 m²).
  */
 (function () {
   var M2_POR_V2 = 0.698896;
@@ -54,7 +54,8 @@
         if (!strip(v2.value)) m2.value = "";
         return;
       }
-      m2.value = formatUS(n * M2_POR_V2, 4);
+      // 2 decimales: 286.16 × 0.698896 ≈ 199.996 → 200.00
+      m2.value = formatUS(n * M2_POR_V2, 2);
     }
 
     v2.addEventListener("input", syncFromVaras);
