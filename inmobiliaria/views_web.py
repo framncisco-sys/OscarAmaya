@@ -1164,7 +1164,7 @@ class ArrendamientoCasasListView(
 class InmuebleCreateLoteView(AppLoginRequiredMixin, CreateView):
     model = Inmueble
     form_class = forms.InmuebleForm
-    template_name = "app/object_form.html"
+    template_name = "app/inmueble_form.html"
     success_url = reverse_lazy("app:inmueble_list")
 
     def get_form_kwargs(self):
