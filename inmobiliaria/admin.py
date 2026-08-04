@@ -150,8 +150,6 @@ class InmuebleAdmin(admin.ModelAdmin):
                     "precio_pos_preventa",
                     "area_varas_cuadradas",
                     "area_m2",
-                    "frente_m",
-                    "fondo_m",
                 ),
             },
         ),
@@ -159,8 +157,6 @@ class InmuebleAdmin(admin.ModelAdmin):
             "Detalle",
             {
                 "fields": (
-                    "topografia",
-                    "tour_virtual_url",
                     "notas",
                 ),
             },
@@ -169,9 +165,11 @@ class InmuebleAdmin(admin.ModelAdmin):
             "Mapas",
             {
                 "fields": ("geometria_json", "geometria_catastral_geojson"),
+                "classes": ("collapse",),
                 "description": (
-                    "geometria_json: polígono en coordenadas relativas 0–100 sobre el plano. "
-                    "geometria_catastral_geojson: GeoJSON Polygon en WGS84 (lon/lat) para el mapa catastral Leaflet."
+                    "Solo técnicos: la geometría se edita en el mapa de la app. "
+                    "geometria_json: polígono relativo 0–100 sobre el plano. "
+                    "geometria_catastral_geojson: GeoJSON WGS84 para Leaflet."
                 ),
             },
         ),

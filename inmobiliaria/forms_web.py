@@ -389,8 +389,20 @@ class InmuebleForm(forms.ModelForm):
         """
         self.modo_tipo = modo_tipo or ""
         super().__init__(*args, **kwargs)
-        # Campos de lote que no se usan en el flujo operativo (mapa usa geometría, no lat/long sueltas).
-        for _ocultar in ("servicios_basicos", "latitud", "longitud"):
+        # Campos que no se capturan en el formulario web de lote/inmueble.
+        # (La geometría se edita en el mapa; no borrar columnas de BD.)
+        for _ocultar in (
+            "servicios_basicos",
+            "latitud",
+            "longitud",
+            "frente_m",
+            "fondo_m",
+            "topografia",
+            "tour_virtual_url",
+            "notas",
+            "geometria_json",
+            "geometria_catastral_geojson",
+        ):
             self.fields.pop(_ocultar, None)
         inv = self.instance
         if (
@@ -402,8 +414,6 @@ class InmuebleForm(forms.ModelForm):
                 "en_alquiler",
                 "proyecto",
                 "poligono",
-                "geometria_json",
-                "geometria_catastral_geojson",
                 "inmueble_padre",
             ):
                 self.fields.pop(nombre, None)
@@ -469,8 +479,6 @@ class InmuebleForm(forms.ModelForm):
         for fname, decs in (
             ("area_varas_cuadradas", 4),
             ("area_m2", 4),
-            ("frente_m", 2),
-            ("fondo_m", 2),
         ):
             old = self.fields.get(fname)
             if not old:
