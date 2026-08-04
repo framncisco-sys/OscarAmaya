@@ -56,6 +56,22 @@
       <p>{{ total_contratos_activos }}</p>
       <span class="dash-kpi__hint">En cartera</span>
     </a>
+    {% if total_vendedores is not None %}
+    <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:vendedor_list' %}">
+      <span class="dash-kpi__icon" aria-hidden="true">👤</span>
+      <h3>Asesores de ventas activos</h3>
+      <p>{{ total_vendedores }}</p>
+      <span class="dash-kpi__hint">Catálogo de ventas</span>
+    </a>
+    {% endif %}
+    {% if total_usuarios_activos is not None %}
+    <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:usuario_list' %}">
+      <span class="dash-kpi__icon" aria-hidden="true">🔐</span>
+      <h3>Usuarios del sistema activos</h3>
+      <p>{{ total_usuarios_activos }}</p>
+      <span class="dash-kpi__hint">Cuentas con acceso</span>
+    </a>
+    {% endif %}
     {% if dashboard_mis_contratos %}
     <article class="card kpi dash-kpi">
       <span class="dash-kpi__icon" aria-hidden="true">📋</span>

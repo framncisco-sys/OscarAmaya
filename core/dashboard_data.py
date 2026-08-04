@@ -34,6 +34,7 @@ def build_dashboard_bienes_raices_context(
     user,
     incluir_vendedores: bool,
     contratos_restringidos: bool,
+    incluir_usuarios: bool = False,
 ) -> dict:
     """Dashboard del sistema Paredes Bienes Raíces (sin lotificación/proyectos)."""
     ahora = timezone.localtime()
@@ -83,6 +84,11 @@ def build_dashboard_bienes_raices_context(
         ctx["br_vendedores"] = Vendedor.objects.filter(activo=True).count()
         ctx["br_asesores_alquiler"] = AsesorAlquiler.objects.filter(activo=True).count()
 
+    if incluir_usuarios:
+        from django.contrib.auth import get_user_model
+
+        ctx["br_usuarios_activos"] = get_user_model().objects.filter(is_active=True).count()
+
     return ctx
 
 
@@ -91,7 +97,13 @@ def _qs_inventario_lotes_desarrollos():
     return _qs_inventario_venta().filter(tipo=_LOTE)
 
 
-def build_dashboard_context(*, user, incluir_vendedores: bool, contratos_restringidos: bool) -> dict:
+def build_dashboard_context(
+    *,
+    user,
+    incluir_vendedores: bool,
+    contratos_restringidos: bool,
+    incluir_usuarios: bool = False,
+) -> dict:
     hoy = timezone.localdate()
     limite = hoy + timedelta(days=7)
     ahora = timezone.localtime()
@@ -268,6 +280,11 @@ def build_dashboard_context(*, user, incluir_vendedores: bool, contratos_restrin
 
     if incluir_vendedores:
         ctx["total_vendedores"] = Vendedor.objects.filter(activo=True).count()
+
+    if incluir_usuarios:
+        from django.contrib.auth import get_user_model
+
+        ctx["total_usuarios_activos"] = get_user_model().objects.filter(is_active=True).count()
 
     if contratos_restringidos:
         from inmobiliaria.contratos_acceso import (

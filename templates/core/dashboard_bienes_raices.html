@@ -45,7 +45,7 @@
   {% if puede_gestionar_vendedores_app %}
   <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:vendedor_list' %}">
     <span class="dash-kpi__icon" aria-hidden="true">👤</span>
-    <h3>Asesores de ventas</h3>
+    <h3>Asesores de ventas activos</h3>
     <p>{{ br_vendedores }}</p>
     <span class="dash-kpi__hint">Ventas y comisiones</span>
   </a>
@@ -54,6 +54,14 @@
     <h3>Asesores alquiler</h3>
     <p>{{ br_asesores_alquiler }}</p>
     <span class="dash-kpi__hint">Arrendamientos</span>
+  </a>
+  {% endif %}
+  {% if br_usuarios_activos is not None %}
+  <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:usuario_list' %}">
+    <span class="dash-kpi__icon" aria-hidden="true">🔐</span>
+    <h3>Usuarios del sistema activos</h3>
+    <p>{{ br_usuarios_activos }}</p>
+    <span class="dash-kpi__hint">Cuentas con acceso</span>
   </a>
   {% endif %}
 </section>

@@ -14,6 +14,7 @@ from inmobiliaria.contratos_acceso import aplica_restriccion_contratos_por_vende
 from usuarios.roles import (
     marcas_permitidas,
     puede_acceder_marca,
+    puede_gestionar_usuarios,
     puede_gestionar_vendedores,
     slug_unica_permitida,
 )
@@ -183,6 +184,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     kwargs = dict(
         user=request.user,
         incluir_vendedores=puede_gestionar_vendedores(request.user),
+        incluir_usuarios=puede_gestionar_usuarios(request.user),
         contratos_restringidos=aplica_restriccion_contratos_por_vendedor(request.user),
     )
     if es_bienes_raices(marca):

@@ -117,6 +117,22 @@
     <p>{{ s.pagos_mes }}</p>
     <span class="dash-kpi__hint">${{ s.monto_mes|floatformat:0 }} USD</span>
   </article>
+  {% if puede_gestionar_vendedores_app and sidebar_stats %}
+  <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:vendedor_list' %}">
+    <span class="dash-kpi__icon" aria-hidden="true">👤</span>
+    <h3>Asesores activos</h3>
+    <p>{{ sidebar_stats.vendedores|default:0 }}</p>
+    <span class="dash-kpi__hint">Asesores de ventas</span>
+  </a>
+  {% endif %}
+  {% if puede_gestionar_usuarios_app and sidebar_stats %}
+  <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:usuario_list' %}">
+    <span class="dash-kpi__icon" aria-hidden="true">🔐</span>
+    <h3>Usuarios activos</h3>
+    <p>{{ sidebar_stats.usuarios|default:0 }}</p>
+    <span class="dash-kpi__hint">Cuentas del sistema</span>
+  </a>
+  {% endif %}
 </section>
 
 <h2 class="gestion-section-title">Proyectos y mapas</h2>
