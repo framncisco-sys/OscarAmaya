@@ -4,7 +4,7 @@
     <span class="app-sidebar__hub-badge app-sidebar__hub-badge--gestion" aria-hidden="true">①</span>
     <div class="app-sidebar__hub-titles">
       <span class="app-sidebar__hub-title">Flujo de venta</span>
-      <span class="app-sidebar__hub-sub">Solo su acceso</span>
+      <span class="app-sidebar__hub-sub">Pendiente de validación gerencia</span>
     </div>
   </header>
 
@@ -14,33 +14,39 @@
         Inicio
       </a>
 
-      <p class="app-sidebar__accord-hint vend-side__hint">Siempre empiece aquí</p>
+      <p class="app-sidebar__accord-hint">1 formato → 2 contado <em>o</em> 3–6 a plazos. Todo con validación de gerencia.</p>
       <a href="{% url 'app:formato_aceptacion' %}"{% if sidebar_nav.formato_active %} class="is-active" aria-current="page"{% endif %}>
         1. Formato de aceptación (nuevo){% if sidebar_stats and sidebar_stats.formatos %}<span class="app-sidebar__stat" title="Formatos">{{ sidebar_stats.formatos }}</span>{% endif %}
       </a>
-
-      <p class="app-sidebar__accord-hint vend-side__hint">Si el formato es Contado</p>
       <a href="{% url 'app:pago_create' %}?concepto=CONTADO"{% if sidebar_nav.pago_contado_active %} class="is-active" aria-current="page"{% endif %}>
         2. Contado: recibo total del lote
       </a>
-
-      <p class="app-sidebar__accord-hint vend-side__hint">Si el formato es A plazos</p>
       <a href="{% url 'app:pago_create' %}?concepto=RESERVA"{% if sidebar_nav.pago_reserva_active %} class="is-active" aria-current="page"{% endif %}>
         3. Reserva pagada (recibo)
       </a>
       <a href="{% url 'app:pago_create' %}?concepto=PRIMA"{% if sidebar_nav.pago_prima_active %} class="is-active" aria-current="page"{% endif %}>
         4. Prima pagada (recibo)
       </a>
-
-      <p class="app-sidebar__accord-hint vend-side__hint">Mi cartera</p>
+      <a href="{% url 'app:contrato_create' %}"{% if sidebar_nav.contrato_active %} class="is-active" aria-current="page"{% endif %}>
+        5. Nuevo plan de pagos
+      </a>
+      <a href="{% url 'app:pago_create' %}?concepto=CUOTA"{% if sidebar_nav.pago_cuota_active %} class="is-active" aria-current="page"{% endif %}>
+        6. Recibos a plazos
+      </a>
+      <a href="{% url 'app:contrato_list' %}"{% if sidebar_nav.contrato_list_active %} class="is-active" aria-current="page"{% endif %}>
+        Listado de planes de pagos{% if sidebar_stats %}<span class="app-sidebar__stat">{{ sidebar_stats.contratos_activos }}</span>{% endif %}
+      </a>
+      <a href="{% url 'app:estado_cuenta_hub' %}"{% if sidebar_nav.estado_cuenta_active %} class="is-active" aria-current="page"{% endif %}>
+        Estado de cuenta (imprimir PDF)
+      </a>
+      <a href="{% url 'app:pago_list' %}"{% if sidebar_nav.pago_list_active %} class="is-active" aria-current="page"{% endif %}>
+        Todos los pagos / estado de recibos{% if sidebar_stats and sidebar_stats.pagos_pendientes_validacion %}<span class="app-sidebar__stat">{{ sidebar_stats.pagos_pendientes_validacion }}</span>{% endif %}
+      </a>
       <a href="{% url 'app:formato_aceptacion_list' %}"{% if sidebar_nav.formato_list_active %} class="is-active" aria-current="page"{% endif %}>
         Formatos guardados
       </a>
-      <a href="{% url 'app:pago_list' %}"{% if sidebar_nav.pago_list_active %} class="is-active" aria-current="page"{% endif %}>
-        Estado de mis recibos{% if sidebar_stats and sidebar_stats.pagos_pendientes_validacion %}<span class="app-sidebar__stat">{{ sidebar_stats.pagos_pendientes_validacion }}</span>{% endif %}
-      </a>
       <a href="{% url 'app:docs_list' %}"{% if sidebar_nav.docs_active %} class="is-active" aria-current="page"{% endif %}>
-        Mis documentos PDF
+        Documentos PDF
       </a>
     </div>
   </div>

@@ -1130,6 +1130,7 @@ class Contrato(models.Model):
         ANOS_3 = 3, "3 años"
         ANOS_4 = 4, "4 años"
         ANOS_5 = 5, "5 años"
+        ANOS_6 = 6, "6 años"
         ANOS_10 = 10, "10 años"
         ANOS_15 = 15, "15 años"
 
@@ -1276,6 +1277,30 @@ class Contrato(models.Model):
         help_text="IVA u otros impuestos desglosados (según asesoría contable).",
     )
     notas = models.TextField(blank=True)
+
+    class ValidacionGerencia(models.TextChoices):
+        NO_APLICA = "NO_APLICA", "No requiere (admin/gerencia)"
+        PENDIENTE = "PENDIENTE", "Pendiente de gerencia"
+        VALIDADO = "VALIDADO", "Validado por gerencia"
+        RECHAZADO = "RECHAZADO", "Rechazado por gerencia"
+
+    validacion_gerencia = models.CharField(
+        "Validación de gerencia",
+        max_length=12,
+        choices=ValidacionGerencia.choices,
+        default=ValidacionGerencia.NO_APLICA,
+        db_index=True,
+        help_text="Si lo registra un operador, queda pendiente hasta que admin/gerencia lo valide.",
+    )
+    validado_gerencia_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="contratos_validados_gerencia",
+    )
+    validado_gerencia_en = models.DateTimeField(null=True, blank=True)
+    validacion_gerencia_nota = models.CharField(max_length=255, blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -1830,6 +1855,30 @@ class FormatoAceptacion(models.Model):
         blank=True,
         related_name="formatos_aceptacion_creados",
     )
+
+    class ValidacionGerencia(models.TextChoices):
+        NO_APLICA = "NO_APLICA", "No requiere (admin/gerencia)"
+        PENDIENTE = "PENDIENTE", "Pendiente de gerencia"
+        VALIDADO = "VALIDADO", "Validado por gerencia"
+        RECHAZADO = "RECHAZADO", "Rechazado por gerencia"
+
+    validacion_gerencia = models.CharField(
+        "Validación de gerencia",
+        max_length=12,
+        choices=ValidacionGerencia.choices,
+        default=ValidacionGerencia.NO_APLICA,
+        db_index=True,
+        help_text="Si lo registra un operador, queda pendiente hasta que admin/gerencia lo valide.",
+    )
+    validado_gerencia_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="formatos_validados_gerencia",
+    )
+    validado_gerencia_en = models.DateTimeField(null=True, blank=True)
+    validacion_gerencia_nota = models.CharField(max_length=255, blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 

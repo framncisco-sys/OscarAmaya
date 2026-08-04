@@ -9,7 +9,7 @@ from inmobiliaria.contratos_acceso import (
 from usuarios.roles import obtener_perfil
 
 
-# Rutas del namespace `app` permitidas para el vendedor (solo el flujo de la imagen).
+# Rutas del namespace `app` permitidas para el vendedor (flujo de venta completo).
 RUTAS_VENDEDOR_FLUJO: frozenset[str] = frozenset(
     {
         "index",
@@ -28,12 +28,20 @@ RUTAS_VENDEDOR_FLUJO: frozenset[str] = frozenset(
         "formato_aceptacion_compraventa_subir",
         "formato_aceptacion_compraventa_descargar",
         "formato_superuser_gate",
-        # Pagos (reserva, prima, contado, cuotas). Planes/estado de cuenta: solo gerencia.
+        # 2–6. Pagos (contado, reserva, prima, cuotas) — oficiales tras validación gerencia
         "pago_list",
         "pago_create",
         "pago_update",
         "pago_delete",
         "export_pagos_csv",
+        # Planes de pagos y estado de cuenta (borrador hasta validación)
+        "contrato_list",
+        "contrato_create",
+        "contrato_update",
+        "contrato_estado_cuenta",
+        "contrato_estado_cuenta_pdf",
+        "estado_cuenta_hub",
+        "contrato_credito_cliente_json",
         # Documentos / promesa ligados al flujo
         "docs_list",
         "docs_cliente",
@@ -88,6 +96,7 @@ def redirigir_vendedor_si_fuera_de_flujo(request):
     messages.warning(
         request,
         "Su acceso de asesor de ventas solo incluye el flujo de venta: "
-        "formato, reserva, prima, contado, cuotas y documentos.",
+        "formato, pagos, planes, estado de cuenta y documentos "
+        "(todo queda pendiente hasta validación de admin/gerencia).",
     )
     return HttpResponseRedirect(reverse("app:index"))

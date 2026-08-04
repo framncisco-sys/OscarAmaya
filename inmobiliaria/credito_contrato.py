@@ -33,14 +33,14 @@ def _plazo_anos(fmt: FormatoAceptacion) -> int | None:
     raw = (fmt.plazo_txt or "").strip()
     if raw.isdigit():
         y = int(raw)
-        if 1 <= y <= 5:
+        if 1 <= y <= 6:
             return y
     nraw = (fmt.num_cuota_txt or "").strip()
     if nraw.isdigit():
         n = int(nraw)
         if n > 0 and n % 12 == 0:
             y = n // 12
-            if 1 <= y <= 5:
+            if 1 <= y <= 6:
                 return y
     return None
 

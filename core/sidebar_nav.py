@@ -122,6 +122,9 @@ _CARTERA = frozenset(
         "pago_update",
         "pago_delete",
         "export_pagos_csv",
+        "flujo_venta_validar_list",
+        "flujo_venta_validar_formato",
+        "flujo_venta_validar_contrato",
         "aviso_cobro_list",
         "parametro_mora_list",
         "parametro_mora_create",
@@ -264,6 +267,12 @@ def build_sidebar_nav(url_name: str | None, *, pago_concepto: str | None = None)
             "formato_precio_pendiente_list",
             "formato_precio_aprobar",
             "formato_precio_rechazar",
+        },
+        "flujo_validar_active": u
+        in {
+            "flujo_venta_validar_list",
+            "flujo_venta_validar_formato",
+            "flujo_venta_validar_contrato",
         },
         "etapa_venta_active": u == "parametro_etapa_venta",
         "docs_active": u in {"docs_list", "docs_cliente", "doc_download", "emitir_promesa", "emitir_recibo"},

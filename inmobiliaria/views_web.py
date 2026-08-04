@@ -2126,6 +2126,9 @@ class ContratoCreateView(AppLoginRequiredMixin, CreateView):
         return ctx
 
     def form_valid(self, form):
+        from inmobiliaria.validacion_gerencia import marcar_pendiente_si_operador
+
+        pendiente = marcar_pendiente_si_operador(form.instance, self.request.user)
         response = super().form_valid(form)
         from inmobiliaria.cuotas_calendario import aplicar_calendario_desde_formato_cliente
 
@@ -2135,7 +2138,13 @@ class ContratoCreateView(AppLoginRequiredMixin, CreateView):
             prima=form.cleaned_data.get("prima_monto"),
             forzar=True,
         )
-        if n:
+        if pendiente:
+            messages.warning(
+                self.request,
+                f"Plan de pagos #{self.object.numero} guardado como borrador pendiente de "
+                "validación de admin/gerencia. Cuando lo validen, quedará activo.",
+            )
+        elif n:
             messages.success(
                 self.request,
                 f"Plan de pagos #{self.object.numero} guardado con {n} cuotas "
@@ -2222,6 +2231,9 @@ class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
         return ctx
 
     def form_valid(self, form):
+        from inmobiliaria.validacion_gerencia import marcar_pendiente_si_operador
+
+        pendiente = marcar_pendiente_si_operador(form.instance, self.request.user)
         response = super().form_valid(form)
         from inmobiliaria.cuotas_calendario import aplicar_calendario_desde_formato_cliente
 
@@ -2231,7 +2243,12 @@ class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
             prima=form.cleaned_data.get("prima_monto"),
             forzar=False,
         )
-        if n:
+        if pendiente:
+            messages.warning(
+                self.request,
+                "Cambios del plan guardados como borrador pendiente de validación de admin/gerencia.",
+            )
+        elif n:
             messages.success(
                 self.request,
                 f"Plan de pagos actualizado y calendario regenerado ({n} cuotas).",
@@ -2274,15 +2291,25 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
         return initial
 
     def form_valid(self, form):
+        from inmobiliaria.validacion_gerencia import marcar_pendiente_si_operador
+
         form.instance.creado_por = self.request.user
+        pendiente = marcar_pendiente_si_operador(form.instance, self.request.user)
         prev_firmas = False
         response = super().form_valid(form)
-        messages.success(
-            self.request,
-            "Paso 1 listo: formato de aceptación guardado. "
-            "Si es Contado → paso 2 (recibo total). "
-            "Si es a plazos → 3 reserva → 4 prima → 5 plan → 6 cuotas.",
-        )
+        if pendiente:
+            messages.warning(
+                self.request,
+                "Formato guardado pendiente de validación de admin/gerencia. "
+                "Cuando lo validen, quedará oficial en el flujo.",
+            )
+        else:
+            messages.success(
+                self.request,
+                "Paso 1 listo: formato de aceptación guardado. "
+                "Si es Contado → paso 2 (recibo total). "
+                "Si es a plazos → 3 reserva → 4 prima → 5 plan → 6 cuotas.",
+            )
         _formato_aceptacion_tras_guardado_notificar(self.request, self.object, prev_firmas)
         return response
 
@@ -2361,6 +2388,8 @@ class FormatoAceptacionUpdateView(
         return kw
 
     def form_valid(self, form):
+        from inmobiliaria.validacion_gerencia import marcar_pendiente_si_operador
+
         pk = self.object.pk
         prev_firmas = False
         if pk:
@@ -2371,8 +2400,15 @@ class FormatoAceptacionUpdateView(
                 prev_firmas = q.get().firmas_completas
             except FormatoAceptacion.DoesNotExist:
                 prev_firmas = False
+        pendiente = marcar_pendiente_si_operador(form.instance, self.request.user)
         response = super().form_valid(form)
-        messages.success(self.request, "Cambios guardados.")
+        if pendiente:
+            messages.warning(
+                self.request,
+                "Cambios guardados pendientes de validación de admin/gerencia.",
+            )
+        else:
+            messages.success(self.request, "Cambios guardados.")
         _formato_aceptacion_tras_guardado_notificar(self.request, self.object, prev_firmas)
         return response
 
@@ -2867,18 +2903,6 @@ class PagoCreateView(AppLoginRequiredMixin, CreateView):
     template_name = "app/pago_form.html"
     success_url = reverse_lazy("app:pago_list")
 
-    def dispatch(self, request, *args, **kwargs):
-        from inmobiliaria.vendedor_acceso import es_vendedor_restringido
-
-        concepto = (request.GET.get("concepto") or "").strip().upper()
-        if es_vendedor_restringido(request.user) and concepto == Pago.Concepto.CUOTA:
-            messages.error(
-                request,
-                "Los recibos a plazos (cuotas) solo los registra gerencia o administrador.",
-            )
-            return HttpResponseRedirect(reverse("app:index"))
-        return super().dispatch(request, *args, **kwargs)
-
     def get_form_kwargs(self):
         kw = super().get_form_kwargs()
         kw["ocultar_contrato"] = True
@@ -2921,9 +2945,12 @@ class PagoCreateView(AppLoginRequiredMixin, CreateView):
         return ctx
 
     def form_valid(self, form):
+        from inmobiliaria.validacion_gerencia import aplicar_validacion_pago_al_guardar
+
+        pendiente = aplicar_validacion_pago_al_guardar(form.instance, self.request.user)
         response = super().form_valid(form)
         concepto = form.cleaned_data.get("concepto")
-        if concepto in Pago.CONCEPTOS_CON_VALIDACION:
+        if concepto in Pago.CONCEPTOS_CON_VALIDACION and pendiente:
             messages.success(
                 self.request,
                 f"{self.object.get_concepto_display()} registrado. "
@@ -2932,8 +2959,14 @@ class PagoCreateView(AppLoginRequiredMixin, CreateView):
             )
             messages.info(
                 self.request,
-                "Gerencia: menú → Validar abonos (gerencia) → Confirmar abono → generar recibo. "
-                "Asesor: menú → Estado de mis recibos (verá «Imprimir / PDF» solo cuando esté validado).",
+                "Gerencia: menú → Validar flujo de venta / Validar abonos → Confirmar. "
+                "Asesor: Estado de mis recibos (verá «Imprimir / PDF» solo cuando esté validado).",
+            )
+        elif concepto in Pago.CONCEPTOS_CON_VALIDACION:
+            messages.success(
+                self.request,
+                f"{self.object.get_concepto_display()} registrado y validado. "
+                "Puede generar el recibo PDF.",
             )
         else:
             messages.success(
@@ -3161,6 +3194,142 @@ def pago_rechazar_abono(request: HttpRequest, pk: int) -> HttpResponse:
 
 
 @login_required
+def flujo_venta_validar_list(request: HttpRequest) -> HttpResponse:
+    """Cola de formatos, planes y enlace a abonos pendientes de gerencia."""
+    from inmobiliaria.validacion_gerencia import conteos_pendientes_flujo
+    from usuarios.roles import puede_validar_flujo_venta
+
+    if not puede_validar_flujo_venta(request.user):
+        messages.error(
+            request,
+            "Solo gerencia o administrador puede validar el flujo de venta.",
+        )
+        return HttpResponseRedirect(reverse("app:index"))
+
+    formatos = (
+        FormatoAceptacion.objects.filter(
+            validacion_gerencia=FormatoAceptacion.ValidacionGerencia.PENDIENTE
+        )
+        .select_related("creado_por")
+        .order_by("-actualizado_en", "-pk")
+    )
+    contratos = (
+        Contrato.objects.filter(
+            validacion_gerencia=Contrato.ValidacionGerencia.PENDIENTE
+        )
+        .select_related("cliente", "inmueble", "inmueble__proyecto")
+        .order_by("-creado_en", "-pk")
+    )
+    conteos = conteos_pendientes_flujo()
+    return render(
+        request,
+        "app/flujo_venta_validar_list.html",
+        {
+            "formatos": formatos,
+            "contratos": contratos,
+            "conteos": conteos,
+        },
+    )
+
+
+@login_required
+def flujo_venta_validar_formato(request: HttpRequest, pk: int) -> HttpResponse:
+    from inmobiliaria.validacion_gerencia import rechazar_formato, validar_formato
+    from usuarios.roles import puede_validar_flujo_venta
+
+    if not puede_validar_flujo_venta(request.user):
+        messages.error(request, "Solo gerencia o administrador puede validar formatos.")
+        return HttpResponseRedirect(reverse("app:formato_aceptacion_list"))
+
+    fmt = get_object_or_404(FormatoAceptacion, pk=pk)
+    accion = (request.GET.get("accion") or request.POST.get("accion") or "validar").strip()
+    if accion not in ("validar", "rechazar"):
+        accion = "validar"
+
+    if fmt.validacion_gerencia != FormatoAceptacion.ValidacionGerencia.PENDIENTE:
+        messages.warning(request, "Este formato no está pendiente de validación.")
+        return HttpResponseRedirect(reverse("app:flujo_venta_validar_list"))
+
+    if request.method != "POST":
+        return render(
+            request,
+            "app/flujo_venta_validar_item.html",
+            {"tipo": "formato", "formato": fmt, "accion": accion},
+        )
+
+    nota = (request.POST.get("validacion_nota") or "").strip()[:255]
+    if accion == "rechazar":
+        if not nota:
+            messages.error(request, "Indique el motivo del rechazo.")
+            return render(
+                request,
+                "app/flujo_venta_validar_item.html",
+                {"tipo": "formato", "formato": fmt, "accion": accion},
+            )
+        rechazar_formato(fmt, request.user, nota=nota)
+        messages.success(request, f"Formato #{fmt.numero_formulario:04d} rechazado.")
+    else:
+        if not nota:
+            nota = "Formato validado por gerencia"
+        validar_formato(fmt, request.user, nota=nota)
+        messages.success(
+            request,
+            f"Formato #{fmt.numero_formulario:04d} validado. Ya es oficial en el flujo.",
+        )
+    return HttpResponseRedirect(reverse("app:flujo_venta_validar_list"))
+
+
+@login_required
+def flujo_venta_validar_contrato(request: HttpRequest, pk: int) -> HttpResponse:
+    from inmobiliaria.validacion_gerencia import rechazar_contrato, validar_contrato
+    from usuarios.roles import puede_validar_flujo_venta
+
+    if not puede_validar_flujo_venta(request.user):
+        messages.error(request, "Solo gerencia o administrador puede validar planes.")
+        return HttpResponseRedirect(reverse("app:contrato_list"))
+
+    contrato = get_object_or_404(
+        Contrato.objects.select_related("cliente", "inmueble", "inmueble__proyecto"),
+        pk=pk,
+    )
+    accion = (request.GET.get("accion") or request.POST.get("accion") or "validar").strip()
+    if accion not in ("validar", "rechazar"):
+        accion = "validar"
+
+    if contrato.validacion_gerencia != Contrato.ValidacionGerencia.PENDIENTE:
+        messages.warning(request, "Este plan no está pendiente de validación.")
+        return HttpResponseRedirect(reverse("app:flujo_venta_validar_list"))
+
+    if request.method != "POST":
+        return render(
+            request,
+            "app/flujo_venta_validar_item.html",
+            {"tipo": "contrato", "contrato": contrato, "accion": accion},
+        )
+
+    nota = (request.POST.get("validacion_nota") or "").strip()[:255]
+    if accion == "rechazar":
+        if not nota:
+            messages.error(request, "Indique el motivo del rechazo.")
+            return render(
+                request,
+                "app/flujo_venta_validar_item.html",
+                {"tipo": "contrato", "contrato": contrato, "accion": accion},
+            )
+        rechazar_contrato(contrato, request.user, nota=nota)
+        messages.success(request, f"Plan {contrato.numero} rechazado (sigue en borrador).")
+    else:
+        if not nota:
+            nota = "Plan de pagos validado por gerencia"
+        validar_contrato(contrato, request.user, nota=nota)
+        messages.success(
+            request,
+            f"Plan {contrato.numero} validado y activado.",
+        )
+    return HttpResponseRedirect(reverse("app:flujo_venta_validar_list"))
+
+
+@login_required
 def formato_precio_pendiente_list(request: HttpRequest) -> HttpResponse:
     from usuarios.roles import puede_aprobar_precio_formato
 
@@ -3337,6 +3506,20 @@ class PagoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
         ctx["pago_panel_debajo_formato"] = False
         ctx["form_multipart"] = True
         return ctx
+
+    def form_valid(self, form):
+        from inmobiliaria.validacion_gerencia import aplicar_validacion_pago_al_guardar
+
+        pendiente = aplicar_validacion_pago_al_guardar(form.instance, self.request.user)
+        response = super().form_valid(form)
+        if pendiente:
+            messages.warning(
+                self.request,
+                "Pago actualizado. Queda de nuevo pendiente de validación de admin/gerencia.",
+            )
+        else:
+            messages.success(self.request, "Pago actualizado.")
+        return response
 
 
 @login_required

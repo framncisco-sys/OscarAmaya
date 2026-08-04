@@ -1,0 +1,62 @@
+{% extends "app/base_app.html" %}
+{% block title %}{% if accion == 'rechazar' %}Rechazar{% else %}Validar{% endif %} {{ tipo }} | {{ marca_portal.nombre }}{% endblock %}
+
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">
+      {% if tipo == 'formato' %}
+        {% if accion == 'rechazar' %}Rechazar formato{% else %}Validar formato{% endif %}
+      {% else %}
+        {% if accion == 'rechazar' %}Rechazar plan de pagos{% else %}Validar plan de pagos{% endif %}
+      {% endif %}
+    </h1>
+    <p class="page-toolbar__meta">
+      {% if accion == 'rechazar' %}
+      El registro quedará rechazado y no se considerará oficial hasta una nueva corrección y validación.
+      {% else %}
+      Al validar, el registro queda oficial en el flujo de venta.
+      {% endif %}
+    </p>
+  </div>
+</header>
+
+<section class="card" style="max-width:36rem;margin-bottom:1.25rem;">
+  {% if tipo == 'formato' %}
+  <p style="margin:0 0 0.5rem;"><strong>Formato:</strong> #{{ formato.numero_formulario|stringformat:"04d" }}</p>
+  <p style="margin:0 0 0.5rem;"><strong>Cliente:</strong> {{ formato.nombre_cliente }}</p>
+  <p style="margin:0;"><strong>Proyecto / lote:</strong> {{ formato.nombre_proyecto|default:"—" }} · {{ formato.num_lote|default:"—" }}</p>
+  {% else %}
+  <p style="margin:0 0 0.5rem;"><strong>Plan:</strong> {{ contrato.numero }}</p>
+  <p style="margin:0 0 0.5rem;"><strong>Cliente:</strong> {{ contrato.cliente }}</p>
+  <p style="margin:0 0 0.5rem;"><strong>Inmueble:</strong> {{ contrato.inmueble.codigo }} — {{ contrato.inmueble.proyecto.nombre }}</p>
+  <p style="margin:0;"><strong>Precio:</strong> ${{ contrato.precio_final }}</p>
+  {% endif %}
+</section>
+
+<form method="post" class="card" style="max-width:36rem;">
+  {% csrf_token %}
+  <input type="hidden" name="accion" value="{{ accion }}">
+  <label for="id_validacion_nota" style="display:block;font-weight:600;margin-bottom:0.35rem;">
+    {% if accion == 'rechazar' %}Motivo del rechazo (obligatorio){% else %}Nota de validación{% endif %}
+  </label>
+  <input
+    type="text"
+    name="validacion_nota"
+    id="id_validacion_nota"
+    maxlength="255"
+    class="input"
+    style="width:100%;margin-bottom:1rem;"
+    {% if accion == 'rechazar' %}required{% endif %}
+    placeholder="{% if accion == 'rechazar' %}Ej. Datos incompletos / corregir monto{% else %}Ej. Revisado y autorizado{% endif %}"
+  >
+  <div class="page-toolbar__actions" style="justify-content:flex-start;gap:0.5rem;">
+    {% if accion == 'rechazar' %}
+    <button type="submit" class="btn-primary" style="background:#b91c1c;">Rechazar</button>
+    {% else %}
+    <button type="submit" class="btn-primary">Validar y activar</button>
+    {% endif %}
+    <a href="{% url 'app:flujo_venta_validar_list' %}" class="btn-secondary">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

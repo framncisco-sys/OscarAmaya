@@ -182,7 +182,7 @@
     <td class="fa-val" style="text-align:right;">{% if r.monto is not None %}{{ r.monto|money_us_symbol }}{% else %}—{% endif %}</td>
   </tr>
   {% empty %}
-  <tr><td class="fa-val" colspan="4">Complete primas, fecha de primera cuota, plazo (1–5 años) y cuota mínima. Meses 1–12 sin interés; desde el mes 13 cuota mínima + interés.</td></tr>
+  <tr><td class="fa-val" colspan="4">Complete primas, fecha de primera cuota, plazo (1–6 años) y cuota mínima. Meses 1–12 sin interés; desde el mes 13 cuota mínima + interés.</td></tr>
   {% endfor %}
 </table>
 

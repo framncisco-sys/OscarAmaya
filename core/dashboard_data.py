@@ -358,6 +358,17 @@ def build_gestion_hub_context(
     precios_formato_pendientes = FormatoAceptacion.objects.filter(
         validacion_precio=FormatoAceptacion.ValidacionPrecio.PENDIENTE
     ).count()
+    formatos_pendientes_gerencia = FormatoAceptacion.objects.filter(
+        validacion_gerencia=FormatoAceptacion.ValidacionGerencia.PENDIENTE
+    ).count()
+    contratos_pendientes_gerencia = contratos_qs.filter(
+        validacion_gerencia=Contrato.ValidacionGerencia.PENDIENTE
+    ).count()
+    flujo_pendientes_validacion = (
+        formatos_pendientes_gerencia
+        + contratos_pendientes_gerencia
+        + pagos_pendientes_validacion
+    )
 
     reservas_vencidas = inventario.filter(
         tipo=_LOTE,
@@ -387,6 +398,9 @@ def build_gestion_hub_context(
             "pagos_mes": pagos_mes,
             "pagos_pendientes_validacion": pagos_pendientes_validacion,
             "precios_formato_pendientes": precios_formato_pendientes,
+            "flujo_pendientes_validacion": flujo_pendientes_validacion,
+            "formatos_pendientes_gerencia": formatos_pendientes_gerencia,
+            "contratos_pendientes_gerencia": contratos_pendientes_gerencia,
             "monto_mes": monto_mes,
             "documentos": docs_total,
             "formatos": formatos_total,
@@ -446,6 +460,7 @@ def build_sidebar_stats(
         "pagos_mes": resumen["pagos_mes"],
         "pagos_pendientes_validacion": resumen.get("pagos_pendientes_validacion", 0),
         "precios_formato_pendientes": resumen.get("precios_formato_pendientes", 0),
+        "flujo_pendientes_validacion": resumen.get("flujo_pendientes_validacion", 0),
         "documentos": resumen["documentos"],
         "formatos": resumen["formatos"],
         "parametros_mora": ParametroMora.objects.count(),

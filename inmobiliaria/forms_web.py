@@ -2404,22 +2404,25 @@ _FORMATO_ADJUNTOS_FIELDS = (
     "formato_aceptacion_fisico",
 )
 
-_ANOS_PLAZO_CHOICES = [("", "— Años —")] + [(str(i), str(i)) for i in range(1, 6)]
+_ANOS_PLAZO_MAX = 6
+_ANOS_PLAZO_CHOICES = [("", "— Años —")] + [
+    (str(i), str(i)) for i in range(1, _ANOS_PLAZO_MAX + 1)
+]
 _INTERES_PCT_CHOICES = [("", "— % —")] + [(str(i), f"{i} %") for i in range(0, 51)]
 
 
 def _formato_plazo_guardado_a_anos_select(val) -> str:
-    """Alinea valores viejos (meses o texto) al select 1–5 años."""
+    """Alinea valores viejos (meses o texto) al select 1–6 años."""
     if val is None or str(val).strip() == "":
         return ""
     s = str(val).strip()
     if s.isdigit():
         n = int(s)
-        if 1 <= n <= 5:
+        if 1 <= n <= _ANOS_PLAZO_MAX:
             return str(n)
-        if n > 5 and n % 12 == 0:
+        if n > _ANOS_PLAZO_MAX and n % 12 == 0:
             y = n // 12
-            if 1 <= y <= 5:
+            if 1 <= y <= _ANOS_PLAZO_MAX:
                 return str(y)
         return ""
     m = re.search(r"(\d+)", s)
@@ -2427,11 +2430,11 @@ def _formato_plazo_guardado_a_anos_select(val) -> str:
         return ""
     n = int(m.group(1))
     low = s.lower()
-    if "mes" in low or (n > 5 and n % 12 == 0):
+    if "mes" in low or (n > _ANOS_PLAZO_MAX and n % 12 == 0):
         y = n // 12
-        if 1 <= y <= 5:
+        if 1 <= y <= _ANOS_PLAZO_MAX:
             return str(y)
-    if 1 <= n <= 5:
+    if 1 <= n <= _ANOS_PLAZO_MAX:
         return str(n)
     return ""
 
@@ -2500,7 +2503,7 @@ def _aplicar_pistas_observaciones_financiamiento(instance: FormatoAceptacion) ->
         m_plazo = re.search(r"\bplazo\s*[:\s]*(\d{1,2})\b", obs)
     if m_plazo:
         y = int(m_plazo.group(1))
-        if 1 <= y <= 5 and not (instance.plazo_txt or "").strip():
+        if 1 <= y <= _ANOS_PLAZO_MAX and not (instance.plazo_txt or "").strip():
             instance.plazo_txt = str(y)
 
 
@@ -2759,7 +2762,10 @@ class FormatoAceptacionForm(forms.ModelForm):
                 attrs={"class": "input"},
             )
             plazo_f.required = False
-            plazo_f.help_text = "Máximo 5 años. Meses 1–12 sin interés; desde el mes 13 aplica el interés."
+            plazo_f.help_text = (
+                f"Máximo {_ANOS_PLAZO_MAX} años. "
+                "Meses 1–12 sin interés; desde el mes 13 aplica el interés."
+            )
 
         inter_f = self.fields.get("interes_txt")
         if inter_f:
@@ -2966,10 +2972,10 @@ class FormatoAceptacionForm(forms.ModelForm):
         plazo_raw = (cleaned.get("plazo_txt") or "").strip()
         if plazo_raw.isdigit():
             y = int(plazo_raw)
-            if y < 1 or y > 5:
+            if y < 1 or y > _ANOS_PLAZO_MAX:
                 self.add_error(
                     "plazo_txt",
-                    "El plazo a plazos debe ser entre 1 y 5 años.",
+                    f"El plazo a plazos debe ser entre 1 y {_ANOS_PLAZO_MAX} años.",
                 )
             else:
                 cleaned["num_cuota_txt"] = str(y * 12)
@@ -3200,7 +3206,7 @@ class FormatoAceptacionForm(forms.ModelForm):
         plazo_sync = (instance.plazo_txt or "").strip()
         if plazo_sync.isdigit():
             y = int(plazo_sync)
-            if 1 <= y <= 5:
+            if 1 <= y <= _ANOS_PLAZO_MAX:
                 instance.num_cuota_txt = str(y * 12)
         # Detalle automático del plan a plazos (para imprimir / PDF)
         if formato_aceptacion_credito_extra_columns_ready():

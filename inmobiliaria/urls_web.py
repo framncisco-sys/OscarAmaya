@@ -252,6 +252,21 @@ urlpatterns = [
         name="pago_rechazar_abono",
     ),
     path(
+        "flujo-venta/validar/",
+        views.flujo_venta_validar_list,
+        name="flujo_venta_validar_list",
+    ),
+    path(
+        "flujo-venta/validar/formato/<int:pk>/",
+        views.flujo_venta_validar_formato,
+        name="flujo_venta_validar_formato",
+    ),
+    path(
+        "flujo-venta/validar/plan/<int:pk>/",
+        views.flujo_venta_validar_contrato,
+        name="flujo_venta_validar_contrato",
+    ),
+    path(
         "formatos-aceptacion/precios-pendientes/",
         views.formato_precio_pendiente_list,
         name="formato_precio_pendiente_list",

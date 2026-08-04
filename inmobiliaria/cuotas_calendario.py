@@ -197,7 +197,7 @@ def _n_cuotas_desde_formato(fmt: FormatoAceptacion) -> int | None:
     plazo = (fmt.plazo_txt or "").strip()
     if plazo.isdigit():
         y = int(plazo)
-        if 1 <= y <= 5:
+        if 1 <= y <= 6:
             return y * 12
     return None
 

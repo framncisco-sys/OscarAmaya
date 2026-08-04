@@ -132,6 +132,23 @@ def puede_validar_abonos(user: AbstractUser | None) -> bool:
     return p.rol in (p.Rol.ADMINISTRADOR, p.Rol.GERENCIA)
 
 
+def requiere_validacion_gerencia(user: AbstractUser | None) -> bool:
+    """
+    Operadores del flujo de venta (asesores, proyectos, cartera, etc.):
+    pueden registrar, pero admin/gerencia debe validar para que quede oficial.
+    """
+    if not user or not user.is_authenticated:
+        return True
+    if user.is_superuser:
+        return False
+    return not puede_validar_abonos(user)
+
+
+def puede_validar_flujo_venta(user: AbstractUser | None) -> bool:
+    """Alias: validar formatos, planes de pago y abonos del flujo de venta."""
+    return puede_validar_abonos(user)
+
+
 def puede_aprobar_precio_formato(user: AbstractUser | None) -> bool:
     """Aprobar cambios de precio en formato de aceptación (misma autoridad que validar abonos)."""
     return puede_validar_abonos(user)

@@ -222,7 +222,7 @@
       var years = plazo ? parseInt(String(plazo.value || ""), 10) : 0;
       if (!isFinite(years) || years < 1) {
         box.textContent =
-          "Elija plazo (1–5 años). Escriba la cuota de los meses 1–12 (sin interés). Desde el mes 13 ya va con intereses.";
+          "Elija plazo (1–6 años). Escriba la cuota de los meses 1–12 (sin interés). Desde el mes 13 ya va con intereses.";
         return;
       }
       var n = years * 12;
@@ -961,7 +961,7 @@
         var tr0 = document.createElement("tr");
         tr0.innerHTML =
           "<td colspan=\"4\" class=\"muted\" style=\"padding:0.45rem 0.5rem;border:1px solid #e2e8f0;font-size:0.82rem;\">" +
-          "Indique primas, fecha de primera cuota, plazo (1–5 años) y escriba la cuota de los meses 1–12 (sin interés). " +
+          "Indique primas, fecha de primera cuota, plazo (1–6 años) y escriba la cuota de los meses 1–12 (sin interés). " +
           "Desde el mes 13 esa cuota ya va con intereses.</td>";
         tbodyListado.appendChild(tr0);
       }

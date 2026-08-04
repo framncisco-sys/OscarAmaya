@@ -1,0 +1,99 @@
+{% extends "app/base_app.html" %}
+{% block title %}Validar flujo de venta | {{ marca_portal.nombre }}{% endblock %}
+
+{% block app_content %}
+<header class="page-toolbar">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Validar flujo de venta</h1>
+    <p class="page-toolbar__meta">
+      Formatos, planes de pagos y abonos registrados por operadores quedan pendientes hasta que admin o gerencia confirmen.
+    </p>
+  </div>
+  <div class="page-toolbar__actions">
+    <a href="{% url 'app:pago_list' %}?validacion=pendiente" class="btn-secondary btn-sm">
+      Abonos pendientes{% if conteos.pagos %} ({{ conteos.pagos }}){% endif %}
+    </a>
+  </div>
+</header>
+
+<section class="card" style="margin-bottom:1.25rem;">
+  <p style="margin:0;">
+    Pendientes:
+    <strong>{{ conteos.formatos }}</strong> formato(s) ·
+    <strong>{{ conteos.contratos }}</strong> plan(es) ·
+    <strong>{{ conteos.pagos }}</strong> abono(s)
+  </p>
+</section>
+
+<h2 class="page-title" style="font-size:1.1rem;margin:0 0 0.75rem;">Formatos de aceptación</h2>
+{% if formatos %}
+<div class="table-wrap" style="margin-bottom:1.5rem;">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Nº</th>
+        <th>Cliente</th>
+        <th>Proyecto / lote</th>
+        <th>Registrado por</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in formatos %}
+      <tr>
+        <td><strong>#{{ f.numero_formulario|stringformat:"04d" }}</strong></td>
+        <td>{{ f.nombre_cliente }}</td>
+        <td class="muted">{{ f.nombre_proyecto|default:"—" }} · Lote {{ f.num_lote|default:"—" }}</td>
+        <td class="muted">{% if f.creado_por %}{{ f.creado_por.get_username }}{% else %}—{% endif %}</td>
+        <td>
+          <a href="{% url 'app:flujo_venta_validar_formato' f.pk %}?accion=validar" class="link-action" style="font-weight:700;">Validar</a>
+          ·
+          <a href="{% url 'app:flujo_venta_validar_formato' f.pk %}?accion=rechazar" class="link-action">Rechazar</a>
+          ·
+          <a href="{% url 'app:formato_aceptacion_edit' f.pk %}" class="link-action">Ver</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="muted" style="margin:0 0 1.5rem;">No hay formatos pendientes.</p>
+{% endif %}
+
+<h2 class="page-title" style="font-size:1.1rem;margin:0 0 0.75rem;">Planes de pagos</h2>
+{% if contratos %}
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Número</th>
+        <th>Cliente</th>
+        <th>Inmueble</th>
+        <th class="right">Precio</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in contratos %}
+      <tr>
+        <td><strong>{{ c.numero }}</strong></td>
+        <td>{{ c.cliente }}</td>
+        <td class="muted">{{ c.inmueble.codigo }} — {{ c.inmueble.proyecto.nombre }}</td>
+        <td class="right">${{ c.precio_final }}</td>
+        <td>
+          <a href="{% url 'app:flujo_venta_validar_contrato' c.pk %}?accion=validar" class="link-action" style="font-weight:700;">Validar</a>
+          ·
+          <a href="{% url 'app:flujo_venta_validar_contrato' c.pk %}?accion=rechazar" class="link-action">Rechazar</a>
+          ·
+          <a href="{% url 'app:contrato_update' c.pk %}" class="link-action">Ver</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="muted">No hay planes pendientes.</p>
+{% endif %}
+{% endblock %}

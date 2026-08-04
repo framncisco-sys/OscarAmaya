@@ -34,6 +34,7 @@
       <th>Nº formulario</th>
       <th>Nombre</th>
       <th>Inmueble / proyecto</th>
+      <th>Validación</th>
       <th>Documentos</th>
       <th>Acciones</th>
     </tr>
@@ -52,6 +53,17 @@
           {% else %}
             —
           {% endif %}
+        {% endif %}
+      </td>
+      <td>
+        {% if f.validacion_gerencia == 'PENDIENTE' %}
+        <span class="badge badge--reservado">Pendiente gerencia</span>
+        {% elif f.validacion_gerencia == 'VALIDADO' %}
+        <span class="badge badge--disponible">Validado</span>
+        {% elif f.validacion_gerencia == 'RECHAZADO' %}
+        <span class="badge badge--vendido">Rechazado</span>
+        {% else %}
+        <span class="muted">—</span>
         {% endif %}
       </td>
       <td>
@@ -114,7 +126,7 @@
     </tr>
     {% empty %}
     <tr>
-      <td colspan="5" class="muted">
+      <td colspan="6" class="muted">
         Todavía no hay formatos guardados.
       </td>
     </tr>
