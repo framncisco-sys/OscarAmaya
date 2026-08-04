@@ -2020,6 +2020,22 @@ class PagoForm(forms.ModelForm):
 
                     c_auto = asegurar_contrato_reserva_prima_desde_formato(formato)
                 if c_auto:
+                    from inmobiliaria.validacion_gerencia import (
+                        aplicar_validacion_formato_o_plan,
+                    )
+
+                    if self._pago_user and aplicar_validacion_formato_o_plan(
+                        c_auto, self._pago_user
+                    ):
+                        c_auto.save(
+                            update_fields=[
+                                "validacion_gerencia",
+                                "validado_gerencia_por",
+                                "validado_gerencia_en",
+                                "validacion_gerencia_nota",
+                                "estado",
+                            ]
+                        )
                     cleaned_data["contrato"] = c_auto
         if (
             self.ocultar_contrato

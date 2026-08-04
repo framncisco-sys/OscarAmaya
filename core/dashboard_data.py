@@ -358,10 +358,18 @@ def build_gestion_hub_context(
     precios_formato_pendientes = FormatoAceptacion.objects.filter(
         validacion_precio=FormatoAceptacion.ValidacionPrecio.PENDIENTE
     ).count()
-    # Solo recibos/abonos requieren validación de gerencia (no formato ni plan).
-    flujo_pendientes_validacion = pagos_pendientes_validacion
-    formatos_pendientes_gerencia = 0
-    contratos_pendientes_gerencia = 0
+    formatos_pendientes_gerencia = FormatoAceptacion.objects.filter(
+        validacion_gerencia=FormatoAceptacion.ValidacionGerencia.PENDIENTE
+    ).count()
+    contratos_pendientes_gerencia = contratos_qs.filter(
+        validacion_gerencia=Contrato.ValidacionGerencia.PENDIENTE
+    ).count()
+    # Recibos (todos los no-admin) + formato/plan (solo rol Proyectos).
+    flujo_pendientes_validacion = (
+        formatos_pendientes_gerencia
+        + contratos_pendientes_gerencia
+        + pagos_pendientes_validacion
+    )
 
     reservas_vencidas = inventario.filter(
         tipo=_LOTE,

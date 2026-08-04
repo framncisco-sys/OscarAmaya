@@ -61,7 +61,10 @@
           Todos los pagos{% if sidebar_stats %}<span class="app-sidebar__stat">{{ sidebar_stats.pagos_mes }}</span>{% endif %}
         </a>
         {% if puede_validar_abonos_app %}
-        <a href="{% url 'app:pago_list' %}?validacion=pendiente"{% if sidebar_nav.pago_list_active %} class="is-active" aria-current="page"{% endif %}>
+        <a href="{% url 'app:flujo_venta_validar_list' %}"{% if sidebar_nav.flujo_validar_active %} class="is-active" aria-current="page"{% endif %}>
+          Validar flujo (formato/plan){% if sidebar_stats and sidebar_stats.flujo_pendientes_validacion %}<span class="app-sidebar__stat">{{ sidebar_stats.flujo_pendientes_validacion }}</span>{% endif %}
+        </a>
+        <a href="{% url 'app:pago_list' %}?validacion=pendiente">
           Validar recibos (gerencia){% if sidebar_stats and sidebar_stats.pagos_pendientes_validacion %}<span class="app-sidebar__stat">{{ sidebar_stats.pagos_pendientes_validacion }}</span>{% endif %}
         </a>
         {% endif %}

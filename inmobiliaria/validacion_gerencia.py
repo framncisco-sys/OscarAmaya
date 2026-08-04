@@ -5,14 +5,15 @@ from __future__ import annotations
 from django.utils import timezone
 
 from inmobiliaria.models import Contrato, FormatoAceptacion, Pago
-from usuarios.roles import puede_validar_flujo_venta, requiere_validacion_gerencia
+from usuarios.roles import (
+    puede_validar_flujo_venta,
+    requiere_validacion_formato_y_plan,
+    requiere_validacion_gerencia,
+)
 
 
 def marcar_sin_cola_formato_o_plan(obj) -> None:
-    """
-    Formato de aceptación y plan de pagos: no pasan por cola de gerencia.
-    Solo los recibos/abonos requieren validación.
-    """
+    """Formato/plan sin cola (asesor u otros roles que no son Proyectos)."""
     if hasattr(obj, "validacion_gerencia"):
         obj.validacion_gerencia = obj.ValidacionGerencia.NO_APLICA
         obj.validado_gerencia_por = None
@@ -20,16 +21,38 @@ def marcar_sin_cola_formato_o_plan(obj) -> None:
         obj.validacion_gerencia_nota = ""
 
 
+def aplicar_validacion_formato_o_plan(obj, user) -> bool:
+    """
+    Rol Proyectos, lotes y mapa: formato y plan quedan PENDIENTE.
+    Admin/gerencia: VALIDADO. Asesor y demás: NO_APLICA (sin cola).
+    Devuelve True si quedó pendiente.
+    """
+    if not hasattr(obj, "validacion_gerencia"):
+        return False
+    if puede_validar_flujo_venta(user):
+        obj.validacion_gerencia = obj.ValidacionGerencia.VALIDADO
+        obj.validado_gerencia_por = user
+        obj.validado_gerencia_en = timezone.now()
+        if not (getattr(obj, "validacion_gerencia_nota", None) or "").strip():
+            obj.validacion_gerencia_nota = "Registrado por admin/gerencia"
+        return False
+    if requiere_validacion_formato_y_plan(user):
+        obj.validacion_gerencia = obj.ValidacionGerencia.PENDIENTE
+        obj.validado_gerencia_por = None
+        obj.validado_gerencia_en = None
+        if isinstance(obj, Contrato):
+            obj.estado = Contrato.Estado.BORRADOR
+        return True
+    marcar_sin_cola_formato_o_plan(obj)
+    return False
+
+
 def marcar_pendiente_si_operador(obj, user) -> bool:
-    """
-    Compatibilidad: formatos/planes ya no usan cola.
-    Para otros objetos, admin/gerencia validan al guardar; operador queda pendiente.
-    """
+    """Compat: en formato/contrato usa aplicar_validacion_formato_o_plan."""
     from inmobiliaria.models import Contrato, FormatoAceptacion
 
     if isinstance(obj, (FormatoAceptacion, Contrato)):
-        marcar_sin_cola_formato_o_plan(obj)
-        return False
+        return aplicar_validacion_formato_o_plan(obj, user)
     if not requiere_validacion_gerencia(user):
         obj.validacion_gerencia = obj.ValidacionGerencia.VALIDADO
         obj.validado_gerencia_por = user
@@ -138,9 +161,12 @@ def rechazar_formato(formato: FormatoAceptacion, user, *, nota: str = "") -> Non
 
 
 def conteos_pendientes_flujo() -> dict[str, int]:
-    """Solo recibos/abonos; formato y plan no usan cola de gerencia."""
     return {
-        "formatos": 0,
-        "contratos": 0,
+        "formatos": FormatoAceptacion.objects.filter(
+            validacion_gerencia=FormatoAceptacion.ValidacionGerencia.PENDIENTE
+        ).count(),
+        "contratos": Contrato.objects.filter(
+            validacion_gerencia=Contrato.ValidacionGerencia.PENDIENTE
+        ).count(),
         "pagos": Pago.objects.filter(validacion_abono=Pago.ValidacionAbono.PENDIENTE).count(),
     }

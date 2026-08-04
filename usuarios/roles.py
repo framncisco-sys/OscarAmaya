@@ -132,16 +132,36 @@ def puede_validar_abonos(user: AbstractUser | None) -> bool:
     return p.rol in (p.Rol.ADMINISTRADOR, p.Rol.GERENCIA)
 
 
+def es_rol_proyectos(user: AbstractUser | None) -> bool:
+    """Rol «Proyectos, lotes y mapa»: inventarios/mapa y debe pasar por cola de gerencia."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return False
+    p = obtener_perfil(user)
+    return bool(p and p.activo_en_app and p.rol == p.Rol.PROYECTOS)
+
+
 def requiere_validacion_gerencia(user: AbstractUser | None) -> bool:
     """
-    Operadores (asesores, etc.): al registrar recibos/abonos quedan pendientes
-    hasta que admin/gerencia validen. Formato y plan de pagos no usan esta cola.
+    Quien no es admin/gerencia: recibos/abonos quedan pendientes de validación.
+    Incluye asesores y rol Proyectos, lotes y mapa.
     """
     if not user or not user.is_authenticated:
         return True
     if user.is_superuser:
         return False
     return not puede_validar_abonos(user)
+
+
+def requiere_validacion_formato_y_plan(user: AbstractUser | None) -> bool:
+    """
+    Formato de aceptación y plan de pagos: solo el rol Proyectos, lotes y mapa
+    queda pendiente de gerencia. Asesores no usan esta cola en formato/plan.
+    """
+    if puede_validar_abonos(user):
+        return False
+    return es_rol_proyectos(user)
 
 
 def puede_validar_flujo_venta(user: AbstractUser | None) -> bool:
@@ -213,7 +233,9 @@ def descripcion_roles_para_manual() -> list[tuple[str, str]]:
         ),
         (
             "Proyectos, lotes y mapa",
-            "Proyectos, polígonos, inmuebles y mapa interactivo de su empresa.",
+            "Proyectos, polígonos, inmuebles y mapa interactivo de su empresa. "
+            "Todo lo que registre en el flujo de venta (formato, plan y recibos) queda "
+            "pendiente hasta que admin o gerencia lo validen.",
         ),
         (
             "Marketing / CRM",

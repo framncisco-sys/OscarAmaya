@@ -41,6 +41,7 @@
       <th>Inmueble</th>
       <th class="right">Precio</th>
       <th>Estado</th>
+      <th>Validación</th>
       <th>Etapa venta</th>
       <th>Firma</th>
       <th>Asesor de ventas</th>
@@ -55,6 +56,17 @@
       <td>{{ c.inmueble.codigo }} — {{ c.inmueble.proyecto.nombre }}</td>
       <td class="right">${{ c.precio_final }}</td>
       <td><span class="badge badge--{{ c.estado|lower }}">{{ c.get_estado_display }}</span></td>
+      <td>
+        {% if c.validacion_gerencia == 'PENDIENTE' %}
+        <span class="badge badge--reservado">Pendiente gerencia</span>
+        {% elif c.validacion_gerencia == 'VALIDADO' %}
+        <span class="badge badge--disponible">Validado</span>
+        {% elif c.validacion_gerencia == 'RECHAZADO' %}
+        <span class="badge badge--vendido">Rechazado</span>
+        {% else %}
+        <span class="muted">—</span>
+        {% endif %}
+      </td>
       <td>{{ c.get_etapa_comercial_display }}</td>
       <td>{{ c.fecha_firma|date:"d/m/Y" }}</td>
       <td>{{ c.nombre_vendedor_documentos|default:"—" }}</td>
@@ -69,7 +81,7 @@
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="9" class="muted">No hay contratos.</td></tr>
+    <tr><td colspan="10" class="muted">No hay contratos.</td></tr>
     {% endfor %}
   </tbody>
 </table>
