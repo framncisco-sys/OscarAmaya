@@ -24,7 +24,17 @@
   {% for field in form.visible_fields %}
     <div class="field">
       <label class="field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {% if field.field.widget.input_type == "password" %}
+      <div class="field__control pbr-pw-wrap">
+        {{ field }}
+        <button type="button" class="pbr-pw-toggle" aria-label="Mostrar contraseña" aria-pressed="false" title="Mostrar contraseña" data-pbr-pw-toggle>
+          <svg class="pbr-pw-toggle__icon pbr-pw-toggle__icon--show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="pbr-pw-toggle__icon pbr-pw-toggle__icon--hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" hidden><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </button>
+      </div>
+      {% else %}
       <div class="field__control">{{ field }}</div>
+      {% endif %}
       {% if field.help_text %}<p class="field__help muted">{{ field.help_text|safe }}</p>{% endif %}
       {% if field.errors %}<div class="field__error" role="alert">{{ field.errors }}</div>{% endif %}
     </div>
@@ -34,4 +44,63 @@
     <a href="{{ cancel_url }}" class="btn-secondary">Cancelar</a>
   </div>
 </form>
+<style>
+  .pbr-pw-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .pbr-pw-wrap input {
+    width: 100%;
+    padding-right: 2.75rem;
+    box-sizing: border-box;
+  }
+  .pbr-pw-toggle {
+    position: absolute;
+    right: 0.35rem;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 0;
+    background: transparent;
+    color: #64748b;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .pbr-pw-toggle:hover,
+  .pbr-pw-toggle:focus-visible {
+    color: #0f766e;
+    background: #f0fdfa;
+    outline: none;
+  }
+  .pbr-pw-toggle__icon {
+    width: 1.2rem;
+    height: 1.2rem;
+  }
+</style>
+<script>
+(function () {
+  document.querySelectorAll("[data-pbr-pw-toggle]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var wrap = btn.closest(".pbr-pw-wrap");
+      var input = wrap && wrap.querySelector('input[type="password"], input[type="text"]');
+      if (!input) return;
+      var show = input.type === "password";
+      input.type = show ? "text" : "password";
+      btn.setAttribute("aria-pressed", show ? "true" : "false");
+      btn.setAttribute("aria-label", show ? "Ocultar contraseña" : "Mostrar contraseña");
+      btn.title = show ? "Ocultar contraseña" : "Mostrar contraseña";
+      var showIcon = btn.querySelector(".pbr-pw-toggle__icon--show");
+      var hideIcon = btn.querySelector(".pbr-pw-toggle__icon--hide");
+      if (showIcon) showIcon.hidden = show;
+      if (hideIcon) hideIcon.hidden = !show;
+    });
+  });
+})();
+</script>
 {% endblock %}

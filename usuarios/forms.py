@@ -86,11 +86,11 @@ class UsuarioAppCrearForm(forms.Form):
     )
     password1 = forms.CharField(
         label="Contraseña",
-        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password", "class": "input"}),
     )
     password2 = forms.CharField(
         label="Confirmar contraseña",
-        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password", "class": "input"}),
     )
     rol = forms.ChoiceField(
         label="Rol",
@@ -173,13 +173,17 @@ class UsuarioAppEditarForm(forms.Form):
     password1 = forms.CharField(
         label="Nueva contraseña (opcional)",
         widget=forms.PasswordInput(
-            attrs={"autocomplete": "new-password", "placeholder": "Dejar vacío para no cambiar"},
+            attrs={
+                "autocomplete": "new-password",
+                "placeholder": "Dejar vacío para no cambiar",
+                "class": "input",
+            },
         ),
         required=False,
     )
     password2 = forms.CharField(
         label="Repetir nueva contraseña",
-        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password", "class": "input"}),
         required=False,
     )
     rol = forms.ChoiceField(
