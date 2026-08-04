@@ -483,6 +483,14 @@ class InmuebleForm(forms.ModelForm):
                 required=old.required,
                 decimales_display=decs,
             )
+        if "area_m2" in self.fields:
+            self.fields["area_m2"].help_text = (
+                "Se calcula automáticamente al ingresar las varas cuadradas (1 v² ≈ 0.698896 m²)."
+            )
+        if "area_varas_cuadradas" in self.fields:
+            self.fields["area_varas_cuadradas"].help_text = (
+                "Superficie en varas cuadradas (v²). Al escribirla se calcula el área en m²."
+            )
 
     def clean(self):
         cleaned = super().clean()
@@ -496,10 +504,11 @@ class InmuebleForm(forms.ModelForm):
             self.add_error("tipo", "Seleccione casa nueva o casa de segunda.")
         m2 = cleaned.get("area_m2")
         v2 = cleaned.get("area_varas_cuadradas")
-        if m2 and not v2:
-            cleaned["area_varas_cuadradas"] = (m2 / M2_POR_V2).quantize(Decimal("0.0001"))
-        elif v2 and not m2:
+        # Prioridad: si hay varas, m² se calcula siempre desde varas.
+        if v2 is not None:
             cleaned["area_m2"] = (v2 * M2_POR_V2).quantize(Decimal("0.0001"))
+        elif m2 is not None:
+            cleaned["area_varas_cuadradas"] = (m2 / M2_POR_V2).quantize(Decimal("0.0001"))
 
         estado = cleaned.get("estado")
         if estado == Inmueble.Estado.RESERVADO:
