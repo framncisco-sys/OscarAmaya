@@ -6,6 +6,7 @@
     <h1 class="page-title">Formatos de aceptación guardados</h1>
     <p class="page-toolbar__meta">
       Listado de documentos ya registrados. Para crear uno nuevo, use <strong>Formato de aceptación</strong> en el menú lateral.
+      Admin y gerencia quedan <strong>validados al guardar</strong>; asesores/operadores quedan pendientes hasta que gerencia confirme.
     </p>
   </div>
 </header>
@@ -62,6 +63,8 @@
         <span class="badge badge--disponible">Validado</span>
         {% elif f.validacion_gerencia == 'RECHAZADO' %}
         <span class="badge badge--vendido">Rechazado</span>
+        {% elif f.validacion_gerencia == 'NO_APLICA' %}
+        <span class="badge badge--disponible">Sin cola (admin)</span>
         {% else %}
         <span class="muted">—</span>
         {% endif %}
