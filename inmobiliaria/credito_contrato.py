@@ -632,3 +632,99 @@ def asegurar_contrato_contado_desde_formato(fmt: FormatoAceptacion):
     FA.objects.filter(pk=fmt.pk).update(contrato_id=contrato.pk)
     fmt.contrato_id = contrato.pk
     return contrato
+
+
+def asegurar_contrato_reserva_prima_desde_formato(fmt: FormatoAceptacion):
+    """
+    Para reserva/prima a plazos: usa el contrato del formato o crea uno
+    con los datos del financiamiento del formato (sin exigir plan mes-13).
+    """
+    from datetime import date
+
+    from django.utils import timezone
+
+    from .models import Contrato, FormatoAceptacion as FA, Inmueble
+
+    if fmt.contrato_id:
+        return fmt.contrato
+
+    num_lote = (fmt.num_lote or "").strip()
+    nom_proy = (fmt.nombre_proyecto or "").strip()
+    existente = None
+    if num_lote and nom_proy:
+        inv_qs = (
+            Inmueble.objects.filter(codigo__iexact=num_lote)
+            .select_related("proyecto")
+            .order_by("id")
+        )
+        inv = None
+        nom_lower = nom_proy.lower()
+        for candidate in inv_qs:
+            pn = (candidate.proyecto.nombre or "").strip() if candidate.proyecto_id else ""
+            if pn.lower() == nom_lower:
+                inv = candidate
+                break
+        if inv is None and inv_qs.count() == 1:
+            inv = inv_qs.first()
+        if inv is not None:
+            existente = (
+                Contrato.objects.filter(inmueble_id=inv.pk)
+                .order_by("-fecha_firma", "-id")
+                .first()
+            )
+    if existente is not None:
+        FA.objects.filter(pk=fmt.pk).update(contrato_id=existente.pk)
+        fmt.contrato_id = existente.pk
+        return existente
+
+    inv = resolver_inmueble_desde_formato(fmt)
+    if inv is None:
+        return None
+
+    cliente = cliente_desde_formato_aceptacion(fmt)
+    precio = fmt.valor_inmueble if fmt.valor_inmueble is not None else inv.precio_lista
+    precio = _d(precio)
+    anios = _plazo_anos(fmt)
+    tasa = _interes_pct(getattr(fmt, "interes_txt", "") or "")
+    letra = fmt.letra_mensual
+    stamp = timezone.localtime().strftime("%Y%m%d%H%M%S")
+    base = f"VP-{stamp}"
+    numero = base
+    n = 1
+    while Contrato.objects.filter(numero=numero).exists():
+        n += 1
+        numero = f"{base}-{n}"
+
+    contrato = Contrato.objects.create(
+        cliente=cliente,
+        inmueble=inv,
+        numero=numero,
+        fecha_firma=date.today(),
+        estado=Contrato.Estado.ACTIVO,
+        etapa_comercial=Contrato.EtapaComercial.DOCUMENTOS,
+        precio_lista_referencia=precio,
+        precio_final=precio,
+        plan_anos=anios,
+        tasa_interes_anual=tasa if tasa > 0 else None,
+        cuota_mensual_estimada=letra,
+        modalidad_financiamiento=Contrato.ModalidadFinanciamiento.PRIMER_ANO_SIN_INTERESES,
+        meses_sin_interes=12,
+        notas=(
+            f"Contrato a plazos desde formato Nº {fmt.numero_formulario:04d} "
+            f"(alta automática al registrar reserva/prima)."
+        ),
+    )
+    from inmobiliaria.comision_vendedor import vendedor_por_nombre_elaborado
+
+    vp = vendedor_por_nombre_elaborado(getattr(fmt, "elaborado_por", "") or "")
+    if vp is not None:
+        Contrato.objects.filter(pk=contrato.pk).update(
+            vendedor_perfil_id=vp.pk,
+            vendedor_nombre=vp.nombre_completo[:120],
+            vendedor_id=vp.usuario_vinculo_id,
+            comision_porcentaje=vp.porcentaje_comision_default,
+        )
+        contrato.refresh_from_db()
+    FA.objects.filter(pk=fmt.pk).update(contrato_id=contrato.pk)
+    fmt.contrato_id = contrato.pk
+    return contrato

@@ -1996,32 +1996,54 @@ class PagoForm(forms.ModelForm):
                 c_res = contrato_desde_formato_aceptacion(formato)
                 if c_res:
                     cleaned_data["contrato"] = c_res
-            # Venta de contado: crear contrato automático si aún no hay.
+            concepto_flujo = cleaned_data.get("concepto") or self._concepto_fijo
+            # Contado / reserva / prima: crear contrato automático si el formato aún no tiene.
             if (
-                cleaned_data.get("concepto") == Pago.Concepto.CONTADO
-                or self._concepto_fijo == Pago.Concepto.CONTADO
-            ) and not cleaned_data.get("contrato"):
-                from inmobiliaria.credito_contrato import (
-                    asegurar_contrato_contado_desde_formato,
-                )
+                concepto_flujo
+                in {
+                    Pago.Concepto.CONTADO,
+                    Pago.Concepto.RESERVA,
+                    Pago.Concepto.PRIMA,
+                }
+                and not cleaned_data.get("contrato")
+            ):
+                if concepto_flujo == Pago.Concepto.CONTADO:
+                    from inmobiliaria.credito_contrato import (
+                        asegurar_contrato_contado_desde_formato,
+                    )
 
-                c_contado = asegurar_contrato_contado_desde_formato(formato)
-                if c_contado:
-                    cleaned_data["contrato"] = c_contado
+                    c_auto = asegurar_contrato_contado_desde_formato(formato)
+                else:
+                    from inmobiliaria.credito_contrato import (
+                        asegurar_contrato_reserva_prima_desde_formato,
+                    )
+
+                    c_auto = asegurar_contrato_reserva_prima_desde_formato(formato)
+                if c_auto:
+                    cleaned_data["contrato"] = c_auto
         if (
             self.ocultar_contrato
             and not getattr(self.instance, "pk", None)
             and cleaned_data.get("formato_aceptacion")
             and not cleaned_data.get("contrato")
         ):
-            if self._concepto_fijo == Pago.Concepto.CONTADO or cleaned_data.get(
-                "concepto"
-            ) == Pago.Concepto.CONTADO:
+            concepto_err = cleaned_data.get("concepto") or self._concepto_fijo
+            if concepto_err == Pago.Concepto.CONTADO:
                 raise ValidationError(
                     {
                         "formato_aceptacion": (
                             "No se pudo armar la venta de contado: revise que el formato tenga "
                             "lote, proyecto y valor del inmueble, y que el lote exista en inventario."
+                        )
+                    }
+                )
+            if concepto_err in {Pago.Concepto.RESERVA, Pago.Concepto.PRIMA}:
+                raise ValidationError(
+                    {
+                        "formato_aceptacion": (
+                            "No se pudo crear el contrato desde este formato. "
+                            "Revise que el lote exista y no esté vendido, y que proyecto y valor del inmueble estén completos. "
+                            "El PDF del voucher sí se recibió; el bloqueo es el lote/contrato, no el archivo."
                         )
                     }
                 )

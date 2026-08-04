@@ -9,6 +9,11 @@
     (o depósito). Sin ese archivo no se puede guardar este pago.
   </p>
 </div>
+{% if form.formato_aceptacion.errors %}
+<div class="alert" role="alert" style="margin-bottom:1rem;max-width:42rem;">
+  <strong>No se pudo guardar:</strong> {{ form.formato_aceptacion.errors|striptags }}
+</div>
+{% endif %}
 {% if pago_flujo_concepto == "CONTADO" %}
 <div class="card" style="margin-bottom:1rem;max-width:42rem;border-left:4px solid #1e3a5f;">
   <p style="margin:0 0 0.5rem;font-weight:600;">Venta de contado (pago total del lote)</p>
