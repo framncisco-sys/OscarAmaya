@@ -1,4 +1,4 @@
-"""Requisitos para emitir recibo de comisión de venta al vendedor."""
+﻿"""Requisitos para emitir recibo de comisión de venta al vendedor."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ def vendedor_datos_completos(vendedor: Vendedor | None) -> EstadoVendedorComplet
             ok=False,
             nombre="",
             faltantes=("vendedor",),
-            detalle="Sin vendedor del catálogo asignado al contrato.",
+            detalle="Sin asesor de ventas del catálogo asignado al contrato.",
         )
     nombre = (vendedor.nombre_completo or "").strip()
     faltan: list[str] = []
@@ -71,16 +71,16 @@ def vendedor_datos_completos(vendedor: Vendedor | None) -> EstadoVendedorComplet
             nombre=nombre,
             faltantes=tuple(faltan),
             detalle=(
-                f"Vendedor «{nombre or '—'}» incompleto o no al día: faltan "
+                f"Asesor de ventas «{nombre or '—'}» incompleto o no al día: faltan "
                 + ", ".join(faltan)
-                + ". Complete su ficha en Vendedores (registro)."
+                + ". Complete su ficha en Asesores de ventas (registro)."
             ),
         )
     return EstadoVendedorCompleto(
         ok=True,
         nombre=nombre,
         faltantes=(),
-        detalle=f"Vendedor «{nombre}» con ficha completa (comisión {vendedor.porcentaje_comision_default}%).",
+        detalle=f"Asesor de ventas «{nombre}» con ficha completa (comisión {vendedor.porcentaje_comision_default}%).",
     )
 
 
@@ -193,11 +193,11 @@ def requisitos_comision_venta(contrato: Contrato) -> RequisitosComisionVenta:
         motivos.append(completo.detalle)
     elif not nombre:
         motivos.append(
-            "Asigne el vendedor (catálogo Vendedores o «Elaborado por» del formato)."
+            "Asigne el asesor de ventas (catálogo Asesores de ventas o «Elaborado por» del formato)."
         )
     if not comision_ok:
         motivos.append(
-            "Defina la comisión % en el registro del vendedor (o el monto en el contrato)."
+            "Defina la comisión % en el registro del asesor de ventas (o el monto en el contrato)."
         )
 
     if es_contado:
@@ -304,7 +304,7 @@ def prefetch_pagos_para_comision(qs):
 
 
 def vendedor_por_nombre_elaborado(nombre: str) -> Vendedor | None:
-    """Resuelve el catálogo Vendedores desde el texto «Elaborado por»."""
+    """Resuelve el catálogo Asesores de ventas desde el texto «Elaborado por»."""
     n = (nombre or "").strip().casefold()
     if not n:
         return None

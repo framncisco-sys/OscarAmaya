@@ -1,4 +1,4 @@
-{% extends "app/base_app.html" %}
+﻿{% extends "app/base_app.html" %}
 {% block title %}Gestión | {{ marca_portal.nombre }}{% endblock %}
 
 {% block app_content %}
@@ -28,14 +28,14 @@
 </section>
 {% endif %}
 
-<h2 class="gestion-section-title">Flujo de venta de lotes (vendedor)</h2>
+<h2 class="gestion-section-title">Flujo de venta de lotes (asesor de ventas)</h2>
 <ol class="gestion-flujo" aria-label="Pasos de venta">
   <li class="gestion-flujo__paso">
     <a class="gestion-flujo__card" href="{% url 'app:formato_aceptacion' %}">
       <span class="gestion-flujo__num" aria-hidden="true">1</span>
       <span class="gestion-flujo__body">
         <strong>Formato de aceptación (nuevo)</strong>
-        <small>El vendedor registra primero el formato (Contado o A plazos).</small>
+        <small>El asesor de ventas registra primero el formato (Contado o A plazos).</small>
       </span>
     </a>
   </li>
@@ -53,7 +53,7 @@
       <span class="gestion-flujo__num" aria-hidden="true">3</span>
       <span class="gestion-flujo__body">
         <strong>Reserva pagada (recibo)</strong>
-        <small>Camino a plazos: el vendedor registra; gerencia valida.</small>
+        <small>Camino a plazos: El asesor de ventas registra; gerencia valida.</small>
       </span>
     </a>
   </li>
@@ -80,7 +80,7 @@
       <span class="gestion-flujo__num" aria-hidden="true">6</span>
       <span class="gestion-flujo__body">
         <strong>Recibos a plazos</strong>
-        <small>El vendedor registra la cuota; gerencia valida antes del recibo.</small>
+        <small>El asesor de ventas registra la cuota; gerencia valida antes del recibo.</small>
       </span>
     </a>
   </li>
@@ -130,8 +130,8 @@
   {% if puede_gestionar_vendedores_app %}
   <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:vendedor_list' %}">
     <span class="dash-modulo__icon">👤</span>
-    <h3>Vendedores</h3>
-    <p>Registro del vendedor y % de comisión de venta.</p>
+    <h3>Asesores de ventas</h3>
+    <p>Registro del asesor de ventas y % de comisión de venta.</p>
     <span class="gestion-modulo__stat">{% if sidebar_stats %}{{ sidebar_stats.vendedores }} activo(s){% else %}Catálogo{% endif %}</span>
   </a>
   {% endif %}

@@ -1,4 +1,4 @@
-from django import forms
+﻿from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -11,13 +11,13 @@ User = get_user_model()
 
 _ROL_HELP = (
     "Administrador / Gerencia: acceso completo en su empresa. "
-    "Ventas / comercial: solo el flujo de venta (formato, contrato, pagos). "
-    "Tras crear un vendedor, vincúlelo en el catálogo Vendedores."
+    "Asesor de ventas: solo el flujo de venta (formato, contrato, pagos). "
+    "Tras crear un asesor de ventas, vincúlelo en el catálogo Asesores de ventas."
 )
 
 _EMPRESA_HELP = (
     "El usuario solo verá y usará esta empresa al iniciar sesión. "
-    "Vendedores y gerencia: asigne <strong>una</strong> (Bienes Raíces o Desarrollos). "
+    "Asesores de ventas y gerencia: asigne <strong>una</strong> (Bienes Raíces o Desarrollos). "
     "Solo administradores pueden tener «Ambas empresas»."
 )
 
@@ -112,7 +112,7 @@ class UsuarioAppCrearForm(forms.Form):
         label="Acceso técnico al panel interno (/interno/)",
         initial=False,
         required=False,
-        help_text="Solo para personal de sistemas. Los vendedores y la gerencia de oficina no lo necesitan.",
+        help_text="Solo para personal de sistemas. Los asesores de ventas y la gerencia de oficina no lo necesitan.",
     )
 
     def __init__(
@@ -201,7 +201,7 @@ class UsuarioAppEditarForm(forms.Form):
     acceso_interno = forms.BooleanField(
         label="Acceso técnico al panel interno (/interno/)",
         required=False,
-        help_text="Solo para personal de sistemas. Los vendedores y la gerencia de oficina no lo necesitan.",
+        help_text="Solo para personal de sistemas. Los asesores de ventas y la gerencia de oficina no lo necesitan.",
     )
 
     def __init__(

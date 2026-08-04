@@ -1,4 +1,4 @@
-{% extends "app/base_app.html" %}
+﻿{% extends "app/base_app.html" %}
 {% block title %}{{ page_title }} | Paredes Bienes Raíces{% endblock %}
 
 {% block app_content %}
@@ -40,7 +40,7 @@
   <a class="card modulo dash-modulo" href="{% url 'app:recibo_comision_alquiler_local' %}">
     <span class="dash-modulo__icon">💰</span>
     <h3>Comisión · local en alquiler</h3>
-    <p>Recibo PDF de comisión al vendedor por arrendamiento de local.</p>
+    <p>Recibo PDF de comisión al asesor de ventas por arrendamiento de local.</p>
   </a>
   <a class="card modulo dash-modulo" href="{% url 'app:recibo_comision_alquiler_casa' %}">
     <span class="dash-modulo__icon">💰</span>
@@ -51,7 +51,7 @@
   <a class="card modulo dash-modulo" href="{% url 'app:asesor_alquiler_list' %}">
     <span class="dash-modulo__icon">👤</span>
     <h3>Asesores de alquiler</h3>
-    <p>Catálogo propio del módulo de arrendamientos (no es vendedores de proyectos).</p>
+    <p>Catálogo propio del módulo de arrendamientos (no es Asesores de ventas de proyectos).</p>
   </a>
   {% endif %}
 </div>

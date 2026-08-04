@@ -1,11 +1,11 @@
-{% extends "app/base_app.html" %}
+﻿{% extends "app/base_app.html" %}
 {% load static %}
 {% block title %}Mi flujo de venta | {{ marca_portal.nombre }}{% endblock %}
 
 {% block app_content %}
 <div class="vend-home">
   <header class="vend-home__hero">
-    <p class="vend-home__eyebrow">Portal del vendedor</p>
+    <p class="vend-home__eyebrow">Portal del asesor de ventas</p>
     <h1 class="page-title vend-home__title">
       {% if vend_nombre %}Hola, {{ vend_nombre }}{% else %}Mi flujo de venta{% endif %}
     </h1>

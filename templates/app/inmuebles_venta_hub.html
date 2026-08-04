@@ -1,4 +1,4 @@
-{% extends "app/base_app.html" %}
+﻿{% extends "app/base_app.html" %}
 {% block title %}{{ page_title }} | Paredes Bienes Raíces{% endblock %}
 
 {% block app_content %}
@@ -41,7 +41,7 @@
   <a class="card modulo dash-modulo" href="{% url 'app:recibo_comision_casa_venta' %}">
     <span class="dash-modulo__icon">💰</span>
     <h3>Comisión · venta de casa</h3>
-    <p>Recibo PDF de comisión al vendedor desde el contrato.</p>
+    <p>Recibo PDF de comisión al asesor de ventas desde el contrato.</p>
   </a>
   <a class="card modulo dash-modulo" href="{% url 'app:recibo_comision_hub' %}">
     <span class="dash-modulo__icon">📋</span>
@@ -51,7 +51,7 @@
   {% if puede_gestionar_vendedores_app %}
   <a class="card modulo dash-modulo" href="{% url 'app:vendedor_list' %}">
     <span class="dash-modulo__icon">👤</span>
-    <h3>Catálogo de vendedores</h3>
+    <h3>Catálogo de asesores de ventas</h3>
     <p>Asesores de venta de proyectos; se vinculan en contratos.</p>
   </a>
   {% endif %}

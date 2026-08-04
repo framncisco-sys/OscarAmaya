@@ -1,4 +1,4 @@
-{% extends "app/base_app.html" %}
+﻿{% extends "app/base_app.html" %}
 {% block title %}{{ form_title }} | {{ marca_portal.nombre }}{% endblock %}
 
 {% block app_content %}
@@ -8,25 +8,25 @@
   <h2 style="font-size:1.05rem;margin:0 0 0.65rem;">Checklist para comisión de venta</h2>
   <ul style="margin:0;padding-left:1.2rem;line-height:1.55;font-size:0.95rem;">
     <li>{% if req_comision.vendedor_ok %}✓{% else %}○{% endif %}
-      <strong>Vendedor:</strong> {{ req_comision.vendedor_nombre|default:"sin asignar" }}
+      <strong>Asesor de ventas:</strong> {{ req_comision.vendedor_nombre|default:"sin asignar" }}
       {% if not req_comision.vendedor_ok %}
       — <a href="{% url 'app:contrato_update' contrato.pk %}">Asignar en el contrato</a>
-      · <a href="{% url 'app:vendedor_list' %}">Catálogo de vendedores</a>
+      · <a href="{% url 'app:vendedor_list' %}">Catálogo de asesores de ventas</a>
       {% endif %}
     </li>
     <li>{% if req_comision.vendedor_completo.ok %}✓{% else %}○{% endif %}
-      <strong>Ficha del vendedor completa y al día:</strong>
+      <strong>Ficha del asesor de ventas completa y al día:</strong>
       {{ req_comision.vendedor_completo.detalle }}
       {% if not req_comision.vendedor_completo.ok and contrato.vendedor_perfil_id %}
       — <a href="{% url 'app:vendedor_update' contrato.vendedor_perfil_id %}">Completar registro</a>
       {% endif %}
     </li>
     <li>{% if req_comision.comision_ok %}✓{% else %}○{% endif %}
-      <strong>Comisión del vendedor:</strong>
+      <strong>Comisión del asesor de ventas:</strong>
       {% if req_comision.comision_monto %}${{ req_comision.comision_monto }}{% else %}no definida{% endif %}
       {% if contrato.comision_porcentaje %} ({{ contrato.comision_porcentaje }} %){% endif %}
       {% if not req_comision.comision_ok %}
-      — defina el % en <a href="{% url 'app:vendedor_list' %}">Vendedores (registro)</a>
+      — defina el % en <a href="{% url 'app:vendedor_list' %}">Asesores de ventas (registro)</a>
       {% endif %}
     </li>
     {% if req_comision.es_venta_contado %}
@@ -63,12 +63,12 @@
   {% if not puede_emitir_comision %}
   <p class="muted" style="margin:0.85rem 0 0;font-size:0.9rem;">
     {% if req_comision.es_venta_contado %}
-    En venta de <strong>contado</strong>, el recibo de comisión al vendedor se genera cuando
-    gerencia valida el <strong>pago total del lote</strong> y el vendedor tiene su ficha completa.
+    En venta de <strong>contado</strong>, el recibo de comisión al asesor de ventas se genera cuando
+    gerencia valida el <strong>pago total del lote</strong> y el asesor de ventas tiene su ficha completa.
     {% else %}
-    El recibo de comisión al vendedor <strong>solo se genera</strong> cuando:
+    El recibo de comisión al asesor de ventas <strong>solo se genera</strong> cuando:
     el cliente ya pagó (y gerencia validó) la <strong>reserva</strong> y la <strong>prima</strong>,
-    y el vendedor tiene su ficha completa con la comisión del registro.
+    y el asesor de ventas tiene su ficha completa con la comisión del registro.
     {% endif %}
   </p>
   {% else %}
@@ -82,7 +82,7 @@
 <section class="card pbr-card--info" style="margin-bottom:1rem;">
   <h2 class="page-title" style="font-size:1.05rem;margin:0 0 0.5rem;">Contrato {{ contrato.numero }}</h2>
   <p class="muted" style="margin:0;">
-    <strong>Vendedor:</strong> {{ vendedor_nombre }}
+    <strong>Asesor de ventas:</strong> {{ vendedor_nombre }}
     {% if contrato.vendedor_perfil %}
       ({{ contrato.vendedor_perfil.get_tipo_persona_display }})
     {% endif %}
@@ -107,7 +107,7 @@
       {% if liquidacion_preview.retencion_iva %}
       <li>(−) Retención IVA {{ liquidacion_preview.pct_retencion_iva }}%: ${{ liquidacion_preview.retencion_iva }}</li>
       {% endif %}
-      <li><strong>Neto a pagar al vendedor: ${{ liquidacion_preview.neto }}</strong></li>
+      <li><strong>Neto a pagar al asesor de ventas: ${{ liquidacion_preview.neto }}</strong></li>
     </ul>
     <p class="muted" style="margin:0.5rem 0 0;font-size:0.82rem;">
       Natural: renta 10%. Contribuyente: IVA 13% + renta 10% + retención IVA 1% si la base ≥ $100
@@ -147,7 +147,7 @@
 </form>
 {% else %}
 <div class="form-actions">
-  <a href="{% url 'app:contrato_update' contrato.pk %}" class="btn-primary">Completar contrato / vendedor</a>
+  <a href="{% url 'app:contrato_update' contrato.pk %}" class="btn-primary">Completar contrato / asesor</a>
   <a href="{% url 'app:pago_list' %}?contrato={{ contrato.pk }}" class="btn-secondary">Ver pagos</a>
   <a href="{{ cancel_url }}" class="btn-secondary">{{ cancel_label }}</a>
 </div>

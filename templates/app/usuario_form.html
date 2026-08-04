@@ -1,4 +1,4 @@
-{% extends "app/base_app.html" %}
+﻿{% extends "app/base_app.html" %}
 {% block title %}{{ form_title }} | Paredes Bienes Raíces{% endblock %}
 {% block app_content %}
 <h1 class="page-title">{{ form_title }}</h1>
@@ -6,7 +6,7 @@
 <p class="muted" style="max-width:42rem;">
   Complete los datos básicos. El <strong>rol</strong> y la <strong>empresa</strong> definen a qué sistema podrá entrar:
   el usuario <strong>ya identifica</strong> su empresa al iniciar sesión (entra directo si solo tiene una).
-  Si elige <strong>Ventas / comercial</strong>, después vincule la cuenta en el módulo Vendedores.
+  Si elige <strong>Asesor de ventas</strong>, después vincule la cuenta en el módulo Asesores de ventas.
 </p>
 {% elif edit_user %}
 <p class="muted">Usuario: <strong>{{ edit_user.username }}</strong>

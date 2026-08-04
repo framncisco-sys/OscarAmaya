@@ -225,9 +225,9 @@ def cuota_minima_y_con_interes(
     """
     Retorna (cuota_vendedor_sin_interes, cuota_desde_mes_13, saldo_tras_12).
 
-    La cuota de los meses 1–12 la escribe el vendedor (sin interés).
+    La cuota de los meses 1–12 la escribe el asesor de ventas (sin interés).
     Desde el mes 13: esa misma cuota + interés mensual sobre el saldo tras 12 pagos.
-    No se inventa la cuota si el vendedor no la indicó.
+    No se inventa la cuota si el asesor de ventas no la indicó.
     """
     if n_cuotas < 1:
         return None, None, None
@@ -279,12 +279,12 @@ def texto_plan_financiamiento_a_plazos(fmt: FormatoAceptacion) -> str:
     if n <= 12:
         return (
             f"Plan a plazos ({años} año{'s' if años != 1 else ''}, {n} cuotas): "
-            f"cuota escrita por el vendedor {lm} sin interés en todas las cuotas."
+            f"cuota escrita por el asesor de ventas {lm} sin interés en todas las cuotas."
         )
     c13 = format_monto_us(cuota_13 or letra, con_simbolo=True)
     return (
         f"Plan a plazos ({años} años, {n} cuotas): meses 1–12 sin interés "
-        f"(cuota del vendedor {lm}). Desde el mes 13 la cuota ya lleva intereses "
+        f"(cuota del asesor de ventas {lm}). Desde el mes 13 la cuota ya lleva intereses "
         f"({interes:g}% anual sobre saldo tras el primer año "
         f"{format_monto_us(saldo or 0, con_simbolo=True)}) = {c13} mensuales."
     )
@@ -338,7 +338,7 @@ def filas_listado_cuotas_formato_aceptacion(fmt: FormatoAceptacion) -> list[dict
     for i in range(n_cuotas):
         num = i + 1
         if num <= 12 or cuota_13 is None:
-            concepto = f"Cuota {num} (sin interés — cuota del vendedor)"
+            concepto = f"Cuota {num} (sin interés — cuota del asesor de ventas)"
             monto = letra
         else:
             concepto = f"Cuota {num} (con interés {interes:g}%)"

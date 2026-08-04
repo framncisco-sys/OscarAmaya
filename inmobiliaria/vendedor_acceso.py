@@ -87,7 +87,7 @@ def redirigir_vendedor_si_fuera_de_flujo(request):
         return None
     messages.warning(
         request,
-        "Su acceso de vendedor solo incluye el flujo de venta: "
+        "Su acceso de asesor de ventas solo incluye el flujo de venta: "
         "formato, reserva, prima, contado, cuotas y documentos.",
     )
     return HttpResponseRedirect(reverse("app:index"))

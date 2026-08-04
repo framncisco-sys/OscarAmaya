@@ -43,3 +43,18 @@ def format_monto_us(monto, *, con_simbolo: bool = False) -> str:
         return str(monto)
     formatted = f"{d:,.2f}"
     return f"${formatted}" if con_simbolo else formatted
+
+
+def format_numero_us(monto, *, decimales: int = 2) -> str:
+    """Número con miles en coma y decimales en punto (sin $)."""
+    if monto is None:
+        return ""
+    if isinstance(monto, str) and not monto.strip():
+        return ""
+    dec = max(0, min(int(decimales), 8))
+    q = Decimal("1").scaleb(-dec) if dec else Decimal("1")
+    try:
+        d = Decimal(str(monto)).quantize(q, rounding=ROUND_HALF_UP)
+    except (InvalidOperation, TypeError, ValueError):
+        return str(monto)
+    return f"{d:,.{dec}f}"

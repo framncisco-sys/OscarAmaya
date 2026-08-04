@@ -1,5 +1,5 @@
 {% extends "app/object_form.html" %}
-{% load static %}
+{% load static money_fmt %}
 {% block after_page_title %}
 {% if object.pk %}
   {% if object.tipo == "CASA_NUEVA" or object.tipo == "CASA_SEGUNDA" %}
@@ -38,8 +38,8 @@
       {% for h in historial_precios %}
       <tr>
         <td>{{ h.creado_en|date:"Y-m-d H:i" }}</td>
-        <td class="right">${{ h.precio_anterior }}</td>
-        <td class="right">${{ h.precio_nuevo }}</td>
+        <td class="right">{{ h.precio_anterior|money_us_symbol }}</td>
+        <td class="right">{{ h.precio_nuevo|money_us_symbol }}</td>
       </tr>
       {% endfor %}
     </tbody>

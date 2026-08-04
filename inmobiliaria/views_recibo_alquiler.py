@@ -169,9 +169,9 @@ def recibo_comision_hub(request: HttpRequest) -> HttpResponse:
         request,
         "app/recibo_comision_hub.html",
         {
-            "page_title": "Recibo de comisión al vendedor",
+            "page_title": "Recibo de comisión al asesor",
             "page_meta": (
-                "Liquidación de comisión al vendedor o asesor: nombre del beneficiario, "
+                "Liquidación de comisión al asesor de ventas o de alquiler: nombre del beneficiario, "
                 "monto en USD, porcentaje de referencia y concepto impreso en el PDF."
             ),
         },

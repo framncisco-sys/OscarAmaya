@@ -1,4 +1,4 @@
-{% extends "app/base_app.html" %}
+﻿{% extends "app/base_app.html" %}
 {% load static %}
 
 {% block title %}Dashboard | {{ marca_portal.nombre }}{% endblock %}
@@ -9,7 +9,7 @@
     <p class="dash-header__eyebrow">{{ marca_portal.nombre }}</p>
     <h1 class="page-title dash-header__title">Dashboard</h1>
     <p class="page-lead dash-header__lead">
-      Sistema de intermediación: clientes, inmuebles, vendedores y asesores de alquiler.
+      Sistema de intermediación: clientes, inmuebles, asesores de ventas y asesores de alquiler.
     </p>
   </div>
   <p class="dash-meta muted">
@@ -45,7 +45,7 @@
   {% if puede_gestionar_vendedores_app %}
   <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:vendedor_list' %}">
     <span class="dash-kpi__icon" aria-hidden="true">👤</span>
-    <h3>Vendedores</h3>
+    <h3>Asesores de ventas</h3>
     <p>{{ br_vendedores }}</p>
     <span class="dash-kpi__hint">Ventas y comisiones</span>
   </a>
@@ -72,13 +72,13 @@
   {% if puede_gestionar_vendedores_app %}
   <a class="card modulo dash-modulo" href="{% url 'app:vendedor_list' %}">
     <span class="dash-modulo__icon">👤</span>
-    <h3>Vendedores</h3>
+    <h3>Asesores de ventas</h3>
     <p>Catálogo para ventas y contratos.</p>
   </a>
   <a class="card modulo dash-modulo" href="{% url 'app:asesor_alquiler_list' %}">
     <span class="dash-modulo__icon">🔑</span>
     <h3>Asesores alquiler</h3>
-    <p>Independiente de vendedores de proyectos.</p>
+    <p>Independiente de Asesores de ventas de proyectos.</p>
   </a>
   {% endif %}
   <a class="card modulo dash-modulo" href="{% url 'app:inmuebles_alquiler_hub' %}">

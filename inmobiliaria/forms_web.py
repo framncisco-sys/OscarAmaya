@@ -1,4 +1,4 @@
-"""Formularios para la interfaz web (sin admin)."""
+﻿"""Formularios para la interfaz web (sin admin)."""
 
 import json
 import re
@@ -436,6 +436,51 @@ class InmuebleForm(forms.ModelForm):
                 "Si deja vacíos Preventa/Promocional/Pos, se copia este monto a los tres."
             )
 
+        # Precios: $25,136.72 (miles con coma, decimales con punto).
+        for fname in (
+            "precio_lista",
+            "precio_preventa",
+            "precio_promocional",
+            "precio_pos_preventa",
+        ):
+            old = self.fields.get(fname)
+            if not old:
+                continue
+            self.fields[fname] = MontoDecimalFormField(
+                label=old.label,
+                help_text=getattr(old, "help_text", "") or "",
+                max_digits=14,
+                decimal_places=2,
+                required=old.required,
+                mostrar_simbolo=True,
+                min_value=Decimal("0"),
+            )
+        pl = self.fields.get("precio_lista")
+        if pl:
+            pl.help_text = (
+                "Precio vigente según la etapa del proyecto (se actualiza al guardar). "
+                "Formato: $25,136.72. Si deja vacíos Preventa/Promocional/Pos, se copia este monto a los tres."
+            )
+
+        # Áreas: 1,234.5678 sin $.
+        for fname, decs in (
+            ("area_varas_cuadradas", 4),
+            ("area_m2", 4),
+            ("frente_m", 2),
+            ("fondo_m", 2),
+        ):
+            old = self.fields.get(fname)
+            if not old:
+                continue
+            self.fields[fname] = NumeroDecimalFormField(
+                label=old.label,
+                help_text=getattr(old, "help_text", "") or "",
+                max_digits=getattr(old, "max_digits", 12),
+                decimal_places=getattr(old, "decimal_places", decs),
+                required=old.required,
+                decimales_display=decs,
+            )
+
     def clean(self):
         cleaned = super().clean()
         t = cleaned.get("tipo")
@@ -497,10 +542,7 @@ class InmuebleCasaAltaForm(InmuebleForm):
                 continue
             if not isinstance(w, (forms.HiddenInput,)):
                 w.attrs.setdefault("class", "input")
-        pf = self.fields.get("precio_lista")
-        if pf:
-            pf.widget.attrs.setdefault("step", "0.01")
-            pf.widget.attrs.setdefault("min", "0")
+        # precio_lista ya viene como MontoDecimalFormField con máscara $ desde InmuebleForm.
 
     def save(self, commit=True):
         inmueble = super().save(commit=False)
@@ -874,16 +916,16 @@ class ContratoForm(forms.ModelForm):
             "apellidos", "nombres"
         )
         self.fields["vendedor_perfil"].required = False
-        self.fields["vendedor_perfil"].label = "Vendedor (catálogo)"
+        self.fields["vendedor_perfil"].label = "Asesor de ventas (catálogo)"
         self.fields["vendedor_perfil"].help_text = (
             "Obligatorio para comisión de venta. Al elegirlo se copia su % de comisión. "
             "El recibo de comisión solo se emite cuando reserva y prima estén validadas."
         )
         if "vendedor_nombre" in self.fields:
             self.fields["vendedor_nombre"].help_text = (
-                "Opcional si elige vendedor del catálogo; use este campo para un nombre libre en documentos."
+                "Opcional si elige asesor del catálogo; use este campo para un nombre libre en documentos."
             )
-        # Vendedor de campo: el contrato queda siempre a su nombre en catálogo.
+        # Asesor de ventas de campo: el contrato queda siempre a su nombre en catálogo.
         if self.user is not None:
             from inmobiliaria.contratos_acceso import vendedor_catalogo_activo_vinculado
             from inmobiliaria.vendedor_acceso import es_vendedor_restringido
@@ -895,17 +937,17 @@ class ContratoForm(forms.ModelForm):
                     self.fields["vendedor_perfil"].initial = vc.pk
                     self.fields["vendedor_perfil"].required = True
                     self.fields["vendedor_perfil"].help_text = (
-                        "Asignado automáticamente a su registro de vendedor."
+                        "Asignado automáticamente a su registro de asesor de ventas."
                     )
                     if not getattr(self.instance, "pk", None):
                         self.initial.setdefault("vendedor_perfil", vc.pk)
         if "comision_porcentaje" in self.fields:
-            self.fields["comision_porcentaje"].label = "Comisión del vendedor (%)"
+            self.fields["comision_porcentaje"].label = "Comisión del asesor de ventas (%)"
             self.fields["comision_porcentaje"].help_text = (
-                "Porcentaje sobre el precio final. Se rellena al elegir vendedor; puede ajustarlo."
+                "Porcentaje sobre el precio final. Se rellena al elegir asesor; puede ajustarlo."
             )
         if "comision_monto" in self.fields:
-            self.fields["comision_monto"].label = "Comisión del vendedor (monto fijo USD)"
+            self.fields["comision_monto"].label = "Comisión del asesor de ventas (monto fijo USD)"
             self.fields["comision_monto"].help_text = (
                 "Si define monto fijo, tiene prioridad sobre el % al calcular el recibo de comisión."
             )
@@ -999,7 +1041,7 @@ class ContratoForm(forms.ModelForm):
         if "modalidad_financiamiento" in self.fields:
             self.fields["modalidad_financiamiento"].help_text = (
                 "En a plazos desde formato: se usa «Primer año sin intereses». "
-                "Meses 1–12 = cuota del vendedor; desde el 13 = nueva deuda con interés."
+                "Meses 1–12 = cuota del asesor de ventas; desde el 13 = nueva deuda con interés."
             )
         if "descuento_efectivo_monto" in self.fields:
             self.fields["descuento_efectivo_monto"].help_text = (
@@ -1302,14 +1344,73 @@ class MontoDecimalFormField(forms.DecimalField):
     """
     Montos con miles en coma y decimales en punto (22,500.00).
     También acepta 22500.00 o formato europeo 22.500,00 al pegar.
+    Con mostrar_simbolo=True muestra $22,500.00 (se quita al guardar).
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, mostrar_simbolo: bool = False, **kwargs):
+        self.mostrar_simbolo = bool(mostrar_simbolo)
+        attrs = {
+            "class": "input input-monto-us"
+            + (" input-monto-us--symbol" if self.mostrar_simbolo else ""),
+            "inputmode": "decimal",
+            "placeholder": "$0.00" if self.mostrar_simbolo else "0.00",
+            "autocomplete": "off",
+        }
+        kwargs.setdefault("widget", forms.TextInput(attrs=attrs))
+        super().__init__(*args, **kwargs)
+        # Asegurar clase aunque pasen widget custom.
+        wattrs = getattr(self.widget, "attrs", None)
+        if isinstance(wattrs, dict):
+            cls = (wattrs.get("class") or "").strip()
+            if "input-monto-us" not in cls.split():
+                wattrs["class"] = (cls + " input input-monto-us").strip()
+            if self.mostrar_simbolo and "input-monto-us--symbol" not in (
+                wattrs.get("class") or ""
+            ):
+                wattrs["class"] = (wattrs.get("class", "") + " input-monto-us--symbol").strip()
+            wattrs.setdefault(
+                "placeholder", "$0.00" if self.mostrar_simbolo else "0.00"
+            )
+
+    def to_python(self, value):
+        if value in self.empty_values:
+            return None
+        if isinstance(value, str):
+            from .money_fmt import normalizar_monto_a_decimal_str
+
+            value = normalizar_monto_a_decimal_str(value)
+        return super().to_python(value)
+
+    def prepare_value(self, value):
+        if value is None or value == "":
+            return ""
+        from .money_fmt import format_monto_us, normalizar_monto_a_decimal_str
+
+        if isinstance(value, str):
+            try:
+                normalized = normalizar_monto_a_decimal_str(value)
+                if not normalized:
+                    return value
+                return format_monto_us(normalized, con_simbolo=self.mostrar_simbolo)
+            except Exception:
+                return value
+        return format_monto_us(value, con_simbolo=self.mostrar_simbolo)
+
+
+class NumeroDecimalFormField(forms.DecimalField):
+    """Áreas y cantidades: 1,234.5678 (sin símbolo $)."""
+
+    def __init__(self, *args, decimales_display: int | None = None, **kwargs):
+        self.decimales_display = (
+            decimales_display
+            if decimales_display is not None
+            else kwargs.get("decimal_places", 2)
+        )
         kwargs.setdefault(
             "widget",
             forms.TextInput(
                 attrs={
-                    "class": "input input-monto-us",
+                    "class": "input input-numero-us",
                     "inputmode": "decimal",
                     "placeholder": "0.00",
                     "autocomplete": "off",
@@ -1330,20 +1431,17 @@ class MontoDecimalFormField(forms.DecimalField):
     def prepare_value(self, value):
         if value is None or value == "":
             return ""
-        if isinstance(value, str):
-            # Valor crudo del POST con error de validación: dejarlo o reformatear
-            from .money_fmt import format_monto_us, normalizar_monto_a_decimal_str
+        from .money_fmt import format_numero_us, normalizar_monto_a_decimal_str
 
+        if isinstance(value, str):
             try:
                 normalized = normalizar_monto_a_decimal_str(value)
                 if not normalized:
                     return value
-                return format_monto_us(normalized)
+                return format_numero_us(normalized, decimales=self.decimales_display)
             except Exception:
                 return value
-        from .money_fmt import format_monto_us
-
-        return format_monto_us(value)
+        return format_numero_us(value, decimales=self.decimales_display)
 
 
 class PagoForm(forms.ModelForm):
@@ -1491,7 +1589,7 @@ class PagoForm(forms.ModelForm):
         if vch:
             vch.label = "Subir voucher PDF de la transferencia"
             vch.help_text = (
-                "Obligatorio: el vendedor debe subir el comprobante PDF de la transferencia "
+                "Obligatorio: el asesor de ventas debe subir el comprobante PDF de la transferencia "
                 "o depósito bancario."
             )
             vch.widget = forms.ClearableFileInput(
@@ -1932,7 +2030,7 @@ class PagoForm(forms.ModelForm):
             if not archivo and not (existente and existente.name):
                 self.add_error(
                     "voucher_transferencia",
-                    "El vendedor debe subir el voucher PDF de la transferencia. Es obligatorio.",
+                    "El asesor de ventas debe subir el voucher PDF de la transferencia. Es obligatorio.",
                 )
             elif archivo is not None:
                 name = (getattr(archivo, "name", "") or "").lower()
@@ -2617,14 +2715,14 @@ class FormatoAceptacionForm(forms.ModelForm):
             inter_f.required = False
         inter_f.help_text = (
             "Interés anual que se aplica desde el mes 13. "
-            "Los meses 1–12 van sin interés con la cuota que escribe el vendedor."
+            "Los meses 1–12 van sin interés con la cuota que escribe el asesor de ventas."
         )
 
         letra_f = self.fields.get("letra_mensual")
         if letra_f:
             letra_f.label = "Cuota meses 1–12 (sin interés)"
             letra_f.help_text = (
-                "La escribe el vendedor. Ese monto se aplica en los meses 1–12 sin interés. "
+                "La escribe el asesor de ventas. Ese monto se aplica en los meses 1–12 sin interés. "
                 "Desde el mes 13 el sistema suma el interés."
             )
 
@@ -2686,19 +2784,12 @@ class FormatoAceptacionForm(forms.ModelForm):
                     "valor_inmueble_sistema",
                     "valor_inmueble_solicitado",
                 ) else old.required,
-                widget=forms.TextInput(
-                    attrs={
-                        "class": "input input-monto-us",
-                        "inputmode": "decimal",
-                        "placeholder": "0.00",
-                        "autocomplete": "off",
-                    }
-                ),
+                mostrar_simbolo=True,
             )
             if fname == "letra_mensual":
                 self.fields[fname].label = "Cuota meses 1–12 (sin interés)"
                 self.fields[fname].help_text = (
-                    "La escribe el vendedor. Meses 1–12 sin interés; desde el mes 13 ya va con intereses."
+                    "La escribe el asesor de ventas. Meses 1–12 sin interés; desde el mes 13 ya va con intereses."
                 )
 
         sis = self.fields.get("valor_inmueble_sistema")
@@ -2776,14 +2867,14 @@ class FormatoAceptacionForm(forms.ModelForm):
                 choices=choices,
                 widget=forms.Select(attrs={"class": "input"}),
                 help_text=(
-                    "Lista de todos los vendedores registrados (con su % de comisión). "
-                    "Elija quién elaboró el formato; ese mismo vendedor cobrará la comisión "
+                    "Lista de todos los asesores de ventas registrados (con su % de comisión). "
+                    "Elija quién elaboró el formato; ese mismo asesor de ventas cobrará la comisión "
                     "cuando el cliente tenga reserva y prima pagadas y validadas."
                     if tiene_vendedores
-                    else "No hay vendedores en el catálogo. Regístrelos en Vendedores (registro) primero."
+                    else "No hay asesores de ventas en el catálogo. Regístrelos en Asesores de ventas (registro) primero."
                 ),
                 error_messages={
-                    "required": "Seleccione el vendedor que elaboró este formato.",
+                    "required": "Seleccione el asesor de ventas que elaboró este formato.",
                 },
             )
 
@@ -2847,7 +2938,7 @@ class FormatoAceptacionForm(forms.ModelForm):
             if n_raw.isdigit() and int(n_raw) > 0 and (letra is None or letra <= 0):
                 self.add_error(
                     "letra_mensual",
-                    "Escriba la cuota de los meses 1–12 (sin interés). El vendedor la define; "
+                    "Escriba la cuota de los meses 1–12 (sin interés). El asesor de ventas la define; "
                     "desde el mes 13 el sistema le suma el interés.",
                 )
 

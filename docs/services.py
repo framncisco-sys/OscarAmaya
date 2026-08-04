@@ -1058,7 +1058,7 @@ def emitir_recibo_comision_vendedor(
 
     nombre_v = contrato.nombre_vendedor_documentos()
     if not (nombre_v or "").strip():
-        raise ValueError("Indique el vendedor en el contrato (catálogo o nombre).")
+        raise ValueError("Indique el asesor de ventas en el contrato (catálogo o nombre).")
 
     vp = getattr(contrato, "vendedor_perfil", None)
     liq = liquidar_comision_vendedor(monto, vendedor=vp)
@@ -1178,7 +1178,7 @@ def emitir_recibo_comision_alquiler(
         raise ValueError("Indique un monto de comisión mayor a cero.")
     nombre = (vendedor_nombre or "").strip()
     if not nombre:
-        raise ValueError("Indique el nombre del vendedor o asesor beneficiario.")
+        raise ValueError("Indique el nombre del asesor beneficiario.")
 
     numero = _next_correlativo(
         tipo=DocumentoTipo.RECIBO_COMISION_ARRENDAMIENTO, cfg=CorrelativoConfig()
@@ -1284,7 +1284,7 @@ def regenerar_pdf_documento(doc: DocumentoEmitido) -> bytes:
                 "No hay monto de comisión guardado en el documento; no se puede regenerar este PDF."
             )
         if not (contrato.nombre_vendedor_documentos() or "").strip():
-            raise ValueError("Falta el vendedor en el contrato; no se puede regenerar el PDF.")
+            raise ValueError("Falta el asesor de ventas en el contrato; no se puede regenerar el PDF.")
         return _pdf_recibo_comision_vendedor_bytes(
             doc=doc, contrato=contrato, monto=monto
         )

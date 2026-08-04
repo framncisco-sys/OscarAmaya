@@ -1,4 +1,4 @@
-{% extends "app/base_app.html" %}
+﻿{% extends "app/base_app.html" %}
 {% load static %}
 {% block title %}{{ form_title }} | Paredes Bienes Raíces{% endblock %}
 
@@ -25,7 +25,7 @@
       </label>
       <p class="field__help" style="margin:0 0 0.65rem;color:#115e59;font-weight:600;">
         {% if field.field.required %}
-        El vendedor debe subir aquí el voucher PDF de la transferencia o depósito bancario.
+        El asesor de ventas debe subir aquí el voucher PDF de la transferencia o depósito bancario.
         {% else %}
         Opcional: puede adjuntar el voucher PDF de la transferencia o depósito.
         {% endif %}

@@ -1,11 +1,11 @@
-{% extends "app/object_form.html" %}
+﻿{% extends "app/object_form.html" %}
 {% block before_form %}
 <div id="pago-form-flags" data-ocultar-contrato="{% if pago_ocultar_contrato %}1{% else %}0{% endif %}" hidden></div>
 {% if pago_flujo_concepto == "RESERVA" or pago_flujo_concepto == "PRIMA" or pago_flujo_concepto == "CONTADO" %}
 <div class="card" style="margin-bottom:1rem;max-width:42rem;border-left:4px solid #0f766e;background:#f0fdfa;">
   <p style="margin:0 0 0.35rem;font-weight:700;color:#0f766e;">Voucher obligatorio</p>
   <p class="muted" style="margin:0;font-size:0.9rem;line-height:1.45;">
-    El vendedor debe subir el <strong>voucher PDF de la transferencia</strong> bancaria
+    El asesor de ventas debe subir el <strong>voucher PDF de la transferencia</strong> bancaria
     (o depósito). Sin ese archivo no se puede guardar este pago.
   </p>
 </div>

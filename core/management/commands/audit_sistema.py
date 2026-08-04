@@ -97,7 +97,7 @@ class Command(BaseCommand):
             ("  · venta", Inmueble.objects.filter(en_alquiler=False).count()),
             ("Contratos", Contrato.objects.count()),
             ("Pagos", Pago.objects.count()),
-            ("Vendedores", Vendedor.objects.count()),
+            ("Asesores de ventas", Vendedor.objects.count()),
             ("Formatos aceptación", FormatoAceptacion.objects.count()),
         ]
         try:

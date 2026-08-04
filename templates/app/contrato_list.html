@@ -1,4 +1,4 @@
-{% extends "app/base_app.html" %}
+﻿{% extends "app/base_app.html" %}
 {% block title %}Planes de pagos | Paredes Bienes Raíces{% endblock %}
 {% block app_content %}
 <header class="page-toolbar">
@@ -6,7 +6,7 @@
     <h1 class="page-title">{% if contratos_modo_solo_vendedor %}Mis planes de pagos{% else %}Planes de pagos{% endif %}</h1>
     <p class="page-toolbar__meta">
       {% if contratos_modo_solo_vendedor %}
-        Planes donde figura como vendedor. Flujo: reserva → prima → plazos / cuotas.
+        Planes donde figura como asesor de ventas. Flujo: reserva → prima → plazos / cuotas.
       {% else %}
         Flujo: 1 formato → reserva/prima/cuotas 1–12 en el plan base.
         «Nuevo plan de pagos» solo después de esas 12 cuotas pagadas, y una sola vez por cliente (deuda con interés desde el mes 13).
@@ -43,7 +43,7 @@
       <th>Estado</th>
       <th>Etapa venta</th>
       <th>Firma</th>
-      <th>Vendedor</th>
+      <th>Asesor de ventas</th>
       <th></th>
     </tr>
   </thead>

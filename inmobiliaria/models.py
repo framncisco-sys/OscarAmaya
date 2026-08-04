@@ -1006,7 +1006,7 @@ class Vendedor(models.Model):
         decimal_places=2,
         default=Decimal("3"),
         validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
-        help_text="Porcentaje de comisión sobre el precio de venta. Se copia al contrato al elegir este vendedor; con eso se calcula el recibo de comisión de venta.",
+        help_text="Porcentaje de comisión sobre el precio de venta. Se copia al contrato al elegir este asesor de ventas; con eso se calcula el recibo de comisión de venta.",
     )
     usuario_vinculo = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -1014,7 +1014,7 @@ class Vendedor(models.Model):
         null=True,
         blank=True,
         related_name="vendedor_catalogo",
-        help_text="Usuario interno opcional si el vendedor tiene cuenta en el sistema.",
+        help_text="Usuario interno opcional si el asesor de ventas tiene cuenta en el sistema.",
     )
     dui_frente = models.FileField(
         "Copia de DUI (enfrente)",
@@ -1044,8 +1044,8 @@ class Vendedor(models.Model):
 
     class Meta:
         ordering = ["apellidos", "nombres"]
-        verbose_name = "Vendedor"
-        verbose_name_plural = "Vendedores"
+        verbose_name = "Asesor de ventas"
+        verbose_name_plural = "Asesores de ventas"
 
     def __str__(self) -> str:
         return self.nombre_completo
@@ -1163,8 +1163,8 @@ class Contrato(models.Model):
         null=True,
         blank=True,
         related_name="contratos",
-        verbose_name="Vendedor (catálogo)",
-        help_text="Vendedor del módulo de ventas; define comisión sugerida y recibo de comisión.",
+        verbose_name="Asesor de ventas (catálogo)",
+        help_text="Asesor de ventas del módulo de ventas; define comisión sugerida y recibo de comisión.",
     )
     vendedor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -1172,7 +1172,7 @@ class Contrato(models.Model):
         null=True,
         blank=True,
         related_name="contratos_como_vendedor",
-        help_text="Usuario interno (se sincroniza si el vendedor tiene vínculo).",
+        help_text="Usuario interno (se sincroniza si el asesor de ventas tiene vínculo).",
     )
     vendedor_nombre = models.CharField(
         max_length=120,
@@ -1697,7 +1697,7 @@ class FormatoAceptacion(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="La escribe el vendedor. Meses 1–12 sin interés; desde el mes 13 ya va con intereses.",
+        help_text="La escribe el asesor de ventas. Meses 1–12 sin interés; desde el mes 13 ya va con intereses.",
     )
     plazo_txt = models.CharField("Plazo", max_length=80, blank=True)
     num_cuota_txt = models.CharField("No. cuota", max_length=40, blank=True)
@@ -1741,7 +1741,7 @@ class FormatoAceptacion(models.Model):
         blank=True,
     )
     firma_vendedor = models.ImageField(
-        "Firma vendedor",
+        "Firma asesor de ventas",
         upload_to="formatos_aceptacion/firmas/%Y/%m/",
         blank=True,
     )

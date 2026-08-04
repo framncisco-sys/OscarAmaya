@@ -10,7 +10,7 @@ from inmobiliaria.models import AsesorAlquiler, Contrato, Inmueble, Pago, Vended
 class DocumentoTipo(models.TextChoices):
     PROMESA_VENTA = "PROMESA_VENTA", "Promesa de venta"
     RECIBO_INGRESO = "RECIBO_INGRESO", "Recibo de ingreso"
-    RECIBO_COMISION_VENDEDOR = "RECIBO_COMISION_VENDEDOR", "Recibo de comisión (vendedor)"
+    RECIBO_COMISION_VENDEDOR = "RECIBO_COMISION_VENDEDOR", "Recibo de comisión (asesor de ventas)"
     RECIBO_COMISION_ARRENDAMIENTO = (
         "RECIBO_COMISION_ARRENDAMIENTO",
         "Recibo de comisión (arrendamiento)",
@@ -49,7 +49,7 @@ class DocumentoEmitido(models.Model):
         null=True,
         blank=True,
         related_name="documentos_comision",
-        verbose_name="vendedor (comisión venta)",
+        verbose_name="asesor de ventas (comisión venta)",
     )
     asesor_alquiler = models.ForeignKey(
         AsesorAlquiler,
@@ -77,7 +77,7 @@ class DocumentoEmitido(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="Comisión bruta (sin IVA) liquidada en el recibo al vendedor.",
+        help_text="Comisión bruta (sin IVA) liquidada en el recibo al asesor de ventas.",
     )
     comision_porcentaje_recibo = models.DecimalField(
         "Porcentaje comisión (recibo)",
@@ -89,7 +89,7 @@ class DocumentoEmitido(models.Model):
     )
     comision_concepto = models.TextField(
         blank=True,
-        help_text="Concepto o detalle impreso en el recibo de comisión al vendedor.",
+        help_text="Concepto o detalle impreso en el recibo de comisión al asesor de ventas.",
     )
     comision_tipo_persona = models.CharField(
         max_length=20,
@@ -123,13 +123,13 @@ class DocumentoEmitido(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="Importe neto que recibe el vendedor tras retenciones.",
+        help_text="Importe neto que recibe el asesor de ventas tras retenciones.",
     )
     recibo_beneficiario_nombre = models.CharField(
         "Beneficiario del recibo",
         max_length=120,
         blank=True,
-        help_text="Nombre del vendedor o asesor en recibos de arrendamiento.",
+        help_text="Nombre del asesor en recibos de arrendamiento.",
     )
 
     class Meta:

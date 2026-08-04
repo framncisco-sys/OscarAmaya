@@ -47,7 +47,7 @@
   function setMoney(el, n) {
     if (!el) return;
     if (!isFinite(n) || n < 0) n = 0;
-    el.value = formatMoneyUS(n);
+    el.value = "$" + formatMoneyUS(n);
   }
 
   function pmtCuota(principal, annualPct, months) {

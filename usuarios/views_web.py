@@ -1,4 +1,4 @@
-"""Gestión de usuarios internos bajo /app/usuarios/ (solo gerencia y administradores de app)."""
+﻿"""Gestión de usuarios internos bajo /app/usuarios/ (solo gerencia y administradores de app)."""
 
 from __future__ import annotations
 
@@ -124,7 +124,7 @@ def usuario_create(request: HttpRequest) -> HttpResponse:
                 messages.success(
                     request,
                     f"Usuario «{u.username}» creado. "
-                    "Para el flujo de vendedor: vaya a Vendedores y asigne este usuario en «Usuario vínculo».",
+                    "Para el flujo de asesor de ventas: vaya a Asesores de ventas y asigne este usuario en «Usuario vínculo».",
                 )
             else:
                 messages.success(request, f"Usuario «{u.username}» creado.")

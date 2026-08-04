@@ -1,4 +1,4 @@
-{% extends "app/base_app.html" %}
+﻿{% extends "app/base_app.html" %}
 {% block title %}{{ page_title }} | Paredes Bienes Raíces{% endblock %}
 
 {% block app_content %}
@@ -12,7 +12,7 @@
 <section class="card pbr-card--info" style="margin-bottom:1.25rem;">
   <h2 class="page-title" style="font-size:1.05rem;margin:0 0 0.5rem;">Qué incluye el recibo</h2>
   <ul class="muted" style="margin:0;padding-left:1.2rem;line-height:1.55;">
-    <li><strong>Vendedor / asesor</strong> — nombre del beneficiario de la comisión.</li>
+    <li><strong>Asesor de ventas</strong> — nombre del beneficiario de la comisión.</li>
     <li><strong>Monto en USD</strong> — importe liquidado (ajustable antes del PDF).</li>
     <li><strong>Porcentaje</strong> — referencia opcional en el documento.</li>
     <li><strong>Concepto</strong> — texto de intermediación (alquiler o venta según el caso).</li>
@@ -24,7 +24,7 @@
   <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:recibo_comision_alquiler_local' %}">
     <span class="dash-modulo__icon">🏪</span>
     <h3>Comisión · local en alquiler</h3>
-    <p>Elija el local, indique vendedor y monto de comisión por arrendamiento.</p>
+    <p>Elija el local, indique asesor de alquiler y monto de comisión por arrendamiento.</p>
   </a>
   <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:recibo_comision_alquiler_casa' %}">
     <span class="dash-modulo__icon">🏠</span>
@@ -34,7 +34,7 @@
   <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:recibo_comision_casa_venta' %}">
     <span class="dash-modulo__icon">🏡</span>
     <h3>Comisión · venta (lotes / casas)</h3>
-    <p>Vendedor + comisión en el contrato. Solo si reserva y prima ya están validadas en cuenta.</p>
+    <p>Asesor + comisión en el contrato. Solo si reserva y prima ya están validadas en cuenta.</p>
   </a>
   {% if puede_gestionar_vendedores_app %}
   <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:asesor_alquiler_list' %}">
@@ -44,7 +44,7 @@
   </a>
   <a class="card modulo dash-modulo gestion-modulo" href="{% url 'app:vendedor_list' %}">
     <span class="dash-modulo__icon">👤</span>
-    <h3>Vendedores de proyectos</h3>
+    <h3>Asesores de ventas de proyectos</h3>
     <p>Catálogo de venta de lotes y casas; se vincula en contratos.</p>
   </a>
   {% endif %}

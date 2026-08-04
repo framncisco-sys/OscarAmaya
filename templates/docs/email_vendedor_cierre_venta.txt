@@ -1,4 +1,4 @@
-Estimado(a) asesor(a) {{ vendedor_nombre }},
+﻿Estimado(a) asesor(a) {{ vendedor_nombre }},
 
 {{ empresa_nombre }} le informa que el contrato indicado abajo fue registrado en etapa «Cierre / venta» en el sistema de gestión.
 
@@ -17,4 +17,4 @@ Atentamente,
 {{ empresa_nombre }}
 
 ---
-Mensaje automático. Si no desea recibir estos avisos, indíquelo a administración o actualice los correos en el catálogo de vendedores.
+Mensaje automático. Si no desea recibir estos avisos, indíquelo a administración o actualice los correos en el Catálogo de asesores de ventas.

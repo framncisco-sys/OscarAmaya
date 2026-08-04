@@ -1,4 +1,4 @@
-{% extends "app/base_app.html" %}
+﻿{% extends "app/base_app.html" %}
 {% block title %}{{ page_title }} | {{ marca_portal.nombre }}{% endblock %}
 {% block app_content %}
 <header class="page-toolbar">
@@ -7,7 +7,7 @@
     <p class="page-toolbar__meta">{{ page_meta }}</p>
   </div>
   <div class="page-toolbar__actions">
-    <a href="{% url 'app:vendedor_list' %}" class="btn-secondary">Vendedores</a>
+    <a href="{% url 'app:vendedor_list' %}" class="btn-secondary">Asesores de ventas</a>
     <a href="{% url 'app:recibo_comision_hub' %}" class="btn-secondary">← Recibos de comisión</a>
   </div>
 </header>
@@ -18,7 +18,7 @@
       <th>Contrato</th>
       <th>Cliente</th>
       <th>Inmueble</th>
-      <th>Vendedor / comisión</th>
+      <th>Asesor de ventas / comisión</th>
       <th>Reserva</th>
       <th>Prima</th>
       <th></th>
@@ -52,7 +52,7 @@
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="7" class="muted">No hay contratos de venta. Cree el contrato, asigne vendedor y registre reserva/prima.</td></tr>
+    <tr><td colspan="7" class="muted">No hay contratos de venta. Cree el contrato, asigne asesor de ventas y registre reserva/prima.</td></tr>
     {% endfor %}
   </tbody>
 </table>

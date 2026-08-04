@@ -34,7 +34,7 @@ class ReciboComisionAlquilerForm(forms.Form):
 
         empty_label="— Seleccione del catálogo —",
 
-        help_text="Catálogo independiente de vendedores de proyectos. Si lo elige, se completa el nombre automáticamente.",
+        help_text="Catálogo independiente de asesores de ventas de proyectos. Si lo elige, se completa el nombre automáticamente.",
 
     )
 

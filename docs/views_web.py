@@ -110,7 +110,7 @@ def _alerta_html_recibo_emitido(
         acciones = format_html(
             '<p class="alert-recibo__actions">'
             '<a href="{}" class="alert-recibo__pdf" data-pbr-pdf-download>Descargar PDF</a>'
-            '<span class="alert-recibo__sep">Â·</span>'
+            '<span class="alert-recibo__sep">·</span>'
             '<a href="{}" class="alert-recibo__wa" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>'
             "</p>",
             url_pdf,
@@ -188,7 +188,7 @@ def _contrato_para_recibo_comision(contrato_id: int, user):
 
 
 def _contratos_venta_queryset(user):
-    """Contratos de venta (lotes/casas), no alquiler â€” para comisiÃ³n al vendedor."""
+    """Contratos de venta (lotes/casas), no alquiler — para comisión al asesor de ventas."""
     qs = (
         Contrato.objects.select_related(
             "cliente",
@@ -211,12 +211,12 @@ def _contratos_casa_venta_queryset(user):
 
 
 def _cancel_url_recibo_comision(contrato: Contrato) -> tuple[str, str]:
-    return reverse("app:recibo_comision_hub"), "Recibos de comisiÃ³n al vendedor"
+    return reverse("app:recibo_comision_hub"), "Recibos de comisión al asesor de ventas"
 
 
 @login_required
 def recibo_comision_casa_venta_elegir(request: HttpRequest) -> HttpResponse:
-    """Elige contrato de venta para emitir recibo de comisiÃ³n al vendedor."""
+    """Elige contrato de venta para emitir recibo de comisión al asesor de ventas."""
     from inmobiliaria.comision_vendedor import (
         prefetch_pagos_para_comision,
         requisitos_comision_venta,
@@ -249,11 +249,11 @@ def recibo_comision_casa_venta_elegir(request: HttpRequest) -> HttpResponse:
         {
             "items": page,
             "page_obj": page,
-            "page_title": "Recibo de comisiÃ³n â€” venta",
+            "page_title": "Recibo de comisión — venta",
             "page_meta": (
-                "1) Vendedor con su comisiÃ³n en el contrato Â· "
-                "2) Reserva y prima pagadas y validadas en cuenta Â· "
-                "3) Generar o ver el recibo de comisiÃ³n de venta."
+                "1) Asesor de ventas con su comisión en el contrato · "
+                "2) Reserva y prima pagadas y validadas en cuenta · "
+                "3) Generar o ver el recibo de comisión de venta."
             ),
         },
     )
@@ -271,7 +271,7 @@ def emitir_recibo_comision(request: HttpRequest, contrato_id: int) -> HttpRespon
         if not req.puede_emitir:
             messages.error(
                 request,
-                "AÃºn no se puede generar la comisiÃ³n: " + " ".join(req.motivos),
+                "AÃºn no se puede generar la comisión: " + " ".join(req.motivos),
             )
             return redirect("app:emitir_recibo_comision", contrato_id=contrato.pk)
         form = ReciboComisionVendedorForm(request.POST, contrato=contrato)
@@ -294,7 +294,7 @@ def emitir_recibo_comision(request: HttpRequest, contrato_id: int) -> HttpRespon
             messages.success(
                 request,
                 format_html(
-                    'Recibo de comisiÃ³n al vendedor <strong>{}</strong> generado. '
+                    'Recibo de comisión al asesor de ventas <strong>{}</strong> generado. '
                     '<a href="{}">Descargar PDF</a>.',
                     doc.numero,
                     url_pdf,
@@ -321,10 +321,10 @@ def emitir_recibo_comision(request: HttpRequest, contrato_id: int) -> HttpRespon
         {
             "form": form,
             "contrato": contrato,
-            "vendedor_nombre": nombre_v or "â€” (sin vendedor)",
+            "vendedor_nombre": nombre_v or "— (sin asesor de ventas)",
             "monto_sugerido": monto_sugerido,
             "precio_final": contrato.precio_final,
-            "form_title": "Recibo de comisiÃ³n al vendedor",
+            "form_title": "Recibo de comisión al asesor de ventas",
             "cancel_url": cancel_url,
             "cancel_label": cancel_label,
             "req_comision": req,
@@ -410,7 +410,7 @@ def emitir_recibo(request: HttpRequest, pago_id: int) -> HttpResponse:
         ),
         extra_tags="allow_html",
     )
-    # Sin Meta Cloud: abrir WhatsApp personal del vendedor (PDF + mensaje de un solo).
+    # Sin Meta Cloud: abrir WhatsApp personal del asesor de ventas (PDF + mensaje de un solo).
     if wa and not notif.whatsapp_pdf_por_api:
         from docs.recibo_notificacion import datos_envio_whatsapp_personal
 

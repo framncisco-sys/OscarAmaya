@@ -1,4 +1,5 @@
 {% extends "app/base_app.html" %}
+{% load money_fmt %}
 {% block title %}{{ listado_page_title|default:"Inmuebles" }} | Paredes Bienes Raíces{% endblock %}
 {% block app_content %}
 <header class="page-toolbar">
@@ -47,7 +48,7 @@
       <td>{% if i.reserva_hasta %}{{ i.reserva_hasta }}{% else %}—{% endif %}</td>
       <td>{% if i.area_m2 %}{{ i.area_m2 }}{% else %}—{% endif %}</td>
       <td>{% if i.area_varas_cuadradas %}{{ i.area_varas_cuadradas }}{% else %}—{% endif %}</td>
-      <td>${{ i.precio_lista }}</td>
+      <td>{{ i.precio_lista|money_us_symbol }}</td>
       {% if es_listado_casas %}
       <td>
         <a href="{% url 'app:inmueble_casa_galeria' i.pk %}" class="link-action">Casa y fotos</a>

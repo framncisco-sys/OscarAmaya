@@ -1,4 +1,4 @@
-"""Vistas web minimalistas (azul / blanco / gris) — gestión sin depender del admin."""
+﻿"""Vistas web minimalistas (azul / blanco / gris) — gestión sin depender del admin."""
 
 import csv
 import html
@@ -959,7 +959,7 @@ def inmuebles_alquiler_hub(request: HttpRequest) -> HttpResponse:
 
 @login_required
 def inmuebles_venta_hub(request: HttpRequest) -> HttpResponse:
-    """Centro de venta: casas, lotes, reservas y comisión al vendedor."""
+    """Centro de venta: casas, lotes, reservas y comisión al asesor de ventas."""
     bloqueo = _bloquear_si_desarrollos(request)
     if bloqueo:
         return bloqueo
@@ -2023,7 +2023,7 @@ class VendedorCreateView(VendedoresGestionMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["form_title"] = "Nuevo vendedor"
+        ctx["form_title"] = "Nuevo asesor de ventas"
         ctx["cancel_url"] = reverse_lazy("app:vendedor_list")
         return ctx
 
@@ -2036,7 +2036,7 @@ class VendedorUpdateView(VendedoresGestionMixin, SensitiveEditMixin, UpdateView)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["form_title"] = f"Editar vendedor: {self.object.nombre_completo}"
+        ctx["form_title"] = f"Editar asesor de ventas: {self.object.nombre_completo}"
         ctx["cancel_url"] = reverse_lazy("app:vendedor_list")
         return ctx
 
@@ -2048,9 +2048,9 @@ class VendedorDeleteView(VendedoresGestionMixin, SensitiveDeleteMixin, DeleteVie
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["delete_title"] = "Eliminar vendedor"
+        ctx["delete_title"] = "Eliminar asesor de ventas"
         ctx["delete_blurb"] = (
-            "Los contratos vinculados quedarán sin vendedor del catálogo (no se borran contratos)."
+            "Los contratos vinculados quedarán sin asesor de ventas del catálogo (no se borran contratos)."
         )
         return ctx
 
@@ -2933,7 +2933,7 @@ class PagoCreateView(AppLoginRequiredMixin, CreateView):
             messages.info(
                 self.request,
                 "Gerencia: menú → Validar abonos (gerencia) → Confirmar abono → generar recibo. "
-                "Vendedor: menú → Estado de mis recibos (verá «Imprimir / PDF» solo cuando esté validado).",
+                "Asesor: menú → Estado de mis recibos (verá «Imprimir / PDF» solo cuando esté validado).",
             )
         else:
             messages.success(
@@ -3052,8 +3052,8 @@ def pago_validar_abono(request: HttpRequest, pk: int) -> HttpResponse:
                 messages.success(
                     request,
                     format_html(
-                        "Recibo de comisión al vendedor <strong>{}</strong> generado "
-                        "(reserva y prima OK, vendedor completo). "
+                        "Recibo de comisión al asesor de ventas <strong>{}</strong> generado "
+                        "(reserva y prima OK, asesor completo). "
                         '<a href="{}">Descargar PDF</a>.',
                         doc_com.numero,
                         url_com,
@@ -3065,9 +3065,9 @@ def pago_validar_abono(request: HttpRequest, pk: int) -> HttpResponse:
                 if not req_c.puede_emitir:
                     messages.info(
                         request,
-                        "Comisión al vendedor aún no generada: " + " ".join(req_c.motivos),
+                        "Comisión al asesor de ventas aún no generada: " + " ".join(req_c.motivos),
                     )
-        # Sin API Meta: PDF + mensaje juntos con WhatsApp personal del vendedor.
+        # Sin API Meta: PDF + mensaje juntos con WhatsApp personal del asesor de ventas.
         if wa and not notif.whatsapp_pdf_por_api:
             from docs.recibo_notificacion import datos_envio_whatsapp_personal
 
@@ -3663,7 +3663,7 @@ def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
 def api_inmueble_estado(request: HttpRequest, inmueble_id: int) -> JsonResponse:
     """
     Estado actual del lote (disponible / reservado / vendido / bloqueado).
-    Para avisar al vendedor al elegir el lote, sin guardar el formato.
+    Para avisar al asesor de ventas al elegir el lote, sin guardar el formato.
     """
     from inmobiliaria.forms_web import mensaje_alerta_lote_ocupado
 
@@ -3680,7 +3680,7 @@ def api_inmueble_estado(request: HttpRequest, inmueble_id: int) -> JsonResponse:
     if disponible:
         mensaje = (
             f"✓ El lote {(inv.codigo or '').strip() or '—'} está DISPONIBLE. "
-            "Puede continuar con el formato (revise de nuevo si otro vendedor lo reserva)."
+            "Puede continuar con el formato (revise de nuevo si otro asesor de ventas lo reserva)."
         )
     else:
         mensaje = alerta or (
@@ -3934,7 +3934,7 @@ def _popup_html_mapa_catastral(
             vendedor_txt = str(contrato.vendedor_perfil)
         elif contrato.vendedor_nombre:
             vendedor_txt = contrato.vendedor_nombre
-        bloques.append(dl_row("Vendedor", vendedor_txt))
+        bloques.append(dl_row("Asesor de ventas", vendedor_txt))
         bloques.append("</dl></section>")
 
     # 4) Datos del lote (inventario)

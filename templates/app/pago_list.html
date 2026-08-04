@@ -1,4 +1,4 @@
-{% extends "app/base_app.html" %}
+﻿{% extends "app/base_app.html" %}
 {% block title %}{% if pago_list_vendedor %}Estado de mis recibos{% elif filtro_validacion == 'pendiente' %}Abonos pendientes de gerencia{% else %}Pagos{% endif %} | {{ marca_portal.nombre }}{% endblock %}
 {% block app_content %}
 {% if contrato_filtro %}
@@ -27,9 +27,9 @@
       al cliente por <strong>correo</strong> (si tiene email) y/o <strong>WhatsApp</strong> (si tiene teléfono).
       {% elif filtro_validacion == 'pendiente' %}
       Aquí el <strong>administrador o gerencia</strong> confirma el depósito en cuenta.
-      Solo después de validar se genera el recibo (reserva, prima o cuota mensual) y el vendedor puede imprimirlo.
+      Solo después de validar se genera el recibo (reserva, prima o cuota mensual) y el asesor de ventas puede imprimirlo.
       {% else %}
-      El vendedor registra el abono; gerencia/admin valida el depósito; recién entonces se emite el recibo PDF (correo/WhatsApp) y se habilita la impresión.
+      El asesor de ventas registra el abono; gerencia/admin valida el depósito; recién entonces se emite el recibo PDF (correo/WhatsApp) y se habilita la impresión.
       {% endif %}
     </p>
   </div>
@@ -70,10 +70,10 @@
 <section class="card" style="margin-bottom:1rem;border-left:4px solid #1e3a5f;max-width:48rem;">
   <p style="margin:0 0 0.5rem;font-weight:700;">Flujo obligatorio</p>
   <ol class="muted" style="margin:0;padding-left:1.2rem;font-size:0.9rem;line-height:1.5;">
-    <li>El <strong>vendedor</strong> registra reserva, prima o cuota del mes (con voucher si aplica).</li>
+    <li>El <strong>asesor de ventas</strong> registra reserva, prima o cuota del mes (con voucher si aplica).</li>
     <li>El abono queda aquí como <strong>Pendiente gerencia</strong> — aún <strong>no</strong> hay recibo imprimible.</li>
     <li><strong>Admin / Gerencia</strong> confirma el depósito → <em>Confirmar abono</em>.</li>
-    <li>Se genera el recibo PDF y el vendedor ya puede <strong>imprimir / descargar</strong>.</li>
+    <li>Se genera el recibo PDF y el asesor de ventas ya puede <strong>imprimir / descargar</strong>.</li>
   </ol>
 </section>
 <p class="alert alert--info" role="status" style="margin-bottom:1rem;">

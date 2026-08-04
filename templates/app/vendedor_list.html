@@ -1,13 +1,13 @@
-{% extends "app/base_app.html" %}
-{% block title %}Vendedores | Paredes Bienes Raíces{% endblock %}
+﻿{% extends "app/base_app.html" %}
+{% block title %}Asesores de ventas | Paredes Bienes Raíces{% endblock %}
 {% block app_content %}
 <header class="page-toolbar">
   <div class="page-toolbar__intro">
-    <h1 class="page-title">Vendedores</h1>
+    <h1 class="page-title">Asesores de ventas</h1>
     <p class="page-toolbar__meta">Catálogo de asesores para ventas de proyectos (lotes y casas). Independiente del módulo de alquileres.</p>
   </div>
   <div class="page-toolbar__actions">
-    <a href="{% url 'app:vendedor_create' %}" class="btn-primary btn-sm">Nuevo vendedor</a>
+    <a href="{% url 'app:vendedor_create' %}" class="btn-primary btn-sm">Nuevo asesor de ventas</a>
   </div>
 </header>
 <div class="data-panel">
@@ -39,7 +39,7 @@
       <td><a href="{% url 'app:vendedor_delete' v.pk %}" class="link-action" style="color:#b91c1c;">Eliminar</a></td>
     </tr>
     {% empty %}
-    <tr><td colspan="9" class="muted">No hay vendedores registrados.</td></tr>
+    <tr><td colspan="9" class="muted">No hay asesores de ventas registrados.</td></tr>
     {% endfor %}
   </tbody>
 </table>

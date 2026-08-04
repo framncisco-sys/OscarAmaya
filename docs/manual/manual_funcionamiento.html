@@ -141,7 +141,7 @@
   <div class="box">
     <p class="meta"><strong>Versión:</strong> 1.1 (ampliada)</p>
     <p class="meta"><strong>Fecha:</strong> 15 de julio de 2026</p>
-    <p class="meta"><strong>Incluye:</strong> Flujos, asignación vendedor/asesor, catálogo público, checklist de capacitación y glosario</p>
+    <p class="meta"><strong>Incluye:</strong> Flujos, asignación asesor de ventas / alquiler, catálogo público, checklist de capacitación y glosario</p>
     <p class="meta"><strong>Público:</strong> Personal operativo y administración</p>
   </div>
 </div>
@@ -151,7 +151,7 @@
   <li>Introducción y acceso</li>
   <li>Mapa del menú</li>
   <li>Clientes</li>
-  <li>Vendedores (venta / proyectos)</li>
+  <li>Asesores de ventas (proyectos)</li>
   <li>Asesores de alquiler</li>
   <li>Inmuebles: venta y alquiler</li>
   <li>Proyectos, polígonos y mapas</li>
@@ -196,13 +196,13 @@ El sistema tiene dos caras: la <strong>app interna</strong> (con usuario) para o
 <table>
   <tr><th>Módulo</th><th>Opciones principales</th><th>Para qué</th></tr>
   <tr><td><strong>Clientes</strong></td><td>Listado · Nuevo cliente</td><td>Expediente comprador/inquilino</td></tr>
-  <tr><td><strong>Vendedores</strong></td><td>Catálogo · Nuevo vendedor</td><td>Asesores de <em>venta de proyectos</em></td></tr>
+  <tr><td><strong>Asesores de ventas</strong></td><td>Catálogo · Nuevo asesor de ventas</td><td>Asesores de <em>venta de proyectos</em></td></tr>
   <tr><td><strong>Inmuebles</strong></td><td>Alquileres · Venta · Catálogo para clientes</td><td>Inventario y enlace público de fotos</td></tr>
   <tr><td><strong>Asesores alquiler</strong></td><td>Catálogo · Nuevo asesor</td><td>Asesores de <em>arrendamientos</em> (aparte)</td></tr>
   <tr><td><strong>Gestión</strong></td><td>Inicio · Proyectos · Contratos · Pagos · Documentos · Admin</td><td>Operación diaria y cartera</td></tr>
 </table>
 <div class="warn">
-  <strong>Regla de oro:</strong> Vendedores (venta) ≠ Asesores alquiler. Son dos catálogos independientes.
+  <strong>Regla de oro:</strong> Asesores de ventas ≠ Asesores alquiler. Son dos catálogos independientes.
 </div>
 </div>
 
@@ -224,21 +224,21 @@ El sistema tiene dos caras: la <strong>app interna</strong> (con usuario) para o
 </div>
 
 <div class="section">
-<h1>4. Vendedores (venta / proyectos)</h1>
+<h1>4. Asesores de ventas (proyectos)</h1>
 <p>Para asesores de <strong>lotes y casas en venta</strong>, contratos y comisión de venta.</p>
 <ol>
-  <li><strong>Vendedores → Nuevo vendedor</strong>.</li>
+  <li><strong>Asesores de ventas → Nuevo asesor de ventas</strong>.</li>
   <li>Nombres, contacto, % comisión sugerido (sobre precio de venta), Activo.</li>
   <li>Opcional: vincular usuario del sistema.</li>
 </ol>
 <h2>4.1 Dónde se asigna</h2>
 <table>
   <tr><th>Pregunta</th><th>Respuesta</th></tr>
-  <tr><td>¿Vendió una casa o lote?</td><td>En el <strong>Contrato</strong> → campo <strong>Vendedor</strong></td></tr>
+  <tr><td>¿Vendió una casa o lote?</td><td>En el <strong>Contrato</strong> → campo <strong>Asesor de ventas</strong></td></tr>
   <tr><td>¿En el proyecto?</td><td><strong>No.</strong> El proyecto no lleva vendedor</td></tr>
-  <tr><td>¿Recibo de comisión de venta?</td><td>Toma el vendedor del contrato</td></tr>
+  <tr><td>¿Recibo de comisión de venta?</td><td>Toma el asesor de ventas del contrato</td></tr>
 </table>
-<div class="ok">Ruta: <strong>Gestión → Cartera y cobros → Contratos</strong> → crear/editar → elegir Vendedor del catálogo.</div>
+<div class="ok">Ruta: <strong>Gestión → Cartera y cobros → Contratos</strong> → crear/editar → elegir Asesor de ventas del catálogo.</div>
 </div>
 
 <div class="section">
@@ -284,7 +284,7 @@ campo <strong>Asesor del catálogo de alquiler</strong>
   <li>Registrar lotes en inventario de venta.</li>
   <li><strong>Mapa interactivo</strong> (plano del proyecto) y/o <strong>Mapa catastral</strong>.</li>
 </ol>
-<p class="muted">El proyecto organiza el inventario. El vendedor se asigna después, por cada venta, en el contrato.</p>
+<p class="muted">El proyecto organiza el inventario. El asesor de ventas se asigna después, por cada venta, en el contrato.</p>
 </div>
 
 <div class="section">
@@ -293,8 +293,8 @@ campo <strong>Asesor del catálogo de alquiler</strong>
 <ol>
   <li><strong>Gestión → Contratos → Nuevo</strong>.</li>
   <li>Cliente + Inmueble + precio + plan de pagos.</li>
-  <li>Campo <strong>Vendedor</strong> (catálogo de Vendedores).</li>
-  <li>Desde el listado: Promesa PDF · Recibo vendedor (comisión).</li>
+  <li>Campo <strong>Asesor de ventas</strong> (catálogo de Asesores de ventas).</li>
+  <li>Desde el listado: Promesa PDF · Recibo asesor de ventas (comisión).</li>
 </ol>
 <h2>8.2 Pagos</h2>
 <ol>
@@ -312,7 +312,7 @@ campo <strong>Asesor del catálogo de alquiler</strong>
   <tr><th>Documento</th><th>Desde dónde</th><th>Beneficiario</th></tr>
   <tr><td>Promesa de venta</td><td>Contratos → Promesa PDF</td><td>Cliente / venta</td></tr>
   <tr><td>Recibo de ingreso</td><td>Pagos / Documentos</td><td>Cliente</td></tr>
-  <tr><td>Comisión vendedor</td><td>Contratos → Recibo vendedor</td><td>Vendedor de proyectos</td></tr>
+  <tr><td>Comisión asesor de ventas</td><td>Contratos → Recibo asesor de ventas</td><td>Asesor de ventas de proyectos</td></tr>
   <tr><td>Comisión alquiler</td><td>Alquileres → Comisión…</td><td>Asesor de alquiler</td></tr>
   <tr><td>Formato de aceptación</td><td>Gestión → Documentos</td><td>Uso interno / firmas</td></tr>
   <tr><td>Reporte de cliente</td><td>Clientes → Reporte PDF</td><td>Expediente</td></tr>
@@ -337,9 +337,9 @@ campo <strong>Asesor del catálogo de alquiler</strong>
 <h2>11.1 Venta (camino completo)</h2>
 <ol>
   <li>Cliente → Proyecto/polígono → Lote o casa en inventario.</li>
-  <li>Contrato + <strong>Vendedor</strong>.</li>
+  <li>Contrato + <strong>Asesor de ventas</strong>.</li>
   <li>Promesa PDF → Pagos → Recibo ingreso cliente.</li>
-  <li>Recibo de comisión al vendedor.</li>
+  <li>Recibo de comisión al asesor de ventas.</li>
 </ol>
 <h2>11.2 Alquiler</h2>
 <ol>
@@ -413,10 +413,10 @@ campo <strong>Asesor del catálogo de alquiler</strong>
   <tr><td>Disponible</td><td>Estado de inventario; aparece en catálogo público</td></tr>
   <tr><td>Reservado</td><td>Apartado con cliente reserva; aún no es venta formal</td></tr>
   <tr><td>Contrato</td><td>Venta formal: cliente + inmueble + condiciones + vendedor</td></tr>
-  <tr><td>Vendedor</td><td>Asesor del catálogo de <em>ventas de proyectos</em></td></tr>
+  <tr><td>Asesor de ventas</td><td>Asesor del catálogo de <em>ventas de proyectos</em></td></tr>
   <tr><td>Asesor alquiler</td><td>Asesor del catálogo de <em>arrendamientos</em></td></tr>
   <tr><td>Recibo de ingreso</td><td>PDF de pago del cliente</td></tr>
-  <tr><td>Recibo de comisión</td><td>PDF de liquidación al vendedor o al asesor</td></tr>
+  <tr><td>Recibo de comisión</td><td>PDF de liquidación al asesor de ventas o de alquiler</td></tr>
   <tr><td>Catálogo público</td><td>Página /catalogo/ solo con fotos, sin login</td></tr>
 </table>
 </div>
@@ -425,13 +425,13 @@ campo <strong>Asesor del catálogo de alquiler</strong>
 <h1>14. Preguntas frecuentes y problemas comunes</h1>
 
 <div class="keep">
-<h3>No veo Vendedores ni Asesores alquiler</h3>
+<h3>No veo Asesores de ventas ni Asesores alquiler</h3>
 <p>Su rol no tiene permiso. Pida a Admin/Gerencia/Ventas que le habiliten la gestión de asesores.</p>
 </div>
 
 <div class="keep">
 <h3>¿Dónde asigno quién vendió una casa?</h3>
-<p>En el <strong>Contrato</strong>, campo <strong>Vendedor</strong>. No en el proyecto.</p>
+<p>En el <strong>Contrato</strong>, campo <strong>Asesor de ventas</strong>. No en el proyecto.</p>
 </div>
 
 <div class="keep">

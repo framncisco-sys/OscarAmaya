@@ -1,4 +1,4 @@
-"""Helpers de autorización por rol de app (PerfilUsuario)."""
+﻿"""Helpers de autorización por rol de app (PerfilUsuario)."""
 
 from __future__ import annotations
 
@@ -106,7 +106,7 @@ def slug_filtro_auditoria(user: AbstractUser | None) -> str | None:
 
 
 def puede_gestionar_vendedores(user: AbstractUser | None) -> bool:
-    """Alta/edición/baja del catálogo de vendedores y comisiones (no el vendedor de campo)."""
+    """Alta/edición/baja del catálogo de asesores de ventas y comisiones (no el asesor de ventas de campo)."""
     if not user or not user.is_authenticated:
         return False
     if user.is_superuser:
@@ -186,9 +186,9 @@ def descripcion_roles_para_manual() -> list[tuple[str, str]]:
             "validar abonos y ver el historial de actividad de su empresa.",
         ),
         (
-            "Ventas / comercial",
+            "Asesor de ventas",
             "Acceso solo al flujo de venta de su empresa: formato de aceptación, contrato, reserva, prima/promesa, "
-            "recibos a plazos y listado de sus contratos. Debe tener usuario vinculado en el catálogo Vendedores.",
+            "recibos a plazos y listado de sus contratos. Debe tener usuario vinculado en el catálogo Asesores de ventas.",
         ),
         (
             "Cartera / finanzas",

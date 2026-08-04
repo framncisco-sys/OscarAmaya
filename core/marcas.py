@@ -1,4 +1,4 @@
-"""Marcas comerciales del portal de entrada (sesión)."""
+﻿"""Marcas comerciales del portal de entrada (sesión)."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ MARCAS: dict[str, dict[str, Any]] = {
         "subtitulo": "Arrendamientos, intermediación y gestión inmobiliaria",
         "logo": "logo_paredes_bienes_raices.png",
         "eyebrow": "Bienes raíces",
-        # Sistema aparte: menú Clientes / Vendedores / Inmuebles / Asesores
+        # Sistema aparte: menú Clientes / Asesores de ventas / Inmuebles / Asesores
         "sistema": "bienes_raices",
         "muestra_gestion": False,
     },

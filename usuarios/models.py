@@ -11,7 +11,7 @@ class PerfilUsuario(models.Model):
     class Rol(models.TextChoices):
         ADMINISTRADOR = "ADMINISTRADOR", "Administrador de sistema"
         GERENCIA = "GERENCIA", "Gerencia"
-        VENTAS = "VENTAS", "Ventas / comercial"
+        VENTAS = "VENTAS", "Asesor de ventas"
         CARTERA = "CARTERA", "Cartera / finanzas"
         PROYECTOS = "PROYECTOS", "Proyectos, lotes y mapa"
         MARKETING = "MARKETING", "Marketing / CRM"

@@ -29,7 +29,7 @@ ORDEN_CAT = [
     ("contado", "Recibo de contado"),
     ("cuota", "Recibo de cuota"),
     ("abono", "Recibo de abono a capital"),
-    ("comision_vendedor", "Recibo de comisión (vendedor)"),
+    ("comision_vendedor", "Recibo de comisión (asesor de ventas)"),
     ("comision_alquiler", "Recibo de comisión (arrendamiento)"),
     ("otro", "Otros documentos"),
 ]
@@ -179,7 +179,7 @@ def construir_expedientes(user) -> dict[str, list[dict]]:
         elif d.contrato_id:
             extra_parts.append(f"Contrato {d.contrato.numero}")
         if d.vendedor_id:
-            extra_parts.append(f"Vendedor {d.vendedor.nombre_completo}")
+            extra_parts.append(f"Asesor de ventas {d.vendedor.nombre_completo}")
 
         url = reverse("app:doc_download", args=[d.id]) if d.pdf_file else None
         cliente_key = _cliente_de_doc(d)
