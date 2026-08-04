@@ -203,7 +203,7 @@
       if (plazo) {
         var years = parseInt(String(plazo.value || ""), 10);
         if (!isFinite(years) || years < 1) years = 0;
-        if (years > 5) years = 5;
+        if (years > 6) years = 6;
         var n = years * 12;
         if (numCuota) numCuota.value = n > 0 ? String(n) : "";
         // La cuota 1–12 la escribe el vendedor; no se calcula ni se pisa aquí.
@@ -887,7 +887,7 @@
       }
       if (plazo && plazo.value) {
         var y = parseInt(String(plazo.value).trim(), 10);
-        if (isFinite(y) && y >= 1 && y <= 5) return y * 12;
+        if (isFinite(y) && y >= 1 && y <= 6) return y * 12;
       }
       return null;
     }
