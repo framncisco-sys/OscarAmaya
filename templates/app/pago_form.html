@@ -14,6 +14,16 @@
   <strong>No se pudo guardar:</strong> {{ form.formato_aceptacion.errors|striptags }}
 </div>
 {% endif %}
+{% if pago_flujo_concepto == "RESERVA" or pago_flujo_concepto == "PRIMA" %}
+<div class="card" style="margin-bottom:1rem;max-width:42rem;border-left:4px solid #1e3a5f;">
+  <p style="margin:0 0 0.5rem;font-weight:600;">Flujo a plazos (no crea «plan de pagos» aquí)</p>
+  <ol class="muted" style="margin:0;padding-left:1.2rem;font-size:0.9rem;line-height:1.45;">
+    <li>Primero el <strong>formato de aceptación</strong>.</li>
+    <li>Luego <strong>reserva</strong> y después <strong>prima</strong> (con voucher PDF).</li>
+    <li>El sistema amarra solo el pago al lote del formato; el <strong>plan de pagos</strong> (paso 5) es aparte y opcional después.</li>
+  </ol>
+</div>
+{% endif %}
 {% if pago_flujo_concepto == "CONTADO" %}
 <div class="card" style="margin-bottom:1rem;max-width:42rem;border-left:4px solid #1e3a5f;">
   <p style="margin:0 0 0.5rem;font-weight:600;">Venta de contado (pago total del lote)</p>

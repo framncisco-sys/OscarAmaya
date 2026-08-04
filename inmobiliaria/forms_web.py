@@ -1893,8 +1893,8 @@ class PagoForm(forms.ModelForm):
             fa.required = False
             fa.label = "Formato de aceptación guardado"
             fa.help_text = (
-                "Lista igual que en «Formatos de aceptación guardados». Si el formato no tiene contrato enlazado, "
-                "el sistema intenta localizarlo por lote y proyecto del documento; si no puede, debe vincular el contrato al editar el formato."
+                "Elija el formato guardado. No necesita crear un plan de pagos antes: "
+                "al guardar reserva o prima el sistema vincula solo el lote del formato."
             )
             fmt_qs = (
                 FormatoAceptacion.objects.select_related("contrato", "contrato__cliente")
@@ -1956,15 +1956,15 @@ class PagoForm(forms.ModelForm):
                 formato_catalog[str(f.pk)] = base
                 if f.contrato_id:
                     fmt_labels[f.pk] = (
-                        f"Nº {fmt_num} — {fnom} — Contrato {f.contrato.numero}"
+                        f"Nº {fmt_num} — {fnom} — {f.contrato.numero}"
                     )
                 elif res_ct:
                     fmt_labels[f.pk] = (
-                        f"Nº {fmt_num} — {fnom} — Contrato {res_ct.numero} (lote/proyecto)"
+                        f"Nº {fmt_num} — {fnom} — {res_ct.numero}"
                     )
                 else:
                     fmt_labels[f.pk] = (
-                        f"Nº {fmt_num} — {fnom} (sin contrato: edite el formato para vincularlo)"
+                        f"Nº {fmt_num} — {fnom} (al guardar reserva/prima se vincula el lote)"
                     )
             fa.widget = FormatoPagoSelect(catalog=formato_catalog)
             fa.widget.choices = fa.choices
