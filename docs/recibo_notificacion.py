@@ -42,21 +42,69 @@ class ReciboNotificacionInfo:
     correo_enviado: bool
     """True si se llamó a send() sin excepción (puede ser solo consola / dummy)."""
     correo_entrega_real: bool
-    """True solo si hay SMTP configurado y el backend no es consola/dummy."""
+    """True solo si hay SMTP/API real y el backend no es consola/dummy."""
     whatsapp_pdf_por_api: bool
     meta_configurado: bool
     meta_solo_texto: bool
     twilio_pdf: bool
+    correo_destinos: tuple[str, ...] = ()
+    """Bandejas a las que se intentó enviar (cliente y/o oficina)."""
+    whatsapp_manual_url: str | None = None
+    """Enlace wa.me para abrir el chat del cliente (si hay teléfono)."""
 
 
 def _correo_entrega_a_bandejas_reales() -> bool:
-    """Sin EMAIL_HOST o con QuietConsole el mensaje no llega al cliente."""
+    """Sin EMAIL_HOST/API o con QuietConsole el mensaje no llega a bandejas reales."""
     be = (getattr(settings, "EMAIL_BACKEND", "") or "").strip()
     if "QuietConsole" in be or be.endswith("console.EmailBackend") or "dummy" in be.lower():
         return False
+    if "brevo" in be.lower():
+        return True
     if not (getattr(settings, "EMAIL_HOST", "") or "").strip():
         return False
     return True
+
+
+def _formato_vinculado_pago(pago: "Pago"):
+    fmt = getattr(pago, "formato_aceptacion", None)
+    if fmt is not None:
+        return fmt
+    contrato = getattr(pago, "contrato", None)
+    if contrato is None:
+        return None
+    rel = getattr(contrato, "formatos_aceptacion", None)
+    if rel is None:
+        return None
+    return rel.order_by("-id").first()
+
+
+def telefono_para_recibo(pago: "Pago") -> str:
+    """Teléfono del cliente o, si falta, el del formato de aceptación vinculado."""
+    cliente = pago.contrato.cliente
+    t = (getattr(cliente, "telefono", "") or "").strip()
+    if t:
+        return t
+    fmt = _formato_vinculado_pago(pago)
+    if fmt is None:
+        return ""
+    for raw in (
+        getattr(fmt, "telefono_notificacion", None),
+        getattr(fmt, "telefono_domicilio", None),
+        getattr(fmt, "telefono_trabajo", None),
+    ):
+        s = (raw or "").strip()
+        if s:
+            return s
+    return ""
+
+
+def email_cliente_para_recibo(pago: "Pago") -> str:
+    return (getattr(pago.contrato.cliente, "email", None) or "").strip()
+
+
+def email_oficina_recibo() -> str:
+    fallback = (getattr(settings, "RECIBO_EMAIL_FALLBACK", "") or "").strip()
+    return fallback or "paredesinmobi@gmail.com"
 
 
 def url_pdf_publica_https(doc: "DocumentoEmitido") -> str | None:
@@ -137,7 +185,8 @@ def construir_url_whatsapp_recibo(cliente, doc: "DocumentoEmitido", pago: "Pago"
     El enlace wa.me solo abre el chat con texto; no adjunta archivos.
     Para PDF + mensaje juntos use la pantalla de compartir (teléfono) o Meta Cloud API.
     """
-    tel = _telefono_a_whatsapp(getattr(cliente, "telefono", "") or "")
+    tel_raw = telefono_para_recibo(pago) or (getattr(cliente, "telefono", "") or "")
+    tel = _telefono_a_whatsapp(tel_raw)
     if not tel:
         return None
     texto = construir_mensaje_whatsapp_recibo(cliente, doc, pago, incluir_enlace_pdf=True)
@@ -151,7 +200,8 @@ def datos_envio_whatsapp_personal(
     Datos para que el vendedor envíe con su WhatsApp personal:
     URL wa.me + mensaje (con y sin enlace) para compartir PDF+texto de un solo.
     """
-    tel = _telefono_a_whatsapp(getattr(cliente, "telefono", "") or "")
+    tel_raw = telefono_para_recibo(pago) or (getattr(cliente, "telefono", "") or "")
+    tel = _telefono_a_whatsapp(tel_raw)
     if not tel:
         return None
     msg_con_enlace = construir_mensaje_whatsapp_recibo(
@@ -169,46 +219,60 @@ def datos_envio_whatsapp_personal(
     }
 
 
-def _destino_email_recibo(cliente) -> tuple[str, bool]:
+def destinos_email_recibo(pago: "Pago") -> tuple[list[str], bool]:
     """
-    Correo destino del recibo.
-    Returns: (email, es_fallback)
+    Destinos del recibo: siempre la bandeja de oficina (RECIBO_EMAIL_FALLBACK)
+    y, si existe, también el correo del cliente.
+
+    Returns: (lista_emails, solo_oficina)
     """
-    destino = (getattr(cliente, "email", None) or "").strip()
-    if destino:
-        return destino, False
-    fallback = (getattr(settings, "RECIBO_EMAIL_FALLBACK", "") or "").strip()
-    if not fallback:
-        fallback = "paredesinmobi@gmail.com"
-    return fallback, True
+    cliente_email = email_cliente_para_recibo(pago)
+    oficina = email_oficina_recibo()
+    destinos: list[str] = []
+    if cliente_email:
+        destinos.append(cliente_email)
+    if oficina and oficina.lower() not in {d.lower() for d in destinos}:
+        destinos.append(oficina)
+    solo_oficina = bool(destinos) and (not cliente_email)
+    return destinos, solo_oficina
 
 
-def enviar_recibo_por_email(doc: "DocumentoEmitido", pago: "Pago") -> bool:
+def enviar_recibo_por_email(doc: "DocumentoEmitido", pago: "Pago") -> tuple[bool, tuple[str, ...]]:
+    """
+    Envía el PDF del recibo por correo.
+    Returns: (ok, destinos intentados)
+    """
     if not getattr(settings, "RECIBO_ENVIAR_EMAIL", True):
-        return False
+        return False, ()
     cliente = pago.contrato.cliente
-    destino, es_fallback = _destino_email_recibo(cliente)
-    if not destino:
+    destinos, solo_oficina = destinos_email_recibo(pago)
+    if not destinos:
         logger.warning(
             "Recibo %s: sin email de cliente ni RECIBO_EMAIL_FALLBACK; no se envía correo.",
             doc.numero,
         )
-        return False
-    if es_fallback:
+        return False, ()
+    if solo_oficina:
         logger.info(
-            "Recibo %s: cliente sin email; se envía a correo principal %s",
+            "Recibo %s: cliente sin email; se envía a bandeja de oficina %s",
             doc.numero,
-            destino,
+            destinos[0],
+        )
+    else:
+        logger.info(
+            "Recibo %s: se envía a %s",
+            doc.numero,
+            ", ".join(destinos),
         )
     if not doc.pdf_file or not doc.pdf_file.name:
-        return False
+        return False, tuple(destinos)
 
     try:
         doc.pdf_file.open("rb")
         pdf_bytes = doc.pdf_file.read()
     except OSError as e:
         logger.warning("Recibo %s: no se pudo leer PDF: %s", doc.numero, e)
-        return False
+        return False, tuple(destinos)
     finally:
         try:
             doc.pdf_file.close()
@@ -233,13 +297,19 @@ def enviar_recibo_por_email(doc: "DocumentoEmitido", pago: "Pago") -> bool:
             "nombre_cliente_completo": nombre_completo,
             "monto_fmt": format_monto_sv(pago.monto),
             "empresa_nombre": empresa,
-            "email_es_fallback": es_fallback,
+            "email_es_fallback": solo_oficina,
         },
     ).strip()
-    if es_fallback:
+    if solo_oficina:
         body = (
             f"[Aviso interno] El cliente «{nombre_completo}» no tiene correo registrado. "
-            f"Este recibo se envió a la bandeja principal ({destino}).\n\n"
+            f"Este recibo llegó a la bandeja de oficina ({', '.join(destinos)}).\n\n"
+            + body
+        )
+    elif len(destinos) > 1:
+        body = (
+            f"[Copia oficina] Recibo del cliente «{nombre_completo}». "
+            f"Destinatarios: {', '.join(destinos)}.\n\n"
             + body
         )
 
@@ -252,13 +322,17 @@ def enviar_recibo_por_email(doc: "DocumentoEmitido", pago: "Pago") -> bool:
         ),
         body=body,
         from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None) or "noreply@localhost",
-        to=[destino],
+        to=destinos,
     )
     msg.attach(nombre_archivo, pdf_bytes, "application/pdf")
 
     try:
         msg.send(fail_silently=False)
-        logger.info("Recibo %s: mensaje pasado al backend de correo → %s", doc.numero, destino)
+        logger.info(
+            "Recibo %s: mensaje pasado al backend de correo → %s",
+            doc.numero,
+            ", ".join(destinos),
+        )
         be = getattr(settings, "EMAIL_BACKEND", "") or ""
         if (
             "QuietConsole" in be
@@ -266,15 +340,14 @@ def enviar_recibo_por_email(doc: "DocumentoEmitido", pago: "Pago") -> bool:
             or be == "django.core.mail.backends.dummy.EmailBackend"
         ):
             logger.warning(
-                "Recibo %s: EMAIL_BACKEND no usa SMTP; el cliente NO recibirá el correo en su bandeja. "
-                "Configure en .env: EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend y "
-                "EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, DEFAULT_FROM_EMAIL.",
+                "Recibo %s: EMAIL_BACKEND no usa SMTP/API real; nadie recibirá el correo en bandeja. "
+                "Configure EMAIL_BACKEND (Brevo/SMTP) y credenciales en .env.",
                 doc.numero,
             )
-        return True
+        return True, tuple(destinos)
     except Exception as e:
         logger.exception("Recibo %s: fallo al enviar email: %s", doc.numero, e)
-        return False
+        return False, tuple(destinos)
 
 
 def _enviar_whatsapp_twilio(doc: "DocumentoEmitido", pago: "Pago", media_url: str | None) -> bool:
@@ -283,7 +356,7 @@ def _enviar_whatsapp_twilio(doc: "DocumentoEmitido", pago: "Pago", media_url: st
     from_wa = getattr(settings, "TWILIO_WHATSAPP_FROM", "") or ""
     if not (sid and token and from_wa):
         return False
-    to = _telefono_a_whatsapp(pago.contrato.cliente.telefono or "")
+    to = _telefono_a_whatsapp(telefono_para_recibo(pago))
     if not to:
         return False
     to_wa = f"whatsapp:+{to}"
@@ -328,9 +401,12 @@ def _enviar_whatsapp_meta_cloud(
     # Opt-out: RECIBO_ENVIAR_WHATSAPP_META=0. Por defecto, si Meta Cloud está activo, se envía.
     if not getattr(settings, "RECIBO_ENVIAR_WHATSAPP_META", True):
         return None
-    to = _telefono_a_whatsapp(pago.contrato.cliente.telefono or "")
+    to = _telefono_a_whatsapp(telefono_para_recibo(pago))
     if not to:
-        logger.info("Recibo %s: cliente sin teléfono; no se envía WhatsApp Meta.", doc.numero)
+        logger.info(
+            "Recibo %s: sin teléfono (cliente/formato); no se envía WhatsApp Meta.",
+            doc.numero,
+        )
         return EnvioResultado(False, "Cliente sin teléfono.", adjunto_pdf=False)
     pdf_bytes: bytes | None = None
     if doc.pdf_file and doc.pdf_file.name:
@@ -375,12 +451,12 @@ def _enviar_whatsapp_meta_cloud(
 
 def notificar_recibo_emitido(doc: "DocumentoEmitido", pago: "Pago") -> ReciboNotificacionInfo:
     """
-    Tras generar el PDF: envía automáticamente al cliente
-    - correo con PDF adjunto (email del cliente o RECIBO_EMAIL_FALLBACK);
+    Tras generar el PDF: envía automáticamente
+    - correo con PDF adjunto a la bandeja de oficina y, si existe, al cliente;
     - WhatsApp (Meta Cloud o Twilio) si hay teléfono y la API está configurada;
       si no hay API, se deja enlace wa.me para abrir el chat con el mensaje.
     """
-    correo_ok = enviar_recibo_por_email(doc, pago)
+    correo_ok, destinos = enviar_recibo_por_email(doc, pago)
 
     rel_or_abs = _url_archivo_field_absoluta_o_ruta(doc.pdf_file) if doc.pdf_file else None
     media_url = None
@@ -411,6 +487,11 @@ def notificar_recibo_emitido(doc: "DocumentoEmitido", pago: "Pago") -> ReciboNot
     wa = construir_url_whatsapp_recibo(pago.contrato.cliente, doc, pago)
     if wa:
         logger.info("Recibo %s: enlace WhatsApp (manual o seguimiento): %s", doc.numero, wa)
+    elif not (meta_pdf or twilio_pdf):
+        logger.warning(
+            "Recibo %s: sin teléfono del cliente/formato; no se puede abrir WhatsApp.",
+            doc.numero,
+        )
 
     return ReciboNotificacionInfo(
         correo_enviado=correo_ok,
@@ -419,4 +500,6 @@ def notificar_recibo_emitido(doc: "DocumentoEmitido", pago: "Pago") -> ReciboNot
         meta_configurado=meta_on,
         meta_solo_texto=meta_solo_texto,
         twilio_pdf=twilio_pdf,
+        correo_destinos=destinos,
+        whatsapp_manual_url=wa,
     )

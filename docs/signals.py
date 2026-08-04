@@ -18,8 +18,13 @@ def emitir_recibo_al_crear_pago(sender, instance: Pago, created: bool, **kwargs)
     Recibo automático solo si el abono no requiere validación de gerencia,
     o ya fue validado (p. ej. tras confirmar depósito).
     Reserva/prima/cuotas pendientes: no PDF, no correo, no WhatsApp.
+
+    Si la vista marca `_recibo_lo_maneja_vista`, no actúa aquí (la vista
+    emite, notifica y abre WhatsApp con feedback al usuario).
     """
     if not created:
+        return
+    if getattr(instance, "_recibo_lo_maneja_vista", False):
         return
     if not instance.puede_emitir_recibo_cliente:
         return

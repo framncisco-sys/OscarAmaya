@@ -61,22 +61,81 @@ def _documento_emitido_queryset_para_descarga():
 
 
 def _html_estado_correo_recibo(notif: ReciboNotificacionInfo) -> str:
+    dest = ", ".join(notif.correo_destinos) if notif.correo_destinos else ""
     if notif.correo_entrega_real:
-        return (
-            '<p class="alert-recibo__meta">Correo: el PDF se enviÃ³ al email del cliente.</p>'
+        donde = dest or "la bandeja configurada"
+        return format_html(
+            '<p class="alert-recibo__meta">Correo: el PDF se envió a <strong>{}</strong>.</p>',
+            donde,
         )
     if notif.correo_enviado:
         return (
             '<p class="alert-recibo__meta alert-recibo__meta--warn">'
-            "Correo: el servidor no estÃ¡ usando SMTP real; el cliente puede no haber recibido el email. "
-            "Revise <code>EMAIL_HOST</code> y credenciales."
+            "Correo: el servidor no está usando SMTP/API real; puede no haber llegado a bandeja. "
+            "Revise <code>EMAIL_BACKEND</code> / Brevo / SMTP."
             "</p>"
         )
     return (
         '<p class="alert-recibo__meta">'
-        "Correo: no enviado (cliente sin email o fallo de envÃ­o)."
+        "Correo: no enviado (sin destinatario o fallo de envío)."
         "</p>"
     )
+
+
+def respuesta_despues_emitir_recibo(
+    request: HttpRequest,
+    *,
+    pago: Pago,
+    doc: DocumentoEmitido,
+    notif: ReciboNotificacionInfo,
+    continue_url: str | None = None,
+    mensaje_extra: str | None = None,
+) -> HttpResponse:
+    """
+    Mensajes de correo/WhatsApp + pantalla para enviar por WhatsApp personal
+    (necesaria cuando Meta Cloud no está activo en el servidor).
+    """
+    from docs.recibo_notificacion import datos_envio_whatsapp_personal
+
+    wa = notif.whatsapp_manual_url or construir_url_whatsapp_recibo(
+        pago.contrato.cliente, doc, pago
+    )
+    url_pdf = reverse("app:doc_download", args=[doc.id])
+    messages.success(
+        request,
+        _alerta_html_recibo_emitido(
+            doc_numero=doc.numero,
+            url_pdf=url_pdf,
+            wa_url=wa,
+            notif=notif,
+        ),
+        extra_tags="allow_html",
+    )
+    if mensaje_extra:
+        messages.info(request, mensaje_extra)
+    destino = continue_url or reverse("app:docs_list")
+    if wa and not notif.whatsapp_pdf_por_api:
+        datos = datos_envio_whatsapp_personal(pago.contrato.cliente, doc, pago) or {}
+        return render(
+            request,
+            "app/recibo_abrir_whatsapp.html",
+            {
+                "doc_numero": doc.numero,
+                "wa_url": wa,
+                "url_pdf": url_pdf,
+                "continue_url": destino,
+                "share_payload": {
+                    "doc_numero": doc.numero,
+                    "pdf_url": url_pdf,
+                    "pdf_nombre": datos.get("pdf_nombre")
+                    or f"{doc.numero.replace('/', '-')}.pdf",
+                    "wa_url": wa,
+                    "mensaje": datos.get("mensaje") or "",
+                    "mensaje_con_enlace": datos.get("mensaje_con_enlace") or "",
+                },
+            },
+        )
+    return redirect(destino)
 
 
 def _html_whatsapp_enlace_manual(*, auto_abierto: bool) -> str:
@@ -363,7 +422,11 @@ def emitir_promesa(request: HttpRequest, contrato_id: int) -> HttpResponse:
 def emitir_recibo(request: HttpRequest, pago_id: int) -> HttpResponse:
     """POST obligatorio (CSRF). GET muestra confirmaciÃ³n."""
     pago = get_object_or_404(
-        Pago.objects.select_related("contrato", "contrato__cliente"),
+        Pago.objects.select_related(
+            "contrato",
+            "contrato__cliente",
+            "formato_aceptacion",
+        ),
         pk=pago_id,
     )
     if not usuario_puede_ver_contrato(request.user, pago.contrato):
@@ -398,43 +461,13 @@ def emitir_recibo(request: HttpRequest, pago_id: int) -> HttpResponse:
         )
         return redirect("app:pago_list")
     doc, notif = emitir_recibo_ingreso(pago=pago, emitido_por=request.user)
-    wa = construir_url_whatsapp_recibo(pago.contrato.cliente, doc, pago)
-    url_pdf = reverse("app:doc_download", args=[doc.id])
-    messages.success(
+    return respuesta_despues_emitir_recibo(
         request,
-        _alerta_html_recibo_emitido(
-            doc_numero=doc.numero,
-            url_pdf=url_pdf,
-            wa_url=wa,
-            notif=notif,
-        ),
-        extra_tags="allow_html",
+        pago=pago,
+        doc=doc,
+        notif=notif,
+        continue_url=reverse("app:docs_list"),
     )
-    # Sin Meta Cloud: abrir WhatsApp personal del asesor de ventas (PDF + mensaje de un solo).
-    if wa and not notif.whatsapp_pdf_por_api:
-        from docs.recibo_notificacion import datos_envio_whatsapp_personal
-
-        datos = datos_envio_whatsapp_personal(pago.contrato.cliente, doc, pago) or {}
-        return render(
-            request,
-            "app/recibo_abrir_whatsapp.html",
-            {
-                "doc_numero": doc.numero,
-                "wa_url": wa,
-                "url_pdf": url_pdf,
-                "continue_url": reverse("app:docs_list"),
-                "share_payload": {
-                    "doc_numero": doc.numero,
-                    "pdf_url": url_pdf,
-                    "pdf_nombre": datos.get("pdf_nombre")
-                    or f"{doc.numero.replace('/', '-')}.pdf",
-                    "wa_url": wa,
-                    "mensaje": datos.get("mensaje") or "",
-                    "mensaje_con_enlace": datos.get("mensaje_con_enlace") or "",
-                },
-            },
-        )
-    return redirect("app:docs_list")
 
 
 @login_required

@@ -4,7 +4,10 @@
 <header class="page-toolbar">
   <div class="page-toolbar__intro">
     <h1 class="page-title">Historial de actividad</h1>
-    <p class="page-toolbar__meta">Registro de creación, edición y eliminación en el sistema.{% if filtro_marca_fijo %} Mostrando solo su empresa.{% else %} Administradores ven ambas empresas; puede filtrar.{% endif %}</p>
+    <p class="page-toolbar__meta">
+      Quién hizo qué en el sistema (altas, cambios y eliminaciones), en lenguaje claro.
+      {% if filtro_marca_fijo %} Mostrando solo su empresa.{% else %} Puede filtrar por empresa.{% endif %}
+    </p>
   </div>
 </header>
 
@@ -12,17 +15,17 @@
   <div class="field" style="margin:0;min-width:10rem;">
     <label class="field__label" for="id_q">Buscar</label>
     <div class="field__control">
-      <input type="search" name="q" id="id_q" value="{{ request.GET.q }}" class="form-control" placeholder="Usuario, modelo, id…" style="padding:0.5rem 0.65rem;border-radius:10px;border:1px solid var(--pbr-border);min-width:12rem;">
+      <input type="search" name="q" id="id_q" value="{{ request.GET.q }}" class="form-control" placeholder="Persona, tipo o n.º de registro…" style="padding:0.5rem 0.65rem;border-radius:10px;border:1px solid var(--pbr-border);min-width:14rem;">
     </div>
   </div>
   <div class="field" style="margin:0;">
-    <label class="field__label" for="id_action">Acción</label>
+    <label class="field__label" for="id_action">Tipo de cambio</label>
     <div class="field__control">
       <select name="action" id="id_action" class="form-control" style="padding:0.5rem;border-radius:10px;border:1px solid var(--pbr-border);">
-        <option value="">Todas</option>
-        <option value="CREATE"{% if request.GET.action == "CREATE" %} selected{% endif %}>Crear</option>
-        <option value="UPDATE"{% if request.GET.action == "UPDATE" %} selected{% endif %}>Actualizar</option>
-        <option value="DELETE"{% if request.GET.action == "DELETE" %} selected{% endif %}>Eliminar</option>
+        <option value="">Todos</option>
+        <option value="CREATE"{% if request.GET.action == "CREATE" %} selected{% endif %}>Nuevo registro</option>
+        <option value="UPDATE"{% if request.GET.action == "UPDATE" %} selected{% endif %}>Cambio / actualización</option>
+        <option value="DELETE"{% if request.GET.action == "DELETE" %} selected{% endif %}>Eliminación</option>
       </select>
     </div>
   </div>
@@ -39,14 +42,8 @@
     </div>
   </div>
   {% endif %}
-  <div class="field" style="margin:0;">
-    <label class="field__label" for="id_actor_id">ID usuario actor</label>
-    <div class="field__control">
-      <input type="text" name="actor_id" id="id_actor_id" value="{{ request.GET.actor_id }}" class="form-control" placeholder="opcional" style="padding:0.5rem 0.65rem;border-radius:10px;border:1px solid var(--pbr-border);width:6rem;">
-    </div>
-  </div>
   <button type="submit" class="btn-primary btn-sm">Filtrar</button>
-  {% if request.GET.q or request.GET.action or request.GET.actor_id or request.GET.marca %}
+  {% if request.GET.q or request.GET.action or request.GET.marca %}
   <a href="{% url 'app:audit_log_list' %}" class="btn-secondary btn-sm">Limpiar</a>
   {% endif %}
 </form>
@@ -55,42 +52,32 @@
 <table class="table">
   <thead>
     <tr>
-      <th>Fecha</th>
+      <th>Cuándo</th>
       <th>Quién</th>
-      <th>Acción</th>
+      <th>Qué hizo</th>
+      <th>Tipo de registro</th>
       <th>Empresa</th>
-      <th>Modelo</th>
-      <th>Id registro</th>
-      <th>IP</th>
       <th></th>
     </tr>
   </thead>
   <tbody>
-    {% for row in items %}
+    {% for f in filas %}
     <tr>
-      <td style="white-space:nowrap;font-size:0.875rem;">{{ row.created_at|date:"d/m/Y H:i:s" }}</td>
+      <td style="white-space:nowrap;font-size:0.875rem;">{{ f.row.created_at|date:"d/m/Y H:i" }}</td>
       <td>
-        {% if row.actor %}
-          <strong>{{ row.actor.username }}</strong>
-          {% if row.actor_role %}<span class="muted" style="font-size:0.8rem;display:block;">{{ row.actor_role }}</span>{% endif %}
-        {% else %}
-          <span class="muted">—</span>
-        {% endif %}
+        <strong>{{ f.quien }}</strong>
+        {% if f.rol %}<span class="muted" style="font-size:0.8rem;display:block;">{{ f.rol }}</span>{% endif %}
       </td>
-      <td><span class="badge {% if row.action == 'DELETE' %}badge--bloqueado{% else %}badge--activo{% endif %}">{{ row.get_action_display }}</span></td>
-      <td style="font-size:0.8rem;">
-        {% if row.marca_slug == "bienes-raices" %}Bienes Raíces
-        {% elif row.marca_slug == "desarrollos" %}Desarrollos
-        {% elif row.marca_slug %}<code>{{ row.marca_slug }}</code>
-        {% else %}<span class="muted">—</span>{% endif %}
+      <td>
+        <span class="badge {% if f.accion_codigo == 'DELETE' %}badge--bloqueado{% else %}badge--activo{% endif %}">{{ f.accion }}</span>
+        <div style="font-size:0.875rem;margin-top:0.25rem;line-height:1.35;">{{ f.resumen }}</div>
       </td>
-      <td><code style="font-size:0.8rem;">{{ row.app_label }}.{{ row.model_name }}</code></td>
-      <td>{{ row.object_pk }}</td>
-      <td class="muted" style="font-size:0.8rem;">{{ row.ip_address|default:"—" }}</td>
-      <td><a href="{% url 'app:audit_log_detail' row.pk %}" class="link-action">Detalle</a></td>
+      <td style="font-size:0.875rem;">{{ f.tipo }}</td>
+      <td style="font-size:0.8rem;">{{ f.empresa }}</td>
+      <td><a href="{% url 'app:audit_log_detail' f.row.pk %}" class="link-action">Ver detalle</a></td>
     </tr>
     {% empty %}
-    <tr><td colspan="8" class="muted">No hay registros de auditoría{% if request.GET.q %} con ese criterio{% endif %}.</td></tr>
+    <tr><td colspan="6" class="muted">No hay actividad registrada{% if request.GET.q %} con ese criterio{% endif %}.</td></tr>
     {% endfor %}
   </tbody>
 </table>

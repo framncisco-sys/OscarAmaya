@@ -694,7 +694,8 @@ else:
     ADMINS = []
     MANAGERS = []
 RECIBO_ENVIAR_EMAIL = env.bool("RECIBO_ENVIAR_EMAIL", default=True)
-# Si el cliente no tiene email, los recibos se envían a este correo (oficina / respaldo).
+# Si el cliente no tiene email, los recibos se envían a este correo (oficina).
+# Si el cliente SÍ tiene email, también se envía copia a esta bandeja.
 RECIBO_EMAIL_FALLBACK = env.str(
     "RECIBO_EMAIL_FALLBACK",
     default="paredesinmobi@gmail.com",

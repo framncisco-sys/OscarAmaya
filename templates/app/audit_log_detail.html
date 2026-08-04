@@ -1,28 +1,72 @@
 {% extends "app/base_app.html" %}
-{% block title %}Detalle auditoría #{{ log.pk }} | Paredes Bienes Raíces{% endblock %}
+{% block title %}Detalle de actividad | Paredes Bienes Raíces{% endblock %}
 {% block app_content %}
 <p class="muted" style="margin-bottom:0.75rem;"><a href="{% url 'app:audit_log_list' %}" class="link-action">← Volver al historial</a></p>
-<h1 class="page-title">Evento de auditoría</h1>
-<dl class="muted" style="display:grid;gap:0.35rem 1.5rem;grid-template-columns:auto 1fr;max-width:48rem;">
-  <dt>Fecha</dt><dd>{{ log.created_at|date:"d/m/Y H:i:s" }}</dd>
-  <dt>Acción</dt><dd>{{ log.get_action_display }} (<code>{{ log.action }}</code>)</dd>
-  <dt>Actor</dt><dd>{% if log.actor %}<strong>{{ log.actor.username }}</strong> (id {{ log.actor_id }}){% else %}—{% endif %}</dd>
-  <dt>Rol en app</dt><dd>{{ log.actor_role|default:"—" }}</dd>
-  <dt>Empresa</dt><dd>{{ marca_nombre }}</dd>
-  <dt>Modelo</dt><dd><code>{{ log.app_label }}.{{ log.model_name }}</code></dd>
-  <dt>Id registro</dt><dd>{{ log.object_pk }}</dd>
-  <dt>IP</dt><dd>{{ log.ip_address|default:"—" }}</dd>
-  <dt>User-Agent</dt><dd style="word-break:break-all;font-size:0.85rem;">{{ log.user_agent|default:"—" }}</dd>
-  <dt>Request id</dt><dd><code style="font-size:0.8rem;">{{ log.request_id|default:"—" }}</code></dd>
-</dl>
 
-{% if before_json %}
-<h2 class="page-title" style="font-size:1.1rem;margin-top:1.5rem;">Antes</h2>
-<pre style="background:var(--pbr-surface-muted);padding:1rem;border-radius:10px;overflow:auto;max-height:24rem;font-size:0.8rem;line-height:1.4;">{{ before_json }}</pre>
+<header class="page-toolbar" style="margin-bottom:1rem;">
+  <div class="page-toolbar__intro">
+    <h1 class="page-title">Detalle de la actividad</h1>
+    <p class="page-toolbar__meta">{{ info.resumen }}</p>
+  </div>
+</header>
+
+<div class="data-panel" style="margin-bottom:1.25rem;padding:1rem 1.15rem;">
+  <dl style="display:grid;gap:0.5rem 1.25rem;grid-template-columns:9rem 1fr;margin:0;max-width:42rem;font-size:0.95rem;">
+    <dt class="muted">Cuándo</dt>
+    <dd style="margin:0;">{{ log.created_at|date:"d/m/Y H:i:s" }}</dd>
+    <dt class="muted">Quién</dt>
+    <dd style="margin:0;"><strong>{{ info.quien }}</strong>{% if info.rol %} <span class="muted">({{ info.rol }})</span>{% endif %}</dd>
+    <dt class="muted">Acción</dt>
+    <dd style="margin:0;"><span class="badge {% if info.accion_codigo == 'DELETE' %}badge--bloqueado{% else %}badge--activo{% endif %}">{{ info.accion }}</span></dd>
+    <dt class="muted">Registro</dt>
+    <dd style="margin:0;">{{ info.tipo }}{% if info.registro_id %} · n.º {{ info.registro_id }}{% endif %}</dd>
+    <dt class="muted">Empresa</dt>
+    <dd style="margin:0;">{{ marca_nombre }}</dd>
+  </dl>
+</div>
+
+{% if cambios %}
+<h2 class="page-title" style="font-size:1.1rem;margin:0 0 0.65rem;">Qué cambió</h2>
+<div class="data-panel">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Dato</th>
+      <th>Antes</th>
+      <th>Después</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in cambios %}
+    <tr>
+      <td><strong>{{ c.campo }}</strong></td>
+      <td style="font-size:0.875rem;word-break:break-word;">{{ c.antes }}</td>
+      <td style="font-size:0.875rem;word-break:break-word;">{{ c.despues }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="muted" style="margin:0 0 1rem;">No hay diferencias de datos para mostrar (o el evento no guardó detalle de campos).</p>
 {% endif %}
 
-{% if after_json %}
-<h2 class="page-title" style="font-size:1.1rem;margin-top:1.5rem;">Después</h2>
-<pre style="background:var(--pbr-surface-muted);padding:1rem;border-radius:10px;overflow:auto;max-height:24rem;font-size:0.8rem;line-height:1.4;">{{ after_json }}</pre>
-{% endif %}
+<details style="margin-top:1.5rem;">
+  <summary class="muted" style="cursor:pointer;font-size:0.875rem;">Datos técnicos (solo si soporte lo necesita)</summary>
+  <dl class="muted" style="display:grid;gap:0.35rem 1.5rem;grid-template-columns:auto 1fr;max-width:48rem;margin-top:0.75rem;font-size:0.85rem;">
+    <dt>Usuario de acceso</dt><dd>{% if log.actor %}<code>{{ log.actor.username }}</code> (id {{ log.actor_id }}){% else %}—{% endif %}</dd>
+    <dt>Modelo interno</dt><dd><code>{{ log.app_label }}.{{ log.model_name }}</code></dd>
+    <dt>IP</dt><dd>{{ log.ip_address|default:"—" }}</dd>
+    <dt>Navegador</dt><dd style="word-break:break-all;">{{ log.user_agent|default:"—" }}</dd>
+    <dt>Id de solicitud</dt><dd><code>{{ log.request_id|default:"—" }}</code></dd>
+  </dl>
+  {% if before_json %}
+  <h3 style="font-size:0.95rem;margin:1rem 0 0.35rem;">JSON — antes</h3>
+  <pre style="background:var(--pbr-surface-muted);padding:1rem;border-radius:10px;overflow:auto;max-height:16rem;font-size:0.75rem;line-height:1.4;">{{ before_json }}</pre>
+  {% endif %}
+  {% if after_json %}
+  <h3 style="font-size:0.95rem;margin:1rem 0 0.35rem;">JSON — después</h3>
+  <pre style="background:var(--pbr-surface-muted);padding:1rem;border-radius:10px;overflow:auto;max-height:16rem;font-size:0.75rem;line-height:1.4;">{{ after_json }}</pre>
+  {% endif %}
+</details>
 {% endblock %}

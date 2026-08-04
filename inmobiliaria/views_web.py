@@ -2950,6 +2950,8 @@ class PagoCreateView(AppLoginRequiredMixin, CreateView):
         from inmobiliaria.validacion_gerencia import aplicar_validacion_pago_al_guardar
 
         pendiente = aplicar_validacion_pago_al_guardar(form.instance, self.request.user)
+        # La vista emite/notifica y abre WhatsApp; el signal no debe duplicar.
+        form.instance._recibo_lo_maneja_vista = True
         response = super().form_valid(form)
         concepto = form.cleaned_data.get("concepto")
         if concepto in Pago.CONCEPTOS_CON_VALIDACION and pendiente:
@@ -2957,25 +2959,58 @@ class PagoCreateView(AppLoginRequiredMixin, CreateView):
                 self.request,
                 f"{self.object.get_concepto_display()} registrado. "
                 "Queda pendiente de validación de gerencia/administrador: "
-                "el recibo PDF no se genera ni se puede imprimir hasta que confirmen el depósito en cuenta.",
+                "el recibo PDF no se genera ni se envía (correo/WhatsApp) hasta que confirmen el depósito.",
             )
             messages.info(
                 self.request,
                 "Gerencia: menú → Validar flujo de venta / Validar abonos → Confirmar. "
                 "Asesor: Estado de mis recibos (verá «Imprimir / PDF» solo cuando esté validado).",
             )
-        elif concepto in Pago.CONCEPTOS_CON_VALIDACION:
+            return response
+
+        # Validado al guardar (admin/gerencia) u otros conceptos: emitir + correo + WhatsApp.
+        try:
+            from docs.services import emitir_recibo_ingreso
+            from docs.views_web import respuesta_despues_emitir_recibo
+
+            pago = (
+                Pago.objects.select_related(
+                    "contrato",
+                    "contrato__cliente",
+                    "formato_aceptacion",
+                )
+                .filter(pk=self.object.pk)
+                .first()
+                or self.object
+            )
+            doc, notif = emitir_recibo_ingreso(pago=pago, emitido_por=self.request.user)
+            etiqueta = (
+                pago.get_concepto_display()
+                if concepto in Pago.CONCEPTOS_CON_VALIDACION
+                else "Pago"
+            )
+            return respuesta_despues_emitir_recibo(
+                self.request,
+                pago=pago,
+                doc=doc,
+                notif=notif,
+                continue_url=str(self.get_success_url()),
+                mensaje_extra=(
+                    f"{etiqueta} registrado. Recibo {doc.numero}: correo a oficina/cliente "
+                    "y preparación de WhatsApp al cliente."
+                ),
+            )
+        except Exception:
+            logger.exception(
+                "Error al emitir/notificar recibo tras crear pago id=%s", self.object.pk
+            )
             messages.success(
                 self.request,
-                f"{self.object.get_concepto_display()} registrado y validado. "
-                "Puede generar el recibo PDF.",
+                f"{self.object.get_concepto_display() if concepto else 'Pago'} registrado, "
+                "pero no se pudo emitir o notificar el recibo automáticamente. "
+                "Use «Recibo PDF» en el listado de pagos.",
             )
-        else:
-            messages.success(
-                self.request,
-                "Pago registrado. El recibo de ingreso se genera automáticamente al guardar.",
-            )
-        return response
+            return response
 
 
 @login_required
@@ -2997,6 +3032,7 @@ def pago_validar_abono(request: HttpRequest, pk: int) -> HttpResponse:
                 "contrato__cliente",
                 "contrato__inmueble",
                 "contrato__inmueble__proyecto",
+                "formato_aceptacion",
             ),
             request.user,
         ),
@@ -3029,45 +3065,30 @@ def pago_validar_abono(request: HttpRequest, pk: int) -> HttpResponse:
         ]
     )
 
-    from docs.recibo_notificacion import construir_url_whatsapp_recibo
     from docs.services import emitir_recibo_ingreso
-    from docs.views_web import _alerta_html_recibo_emitido
+    from docs.views_web import respuesta_despues_emitir_recibo
 
     try:
         doc, notif = emitir_recibo_ingreso(pago=pago, emitido_por=request.user)
-        wa = construir_url_whatsapp_recibo(pago.contrato.cliente, doc, pago)
-        url_pdf = reverse("app:doc_download", args=[doc.id])
-        messages.success(
-            request,
-            _alerta_html_recibo_emitido(
-                doc_numero=doc.numero,
-                url_pdf=url_pdf,
-                wa_url=wa,
-                notif=notif,
-            ),
-            extra_tags="allow_html",
-        )
         enviados = []
         if notif.correo_enviado:
-            enviados.append("correo")
+            dest = ", ".join(notif.correo_destinos) if notif.correo_destinos else "correo"
+            enviados.append(f"correo ({dest})")
         if notif.whatsapp_pdf_por_api:
             enviados.append("WhatsApp API")
+        wa = notif.whatsapp_manual_url
         if enviados:
-            msg_envio = " y enviado al cliente por " + " y ".join(enviados)
+            msg_envio = " y notificado por " + " y ".join(enviados)
         elif wa:
             msg_envio = (
-                ". Se abre WhatsApp en su equipo para enviarlo con su WhatsApp personal "
-                "(adjunte el PDF y pulse Enviar)"
+                ". Se abre WhatsApp en su equipo para enviarlo al cliente "
+                "(PDF + mensaje; pulse Enviar)"
             )
         else:
             msg_envio = (
-                ". Agregue teléfono/email del cliente para notificar, "
-                "o use Descargar PDF"
+                ". Agregue teléfono del cliente (o en el formato) y revise "
+                "RECIBO_EMAIL_FALLBACK para notificar"
             )
-        messages.info(
-            request,
-            f"Validación OK ({nota}). Recibo {doc.numero} generado{msg_envio}.",
-        )
         if pago.concepto in (
             Pago.Concepto.RESERVA,
             Pago.Concepto.PRIMA,
@@ -3102,31 +3123,14 @@ def pago_validar_abono(request: HttpRequest, pk: int) -> HttpResponse:
                         request,
                         "Comisión al asesor de ventas aún no generada: " + " ".join(req_c.motivos),
                     )
-        # Sin API Meta: PDF + mensaje juntos con WhatsApp personal del asesor de ventas.
-        if wa and not notif.whatsapp_pdf_por_api:
-            from docs.recibo_notificacion import datos_envio_whatsapp_personal
-
-            datos = datos_envio_whatsapp_personal(pago.contrato.cliente, doc, pago) or {}
-            return render(
-                request,
-                "app/recibo_abrir_whatsapp.html",
-                {
-                    "doc_numero": doc.numero,
-                    "wa_url": wa,
-                    "url_pdf": url_pdf,
-                    "continue_url": reverse("app:docs_list"),
-                    "share_payload": {
-                        "doc_numero": doc.numero,
-                        "pdf_url": url_pdf,
-                        "pdf_nombre": datos.get("pdf_nombre")
-                        or f"{doc.numero.replace('/', '-')}.pdf",
-                        "wa_url": wa,
-                        "mensaje": datos.get("mensaje") or "",
-                        "mensaje_con_enlace": datos.get("mensaje_con_enlace") or "",
-                    },
-                },
-            )
-        return HttpResponseRedirect(reverse("app:docs_list"))
+        return respuesta_despues_emitir_recibo(
+            request,
+            pago=pago,
+            doc=doc,
+            notif=notif,
+            continue_url=reverse("app:docs_list"),
+            mensaje_extra=f"Validación OK ({nota}). Recibo {doc.numero} generado{msg_envio}.",
+        )
     except Exception:
         logger.exception("Error al emitir recibo tras validar pago id=%s", pago.pk)
         messages.warning(

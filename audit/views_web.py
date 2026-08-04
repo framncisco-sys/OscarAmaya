@@ -13,6 +13,7 @@ from core.marcas import MARCAS
 from usuarios.roles import puede_ver_historial_auditoria, slug_filtro_auditoria
 
 from .models import AuditLog
+from .presentacion import cambios_legibles, enriquecer_log, etiqueta_empresa
 
 
 class SoloAdministradorAuditoriaMixin(LoginRequiredMixin, UserPassesTestMixin):
@@ -44,6 +45,9 @@ class AuditLogListView(SoloAdministradorAuditoriaMixin, ListView):
                 | Q(model_name__icontains=q)
                 | Q(app_label__icontains=q)
                 | Q(actor__username__icontains=q)
+                | Q(actor__first_name__icontains=q)
+                | Q(actor__last_name__icontains=q)
+                | Q(actor_role__icontains=q)
             )
         actor_id = (self.request.GET.get("actor_id") or "").strip()
         if actor_id.isdigit():
@@ -60,6 +64,12 @@ class AuditLogListView(SoloAdministradorAuditoriaMixin, ListView):
         ctx["pagination_query"] = qd.urlencode()
         ctx["filtro_marca_fijo"] = slug_filtro_auditoria(self.request.user)
         ctx["marcas_filtro"] = list(MARCAS.values())
+        filas = []
+        for row in ctx["items"]:
+            info = enriquecer_log(row)
+            info["row"] = row
+            filas.append(info)
+        ctx["filas"] = filas
         return ctx
 
 
@@ -69,7 +79,7 @@ class AuditLogDetailView(SoloAdministradorAuditoriaMixin, DetailView):
     context_object_name = "log"
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().select_related("actor")
         filtro_marca = slug_filtro_auditoria(self.request.user)
         if filtro_marca:
             qs = qs.filter(marca_slug=filtro_marca)
@@ -78,11 +88,22 @@ class AuditLogDetailView(SoloAdministradorAuditoriaMixin, DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         log: AuditLog = ctx["log"]
+        info = enriquecer_log(log)
+        ctx["info"] = info
+        ctx["cambios"] = cambios_legibles(
+            action=log.action,
+            app_label=log.app_label,
+            model_name=log.model_name,
+            before=log.before,
+            after=log.after,
+        )
+        ctx["marca_nombre"] = etiqueta_empresa(log.marca_slug)
+        # JSON crudo solo como respaldo técnico (colapsado en plantilla).
         for key in ("before", "after"):
             raw = getattr(log, key)
             ctx[f"{key}_json"] = (
-                json.dumps(raw, indent=2, ensure_ascii=False, default=str) if raw is not None else ""
+                json.dumps(raw, indent=2, ensure_ascii=False, default=str)
+                if raw is not None
+                else ""
             )
-        marca = MARCAS.get(log.marca_slug or "")
-        ctx["marca_nombre"] = marca["nombre"] if marca else (log.marca_slug or "—")
         return ctx

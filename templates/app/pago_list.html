@@ -142,7 +142,7 @@
           {% elif p.puede_emitir_recibo_cliente %}
           <form method="post" action="{% url 'app:emitir_recibo' p.pk %}" class="inline-form" style="display:inline;">
             {% csrf_token %}
-            <button type="submit" class="link-action" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit;font-weight:700;">Imprimir / PDF</button>
+            <button type="submit" class="link-action" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit;font-weight:700;">Descargar PDF / WhatsApp</button>
           </form>
           {% elif p.validacion_abono == 'RECHAZADO' %}
           <span class="muted" style="font-size:0.85rem;">Sin recibo (rechazado)</span>

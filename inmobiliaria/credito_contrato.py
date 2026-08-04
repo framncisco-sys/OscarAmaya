@@ -516,31 +516,48 @@ def cliente_desde_formato_aceptacion(fmt: FormatoAceptacion) -> Cliente:
     """Localiza o crea el cliente a partir del formato (DUI / nombre)."""
     from .models import Cliente
 
+    def _tel_fmt() -> str:
+        return (
+            (fmt.telefono_domicilio or "").strip()
+            or (fmt.telefono_notificacion or "").strip()
+            or (fmt.telefono_trabajo or "").strip()
+        )[:40]
+
+    def _sync_contacto(c: Cliente) -> Cliente:
+        """Completa teléfono vacío desde el formato (para WhatsApp de recibos)."""
+        tel = _tel_fmt()
+        changed = False
+        if tel and not (c.telefono or "").strip():
+            c.telefono = tel
+            changed = True
+        if changed:
+            c.save(update_fields=["telefono"])
+        return c
+
     dui = _norm_dui(fmt.dui_numero)
     if dui:
-        for c in Cliente.objects.all().only("id", "dui", "nombres", "apellidos")[:500]:
+        for c in Cliente.objects.all().only(
+            "id", "dui", "nombres", "apellidos", "telefono", "email"
+        )[:500]:
             if _norm_dui(c.dui) == dui:
-                return c
+                return _sync_contacto(c)
     nombre = _norm_nombre(fmt.nombre_cliente)
     if nombre:
-        for c in Cliente.objects.all().only("id", "dui", "nombres", "apellidos")[:500]:
+        for c in Cliente.objects.all().only(
+            "id", "dui", "nombres", "apellidos", "telefono", "email"
+        )[:500]:
             cn = _norm_nombre(f"{c.nombres or ''} {c.apellidos or ''}")
             if cn == nombre:
-                return c
+                return _sync_contacto(c)
     raw_nombre = (fmt.nombre_cliente or "").strip() or "Cliente contado"
     partes = raw_nombre.split(None, 1)
     nombres = partes[0][:120]
     apellidos = (partes[1] if len(partes) > 1 else "—")[:120]
-    tel = (
-        (fmt.telefono_domicilio or "").strip()
-        or (fmt.telefono_notificacion or "").strip()
-        or (fmt.telefono_trabajo or "").strip()
-    )[:40]
     return Cliente.objects.create(
         nombres=nombres,
         apellidos=apellidos,
         dui=(fmt.dui_numero or "").strip()[:20],
-        telefono=tel,
+        telefono=_tel_fmt(),
         direccion=(fmt.direccion_domicilio or "").strip()[:255],
     )
 

@@ -147,6 +147,7 @@ def _pdf_static_base_url() -> str:
     for fname in (
         "logo_paredes_bienes_raices.png",
         "logo_paredes_desarrollos.png",
+        "logo_paredes_desarrollos_pie.png",
         "logo_valle_alegre.png",
     ):
         found = finders.find(fname)
@@ -653,6 +654,27 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _nombre_recibido_por_recibo(*, doc, pago) -> str:
+    """
+    Texto bajo «RECIBIDO POR» en el recibo digital.
+    - Administrador / superusuario → OSCAR RENE PAREDES
+    - Gerente (u otro usuario que emite/valida) → nombre registrado en el sistema
+    """
+    from usuarios.roles import es_superusuario_o_admin_app
+
+    user = getattr(pago, "validado_por", None) or getattr(doc, "emitido_por", None)
+    if user is not None and es_superusuario_o_admin_app(user):
+        return "OSCAR RENE PAREDES"
+    if user is None:
+        return "OSCAR RENE PAREDES"
+    nombre = (user.get_full_name() or "").strip()
+    if not nombre:
+        nombre = f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip()
+    if not nombre:
+        nombre = (getattr(user, "username", "") or "").strip()
+    return (nombre or "—").upper()
+
+
 def _contexto_recibo_ingreso(*, doc, pago) -> dict:
     from inmobiliaria.pago_desglose import desglose_para_recibo
     from inmobiliaria.signals import aplicar_cuotas_programadas_del_pago
@@ -721,6 +743,8 @@ def _contexto_recibo_ingreso(*, doc, pago) -> dict:
         ),
         "vendedor_nombre": vendedor,
         "precio_inmueble_fmt": format_monto_sv(contrato.precio_final),
+        "recibido_por_nombre": _nombre_recibido_por_recibo(doc=doc, pago=pago),
+        "logo_pie_empresa_src": "logo_paredes_desarrollos_pie.png",
         **_saldos_recibo(pago),
         **branding_pdf_context(proyecto),
     }
@@ -743,6 +767,8 @@ def emitir_recibo_ingreso(*, pago, emitido_por=None) -> tuple[DocumentoEmitido, 
             "contrato__inmueble__proyecto",
             "contrato__inmueble__poligono",
             "contrato__vendedor_perfil",
+            "formato_aceptacion",
+            "validado_por",
         )
         .filter(pk=pago.pk)
         .first()

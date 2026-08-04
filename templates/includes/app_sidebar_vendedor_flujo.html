@@ -39,14 +39,17 @@
       <a href="{% url 'app:estado_cuenta_hub' %}"{% if sidebar_nav.estado_cuenta_active %} class="is-active" aria-current="page"{% endif %}>
         Estado de cuenta (imprimir PDF)
       </a>
-      <a href="{% url 'app:pago_list' %}"{% if sidebar_nav.pago_list_active %} class="is-active" aria-current="page"{% endif %}>
+      <a href="{% url 'app:pago_list' %}?validacion=validado"{% if sidebar_nav.pago_list_active and request.GET.validacion == 'validado' %} class="is-active" aria-current="page"{% endif %}>
+        Recibos listos (PDF / WhatsApp)
+      </a>
+      <a href="{% url 'app:pago_list' %}"{% if sidebar_nav.pago_list_active and not request.GET.validacion %} class="is-active" aria-current="page"{% endif %}>
         Todos los pagos / estado de recibos{% if sidebar_stats and sidebar_stats.pagos_pendientes_validacion %}<span class="app-sidebar__stat">{{ sidebar_stats.pagos_pendientes_validacion }}</span>{% endif %}
       </a>
       <a href="{% url 'app:formato_aceptacion_list' %}"{% if sidebar_nav.formato_list_active %} class="is-active" aria-current="page"{% endif %}>
         Formatos guardados
       </a>
       <a href="{% url 'app:docs_list' %}"{% if sidebar_nav.docs_active %} class="is-active" aria-current="page"{% endif %}>
-        Documentos PDF
+        Documentos PDF (descargar de nuevo)
       </a>
     </div>
   </div>

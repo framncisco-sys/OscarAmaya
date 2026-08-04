@@ -170,13 +170,17 @@
         <strong>Formatos guardados</strong>
         <small>Los que usted elaboró</small>
       </a>
+      <a class="vend-home__link" href="{% url 'app:pago_list' %}?validacion=validado">
+        <strong>Recibos listos (PDF / WhatsApp)</strong>
+        <small>Descargar y enviar al cliente cuando gerencia ya validó</small>
+      </a>
       <a class="vend-home__link" href="{% url 'app:pago_list' %}">
         <strong>Estado de mis recibos</strong>
         <small>Pendientes y validados{% if vend_pagos_pendientes %} · {{ vend_pagos_pendientes }} pendiente{{ vend_pagos_pendientes|pluralize }}{% endif %}</small>
       </a>
       <a class="vend-home__link" href="{% url 'app:docs_list' %}">
         <strong>Mis documentos PDF</strong>
-        <small>Solo los de su cartera</small>
+        <small>Volver a descargar los de su cartera</small>
       </a>
     </div>
   </section>
