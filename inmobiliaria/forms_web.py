@@ -389,6 +389,9 @@ class InmuebleForm(forms.ModelForm):
         """
         self.modo_tipo = modo_tipo or ""
         super().__init__(*args, **kwargs)
+        # Campos de lote que no se usan en el flujo operativo (mapa usa geometría, no lat/long sueltas).
+        for _ocultar in ("servicios_basicos", "latitud", "longitud"):
+            self.fields.pop(_ocultar, None)
         inv = self.instance
         if (
             inv.pk

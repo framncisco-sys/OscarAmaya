@@ -3952,19 +3952,8 @@ def _popup_html_mapa_catastral(
         bloques.append(dl_row("Frente (m)", str(inmueble.frente_m)))
     if inmueble.fondo_m is not None:
         bloques.append(dl_row("Fondo (m)", str(inmueble.fondo_m)))
-    if inmueble.latitud is not None and inmueble.longitud is not None:
-        bloques.append(
-            dl_row(
-                "Coord. punto (WGS84)",
-                f"{inmueble.latitud}, {inmueble.longitud}",
-            )
-        )
     if inmueble.topografia:
         bloques.append(dl_row("Topografía", _truncate_txt(inmueble.topografia, 120)))
-    if inmueble.servicios_basicos:
-        bloques.append(
-            dl_row("Servicios", _truncate_txt(inmueble.servicios_basicos, 160))
-        )
     if inmueble.notas:
         bloques.append(dl_row("Notas", _truncate_txt(inmueble.notas)))
     bloques.append("</dl></section>")

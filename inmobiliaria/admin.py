@@ -160,9 +160,6 @@ class InmuebleAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "topografia",
-                    "servicios_basicos",
-                    "latitud",
-                    "longitud",
                     "tour_virtual_url",
                     "notas",
                 ),
