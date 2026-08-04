@@ -134,8 +134,8 @@ def puede_validar_abonos(user: AbstractUser | None) -> bool:
 
 def requiere_validacion_gerencia(user: AbstractUser | None) -> bool:
     """
-    Operadores del flujo de venta (asesores, proyectos, cartera, etc.):
-    pueden registrar, pero admin/gerencia debe validar para que quede oficial.
+    Operadores (asesores, etc.): al registrar recibos/abonos quedan pendientes
+    hasta que admin/gerencia validen. Formato y plan de pagos no usan esta cola.
     """
     if not user or not user.is_authenticated:
         return True

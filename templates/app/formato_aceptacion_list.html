@@ -6,7 +6,7 @@
     <h1 class="page-title">Formatos de aceptación guardados</h1>
     <p class="page-toolbar__meta">
       Listado de documentos ya registrados. Para crear uno nuevo, use <strong>Formato de aceptación</strong> en el menú lateral.
-      Admin y gerencia quedan <strong>validados al guardar</strong>; asesores/operadores quedan pendientes hasta que gerencia confirme.
+      El formato no requiere validación de gerencia; solo los <strong>recibos</strong> (reserva, prima, cuotas) pasan por esa cola.
     </p>
   </div>
 </header>
@@ -35,7 +35,6 @@
       <th>Nº formulario</th>
       <th>Nombre</th>
       <th>Inmueble / proyecto</th>
-      <th>Validación</th>
       <th>Documentos</th>
       <th>Acciones</th>
     </tr>
@@ -54,19 +53,6 @@
           {% else %}
             —
           {% endif %}
-        {% endif %}
-      </td>
-      <td>
-        {% if f.validacion_gerencia == 'PENDIENTE' %}
-        <span class="badge badge--reservado">Pendiente gerencia</span>
-        {% elif f.validacion_gerencia == 'VALIDADO' %}
-        <span class="badge badge--disponible">Validado</span>
-        {% elif f.validacion_gerencia == 'RECHAZADO' %}
-        <span class="badge badge--vendido">Rechazado</span>
-        {% elif f.validacion_gerencia == 'NO_APLICA' %}
-        <span class="badge badge--disponible">Sin cola (admin)</span>
-        {% else %}
-        <span class="muted">—</span>
         {% endif %}
       </td>
       <td>
@@ -129,7 +115,7 @@
     </tr>
     {% empty %}
     <tr>
-      <td colspan="6" class="muted">
+      <td colspan="5" class="muted">
         Todavía no hay formatos guardados.
       </td>
     </tr>

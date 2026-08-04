@@ -2126,9 +2126,6 @@ class ContratoCreateView(AppLoginRequiredMixin, CreateView):
         return ctx
 
     def form_valid(self, form):
-        from inmobiliaria.validacion_gerencia import marcar_pendiente_si_operador
-
-        pendiente = marcar_pendiente_si_operador(form.instance, self.request.user)
         response = super().form_valid(form)
         from inmobiliaria.cuotas_calendario import aplicar_calendario_desde_formato_cliente
 
@@ -2138,13 +2135,7 @@ class ContratoCreateView(AppLoginRequiredMixin, CreateView):
             prima=form.cleaned_data.get("prima_monto"),
             forzar=True,
         )
-        if pendiente:
-            messages.warning(
-                self.request,
-                f"Plan de pagos #{self.object.numero} guardado como borrador pendiente de "
-                "validación de admin/gerencia. Cuando lo validen, quedará activo.",
-            )
-        elif n:
+        if n:
             messages.success(
                 self.request,
                 f"Plan de pagos #{self.object.numero} guardado con {n} cuotas "
@@ -2231,9 +2222,6 @@ class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
         return ctx
 
     def form_valid(self, form):
-        from inmobiliaria.validacion_gerencia import marcar_pendiente_si_operador
-
-        pendiente = marcar_pendiente_si_operador(form.instance, self.request.user)
         response = super().form_valid(form)
         from inmobiliaria.cuotas_calendario import aplicar_calendario_desde_formato_cliente
 
@@ -2243,12 +2231,7 @@ class ContratoUpdateView(AppLoginRequiredMixin, SensitiveEditMixin, UpdateView):
             prima=form.cleaned_data.get("prima_monto"),
             forzar=False,
         )
-        if pendiente:
-            messages.warning(
-                self.request,
-                "Cambios del plan guardados como borrador pendiente de validación de admin/gerencia.",
-            )
-        elif n:
+        if n:
             messages.success(
                 self.request,
                 f"Plan de pagos actualizado y calendario regenerado ({n} cuotas).",
@@ -2291,25 +2274,19 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
         return initial
 
     def form_valid(self, form):
-        from inmobiliaria.validacion_gerencia import marcar_pendiente_si_operador
+        from inmobiliaria.validacion_gerencia import marcar_sin_cola_formato_o_plan
 
         form.instance.creado_por = self.request.user
-        pendiente = marcar_pendiente_si_operador(form.instance, self.request.user)
+        marcar_sin_cola_formato_o_plan(form.instance)
         prev_firmas = False
         response = super().form_valid(form)
-        if pendiente:
-            messages.warning(
-                self.request,
-                "Formato guardado pendiente de validación de admin/gerencia. "
-                "Cuando lo validen, quedará oficial en el flujo.",
-            )
-        else:
-            messages.success(
-                self.request,
-                "Paso 1 listo: formato de aceptación guardado. "
-                "Si es Contado → paso 2 (recibo total). "
-                "Si es a plazos → 3 reserva → 4 prima → 5 plan → 6 cuotas.",
-            )
+        messages.success(
+            self.request,
+            "Paso 1 listo: formato de aceptación guardado. "
+            "Si es Contado → paso 2 (recibo total). "
+            "Si es a plazos → 3 reserva → 4 prima → 5 plan → 6 cuotas. "
+            "Solo los recibos (reserva/prima/cuotas) requieren validación de gerencia.",
+        )
         _formato_aceptacion_tras_guardado_notificar(self.request, self.object, prev_firmas)
         return response
 
@@ -2388,7 +2365,7 @@ class FormatoAceptacionUpdateView(
         return kw
 
     def form_valid(self, form):
-        from inmobiliaria.validacion_gerencia import marcar_pendiente_si_operador
+        from inmobiliaria.validacion_gerencia import marcar_sin_cola_formato_o_plan
 
         pk = self.object.pk
         prev_firmas = False
@@ -2400,15 +2377,9 @@ class FormatoAceptacionUpdateView(
                 prev_firmas = q.get().firmas_completas
             except FormatoAceptacion.DoesNotExist:
                 prev_firmas = False
-        pendiente = marcar_pendiente_si_operador(form.instance, self.request.user)
+        marcar_sin_cola_formato_o_plan(form.instance)
         response = super().form_valid(form)
-        if pendiente:
-            messages.warning(
-                self.request,
-                "Cambios guardados pendientes de validación de admin/gerencia.",
-            )
-        else:
-            messages.success(self.request, "Cambios guardados.")
+        messages.success(self.request, "Cambios guardados.")
         _formato_aceptacion_tras_guardado_notificar(self.request, self.object, prev_firmas)
         return response
 

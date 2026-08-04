@@ -4,7 +4,7 @@
     <span class="app-sidebar__hub-badge app-sidebar__hub-badge--gestion" aria-hidden="true">①</span>
     <div class="app-sidebar__hub-titles">
       <span class="app-sidebar__hub-title">Flujo de venta</span>
-      <span class="app-sidebar__hub-sub">Pendiente de validación gerencia</span>
+      <span class="app-sidebar__hub-sub">Recibos con validación gerencia</span>
     </div>
   </header>
 
@@ -14,7 +14,7 @@
         Inicio
       </a>
 
-      <p class="app-sidebar__accord-hint">1 formato → 2 contado <em>o</em> 3–6 a plazos. Todo con validación de gerencia.</p>
+      <p class="app-sidebar__accord-hint">1 formato → 2 contado <em>o</em> 3–6 a plazos. Solo los recibos validan gerencia.</p>
       <a href="{% url 'app:formato_aceptacion' %}"{% if sidebar_nav.formato_active %} class="is-active" aria-current="page"{% endif %}>
         1. Formato de aceptación (nuevo){% if sidebar_stats and sidebar_stats.formatos %}<span class="app-sidebar__stat" title="Formatos">{{ sidebar_stats.formatos }}</span>{% endif %}
       </a>
