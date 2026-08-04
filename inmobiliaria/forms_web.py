@@ -511,6 +511,36 @@ class InmuebleForm(forms.ModelForm):
         for fname in ("precio_preventa", "precio_promocional", "precio_pos_preventa"):
             if cleaned.get(fname) is None and pl is not None:
                 cleaned[fname] = pl
+
+        # Unicidad: mismo código OK en otro polígono; no dentro del mismo polígono/proyecto.
+        proyecto = cleaned.get("proyecto")
+        poligono = cleaned.get("poligono")
+        codigo = (cleaned.get("codigo") or "").strip()
+        if proyecto is not None and codigo and "codigo" not in self.errors:
+            qs = Inmueble.objects.filter(proyecto=proyecto, codigo=codigo)
+            if poligono is not None:
+                qs = qs.filter(poligono=poligono)
+            else:
+                qs = qs.filter(poligono__isnull=True)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                if poligono is not None:
+                    self.add_error(
+                        "codigo",
+                        (
+                            f"Ya existe el lote «{codigo}» en el polígono "
+                            f"«{poligono}» de este proyecto. En otro polígono sí puede repetirse."
+                        ),
+                    )
+                else:
+                    self.add_error(
+                        "codigo",
+                        (
+                            f"Ya existe el inmueble «{codigo}» sin polígono en este proyecto. "
+                            "Asigne un polígono distinto o use otro código."
+                        ),
+                    )
         return cleaned
 
     def save(self, commit=True):

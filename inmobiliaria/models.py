@@ -309,7 +309,10 @@ class Inmueble(models.Model):
     codigo = models.CharField(
         max_length=50,
         db_index=True,
-        help_text="Referencia interna (ej. A-15).",
+        help_text=(
+            "Número o referencia del lote dentro del polígono (ej. 1, A-15). "
+            "Puede repetirse en otro polígono del mismo proyecto."
+        ),
     )
 
     precio_lista = models.DecimalField(
@@ -423,8 +426,21 @@ class Inmueble(models.Model):
     )
 
     class Meta:
-        ordering = ["proyecto", "codigo"]
-        unique_together = [("proyecto", "codigo")]
+        ordering = ["proyecto", "poligono__orden", "poligono__nombre", "codigo"]
+        constraints = [
+            # Misma numeración de lote permitida en distintos polígonos del proyecto.
+            models.UniqueConstraint(
+                fields=["proyecto", "poligono", "codigo"],
+                condition=models.Q(poligono__isnull=False),
+                name="inmueble_unico_proyecto_poligono_codigo",
+            ),
+            # Sin polígono: el código sigue siendo único por proyecto.
+            models.UniqueConstraint(
+                fields=["proyecto", "codigo"],
+                condition=models.Q(poligono__isnull=True),
+                name="inmueble_unico_proyecto_codigo_sin_poligono",
+            ),
+        ]
         verbose_name = "Inmueble"
         verbose_name_plural = "Inmuebles"
 
