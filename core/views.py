@@ -207,16 +207,16 @@ def pbr_service_worker(_request: HttpRequest) -> HttpResponse:
 def pbr_web_manifest(_request: HttpRequest) -> HttpResponse:
     """Manifest PWA (instalable); iconos PNG 192/512 + Apple touch."""
     # Query ?v= fuerza recarga en Android/Chrome cuando cambia el arte.
-    icon_v = "22"
+    icon_v = "24"
     payload = {
         "name": "Paredes Desarrollos Inmobiliarios",
-        "short_name": "PDI",
+        "short_name": "Paredes",
         "description": "Gestión inmobiliaria, contratos, recibos y cartera.",
         "start_url": "/login/",
         "scope": "/",
         "display": "standalone",
         "orientation": "portrait-primary",
-        "background_color": "#1a2d42",
+        "background_color": "#ffffff",
         "theme_color": "#1a2d42",
         "lang": "es-SV",
         "icons": [
