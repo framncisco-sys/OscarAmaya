@@ -206,39 +206,49 @@ def pbr_service_worker(_request: HttpRequest) -> HttpResponse:
 
 def pbr_web_manifest(_request: HttpRequest) -> HttpResponse:
     """Manifest PWA (instalable); iconos PNG 192/512 + Apple touch."""
+    # Query ?v= fuerza recarga en Android/Chrome cuando cambia el arte.
+    icon_v = "22"
     payload = {
-        "name": "Paredes Bienes Raíces",
+        "name": "Paredes Desarrollos Inmobiliarios",
         "short_name": "PDI",
         "description": "Gestión inmobiliaria, contratos, recibos y cartera.",
         "start_url": "/login/",
         "scope": "/",
         "display": "standalone",
         "orientation": "portrait-primary",
-        "background_color": "#f8fafc",
+        "background_color": "#1a2d42",
         "theme_color": "#1a2d42",
         "lang": "es-SV",
         "icons": [
             {
-                "src": "/static/icons/pwa-192.png",
+                "src": f"/static/icons/pwa-192.png?v={icon_v}",
                 "sizes": "192x192",
                 "type": "image/png",
                 "purpose": "any",
             },
             {
-                "src": "/static/icons/pwa-512.png",
+                "src": f"/static/icons/pwa-512.png?v={icon_v}",
                 "sizes": "512x512",
                 "type": "image/png",
                 "purpose": "any",
             },
             {
-                "src": "/static/icons/pwa-512-maskable.png",
+                "src": f"/static/icons/pwa-512-maskable.png?v={icon_v}",
                 "sizes": "512x512",
                 "type": "image/png",
                 "purpose": "maskable",
             },
+            {
+                "src": f"/static/icons/pwa-512.png?v={icon_v}",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any maskable",
+            },
         ],
     }
-    return HttpResponse(
+    resp = HttpResponse(
         json.dumps(payload, ensure_ascii=False),
         content_type="application/manifest+json; charset=utf-8",
     )
+    resp["Cache-Control"] = "no-store, max-age=0"
+    return resp

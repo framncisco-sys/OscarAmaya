@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="PDI">
-  <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}?v=22">
   <script>
     /* Detección inicial antes del CSS (evita salto de layout) */
     (function () {
@@ -59,12 +59,12 @@
     })();
   </script>
   <title>{% block title %}Paredes Bienes Raíces{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'theme.css' %}?v=21">
-  <script src="{% static 'js/pbr-viewport.js' %}?v=21" defer></script>
-  <script src="{% static 'js/pbr-offline.js' %}?v=21" defer></script>
-  <script src="{% static 'js/pbr-loader.js' %}?v=21" defer></script>
-  <script src="{% static 'js/pbr-header.js' %}?v=21" defer></script>
-  <script src="{% static 'js/pbr-pwa-install.js' %}?v=21" defer></script>
+  <link rel="stylesheet" href="{% static 'theme.css' %}?v=22">
+  <script src="{% static 'js/pbr-viewport.js' %}?v=22" defer></script>
+  <script src="{% static 'js/pbr-offline.js' %}?v=22" defer></script>
+  <script src="{% static 'js/pbr-loader.js' %}?v=22" defer></script>
+  <script src="{% static 'js/pbr-header.js' %}?v=22" defer></script>
+  <script src="{% static 'js/pbr-pwa-install.js' %}?v=22" defer></script>
   <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
   <link rel="manifest" href="{% url 'pbr_web_manifest' %}">
 </head>
