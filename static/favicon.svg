@@ -1,9 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Paredes">
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Paredes Desarrollos Inmobiliarios">
   <rect width="64" height="64" fill="#ffffff"/>
-  <g fill="none" stroke="#E8892A" stroke-width="2" stroke-linejoin="round">
-    <path d="M18 34h10V16H18z"/>
-    <path d="M30 34h12V10H30z"/>
-    <path d="M44 34h8V20h-8z"/>
+  <g fill="none" stroke="#E8892A" stroke-width="1.8" stroke-linejoin="round">
+    <path d="M20 30h8V16h-8z"/>
+    <path d="M30 30h10V12H30z"/>
+    <path d="M42 30h7V18h-7z"/>
   </g>
-  <text x="32" y="50" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="9" font-weight="700" fill="#E8892A" letter-spacing="1">PAREDES</text>
+  <text x="32" y="42" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="8" font-weight="700" fill="#E8892A">PAREDES</text>
+  <text x="32" y="52" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="3.2" fill="#E8892A" letter-spacing="0.4">DESARROLLOS INMOBILIARIOS</text>
 </svg>
