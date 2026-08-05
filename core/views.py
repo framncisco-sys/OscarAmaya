@@ -205,24 +205,37 @@ def pbr_service_worker(_request: HttpRequest) -> HttpResponse:
 
 
 def pbr_web_manifest(_request: HttpRequest) -> HttpResponse:
-    """Manifest PWA (instalable); iconos vía estáticos si existen."""
+    """Manifest PWA (instalable); iconos PNG 192/512 + Apple touch."""
     payload = {
         "name": "Paredes Bienes Raíces",
         "short_name": "PBR",
-        "description": "Gestión inmobiliaria, contratos y cartera.",
-        "start_url": "/",
+        "description": "Gestión inmobiliaria, contratos, recibos y cartera.",
+        "start_url": "/login/",
         "scope": "/",
         "display": "standalone",
+        "orientation": "portrait-primary",
         "background_color": "#f8fafc",
         "theme_color": "#1a2d42",
         "lang": "es-SV",
         "icons": [
             {
-                "src": "/static/favicon.svg",
-                "sizes": "any",
-                "type": "image/svg+xml",
+                "src": "/static/icons/pwa-192.png",
+                "sizes": "192x192",
+                "type": "image/png",
                 "purpose": "any",
-            }
+            },
+            {
+                "src": "/static/icons/pwa-512.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any",
+            },
+            {
+                "src": "/static/icons/pwa-512-maskable.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "maskable",
+            },
         ],
     }
     return HttpResponse(

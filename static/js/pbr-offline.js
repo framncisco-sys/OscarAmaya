@@ -132,11 +132,12 @@
       bar.classList.add("pbr-offline-bar--offline");
       document.body.classList.add("pbr-network-offline");
       bar.innerHTML =
-        "<strong>Sin conexión a Internet.</strong> " +
-        "Puede seguir trabajando: consultar pantallas ya visitadas y guardar cambios en cola. " +
-        "Cuando vuelva la red, se subirán automáticamente." +
+        "<strong>Sin conexión.</strong> " +
+        "Puede consultar pantallas ya abiertas. Para guardar o validar necesita internet." +
         (pendingCount
-          ? " <span class='pbr-offline-bar__count'>Pendientes: " + pendingCount + "</span>"
+          ? " <span class='pbr-offline-bar__count'>Cola (solo pantallas permitidas): " +
+            pendingCount +
+            "</span>"
           : "");
       bar.setAttribute("aria-hidden", "false");
       return;
@@ -237,6 +238,7 @@
   function isAuthForm(form) {
     var action = (form.getAttribute("action") || window.location.pathname || "").toLowerCase();
     if (action.indexOf("/login") !== -1 || action.indexOf("/logout") !== -1) return true;
+    if (action.indexOf("reauth") !== -1 || action.indexOf("sensitive") !== -1) return true;
     if (form.id === "pbr-login-form") return true;
     return false;
   }
@@ -386,11 +388,20 @@
       var method = (form.getAttribute("method") || "GET").toUpperCase();
       if (method === "GET") return;
 
+      // Sin red: solo encolar si el formulario opta explícitamente (data-pbr-offline="queue").
+      // Por defecto NO se guardan pagos, validaciones ni formatos en cola fantasma.
       ev.preventDefault();
       ev.stopPropagation();
-      queueForm(form).catch(function () {
-        showToast("No se pudo guardar en cola. Intente de nuevo al tener Internet.", "warn");
-      });
+      if (form.getAttribute("data-pbr-offline") === "queue") {
+        queueForm(form).catch(function () {
+          showToast("No se pudo guardar en cola. Intente de nuevo al tener Internet.", "warn");
+        });
+        return;
+      }
+      showToast(
+        "Sin internet. Para guardar necesita conexión. Puede consultar pantallas ya abiertas.",
+        "warn"
+      );
     },
     true
   );

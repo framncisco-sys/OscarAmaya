@@ -602,6 +602,69 @@
         });
       }
 
+      function formatMoneyLabel(raw) {
+        var n = parseFloat(String(raw || "").replace(/,/g, ""));
+        if (!isFinite(n)) return "—";
+        try {
+          return (
+            "$" +
+            n.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })
+          );
+        } catch (e) {
+          return "$" + n.toFixed(2);
+        }
+      }
+
+      function mostrarPreciosLote(L) {
+        var panel = document.getElementById("pbr-precios-lote-panel");
+        var lineLista = document.getElementById("pbr-precio-lista-line");
+        var lineEtapa = document.getElementById("pbr-precio-etapa-line");
+        var aviso = document.getElementById("pbr-precio-etapa-aviso");
+        if (!panel || !lineLista || !lineEtapa) return;
+        if (!L) {
+          panel.hidden = true;
+          if (aviso) {
+            aviso.hidden = true;
+            aviso.textContent = "";
+          }
+          return;
+        }
+        panel.hidden = false;
+        var listaRaw = L.precio_lista != null && L.precio_lista !== "" ? L.precio_lista : "";
+        lineLista.textContent = "Precio lista (referencia): " + formatMoneyLabel(listaRaw);
+        var etapaNombre = L.etapa_label || "etapa actual";
+        var precioVenta =
+          L.precio_etapa != null && L.precio_etapa !== ""
+            ? L.precio_etapa
+            : L.precio != null && L.precio !== ""
+              ? L.precio
+              : "";
+        var faltante = !!L.precio_etapa_faltante || !precioVenta;
+        if (faltante) {
+          lineEtapa.textContent =
+            "Precio actual (" + etapaNombre + "): no definido en el lote";
+          if (aviso) {
+            aviso.hidden = false;
+            aviso.textContent =
+              "Complete «Precio contado — " +
+              etapaNombre +
+              "» en el inventario del lote. " +
+              "No se usará el Precio lista como precio de venta.";
+          }
+        } else {
+          lineEtapa.textContent =
+            "Precio actual (" + etapaNombre + "): " + formatMoneyLabel(precioVenta) +
+            " — este es el valor de venta del formato";
+          if (aviso) {
+            aviso.hidden = true;
+            aviso.textContent = "";
+          }
+        }
+      }
+
       function aplicarInmueble(invId, opts) {
         opts = opts || {};
         var allowExisting = !!opts.allowExisting;
@@ -615,6 +678,7 @@
           if (areaM2) areaM2.value = "";
           if (areaV2) areaV2.value = "";
           selLote.value = "";
+          mostrarPreciosLote(null);
           consultarEstadoLoteVivo(invId, opts);
           return;
         }
@@ -622,14 +686,32 @@
         hidPol.value = L.poligono_nombre || "";
         if (areaM2) areaM2.value = L.area_m2 || "";
         if (areaV2) areaV2.value = L.area_v2 || "";
-        if (valorInm && L.precio) {
-          var p = parseFloat(L.precio);
-          if (isFinite(p)) setMoney(valorInm, p);
+
+        var precioVenta =
+          L.precio_etapa != null && L.precio_etapa !== ""
+            ? L.precio_etapa
+            : L.precio != null && L.precio !== ""
+              ? L.precio
+              : "";
+        var faltante = !!L.precio_etapa_faltante || !precioVenta;
+        if (valorInm) {
+          if (!faltante) {
+            var p = parseFloat(String(precioVenta).replace(/,/g, ""));
+            if (isFinite(p)) setMoney(valorInm, p);
+          } else if (!allowExisting) {
+            setMoney(valorInm, 0);
+            valorInm.value = "";
+          }
         }
         var valorSis = document.getElementById("id_valor_inmueble_sistema");
-        if (valorSis && L.precio) {
-          var ps = parseFloat(L.precio);
-          if (isFinite(ps)) setMoney(valorSis, ps);
+        if (valorSis) {
+          if (!faltante) {
+            var ps = parseFloat(String(precioVenta).replace(/,/g, ""));
+            if (isFinite(ps)) setMoney(valorSis, ps);
+          } else if (!allowExisting) {
+            setMoney(valorSis, 0);
+            valorSis.value = "";
+          }
         }
         var etapaHid = document.getElementById("id_etapa_venta_aplicada");
         if (etapaHid && L.etapa_codigo) etapaHid.value = L.etapa_codigo;
@@ -649,6 +731,7 @@
             etapaInfo.textContent = "";
           }
         }
+        mostrarPreciosLote(L);
         if (L.proyecto_id) {
           var yaTieneReserva = allowExisting && isFinite(parseMoney(prima1));
           if (yaTieneReserva) {
@@ -702,6 +785,7 @@
         if (!id) {
           hidLote.value = "";
           ocultarAlertaLote();
+          mostrarPreciosLote(null);
           return;
         }
         aplicarInmueble(id);

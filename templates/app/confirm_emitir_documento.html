@@ -7,7 +7,7 @@
     <p class="page-toolbar__meta">{{ blurb }}</p>
   </div>
 </header>
-<form method="post" class="form-stack" style="max-width: 32rem;">
+<form method="post" class="form-stack" style="max-width: 32rem;" data-pbr-offline="skip">
   {% csrf_token %}
   <div class="action-cluster" style="gap: 0.75rem;">
     <button type="submit" class="btn-primary">{{ submit_label }}</button>

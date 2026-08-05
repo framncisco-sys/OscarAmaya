@@ -319,7 +319,7 @@ class Inmueble(models.Model):
         max_digits=14,
         decimal_places=2,
         validators=[MinValueValidator(Decimal("0"))],
-        help_text="Precio vigente (se sincroniza con la etapa actual del proyecto).",
+        help_text="Precio de lista / referencia del lote (no lo cambia el contador de etapas).",
     )
     precio_preventa = models.DecimalField(
         "Precio contado — Preventa",
@@ -328,7 +328,7 @@ class Inmueble(models.Model):
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal("0"))],
-        help_text="Precio de contado en etapa Preventa.",
+        help_text="Precio de venta de contado en etapa Preventa.",
     )
     precio_promocional = models.DecimalField(
         "Precio contado — Promocional",
@@ -337,7 +337,7 @@ class Inmueble(models.Model):
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal("0"))],
-        help_text="Precio de contado en etapa Promocional.",
+        help_text="Precio de venta de contado en etapa Promocional.",
     )
     precio_pos_preventa = models.DecimalField(
         "Precio contado — Pos preventa",
@@ -346,7 +346,7 @@ class Inmueble(models.Model):
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal("0"))],
-        help_text="Precio de contado en etapa Pos preventa.",
+        help_text="Precio de venta de contado en etapa Pos preventa.",
     )
 
     area_varas_cuadradas = models.DecimalField(

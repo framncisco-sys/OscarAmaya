@@ -7025,6 +7025,229 @@ html[data-pbr-reduced-motion="1"] .pbr-system-loader__fill {
   }
 }
 
+/* ——— PWA Fase 1–2: instalar + flujo venta móvil ——— */
+.pbr-install-btn {
+  white-space: nowrap;
+  font-weight: 600;
+}
 
+.pbr-wa-send__title {
+  font-size: 1.25rem;
+  margin: 0 0 0.5rem;
+}
 
+.pbr-wa-send__lead {
+  margin: 0 0 1rem;
+  color: var(--pbr-muted);
+  line-height: 1.5;
+}
+
+.pbr-wa-send__status {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.pbr-wa-send__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin: 0 0 1.25rem;
+}
+
+.pbr-wa-send__cta {
+  min-height: 48px;
+  flex: 1 1 14rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.pbr-wa-send__secondary {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pbr-wa-send__hint {
+  font-size: 0.8125rem;
+  color: var(--pbr-muted);
+  line-height: 1.45;
+}
+
+#pbr-precios-lote-panel {
+  line-height: 1.45;
+}
+
+@media (max-width: 640px) {
+  .pbr-install-btn {
+    min-height: 44px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  #formato-aceptacion-form .field__control input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]),
+  #formato-aceptacion-form .field__control select,
+  #formato-aceptacion-form .field__control textarea,
+  #formato-aceptacion-form .formato-papel select,
+  #formato-aceptacion-form .formato-papel input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]) {
+    min-height: 44px;
+    font-size: 16px; /* evita zoom iOS */
+  }
+
+  #formato-aceptacion-form .btn-primary,
+  #formato-aceptacion-form .btn-secondary,
+  #formato-aceptacion-form button[type="submit"] {
+    min-height: 48px;
+    width: 100%;
+  }
+
+  #pbr-precios-lote-panel {
+    font-size: 0.95rem !important;
+    padding: 0.85rem 0.9rem !important;
+  }
+
+  #pbr-precio-lista-line,
+  #pbr-precio-etapa-line {
+    font-size: 1rem;
+  }
+
+  .fmt-listado-cuotas-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .page-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .page-toolbar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .page-toolbar__actions .btn-primary,
+  .page-toolbar__actions .btn-secondary,
+  .page-toolbar__actions .btn-sm {
+    min-height: 44px;
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  /* Pagos / recibos: tarjetas tocables en lugar de tabla ancha */
+  .data-panel--mobile-cards {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .data-panel--mobile-cards .table {
+    display: block;
+    width: 100%;
+    border: 0;
+  }
+
+  .data-panel--mobile-cards .table thead {
+    display: none;
+  }
+
+  .data-panel--mobile-cards .table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .data-panel--mobile-cards .table tbody tr {
+    display: block;
+    padding: 0.85rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .data-panel--mobile-cards .table tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.35rem 0;
+    border: 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .data-panel--mobile-cards .table tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #64748b;
+    flex: 0 0 42%;
+    max-width: 42%;
+  }
+
+  .data-panel--mobile-cards .table tbody td:last-child {
+    flex-direction: column;
+    align-items: stretch;
+    padding-top: 0.65rem;
+    margin-top: 0.35rem;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .data-panel--mobile-cards .table tbody td:last-child::before {
+    margin-bottom: 0.35rem;
+  }
+
+  .data-panel--mobile-cards .table .action-cluster {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .data-panel--mobile-cards .table .action-cluster .link-action,
+  .data-panel--mobile-cards .table .action-cluster button.link-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1e3a5f !important;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+    border: 1px solid #bfdbfe;
+  }
+
+  /* Otras tablas: scroll horizontal suave */
+  .data-panel:not(.data-panel--mobile-cards) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pbr-wa-send__actions {
+    flex-direction: column;
+  }
+
+  .pbr-wa-send__cta,
+  .pbr-wa-send__secondary {
+    width: 100%;
+    flex: none;
+  }
+
+  .vend-home__links {
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .vend-home__link {
+    min-height: 56px;
+    padding: 0.85rem 1rem;
+  }
+}
 

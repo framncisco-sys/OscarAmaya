@@ -7,7 +7,7 @@
   Los administradores del sistema (<strong>superusuarios</strong>) no pasan por este paso.
   Tras confirmar, podrá trabajar durante unos minutos sin volver a escribirla.
 </p>
-<form method="post" class="form-stack" style="max-width:min(100%,400px);margin-top:1.25rem;">
+<form method="post" class="form-stack" style="max-width:min(100%,400px);margin-top:1.25rem;" data-pbr-offline="skip">
   {% csrf_token %}
   <input type="hidden" name="next" value="{{ next }}">
   <div class="field">

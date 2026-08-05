@@ -245,7 +245,7 @@
     <a href="{{ formato_promesa_descargar_url }}" class="btn-secondary btn-sm">Descargar promesa escaneada</a>
   </p>
   {% endif %}
-  <form method="post" action="{{ formato_promesa_subir_url }}" enctype="multipart/form-data" class="form-stack" style="gap: 0.65rem;">
+  <form method="post" action="{{ formato_promesa_subir_url }}" enctype="multipart/form-data" class="form-stack" style="gap: 0.65rem;" data-pbr-offline="skip">
     {% csrf_token %}
     <div class="field">
       <label class="field__label" for="id-promesa-venta-file">Archivo (PDF, JPG o PNG)</label>
@@ -277,7 +277,7 @@
     <a href="{{ formato_compraventa_descargar_url }}" class="btn-secondary btn-sm">Descargar compraventa</a>
   </p>
   {% endif %}
-  <form method="post" action="{{ formato_compraventa_subir_url }}" enctype="multipart/form-data" class="form-stack" style="gap: 0.65rem;">
+  <form method="post" action="{{ formato_compraventa_subir_url }}" enctype="multipart/form-data" class="form-stack" style="gap: 0.65rem;" data-pbr-offline="skip">
     {% csrf_token %}
     <div class="field">
       <label class="field__label" for="id-compraventa-file">Archivo (PDF, JPG o PNG)</label>
@@ -303,7 +303,7 @@
 </div>
 {% endif %}
 
-<form id="formato-aceptacion-form" method="post" class="form-stack" enctype="multipart/form-data" style="max-width: 920px; margin: 0 auto;">
+<form id="formato-aceptacion-form" method="post" class="form-stack" enctype="multipart/form-data" style="max-width: 920px; margin: 0 auto;" data-pbr-offline="skip">
   {% csrf_token %}
   {% if form.non_field_errors %}
     <div class="alert" role="alert">{{ form.non_field_errors }}</div>
@@ -400,6 +400,12 @@
       {% endfor %}
       {% if sec.title == "Datos del crédito" %}
       <p id="pbr-etapa-venta-info" class="muted" style="font-size:0.88rem;margin:0 0 0.75rem;padding:0.55rem 0.7rem;border-radius:8px;background:#f1f5f9;border:1px solid #e2e8f0;" hidden></p>
+      <div id="pbr-precios-lote-panel" class="muted" style="font-size:0.9rem;margin:0 0 0.85rem;padding:0.65rem 0.75rem;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe;" hidden>
+        <p style="margin:0 0 0.35rem;font-weight:700;color:#0f172a;">Precios del lote</p>
+        <p id="pbr-precio-lista-line" style="margin:0 0 0.25rem;color:#334155;"></p>
+        <p id="pbr-precio-etapa-line" style="margin:0;color:#0f172a;font-weight:600;"></p>
+        <p id="pbr-precio-etapa-aviso" style="margin:0.4rem 0 0;color:#b45309;font-weight:600;" hidden></p>
+      </div>
       <p id="pbr-prima-proyecto-info" class="muted" style="font-size:0.88rem;margin:0 0 0.75rem;padding:0.55rem 0.7rem;border-radius:8px;background:#ecfdf5;border:1px solid #a7f3d0;" hidden></p>
       {% if object and object.pendiente_validacion_precio %}
       <div class="alert alert--warning" role="status" style="margin-bottom:0.85rem;">
@@ -505,7 +511,7 @@
 {{ proyectos_formato|json_script:"formato-proyectos-data" }}
 {{ formato_catalogo_inmuebles|json_script:"formato-catalogo-inmuebles-data" }}
 {{ formato_lote_estado_url_tpl|json_script:"formato-lote-estado-url-tpl" }}
-<script src="{% static 'js/formato_aceptacion_credito.js' %}?v=21" defer></script>
+<script src="{% static 'js/formato_aceptacion_credito.js' %}?v=22" defer></script>
 <script src="{% static 'js/formato_aceptacion_masks.js' %}" defer></script>
 <script>
 (function () {

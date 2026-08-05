@@ -100,7 +100,7 @@
 </p>
 {% endif %}
 
-<div class="data-panel">
+<div class="data-panel data-panel--mobile-cards">
 <table class="table">
   <thead>
     <tr>
@@ -116,12 +116,12 @@
   <tbody>
     {% for p in items %}
     <tr>
-      <td>{{ p.fecha }}</td>
-      <td>{{ p.contrato.numero }}</td>
-      <td>{{ p.contrato.cliente }}</td>
-      <td>{{ p.get_concepto_display }}</td>
-      <td>${{ p.monto }}</td>
-      <td>
+      <td data-label="Fecha">{{ p.fecha }}</td>
+      <td data-label="Contrato">{{ p.contrato.numero }}</td>
+      <td data-label="Cliente">{{ p.contrato.cliente }}</td>
+      <td data-label="Concepto">{{ p.get_concepto_display }}</td>
+      <td data-label="Monto">${{ p.monto }}</td>
+      <td data-label="Validación">
         {% if p.validacion_abono == 'PENDIENTE' %}
         <span class="badge badge--reservado">Pendiente gerencia</span>
         {% elif p.validacion_abono == 'VALIDADO' %}
@@ -132,7 +132,7 @@
         <span class="muted">—</span>
         {% endif %}
       </td>
-      <td>
+      <td data-label="Recibo">
         <div class="action-cluster">
           {% if p.pendiente_validacion_gerente and puede_validar_abonos_app %}
           <a href="{% url 'app:pago_validar_abono' p.pk %}" class="link-action" style="font-weight:700;">Confirmar abono → generar recibo</a>
@@ -140,7 +140,7 @@
           {% elif p.pendiente_validacion_gerente %}
           <span class="muted" style="font-size:0.85rem;">Esperando gerencia — aún no se puede imprimir</span>
           {% elif p.puede_emitir_recibo_cliente %}
-          <form method="post" action="{% url 'app:emitir_recibo' p.pk %}" class="inline-form" style="display:inline;">
+          <form method="post" action="{% url 'app:emitir_recibo' p.pk %}" class="inline-form" style="display:inline;" data-pbr-offline="skip">
             {% csrf_token %}
             <button type="submit" class="link-action" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit;font-weight:700;">Descargar PDF / WhatsApp</button>
           </form>

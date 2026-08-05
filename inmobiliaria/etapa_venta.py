@@ -3,7 +3,8 @@
 Reglas de negocio:
 - Rangos de etapa: configuración general (ParametroEtapaVenta).
 - Contador: lotes VENDIDO + RESERVADO del proyecto.
-- Precio: cada lote tiene precio_preventa / promocional / pos_preventa.
+- Precio de venta: cada lote tiene precio_preventa / promocional / pos_preventa.
+- precio_lista: precio de referencia; no lo cambia el contador ni la etapa.
 """
 
 from __future__ import annotations
@@ -83,8 +84,18 @@ def _rango_label(codigo: str, p: ParametroEtapaVenta) -> str:
     return f"{p.hasta_promocional + 1}–{p.hasta_pos_preventa} lotes"
 
 
-def precio_lote_en_etapa(inmueble: Inmueble, codigo_etapa: str | None = None) -> Decimal | None:
-    """Precio del lote para la etapa dada (o la del proyecto del lote)."""
+def precio_lote_en_etapa(
+    inmueble: Inmueble,
+    codigo_etapa: str | None = None,
+    *,
+    fallback_lista: bool = False,
+) -> Decimal | None:
+    """
+    Precio de venta del lote para la etapa dada (o la del proyecto del lote).
+
+    Por defecto NO usa precio_lista: esa es referencia.
+    Si fallback_lista=True (compatibilidad), usa precio_lista cuando falte el de etapa.
+    """
     if codigo_etapa is None:
         codigo_etapa = etapa_para_proyecto(inmueble.proyecto_id)["codigo"]
 
@@ -96,22 +107,19 @@ def precio_lote_en_etapa(inmueble: Inmueble, codigo_etapa: str | None = None) ->
     precio = mapping.get(codigo_etapa)
     if precio is not None:
         return Decimal(precio).quantize(Decimal("0.01"))
-    # Fallback: precio_lista histórico
-    if inmueble.precio_lista is not None:
+    if fallback_lista and inmueble.precio_lista is not None:
         return Decimal(inmueble.precio_lista).quantize(Decimal("0.01"))
     return None
 
 
 def sync_precio_lista(inmueble: Inmueble, save: bool = False) -> Decimal | None:
-    """Actualiza precio_lista al precio de la etapa actual del proyecto."""
-    precio = precio_lote_en_etapa(inmueble)
-    if precio is None:
-        return None
-    if inmueble.precio_lista != precio:
-        inmueble.precio_lista = precio
-        if save and inmueble.pk:
-            inmueble.save(update_fields=["precio_lista"])
-    return precio
+    """
+    Obsoleto para venta: precio_lista es referencia y no se pisa con la etapa.
+
+    Conservado por compatibilidad; ya no modifica precio_lista.
+    Retorna el precio de etapa actual si existe.
+    """
+    return precio_lote_en_etapa(inmueble)
 
 
 def decimales_iguales(a, b) -> bool:

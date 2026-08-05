@@ -5,6 +5,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#1a2d42">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PBR">
+  <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}">
   <script>
     /* Detección inicial antes del CSS (evita salto de layout) */
     (function () {
@@ -54,18 +59,19 @@
     })();
   </script>
   <title>{% block title %}Paredes Bienes Raíces{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'theme.css' %}?v=16">
-  <script src="{% static 'js/pbr-viewport.js' %}?v=16" defer></script>
-  <script src="{% static 'js/pbr-offline.js' %}?v=16" defer></script>
-  <script src="{% static 'js/pbr-loader.js' %}?v=16" defer></script>
-  <script src="{% static 'js/pbr-header.js' %}?v=16" defer></script>
+  <link rel="stylesheet" href="{% static 'theme.css' %}?v=18">
+  <script src="{% static 'js/pbr-viewport.js' %}?v=18" defer></script>
+  <script src="{% static 'js/pbr-offline.js' %}?v=18" defer></script>
+  <script src="{% static 'js/pbr-loader.js' %}?v=18" defer></script>
+  <script src="{% static 'js/pbr-header.js' %}?v=18" defer></script>
+  <script src="{% static 'js/pbr-pwa-install.js' %}?v=18" defer></script>
   <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
   <link rel="manifest" href="{% url 'pbr_web_manifest' %}">
 </head>
 <body class="{% block body_class %}app-body{% endblock %}">
   {% include "includes/pbr_system_loader.html" %}
   <div id="pbr-offline-bar" class="pbr-offline-bar pbr-offline-bar--offline" role="status" aria-live="polite" hidden>
-    Sin conexión a Internet. Puede seguir trabajando; al recuperar la red se subirán los cambios.
+    Sin conexión. Puede consultar pantallas ya abiertas; para guardar necesitará internet.
   </div>
   <header class="app-header" id="pbr-app-header" data-pbr-header>
     <div class="app-wrap app-header__inner">
@@ -73,6 +79,10 @@
         <img src="{% static marca_portal.logo|default:'logo_paredes_desarrollos.png' %}" alt="{{ marca_portal.nombre|default:'Paredes' }}" class="brand__img" decoding="async">
       </a>
       <div class="app-header__right">
+        <button type="button" class="btn-secondary btn-sm pbr-install-btn" data-pbr-install hidden
+          data-pbr-install-tip="En iPhone/iPad: toque Compartir y luego «Añadir a pantalla de inicio».">
+          Instalar app
+        </button>
         {% if request.user.is_authenticated %}
         <div class="app-user-chip" aria-label="Usuario en sesión">
           <div class="app-user-chip__avatar" aria-hidden="true">
@@ -101,7 +111,7 @@
             </span>
           </div>
         </div>
-        <form method="post" action="{% url 'logout' %}" class="app-header__logout">
+        <form method="post" action="{% url 'logout' %}" class="app-header__logout" data-pbr-offline="skip">
           {% csrf_token %}
           <button type="submit" class="app-header__logout-btn" title="Cerrar sesión">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>

@@ -95,7 +95,7 @@
           <a href="{% url 'app:formato_aceptacion_promesa_descargar' f.pk %}" class="link-action" target="_blank" rel="noopener"
             title="Promesa de venta guardada (PDF)">Descargar promesa</a>
           {% endif %}
-          <form method="post" action="{% url 'app:formato_aceptacion_promesa_subir' f.pk %}" enctype="multipart/form-data" class="formato-list-promesa-form">
+          <form method="post" action="{% url 'app:formato_aceptacion_promesa_subir' f.pk %}" enctype="multipart/form-data" class="formato-list-promesa-form" data-pbr-offline="skip">
             {% csrf_token %}
             <input type="hidden" name="promesa_origen" value="lista">
             <input type="file" name="promesa_venta_escaneada" id="promesa-pdf-{{ f.pk }}" class="formato-list-promesa-file"
@@ -111,7 +111,7 @@
           <a href="{% url 'app:formato_aceptacion_compraventa_descargar' f.pk %}" class="link-action" target="_blank" rel="noopener"
             title="Contrato de compraventa guardado (PDF)">Descargar compraventa</a>
           {% endif %}
-          <form method="post" action="{% url 'app:formato_aceptacion_compraventa_subir' f.pk %}" enctype="multipart/form-data" class="formato-list-promesa-form">
+          <form method="post" action="{% url 'app:formato_aceptacion_compraventa_subir' f.pk %}" enctype="multipart/form-data" class="formato-list-promesa-form" data-pbr-offline="skip">
             {% csrf_token %}
             <input type="hidden" name="compraventa_origen" value="lista">
             <input type="file" name="contrato_compraventa_escaneado" id="compraventa-pdf-{{ f.pk }}" class="formato-list-promesa-file"

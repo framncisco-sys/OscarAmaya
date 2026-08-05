@@ -2,20 +2,20 @@
 {% load static %}
 {% block title %}Enviar recibo por WhatsApp{% endblock %}
 {% block content %}
-<div class="app-wrap" style="max-width:36rem;padding-top:1.5rem;">
-  <h1 style="font-size:1.25rem;margin:0 0 0.5rem;">Enviar recibo (PDF + mensaje)</h1>
-  <p style="margin:0 0 1rem;color:var(--pbr-muted);line-height:1.5;">
+<div class="app-wrap pbr-wa-send" style="max-width:36rem;padding-top:1.5rem;">
+  <h1 class="pbr-wa-send__title">Enviar recibo (PDF + mensaje)</h1>
+  <p class="pbr-wa-send__lead">
     Recibo <strong>{{ doc_numero }}</strong>. Un solo paso: se prepara el <strong>PDF adjunto</strong>
     y el mensaje que ya tenía el sistema. En el teléfono elija <strong>WhatsApp</strong> y el chat del cliente.
   </p>
-  <p id="pbr-wa-status" style="margin:0 0 1rem;font-size:0.9rem;line-height:1.45;" hidden></p>
-  <p style="margin:0 0 1.25rem;display:flex;flex-wrap:wrap;gap:0.5rem;">
-    <button type="button" class="btn-primary" id="pbr-wa-share">
-      Enviar PDF + mensaje por WhatsApp
+  <p id="pbr-wa-status" class="pbr-wa-send__status" hidden></p>
+  <div class="pbr-wa-send__actions">
+    <button type="button" class="btn-primary pbr-wa-send__cta" id="pbr-wa-share">
+      Enviar por WhatsApp
     </button>
-    <a class="btn-secondary" href="{{ url_pdf }}">Solo descargar PDF</a>
-  </p>
-  <p style="font-size:0.8125rem;color:var(--pbr-muted);line-height:1.45;">
+    <a class="btn-secondary pbr-wa-send__secondary" href="{{ url_pdf }}">Solo descargar PDF</a>
+  </div>
+  <p class="pbr-wa-send__hint">
     Si su equipo no permite adjuntar al compartir, se abrirá el chat con el mensaje
     y podrá pegar el PDF descargado.
     <a href="{{ continue_url }}">Volver a documentos</a>

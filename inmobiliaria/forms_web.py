@@ -445,8 +445,9 @@ class InmuebleForm(forms.ModelForm):
         pl = self.fields.get("precio_lista")
         if pl:
             pl.help_text = (
-                "Precio vigente según la etapa del proyecto (se actualiza al guardar). "
-                "Si deja vacíos Preventa/Promocional/Pos, se copia este monto a los tres."
+                "Precio de lista / referencia del lote (no lo cambia el contador de etapas). "
+                "Si deja vacíos Preventa/Promocional/Pos al crear, se copia este monto a los tres "
+                "como precio de venta inicial."
             )
 
         # Precios: $25,136.72 (miles con coma, decimales con punto).
@@ -471,9 +472,28 @@ class InmuebleForm(forms.ModelForm):
         pl = self.fields.get("precio_lista")
         if pl:
             pl.help_text = (
-                "Precio vigente según la etapa del proyecto (se actualiza al guardar). "
-                "Formato: $25,136.72. Si deja vacíos Preventa/Promocional/Pos, se copia este monto a los tres."
+                "Precio de lista / referencia del lote (no lo cambia el contador de etapas). "
+                "Formato: $25,136.72. Si deja vacíos Preventa/Promocional/Pos al crear, "
+                "se copia este monto a los tres como precio de venta inicial."
             )
+        for fname, tip in (
+            (
+                "precio_preventa",
+                "Precio de venta de contado mientras el proyecto esté en Preventa "
+                "(lo elige el contador de lotes comprometidos).",
+            ),
+            (
+                "precio_promocional",
+                "Precio de venta de contado en etapa Promocional.",
+            ),
+            (
+                "precio_pos_preventa",
+                "Precio de venta de contado en etapa Pos preventa.",
+            ),
+        ):
+            f = self.fields.get(fname)
+            if f:
+                f.help_text = tip
 
         # Áreas: 1,234.5678 sin $.
         for fname, decs in (
@@ -569,13 +589,8 @@ class InmuebleForm(forms.ModelForm):
         return cleaned
 
     def save(self, commit=True):
-        instance = super().save(commit=False)
-        from inmobiliaria.etapa_venta import sync_precio_lista
-
-        sync_precio_lista(instance, save=False)
-        if commit:
-            instance.save()
-            self.save_m2m()
+        # precio_lista es referencia: no se pisa con el precio de etapa.
+        instance = super().save(commit=commit)
         return instance
 
 
@@ -2903,8 +2918,9 @@ class FormatoAceptacionForm(forms.ModelForm):
         if vin:
             vin.widget.attrs["readonly"] = True
             vin.help_text = (
-                "Precio automático según etapa del proyecto. "
-                "Para cambiarlo use «Valor solicitado» + motivo (requiere gerencia)."
+                "Precio de venta de la etapa actual (Preventa / Promocional / Pos). "
+                "El Precio lista es solo referencia. "
+                "Para otro monto use «Valor solicitado» + motivo (requiere gerencia)."
             )
         sol = self.fields.get("valor_inmueble_solicitado")
         if sol:

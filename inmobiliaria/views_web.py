@@ -494,6 +494,7 @@ def _catalogo_inmuebles_formato_aceptacion() -> dict:
             etapas_por_proyecto[inv.proyecto_id] = etapa_para_proyecto(inv.proyecto_id)
         etapa = etapas_por_proyecto[inv.proyecto_id]
         precio_etapa = precio_lote_en_etapa(inv, etapa["codigo"])
+        faltante_etapa = precio_etapa is None
         clave = str(inv.poligono_id) if inv.poligono_id else f"np:{inv.proyecto_id}"
         pol_nombre = inv.poligono.nombre if inv.poligono_id else ""
         cli = inv.cliente_reserva
@@ -503,7 +504,11 @@ def _catalogo_inmuebles_formato_aceptacion() -> dict:
         entry = {
             "id": inv.pk,
             "codigo": inv.codigo,
-            "precio": str(precio_etapa if precio_etapa is not None else inv.precio_lista),
+            # Precio de venta = etapa actual (Preventa/…). No usar lista como sustituto.
+            "precio": str(precio_etapa) if precio_etapa is not None else "",
+            "precio_etapa": str(precio_etapa) if precio_etapa is not None else "",
+            "precio_lista": str(inv.precio_lista) if inv.precio_lista is not None else "",
+            "precio_etapa_faltante": faltante_etapa,
             "precio_preventa": str(inv.precio_preventa) if inv.precio_preventa is not None else "",
             "precio_promocional": str(inv.precio_promocional)
             if inv.precio_promocional is not None

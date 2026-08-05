@@ -34,7 +34,7 @@
   {% endif %}
 </section>
 
-<form method="post" class="card" style="max-width:36rem;">
+<form method="post" class="card" style="max-width:36rem;" data-pbr-offline="skip">
   {% csrf_token %}
   <input type="hidden" name="accion" value="{{ accion }}">
   <label for="id_validacion_nota" style="display:block;font-weight:600;margin-bottom:0.35rem;">

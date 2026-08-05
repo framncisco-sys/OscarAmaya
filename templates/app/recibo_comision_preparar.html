@@ -123,7 +123,7 @@
   con desglose de retenciones).
 </p>
 
-<form method="post" class="form-stack">
+<form method="post" class="form-stack" data-pbr-offline="skip">
   {% csrf_token %}
   {% if form.non_field_errors %}
     <div class="alert" role="alert">{{ form.non_field_errors }}</div>

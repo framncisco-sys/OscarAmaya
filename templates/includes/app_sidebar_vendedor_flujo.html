@@ -13,6 +13,9 @@
       <a href="{% url 'app:index' %}"{% if sidebar_nav.index_active %} class="is-active" aria-current="page"{% endif %}>
         Inicio
       </a>
+      <a href="{% url 'app:pago_list' %}?validacion=validado"{% if sidebar_nav.pago_list_active and request.GET.validacion == 'validado' %} class="is-active" aria-current="page"{% endif %}>
+        Recibos listos (PDF / WhatsApp)
+      </a>
 
       <p class="app-sidebar__accord-hint">1 formato → 2 contado <em>o</em> 3–6 a plazos. Solo los recibos validan gerencia.</p>
       <a href="{% url 'app:formato_aceptacion' %}"{% if sidebar_nav.formato_active %} class="is-active" aria-current="page"{% endif %}>
@@ -38,9 +41,6 @@
       </a>
       <a href="{% url 'app:estado_cuenta_hub' %}"{% if sidebar_nav.estado_cuenta_active %} class="is-active" aria-current="page"{% endif %}>
         Estado de cuenta (imprimir PDF)
-      </a>
-      <a href="{% url 'app:pago_list' %}?validacion=validado"{% if sidebar_nav.pago_list_active and request.GET.validacion == 'validado' %} class="is-active" aria-current="page"{% endif %}>
-        Recibos listos (PDF / WhatsApp)
       </a>
       <a href="{% url 'app:pago_list' %}"{% if sidebar_nav.pago_list_active and not request.GET.validacion %} class="is-active" aria-current="page"{% endif %}>
         Todos los pagos / estado de recibos{% if sidebar_stats and sidebar_stats.pagos_pendientes_validacion %}<span class="app-sidebar__stat">{{ sidebar_stats.pagos_pendientes_validacion }}</span>{% endif %}

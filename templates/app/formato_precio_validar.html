@@ -21,7 +21,7 @@
   <p style="margin:0;"><strong>Motivo:</strong> {{ formato.precio_solicitud_motivo|default:"—" }}</p>
 </section>
 
-<form method="post" class="card" style="max-width:36rem;">
+<form method="post" class="card" style="max-width:36rem;" data-pbr-offline="skip">
   {% csrf_token %}
   <label for="id_validacion_nota" style="display:block;font-weight:600;margin-bottom:0.35rem;">
     {% if accion == 'rechazar' %}Motivo del rechazo (obligatorio){% else %}Nota de aprobación{% endif %}
