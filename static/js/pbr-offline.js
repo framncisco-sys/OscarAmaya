@@ -1,8 +1,8 @@
 /**
  * Modo sin conexión PBR:
- * - Aviso cuando no hay Internet (puede seguir trabajando).
- * - Encola envíos de formularios (POST/PUT/PATCH) en IndexedDB.
- * - Al volver la red, sube la cola y muestra resultado.
+ * - Aviso: consulta de pantallas cacheadas; guardar requiere internet.
+ * - Cola IndexedDB solo si el formulario tiene data-pbr-offline="queue".
+ * - Por defecto no encola pagos, validaciones ni formatos de venta.
  */
 (function (global) {
   "use strict";
@@ -348,7 +348,10 @@
     countOutbox()
       .then(function (n) {
         setBarState("offline", n);
-        showToast("Sin Internet. Puede seguir trabajando; los cambios se subirán al reconectar.", "warn");
+        showToast(
+          "Sin Internet. Puede consultar pantallas ya abiertas; para guardar necesita conexión.",
+          "warn"
+        );
       })
       .catch(function () {
         setBarState("offline", 0);
@@ -356,15 +359,25 @@
   }
 
   function onOnline() {
-    showToast("Internet recuperado. Sincronizando…", "info");
-    syncOutbox().then(function () {
-      /* Actualizar SW en segundo plano, sin forzar recarga inmediata si hay cola limpia */
-      if (navigator.serviceWorker) {
-        navigator.serviceWorker.getRegistration().then(function (reg) {
-          if (reg) reg.update();
-        });
-      }
-    });
+    countOutbox()
+      .then(function (n) {
+        if (n > 0) {
+          showToast("Internet recuperado. Sincronizando…", "info");
+        } else {
+          showToast("Internet recuperado.", "info");
+        }
+        return syncOutbox();
+      })
+      .then(function () {
+        if (navigator.serviceWorker) {
+          navigator.serviceWorker.getRegistration().then(function (reg) {
+            if (reg) reg.update();
+          });
+        }
+      })
+      .catch(function () {
+        syncOutbox();
+      });
   }
 
   document.addEventListener(
