@@ -208,7 +208,7 @@ def pbr_web_manifest(_request: HttpRequest) -> HttpResponse:
     """Manifest PWA (instalable); iconos PNG 192/512 + Apple touch."""
     payload = {
         "name": "Paredes Bienes Raíces",
-        "short_name": "PBR",
+        "short_name": "PDI",
         "description": "Gestión inmobiliaria, contratos, recibos y cartera.",
         "start_url": "/login/",
         "scope": "/",
