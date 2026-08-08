@@ -7368,6 +7368,196 @@ html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table tbody t
   }
 }
 
+/* Modal guía iOS (reemplaza alert nativo) */
+body.pbr-install-modal-open {
+  overflow: hidden;
+}
+
+.pbr-install-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: grid;
+  place-items: end center;
+  padding: max(1rem, env(safe-area-inset-top)) 1rem max(1.25rem, env(safe-area-inset-bottom));
+}
+
+.pbr-install-modal[hidden] {
+  display: none !important;
+}
+
+.pbr-install-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 28, 46, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: pbr-install-fade 0.25s ease;
+}
+
+.pbr-install-modal__card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 26rem);
+  margin-bottom: 0.5rem;
+  padding: 1.35rem 1.25rem 1.2rem;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f7fafc 100%);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow:
+    0 18px 48px rgba(15, 28, 46, 0.28),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  animation: pbr-install-rise 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pbr-install-modal__x {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.7rem;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #334155;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pbr-install-modal__badge {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 0 0.85rem;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #0f2a4a, #1a3d66);
+  color: #f0b25a;
+  box-shadow: 0 8px 18px rgba(15, 42, 74, 0.25);
+}
+
+.pbr-install-modal__badge svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.pbr-install-modal__kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e8892a;
+}
+
+.pbr-install-modal__title {
+  margin: 0 0 0.45rem;
+  font-size: 1.2rem;
+  line-height: 1.25;
+  color: #0f1c2e;
+}
+
+.pbr-install-modal__lead {
+  margin: 0 0 0.95rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.pbr-install-modal__steps {
+  margin: 0 0 1.15rem;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.pbr-install-modal__steps li {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.65rem 0.7rem;
+  border-radius: 12px;
+  background: #f1f5f9;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: #1e293b;
+}
+
+.pbr-install-modal__steps li span {
+  flex: 0 0 1.4rem;
+  height: 1.4rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #e8892a, #d97706);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.pbr-install-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pbr-install-modal__btn {
+  min-height: 2.6rem;
+  padding: 0.55rem 1.25rem;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0f2a4a, #1a3d66);
+  color: #fff;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(15, 42, 74, 0.22);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.pbr-install-modal__btn:hover,
+.pbr-install-modal__btn:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(15, 42, 74, 0.28), 0 0 0 3px rgba(232, 137, 42, 0.2);
+  outline: none;
+}
+
+.pbr-install-modal__btn:active {
+  transform: scale(0.98);
+}
+
+@keyframes pbr-install-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pbr-install-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (min-width: 640px) {
+  .pbr-install-modal {
+    place-items: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pbr-install-modal__backdrop,
+  .pbr-install-modal__card {
+    animation: none;
+  }
+}
+
 .pbr-wa-send__title {
   font-size: 1.25rem;
   margin: 0 0 0.5rem;
