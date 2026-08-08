@@ -5538,7 +5538,7 @@ html[data-pbr-view="tablet"] .dash-grid-2 {
 html[data-pbr-class="mobile"] .dash-panel,
 html[data-pbr-view="phone"] .dash-panel {
   padding: 0.85rem 0.9rem;
-  overflow: hidden;
+  overflow: visible;
   max-width: 100%;
   box-sizing: border-box;
 }
@@ -5635,12 +5635,17 @@ html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards {
   border: 0;
   background: transparent;
   box-shadow: none;
+  max-width: 100%;
 }
 
 html[data-pbr-class="mobile"] .dash-panel .data-panel--mobile-cards .table,
-html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table {
+html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table,
+html[data-pbr-class="mobile"] .data-panel--mobile-cards table.table,
+html[data-pbr-view="phone"] .data-panel--mobile-cards table.table {
   display: block;
   width: 100%;
+  max-width: 100%;
+  min-width: 0 !important; /* anula min-width:640px que oculta valores */
   border: 0;
 }
 
@@ -5654,11 +5659,15 @@ html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table tbody {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+  width: 100%;
 }
 
 html[data-pbr-class="mobile"] .dash-panel .data-panel--mobile-cards .table tbody tr,
 html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table tbody tr {
   display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 0.75rem 0.85rem;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -5669,13 +5678,17 @@ html[data-pbr-class="mobile"] .dash-panel .data-panel--mobile-cards .table tbody
 html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table tbody td {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.65rem;
-  padding: 0.3rem 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0.35rem 0;
   border: 0;
   font-size: 0.875rem;
   line-height: 1.35;
   text-align: right;
+  color: #0f172a;
 }
 
 html[data-pbr-class="mobile"] .dash-panel .data-panel--mobile-cards .table tbody td::before,
@@ -5683,14 +5696,24 @@ html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table tbody t
   content: attr(data-label);
   font-weight: 600;
   color: #64748b;
-  flex: 0 0 38%;
-  max-width: 38%;
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+  max-width: 42%;
   text-align: left;
+}
+
+html[data-pbr-class="mobile"] .dash-panel .data-panel--mobile-cards .table tbody td > *,
+html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table tbody td > * {
+  min-width: 0;
+  flex: 1 1 auto;
+  text-align: right;
+  justify-content: flex-end;
 }
 
 html[data-pbr-class="mobile"] .dash-panel .data-panel--mobile-cards .table tbody td.right,
 html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table tbody td.right {
   text-align: right;
+  font-weight: 700;
 }
 
 /* ——— Gestión hub (/app/) ——— */
@@ -7664,17 +7687,21 @@ body.pbr-install-modal-open {
     justify-content: center;
   }
 
-  /* Pagos / recibos: tarjetas tocables en lugar de tabla ancha */
+  /* Pagos / recibos / dashboard: tarjetas tocables en lugar de tabla ancha */
   .data-panel--mobile-cards {
     overflow: visible;
     border: 0;
     background: transparent;
     box-shadow: none;
+    max-width: 100%;
   }
 
-  .data-panel--mobile-cards .table {
+  .data-panel--mobile-cards .table,
+  .data-panel--mobile-cards table.table {
     display: block;
     width: 100%;
+    max-width: 100%;
+    min-width: 0 !important; /* evita recortar valores fuera de pantalla */
     border: 0;
   }
 
@@ -7686,10 +7713,14 @@ body.pbr-install-modal-open {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    width: 100%;
   }
 
   .data-panel--mobile-cards .table tbody tr {
     display: block;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     padding: 0.85rem 1rem;
     border: 1px solid #e2e8f0;
     border-radius: 10px;
@@ -7700,31 +7731,51 @@ body.pbr-install-modal-open {
   .data-panel--mobile-cards .table tbody td {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.75rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     padding: 0.35rem 0;
     border: 0;
     font-size: 0.9rem;
     line-height: 1.4;
+    color: #0f172a;
   }
 
   .data-panel--mobile-cards .table tbody td::before {
     content: attr(data-label);
     font-weight: 600;
     color: #64748b;
-    flex: 0 0 42%;
+    flex: 0 0 auto;
+    min-width: 5.5rem;
     max-width: 42%;
+    text-align: left;
   }
 
+  .data-panel--mobile-cards .table tbody td > * {
+    min-width: 0;
+    flex: 1 1 auto;
+    text-align: right;
+    justify-content: flex-end;
+  }
+
+  /* Última columna (precio / acciones): misma fila etiqueta+valor, más compacta */
   .data-panel--mobile-cards .table tbody td:last-child {
+    padding-top: 0.5rem;
+    margin-top: 0.25rem;
+    border-top: 1px solid #f1f5f9;
+    font-weight: 700;
+  }
+
+  .data-panel--mobile-cards .table tbody td:last-child:has(.action-cluster) {
     flex-direction: column;
     align-items: stretch;
     padding-top: 0.65rem;
     margin-top: 0.35rem;
-    border-top: 1px solid #f1f5f9;
   }
 
-  .data-panel--mobile-cards .table tbody td:last-child::before {
+  .data-panel--mobile-cards .table tbody td:last-child:has(.action-cluster)::before {
     margin-bottom: 0.35rem;
   }
 
