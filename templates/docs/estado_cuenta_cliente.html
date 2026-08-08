@@ -76,14 +76,14 @@
 <section class="ec-block">
   <div class="ec-block-title">
     Contrato {{ b.contrato.numero }}
-    · {{ b.inmueble.codigo }}
+    · {{ b.inmueble.codigo_display }}
     {% if b.proyecto %} — {{ b.proyecto.nombre }}{% endif %}
   </div>
 
   <table class="ec-dl">
     <tr><td class="lbl">Estado</td><td>{{ b.contrato.get_estado_display }}</td></tr>
     <tr><td class="lbl">Fecha firma</td><td>{{ b.contrato.fecha_firma|date:"d/m/Y"|default:"—" }}</td></tr>
-    <tr><td class="lbl">Inmueble</td><td>{{ b.inmueble.codigo }} — {{ b.inmueble.get_tipo_display }}{% if b.proyecto %} · {{ b.proyecto.nombre }}{% endif %}</td></tr>
+    <tr><td class="lbl">Inmueble</td><td>{{ b.inmueble.codigo_display }} — {{ b.inmueble.get_tipo_display }}{% if b.proyecto %} · {{ b.proyecto.nombre }}{% endif %}</td></tr>
     <tr><td class="lbl">Modalidad</td><td>{{ b.contrato.get_modalidad_financiamiento_display }}</td></tr>
     {% if b.contrato.plan_anos %}
     <tr><td class="lbl">Plazo</td><td>{{ b.contrato.get_plan_anos_display }}</td></tr>

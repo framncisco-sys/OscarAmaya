@@ -40,10 +40,10 @@
   <tbody>
     {% for i in items %}
     <tr>
-      <td><strong>{{ i.codigo }}</strong></td>
+      <td><strong>{{ i.codigo_display }}</strong></td>
       <td>{{ i.proyecto.nombre }}</td>
       <td>{% if i.poligono %}{{ i.poligono.nombre }}{% else %}—{% endif %}</td>
-      <td>{% if i.tipo == "LOTE" %}Lote {{ i.codigo }}{% else %}{{ i.get_tipo_display }}{% endif %}</td>
+      <td>{% if i.tipo == "LOTE" %}Lote {{ i.codigo_display }}{% else %}{{ i.get_tipo_display }}{% endif %}</td>
       <td><span class="badge badge--{{ i.estado|lower }}">{{ i.get_estado_display }}</span></td>
       <td>{% if i.reserva_hasta %}{{ i.reserva_hasta }}{% else %}—{% endif %}</td>
       <td>{% if i.area_m2 %}{{ i.area_m2 }}{% else %}—{% endif %}</td>

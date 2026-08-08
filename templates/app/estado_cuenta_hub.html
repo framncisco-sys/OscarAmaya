@@ -68,7 +68,7 @@
         <tr>
           <td><strong>{{ c.numero }}</strong></td>
           <td>{{ c.cliente }}</td>
-          <td class="muted">{{ c.inmueble.codigo }} — {{ c.inmueble.proyecto.nombre }}</td>
+          <td class="muted">{{ c.inmueble.codigo_display }} — {{ c.inmueble.proyecto.nombre }}</td>
           <td>
             <a href="{% url 'app:contrato_estado_cuenta_pdf' c.pk %}" class="btn-secondary btn-sm" target="_blank" rel="noopener">
               PDF de este plan

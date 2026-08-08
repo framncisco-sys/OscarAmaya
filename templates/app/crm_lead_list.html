@@ -39,7 +39,7 @@
       <td><span class="badge badge--{{ l.estado_embudo|lower }}">{{ l.get_estado_embudo_display }}</span></td>
       <td>{{ l.telefono|default:"—" }}</td>
       <td>
-        {% if l.inmueble_interes %}{{ l.inmueble_interes.codigo }}{% elif l.poligono_interes %}{{ l.poligono_interes.nombre }}{% elif l.proyecto_interes %}{{ l.proyecto_interes.nombre }}{% else %}—{% endif %}
+        {% if l.inmueble_interes %}{{ l.inmueble_interes.codigo_display }}{% elif l.poligono_interes %}{{ l.poligono_interes.nombre }}{% elif l.proyecto_interes %}{{ l.proyecto_interes.nombre }}{% else %}—{% endif %}
       </td>
       <td><a href="{% url 'app:crm_lead_update' l.pk %}" class="link-action">Editar</a></td>
     </tr>

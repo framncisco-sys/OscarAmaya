@@ -504,6 +504,7 @@ def _catalogo_inmuebles_formato_aceptacion() -> dict:
         entry = {
             "id": inv.pk,
             "codigo": inv.codigo,
+            "codigo_display": inv.codigo_display,
             # Precio de venta = etapa actual (Preventa/…). No usar lista como sustituto.
             "precio": str(precio_etapa) if precio_etapa is not None else "",
             "precio_etapa": str(precio_etapa) if precio_etapa is not None else "",
@@ -3818,6 +3819,7 @@ def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
                 "properties": {
                     "inmueble_id": lote.pk,
                     "codigo": lote.codigo,
+                    "codigo_display": lote.codigo_display,
                     "estado": lote.estado,
                     "estado_display": lote.get_estado_display(),
                     "mapa_style": style_key,
@@ -3840,6 +3842,7 @@ def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
                 {
                     "id": i.pk,
                     "codigo": i.codigo,
+                    "codigo_display": i.codigo_display,
                     "estado": i.estado,
                     "poligono_id": i.poligono_id,
                     "poligono_nombre": i.poligono.nombre if i.poligono else "",
@@ -3873,12 +3876,12 @@ def api_inmueble_estado(request: HttpRequest, inmueble_id: int) -> JsonResponse:
     disponible = inv.estado == Inmueble.Estado.DISPONIBLE
     if disponible:
         mensaje = (
-            f"✓ El lote {(inv.codigo or '').strip() or '—'} está DISPONIBLE. "
+            f"✓ El lote {(inv.codigo_display or '').strip() or '—'} está DISPONIBLE. "
             "Puede continuar con el formato (revise de nuevo si otro asesor de ventas lo reserva)."
         )
     else:
         mensaje = alerta or (
-            f"El lote {(inv.codigo or '').strip() or '—'} no está disponible "
+            f"El lote {(inv.codigo_display or '').strip() or '—'} no está disponible "
             f"({inv.get_estado_display()})."
         )
     return JsonResponse(
@@ -3886,6 +3889,7 @@ def api_inmueble_estado(request: HttpRequest, inmueble_id: int) -> JsonResponse:
             "ok": True,
             "id": inv.pk,
             "codigo": inv.codigo,
+            "codigo_display": inv.codigo_display,
             "estado": inv.estado,
             "estado_label": inv.get_estado_display(),
             "cliente_reserva": cli_txt,
@@ -4013,7 +4017,7 @@ def _popup_html_mapa_catastral(
     # 1) Cabecera + estado (lo primero que pide ver)
     head = (
         f'<div class="mapa-catastral-popup__head">'
-        f'<p class="mapa-catastral-popup__title">Lote {html.escape(inmueble.codigo)}</p>'
+        f'<p class="mapa-catastral-popup__title">Lote {html.escape(inmueble.codigo_display)}</p>'
         f'<p class="mapa-catastral-popup__meta muted">{html.escape(proyecto_nombre)} · {html.escape(pol)}</p>'
         f'<p class="mapa-catastral-popup__estado"><strong>Estado:</strong> '
         f'<span class="mapa-catastral-popup__estado-val">{html.escape(estado_txt)}</span>'
@@ -4205,6 +4209,7 @@ def api_mapa_catastral(request: HttpRequest, proyecto_id: int) -> JsonResponse:
             {
                 "id": lote.pk,
                 "codigo": lote.codigo,
+                "codigo_display": lote.codigo_display,
                 "estado": lote.estado,
                 "poligono_id": lote.poligono_id,
                 "poligono_nombre": lote.poligono.nombre if lote.poligono else "",
@@ -4225,6 +4230,7 @@ def api_mapa_catastral(request: HttpRequest, proyecto_id: int) -> JsonResponse:
                 "properties": {
                     "inmueble_id": lote.pk,
                     "codigo": lote.codigo,
+                    "codigo_display": lote.codigo_display,
                     "estado": lote.estado,
                     "estado_display": lote.get_estado_display(),
                     "mapa_style": style_key,

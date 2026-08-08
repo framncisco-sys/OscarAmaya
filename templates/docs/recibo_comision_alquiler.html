@@ -67,7 +67,7 @@
       </td>
       <td>
         <p class="cv-sec">Inmueble en alquiler</p>
-        <p>{{ inmueble.get_tipo_display }} <strong>{{ inmueble.codigo }}</strong></p>
+        <p>{{ inmueble.get_tipo_display }} <strong>{{ inmueble.codigo_display }}</strong></p>
         <p>{{ proyecto.nombre|title }}</p>
         <p>Renta mensual ref.: <strong>{{ renta_mensual_fmt }} USD</strong></p>
       </td>
@@ -94,7 +94,7 @@
               <br><span style="color:#64748b;font-size:9px;">Referencia: {{ comision_porcentaje_txt }}.</span>
             {% endif %}
           </td>
-          <td>{{ inmueble.codigo }} · alquiler</td>
+          <td>{{ inmueble.codigo_display }} · alquiler</td>
           <td class="cv-monto">{{ monto_fmt }}</td>
         </tr>
         <tr class="cv-total">

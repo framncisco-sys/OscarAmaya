@@ -77,7 +77,7 @@
     {% for c in contratos %}
     <tr>
       <td><strong>{{ c.numero }}</strong></td>
-      <td>{{ c.inmueble.proyecto.nombre }} — Lote {{ c.inmueble.codigo }}</td>
+      <td>{{ c.inmueble.proyecto.nombre }} — Lote {{ c.inmueble.codigo_display }}</td>
       <td>{{ c.fecha_firma|date:"d/m/Y" }}</td>
       <td>{{ c.get_estado_display }}</td>
     </tr>

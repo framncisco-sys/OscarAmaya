@@ -66,7 +66,7 @@
 <section class="card">
   <h2 style="font-size:1rem;margin:0 0 0.75rem;">Resumen general</h2>
   <p><strong>Cliente:</strong> {{ contrato.cliente }}</p>
-  <p><strong>Inmueble:</strong> {{ contrato.inmueble.codigo }} — {{ contrato.inmueble.proyecto.nombre }}</p>
+  <p><strong>Inmueble:</strong> {{ contrato.inmueble.codigo_display }} — {{ contrato.inmueble.proyecto.nombre }}</p>
   <p><strong>Precio acordado:</strong> ${{ contrato.precio_final }}</p>
   <p><strong>Modalidad de financiamiento:</strong> {{ contrato.get_modalidad_financiamiento_display }}</p>
   {% if contrato.meses_sin_interes %}

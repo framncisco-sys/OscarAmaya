@@ -53,7 +53,7 @@
     <tr>
       <td><strong>{{ c.numero }}</strong></td>
       <td>{{ c.cliente }}</td>
-      <td>{{ c.inmueble.codigo }} — {{ c.inmueble.proyecto.nombre }}</td>
+      <td>{{ c.inmueble.codigo_display }} — {{ c.inmueble.proyecto.nombre }}</td>
       <td class="right">${{ c.precio_final }}</td>
       <td><span class="badge badge--{{ c.estado|lower }}">{{ c.get_estado_display }}</span></td>
       <td>

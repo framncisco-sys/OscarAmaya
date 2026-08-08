@@ -209,6 +209,13 @@ class Poligono(models.Model):
         return f"{self.proyecto} — {self.nombre}"
 
     @property
+    def letra_codigo(self) -> str:
+        """Letra del polígono para códigos de lote (POLIGONO A → A)."""
+        from .lote_codigo import letra_desde_nombre_poligono
+
+        return letra_desde_nombre_poligono(self.nombre)
+
+    @property
     def _nombre_archivo_plano_fuente(self) -> str | None:
         """Archivo usado para vista y recorte: primero plano del polígono, si no, plano maestro del proyecto."""
         if self.plano and self.plano.name:
@@ -310,7 +317,8 @@ class Inmueble(models.Model):
         max_length=50,
         db_index=True,
         help_text=(
-            "Número o referencia del lote dentro del polígono (ej. 1, A-15). "
+            "Correlativo del lote dentro del polígono (ej. 1, 15). "
+            "En pantallas se muestra con la letra del polígono: A01, B15, etc. "
             "Puede repetirse en otro polígono del mismo proyecto."
         ),
     )
@@ -445,14 +453,27 @@ class Inmueble(models.Model):
         verbose_name_plural = "Inmuebles"
 
     def __str__(self) -> str:
-        return f"{self.codigo} ({self.get_tipo_display()})"
+        return f"{self.codigo_display} ({self.get_tipo_display()})"
+
+    @property
+    def codigo_display(self) -> str:
+        """Código visible: letra del polígono + correlativo (A01, B12)."""
+        from .lote_codigo import normalizar_codigo_lote
+
+        letra = ""
+        if self.poligono_id:
+            try:
+                letra = self.poligono.letra_codigo
+            except Poligono.DoesNotExist:
+                letra = ""
+        return normalizar_codigo_lote(self.codigo, letra)
 
     @property
     def label_venta(self) -> str:
         """Texto para elegir el lote en contratos (proyecto, polígono, código, estado, precio)."""
         pol = self.poligono.nombre if self.poligono else "Sin polígono"
         return (
-            f"{self.proyecto.nombre} — {pol} — Lote {self.codigo} · "
+            f"{self.proyecto.nombre} — {pol} — Lote {self.codigo_display} · "
             f"{self.get_estado_display()} · ${self.precio_lista}"
         )
 
@@ -460,7 +481,7 @@ class Inmueble(models.Model):
     def etiqueta_lote(self) -> str:
         """Una línea corta: polígono + código del lote."""
         pol = self.poligono.nombre if self.poligono else "—"
-        return f"{pol} · Lote {self.codigo}"
+        return f"{pol} · Lote {self.codigo_display}"
 
 
 class InmuebleDetalleCasa(models.Model):

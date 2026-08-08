@@ -29,7 +29,7 @@
     <tr>
       <td><strong>{{ c.numero }}</strong></td>
       <td>{{ c.cliente }}</td>
-      <td>{{ c.inmueble.codigo }} — {{ c.inmueble.proyecto.nombre }}</td>
+      <td>{{ c.inmueble.codigo_display }} — {{ c.inmueble.proyecto.nombre }}</td>
       <td>
         {{ c.nombre_vendedor_documentos|default:"—" }}
         {% if c.vendedor_perfil %}

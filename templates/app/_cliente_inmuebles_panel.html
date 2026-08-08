@@ -18,13 +18,13 @@
       <ul class="cliente-inmuebles-panel__list">
         {% for i in cliente_alquileres_local %}
         <li>
-          <a href="{% url 'app:local_alquiler_ficha' i.pk %}" class="link-action"><strong>{{ i.codigo }}</strong></a> — local
+          <a href="{% url 'app:local_alquiler_ficha' i.pk %}" class="link-action"><strong>{{ i.codigo_display }}</strong></a> — local
           {% if i.detalle_local_alquiler.renta_mensual %} · ${{ i.detalle_local_alquiler.renta_mensual|floatformat:2 }}/mes{% endif %}
         </li>
         {% endfor %}
         {% for i in cliente_alquileres_casa %}
         <li>
-          <a href="{% url 'app:casa_alquiler_ficha' i.pk %}" class="link-action"><strong>{{ i.codigo }}</strong></a> — casa
+          <a href="{% url 'app:casa_alquiler_ficha' i.pk %}" class="link-action"><strong>{{ i.codigo_display }}</strong></a> — casa
           {% if i.detalle_casa_alquiler.arrendamiento_mensual %} · ${{ i.detalle_casa_alquiler.arrendamiento_mensual|floatformat:2 }}/mes{% endif %}
         </li>
         {% endfor %}
@@ -40,7 +40,7 @@
       <ul class="cliente-inmuebles-panel__list">
         {% for i in cliente_reservas %}
         <li>
-          <strong>{{ i.codigo }}</strong> — {{ i.get_tipo_display }}
+          <strong>{{ i.codigo_display }}</strong> — {{ i.get_tipo_display }}
           {% if i.proyecto %} · {{ i.proyecto.nombre }}{% endif %}
         </li>
         {% endfor %}
@@ -67,7 +67,7 @@
             {% for c in cliente_contratos %}
             <tr>
               <td><strong>{{ c.numero }}</strong></td>
-              <td>{{ c.inmueble.codigo }}</td>
+              <td>{{ c.inmueble.codigo_display }}</td>
               <td>{{ c.get_estado_display }}</td>
               <td><a href="{% url 'app:contrato_update' c.pk %}" class="link-action">Ver</a></td>
             </tr>

@@ -107,6 +107,7 @@ class HistorialPrecioInmuebleAdmin(admin.ModelAdmin):
 @admin.register(Inmueble)
 class InmuebleAdmin(admin.ModelAdmin):
     list_display = (
+        "codigo_display",
         "codigo",
         "proyecto",
         "poligono",

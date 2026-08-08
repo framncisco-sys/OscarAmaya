@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block body_class %}app-body app-body--catalogo{% endblock %}
-{% block title %}{{ inmueble.codigo }} · {{ inmueble.proyecto.nombre }} | Catálogo{% endblock %}
+{% block title %}{{ inmueble.codigo_display }} · {{ inmueble.proyecto.nombre }} | Catálogo{% endblock %}
 
 {% block content %}
 <div class="app-wrap catalogo catalogo--detalle">
@@ -12,7 +12,7 @@
 
   <header class="catalogo-detalle-head">
     <p class="catalogo-detalle-head__proy">{{ inmueble.proyecto.nombre }}</p>
-    <h1 class="catalogo-detalle-head__title">{{ inmueble.get_tipo_display }} · {{ inmueble.codigo }}</h1>
+    <h1 class="catalogo-detalle-head__title">{{ inmueble.get_tipo_display }} · {{ inmueble.codigo_display }}</h1>
     <p class="catalogo-detalle-head__meta">
       {% if inmueble.poligono %}{{ inmueble.poligono.nombre }} · {% endif %}
       {% if inmueble.proyecto.municipio %}{{ inmueble.proyecto.municipio }}{% endif %}{% if inmueble.proyecto.municipio and inmueble.proyecto.departamento %}, {% endif %}{% if inmueble.proyecto.departamento %}{{ inmueble.proyecto.departamento }}{% endif %}
@@ -92,7 +92,7 @@
     var url = input.value;
     if (wa) {
       wa.href = "https://wa.me/?text=" + encodeURIComponent(
-        "Le comparto las fotos de {{ inmueble.get_tipo_display|escapejs }} {{ inmueble.codigo|escapejs }} ({{ inmueble.proyecto.nombre|escapejs }}):\n" + url
+        "Le comparto las fotos de {{ inmueble.get_tipo_display|escapejs }} {{ inmueble.codigo_display|escapejs }} ({{ inmueble.proyecto.nombre|escapejs }}):\n" + url
       );
     }
     btn.addEventListener("click", function () {

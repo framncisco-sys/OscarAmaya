@@ -407,7 +407,7 @@
       }
 
       function etiquetaLote(L) {
-        var cod = L.codigo || "—";
+        var cod = L.codigo_display || L.codigo || "—";
         var est = (L.estado_label || L.estado || "").trim();
         if (!est || String(L.estado || "") === "DISPONIBLE") return cod;
         return cod + " · " + est;
@@ -499,6 +499,7 @@
         var L = porId[id] || {};
         L.id = data.id;
         L.codigo = data.codigo != null ? data.codigo : L.codigo;
+        if (data.codigo_display != null) L.codigo_display = data.codigo_display;
         L.estado = data.estado;
         L.estado_label = data.estado_label;
         L.cliente_reserva = data.cliente_reserva || "";
@@ -682,7 +683,7 @@
           consultarEstadoLoteVivo(invId, opts);
           return;
         }
-        hidLote.value = L.codigo || "";
+        hidLote.value = L.codigo_display || L.codigo || "";
         hidPol.value = L.poligono_nombre || "";
         if (areaM2) areaM2.value = L.area_m2 || "";
         if (areaV2) areaV2.value = L.area_v2 || "";
@@ -820,7 +821,9 @@
         var found = null;
         Object.keys(lotesPorClave).forEach(function (clave) {
           (lotesPorClave[clave] || []).forEach(function (L) {
-            if (L.codigo.trim() !== cod) return;
+            var disp = (L.codigo_display || L.codigo || "").trim();
+            var raw = (L.codigo || "").trim();
+            if (disp !== cod && raw !== cod) return;
             if (polName && L.poligono_nombre && L.poligono_nombre !== polName) return;
             if (!found) found = L;
           });

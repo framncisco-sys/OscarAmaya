@@ -148,7 +148,7 @@
         <tbody>
           {% for i in br_ultimos_alquiler %}
           <tr>
-            <td><strong>{{ i.codigo }}</strong></td>
+            <td><strong>{{ i.codigo_display }}</strong></td>
             <td>{{ i.get_tipo_display }}</td>
             <td><a href="{% url 'app:inmueble_update' i.pk %}" class="link-action">Ver</a></td>
           </tr>

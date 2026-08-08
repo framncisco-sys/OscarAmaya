@@ -88,7 +88,7 @@
     {% endif %}
     <br>
     <strong>Cliente:</strong> {{ contrato.cliente }}<br>
-    <strong>Inmueble:</strong> {{ contrato.inmueble.codigo }} — {{ contrato.inmueble.proyecto.nombre }}<br>
+    <strong>Inmueble:</strong> {{ contrato.inmueble.codigo_display }} — {{ contrato.inmueble.proyecto.nombre }}<br>
     <strong>Precio de venta:</strong> ${{ precio_final|floatformat:2 }} USD
     {% if monto_sugerido %}
       · <strong>Comisión bruta sugerida:</strong> ${{ monto_sugerido|floatformat:2 }} USD

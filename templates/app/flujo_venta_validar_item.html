@@ -29,7 +29,7 @@
   {% else %}
   <p style="margin:0 0 0.5rem;"><strong>Plan:</strong> {{ contrato.numero }}</p>
   <p style="margin:0 0 0.5rem;"><strong>Cliente:</strong> {{ contrato.cliente }}</p>
-  <p style="margin:0 0 0.5rem;"><strong>Inmueble:</strong> {{ contrato.inmueble.codigo }} — {{ contrato.inmueble.proyecto.nombre }}</p>
+  <p style="margin:0 0 0.5rem;"><strong>Inmueble:</strong> {{ contrato.inmueble.codigo_display }} — {{ contrato.inmueble.proyecto.nombre }}</p>
   <p style="margin:0;"><strong>Precio:</strong> ${{ contrato.precio_final }}</p>
   {% endif %}
 </section>

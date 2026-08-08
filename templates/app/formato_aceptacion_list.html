@@ -48,7 +48,7 @@
       <td>{{ f.nombre_cliente }}</td>
       <td class="muted">
         {% if f.contrato %}
-          {{ f.contrato.inmueble.codigo }} — {{ f.contrato.inmueble.proyecto.nombre }}
+          {{ f.contrato.inmueble.codigo_display }} — {{ f.contrato.inmueble.proyecto.nombre }}
         {% else %}
           {% if f.num_lote or f.nombre_proyecto %}
             {{ f.num_lote|default:"—" }}{% if f.nombre_proyecto %} — {{ f.nombre_proyecto }}{% endif %}

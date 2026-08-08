@@ -10,7 +10,7 @@
 <section class="card pbr-card--info" style="margin-bottom:1rem;">
   <p class="muted" style="margin:0;">
     <strong>Módulo:</strong> Alquileres (independiente de ventas y contratos)<br>
-    <strong>Inmueble:</strong> {{ inmueble.get_tipo_display }} {{ inmueble.codigo }} — {{ inmueble.proyecto.nombre }}<br>
+    <strong>Inmueble:</strong> {{ inmueble.get_tipo_display }} {{ inmueble.codigo_display }} — {{ inmueble.proyecto.nombre }}<br>
     {% if renta_mensual %}
       <strong>Renta mensual (referencia):</strong> ${{ renta_mensual|floatformat:2 }} USD
     {% else %}

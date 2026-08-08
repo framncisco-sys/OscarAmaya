@@ -130,30 +130,29 @@ def pmt_cuota(principal: Decimal, n_meses: int, tasa_anual_pct: Decimal) -> Deci
 
 def resolver_inmueble_desde_formato(fmt: FormatoAceptacion):
     """Localiza el lote del inventario por No. de lote (+ proyecto) del formato."""
+    from .lote_codigo import resolver_inmueble_por_codigo_lote
     from .models import Inmueble
 
     codigo = (fmt.num_lote or "").strip()
     if not codigo:
         return None
+    inv = resolver_inmueble_por_codigo_lote(
+        num_lote=codigo,
+        proyecto_nombre=(fmt.nombre_proyecto or "").strip(),
+    )
+    if inv is not None:
+        return inv
+    # Fallback legado (textos raros en código)
     qs = Inmueble.objects.select_related("proyecto", "poligono").exclude(
         estado=Inmueble.Estado.VENDIDO
     )
-    # Exacto
-    inv = qs.filter(codigo__iexact=codigo).first()
-    if inv:
-        return inv
-    # Contiene código
     proy = (fmt.nombre_proyecto or "").strip()
     if proy:
         inv = qs.filter(codigo__icontains=codigo, proyecto__nombre__icontains=proy).first()
         if inv:
             return inv
-    inv = qs.filter(codigo__icontains=codigo).first()
-    if inv:
-        return inv
-    # A veces el formato guarda solo el número y el código es "Lote 1"
-    return qs.filter(codigo__icontains=f"lote {codigo}").first() or qs.filter(
-        codigo__icontains=f"Lote {codigo}"
+    return qs.filter(codigo__icontains=codigo).first() or qs.filter(
+        codigo__icontains=f"lote {codigo}"
     ).first()
 
 
@@ -579,20 +578,12 @@ def asegurar_contrato_contado_desde_formato(fmt: FormatoAceptacion):
     nom_proy = (fmt.nombre_proyecto or "").strip()
     existente = None
     if num_lote and nom_proy:
-        inv_qs = (
-            Inmueble.objects.filter(codigo__iexact=num_lote)
-            .select_related("proyecto")
-            .order_by("id")
+        from .lote_codigo import resolver_inmueble_por_codigo_lote
+
+        inv = resolver_inmueble_por_codigo_lote(
+            num_lote=num_lote,
+            proyecto_nombre=nom_proy,
         )
-        inv = None
-        nom_lower = nom_proy.lower()
-        for candidate in inv_qs:
-            pn = (candidate.proyecto.nombre or "").strip() if candidate.proyecto_id else ""
-            if pn.lower() == nom_lower:
-                inv = candidate
-                break
-        if inv is None and inv_qs.count() == 1:
-            inv = inv_qs.first()
         if inv is not None:
             existente = (
                 Contrato.objects.filter(inmueble_id=inv.pk)
@@ -665,20 +656,12 @@ def asegurar_contrato_reserva_prima_desde_formato(fmt: FormatoAceptacion):
     nom_proy = (fmt.nombre_proyecto or "").strip()
     existente = None
     if num_lote and nom_proy:
-        inv_qs = (
-            Inmueble.objects.filter(codigo__iexact=num_lote)
-            .select_related("proyecto")
-            .order_by("id")
+        from .lote_codigo import resolver_inmueble_por_codigo_lote
+
+        inv = resolver_inmueble_por_codigo_lote(
+            num_lote=num_lote,
+            proyecto_nombre=nom_proy,
         )
-        inv = None
-        nom_lower = nom_proy.lower()
-        for candidate in inv_qs:
-            pn = (candidate.proyecto.nombre or "").strip() if candidate.proyecto_id else ""
-            if pn.lower() == nom_lower:
-                inv = candidate
-                break
-        if inv is None and inv_qs.count() == 1:
-            inv = inv_qs.first()
         if inv is not None:
             existente = (
                 Contrato.objects.filter(inmueble_id=inv.pk)

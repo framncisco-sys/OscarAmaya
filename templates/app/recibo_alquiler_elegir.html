@@ -24,7 +24,7 @@
   <tbody>
     {% for i in items %}
     <tr>
-      <td><strong>{{ i.codigo }}</strong></td>
+      <td><strong>{{ i.codigo_display }}</strong></td>
       <td>{{ i.proyecto.nombre }}</td>
       <td>{{ i.get_tipo_display }}</td>
       <td>{% if i.renta_ref %}${{ i.renta_ref|floatformat:2 }}{% else %}—{% endif %}</td>
