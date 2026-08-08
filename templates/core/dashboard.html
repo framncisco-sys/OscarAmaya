@@ -50,10 +50,10 @@
       <p>{{ vendidos }}</p>
       <span class="dash-kpi__hint">Contado o cuotas liquidadas</span>
     </article>
-    <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:contrato_list' %}">
+    <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:formato_aceptacion_list' %}">
       <span class="dash-kpi__icon" aria-hidden="true">📄</span>
-      <h3>Contratos activos</h3>
-      <p>{{ total_contratos_activos }}</p>
+      <h3>Formatos de aceptación activos</h3>
+      <p>{{ total_formatos_activos }}</p>
       <span class="dash-kpi__hint">En cartera</span>
     </a>
     {% if total_vendedores is not None %}

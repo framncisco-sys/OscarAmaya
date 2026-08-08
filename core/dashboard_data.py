@@ -9,7 +9,7 @@ from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
 from inmobiliaria.forms_web import PROYECTO_CONTENEDOR_CASA_VENTA
-from inmobiliaria.models import Contrato, Inmueble, Pago, Poligono, Proyecto, Vendedor
+from inmobiliaria.models import Contrato, FormatoAceptacion, Inmueble, Pago, Poligono, Proyecto, Vendedor
 
 _LOTE = Inmueble.Tipo.LOTE
 _EST = Inmueble.Estado
@@ -254,6 +254,10 @@ def build_dashboard_context(
     )
 
     contratos_activos = Contrato.objects.filter(estado=Contrato.Estado.ACTIVO).count()
+    # En Desarrollos la cartera operativa son formatos de aceptación (no «contratos»).
+    formatos_activos = FormatoAceptacion.objects.exclude(
+        validacion_gerencia=FormatoAceptacion.ValidacionGerencia.RECHAZADO
+    ).count()
     total_alquiler = Inmueble.objects.filter(en_alquiler=True).count()
 
     ctx: dict = {
@@ -268,6 +272,7 @@ def build_dashboard_context(
         "valor_inventario_disponible": valor_disponible,
         "estado_breakdown": estado_breakdown,
         "total_contratos_activos": contratos_activos,
+        "total_formatos_activos": formatos_activos,
         "ultimos_inmuebles": ultimos_inmuebles,
         "poligono_rows": poligono_rows,
         "proyecto_rows": proyecto_rows,
@@ -353,7 +358,6 @@ def build_gestion_hub_context(
     ).count()
 
     from docs.models import DocumentoEmitido
-    from inmobiliaria.models import FormatoAceptacion
 
     precios_formato_pendientes = FormatoAceptacion.objects.filter(
         validacion_precio=FormatoAceptacion.ValidacionPrecio.PENDIENTE
@@ -379,7 +383,9 @@ def build_gestion_hub_context(
     ).count()
 
     docs_total = DocumentoEmitido.objects.count()
-    formatos_total = FormatoAceptacion.objects.count()
+    formatos_total = FormatoAceptacion.objects.exclude(
+        validacion_gerencia=FormatoAceptacion.ValidacionGerencia.RECHAZADO
+    ).count()
 
     poligonos_ct = Poligono.objects.exclude(
         proyecto__nombre=PROYECTO_CONTENEDOR_CASA_VENTA
