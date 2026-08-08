@@ -231,6 +231,7 @@ def _build_middleware():
         [
             "django.contrib.sessions.middleware.SessionMiddleware",
             "django.middleware.common.CommonMiddleware",
+            "core.middleware.ElSalvadorTimezoneMiddleware",
             "django.middleware.csrf.CsrfViewMiddleware",
             "django.contrib.auth.middleware.AuthenticationMiddleware",
             "usuarios.middleware.AppUsuarioActivoMiddleware",
@@ -535,11 +536,16 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'es-sv'
 
+# Hora oficial del negocio (UTC-6, sin horario de verano).
+# USE_TZ=True: se guarda en UTC en BD y se muestra/registra en hora salvadoreña.
 TIME_ZONE = 'America/El_Salvador'
 
 USE_I18N = True
 
 USE_TZ = True
+
+# Por si algún proceso usa date.today()/datetime.now() del sistema.
+os.environ.setdefault("TZ", "America/El_Salvador")
 
 
 # Static files (CSS, JavaScript, Images)

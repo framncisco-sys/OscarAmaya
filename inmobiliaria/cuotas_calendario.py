@@ -175,7 +175,9 @@ def aplicar_calendario_desde_formato_cliente(
         else:
             fecha_primera = _parse_fecha_texto_formato(fmt.fecha_pago_mensual or "")
     if fecha_primera is None:
-        fecha_primera = getattr(contrato, "fecha_firma", None) or date.today()
+        from django.utils import timezone
+
+        fecha_primera = getattr(contrato, "fecha_firma", None) or timezone.localdate()
 
     listado = data.get("listado_cuotas") or []
     nuevas = construir_cuotas_desde_listado_credito(

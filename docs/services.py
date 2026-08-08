@@ -734,7 +734,7 @@ def _contexto_recibo_ingreso(*, doc, pago) -> dict:
         "concepto_detalle": concepto_detalle,
         "recibo_numero_corto": _numero_recibo_corto(doc.numero),
         "fecha_emision_larga": _fecha_espanol_larga(
-            getattr(doc, "emitido_en", None).date()
+            timezone.localtime(doc.emitido_en).date()
             if getattr(doc, "emitido_en", None)
             else pago.fecha
         ),

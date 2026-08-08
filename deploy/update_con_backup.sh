@@ -94,10 +94,26 @@ chown -R www-data:www-data "${APP_DIR}/media" "${APP_DIR}/staticfiles" || true
 chown root:www-data "${APP_DIR}/.env"
 chmod 600 "${APP_DIR}/.env"
 
-echo "[6/6] Reiniciar ${SERVICE}..."
+echo "[6/6] Zona horaria El Salvador + reiniciar ${SERVICE}..."
+mkdir -p /etc/systemd/system/${SERVICE}.service.d
+printf '%s\n' '[Service]' 'Environment=TZ=America/El_Salvador' > /etc/systemd/system/${SERVICE}.service.d/timezone.conf
+# También en .env por si se usa en scripts
+grep -q '^TZ=' "${APP_DIR}/.env" 2>/dev/null || echo 'TZ=America/El_Salvador' >> "${APP_DIR}/.env"
+systemctl daemon-reload
 systemctl restart "${SERVICE}"
 sleep 2
 systemctl is-active "${SERVICE}"
+# Verificación rápida: hora Django = El Salvador
+python - <<'PY'
+import os
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")
+import django
+django.setup()
+from django.utils import timezone
+ahora = timezone.localtime()
+assert str(ahora.tzinfo) in ("CST", "America/El_Salvador") or getattr(ahora.tzinfo, "key", "") == "America/El_Salvador" or "El_Salvador" in repr(ahora.tzinfo) or ahora.utcoffset().total_seconds() == -6 * 3600
+print("Django localtime SV:", ahora.isoformat())
+PY
 
 SIZE=$(du -sh "${DEST}" | awk '{print $1}')
 echo

@@ -1362,12 +1362,10 @@ class PlanPagosForm(ContratoForm):
         return cleaned
 
     def save(self, commit=True):
-        from datetime import date
+        from django.utils import timezone
 
         instance = super().save(commit=False)
         if not (instance.numero or "").strip():
-            from django.utils import timezone
-
             stamp = timezone.localtime().strftime("%Y%m%d%H%M%S")
             base = f"PP-{stamp}"
             numero = base
@@ -1377,7 +1375,7 @@ class PlanPagosForm(ContratoForm):
                 numero = f"{base}-{n}"
             instance.numero = numero
         if not instance.fecha_firma:
-            instance.fecha_firma = date.today()
+            instance.fecha_firma = timezone.localdate()
         if not instance.estado:
             instance.estado = Contrato.Estado.BORRADOR
         if not instance.etapa_comercial:
@@ -1987,7 +1985,9 @@ class PagoForm(forms.ModelForm):
 
         if not self.is_bound and not getattr(self.instance, "pk", None):
             if not self.initial.get("fecha"):
-                self.fields["fecha"].initial = date.today()
+                from django.utils import timezone as dj_tz
+
+                self.fields["fecha"].initial = dj_tz.localdate()
 
     def clean(self):
         cleaned_data = super().clean()

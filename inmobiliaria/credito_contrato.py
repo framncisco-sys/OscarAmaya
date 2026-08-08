@@ -567,8 +567,6 @@ def asegurar_contrato_contado_desde_formato(fmt: FormatoAceptacion):
     Para venta de contado: usa el contrato del formato o crea uno
     (sin financiamiento) con el valor del lote.
     """
-    from datetime import date
-
     from django.utils import timezone
 
     from .models import Contrato, FormatoAceptacion as FA, Inmueble
@@ -625,7 +623,7 @@ def asegurar_contrato_contado_desde_formato(fmt: FormatoAceptacion):
         cliente=cliente,
         inmueble=inv,
         numero=numero,
-        fecha_firma=date.today(),
+        fecha_firma=timezone.localdate(),
         estado=Contrato.Estado.ACTIVO,
         etapa_comercial=Contrato.EtapaComercial.DOCUMENTOS,
         precio_lista_referencia=precio,
@@ -656,8 +654,6 @@ def asegurar_contrato_reserva_prima_desde_formato(fmt: FormatoAceptacion):
     Para reserva/prima a plazos: usa el contrato del formato o crea uno
     con los datos del financiamiento del formato (sin exigir plan mes-13).
     """
-    from datetime import date
-
     from django.utils import timezone
 
     from .models import Contrato, FormatoAceptacion as FA, Inmueble
@@ -716,7 +712,7 @@ def asegurar_contrato_reserva_prima_desde_formato(fmt: FormatoAceptacion):
         cliente=cliente,
         inmueble=inv,
         numero=numero,
-        fecha_firma=date.today(),
+        fecha_firma=timezone.localdate(),
         estado=Contrato.Estado.ACTIVO,
         etapa_comercial=Contrato.EtapaComercial.DOCUMENTOS,
         precio_lista_referencia=precio,

@@ -32,7 +32,7 @@ def aplicar_validacion_formato_o_plan(obj, user) -> bool:
     if puede_validar_flujo_venta(user):
         obj.validacion_gerencia = obj.ValidacionGerencia.VALIDADO
         obj.validado_gerencia_por = user
-        obj.validado_gerencia_en = timezone.now()
+        obj.validado_gerencia_en = timezone.localtime()
         if not (getattr(obj, "validacion_gerencia_nota", None) or "").strip():
             obj.validacion_gerencia_nota = "Registrado por admin/gerencia"
         return False
@@ -56,7 +56,7 @@ def marcar_pendiente_si_operador(obj, user) -> bool:
     if not requiere_validacion_gerencia(user):
         obj.validacion_gerencia = obj.ValidacionGerencia.VALIDADO
         obj.validado_gerencia_por = user
-        obj.validado_gerencia_en = timezone.now()
+        obj.validado_gerencia_en = timezone.localtime()
         if not (getattr(obj, "validacion_gerencia_nota", None) or "").strip():
             obj.validacion_gerencia_nota = "Registrado por admin/gerencia"
         return False
@@ -76,7 +76,7 @@ def aplicar_validacion_pago_al_guardar(pago: Pago, user) -> bool:
     if puede_validar_flujo_venta(user):
         pago.validacion_abono = Pago.ValidacionAbono.VALIDADO
         pago.validado_por = user
-        pago.validado_en = timezone.now()
+        pago.validado_en = timezone.localtime()
         pago.validacion_nota = (
             (pago.validacion_nota or "").strip()
             or "Validado al registrar (admin/gerencia)."
@@ -96,7 +96,7 @@ def auto_validar_pago_si_autoridad(pago: Pago, user) -> None:
 def validar_contrato(contrato: Contrato, user, *, nota: str = "") -> None:
     contrato.validacion_gerencia = Contrato.ValidacionGerencia.VALIDADO
     contrato.validado_gerencia_por = user
-    contrato.validado_gerencia_en = timezone.now()
+    contrato.validado_gerencia_en = timezone.localtime()
     contrato.validacion_gerencia_nota = (nota or "").strip()[:255]
     if contrato.estado == Contrato.Estado.BORRADOR:
         contrato.estado = Contrato.Estado.ACTIVO
@@ -114,7 +114,7 @@ def validar_contrato(contrato: Contrato, user, *, nota: str = "") -> None:
 def rechazar_contrato(contrato: Contrato, user, *, nota: str = "") -> None:
     contrato.validacion_gerencia = Contrato.ValidacionGerencia.RECHAZADO
     contrato.validado_gerencia_por = user
-    contrato.validado_gerencia_en = timezone.now()
+    contrato.validado_gerencia_en = timezone.localtime()
     contrato.validacion_gerencia_nota = (nota or "").strip()[:255]
     contrato.estado = Contrato.Estado.BORRADOR
     contrato.save(
@@ -131,7 +131,7 @@ def rechazar_contrato(contrato: Contrato, user, *, nota: str = "") -> None:
 def validar_formato(formato: FormatoAceptacion, user, *, nota: str = "") -> None:
     formato.validacion_gerencia = FormatoAceptacion.ValidacionGerencia.VALIDADO
     formato.validado_gerencia_por = user
-    formato.validado_gerencia_en = timezone.now()
+    formato.validado_gerencia_en = timezone.localtime()
     formato.validacion_gerencia_nota = (nota or "").strip()[:255]
     formato.save(
         update_fields=[
@@ -147,7 +147,7 @@ def validar_formato(formato: FormatoAceptacion, user, *, nota: str = "") -> None
 def rechazar_formato(formato: FormatoAceptacion, user, *, nota: str = "") -> None:
     formato.validacion_gerencia = FormatoAceptacion.ValidacionGerencia.RECHAZADO
     formato.validado_gerencia_por = user
-    formato.validado_gerencia_en = timezone.now()
+    formato.validado_gerencia_en = timezone.localtime()
     formato.validacion_gerencia_nota = (nota or "").strip()[:255]
     formato.save(
         update_fields=[
