@@ -1921,6 +1921,30 @@ class FormatoAceptacion(models.Model):
         return f"Formato #{self.numero_formulario} — (sin contrato)"
 
     @property
+    def num_lote_display(self) -> str:
+        """No. de lote con letra de polígono (A01), compatible con formatos viejos ('1')."""
+        from .lote_codigo import (
+            letra_desde_nombre_poligono,
+            normalizar_codigo_lote,
+            resolver_inmueble_por_codigo_lote,
+        )
+
+        raw = (self.num_lote or "").strip()
+        if not raw:
+            return "—"
+        letra = letra_desde_nombre_poligono(self.poligono_txt or "")
+        if letra:
+            return normalizar_codigo_lote(raw, letra)
+        inv = resolver_inmueble_por_codigo_lote(
+            num_lote=raw,
+            proyecto_nombre=(self.nombre_proyecto or "").strip(),
+            poligono_txt=(self.poligono_txt or "").strip(),
+        )
+        if inv is not None:
+            return inv.codigo_display
+        return normalizar_codigo_lote(raw, "")
+
+    @property
     def firmas_completas(self) -> bool:
         """True si DUI y formato físico están guardados (requisito para PDF)."""
         from inmobiliaria.formato_aceptacion_db import (

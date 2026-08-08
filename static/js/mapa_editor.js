@@ -230,7 +230,10 @@
       opt.value = String(l.id);
       var suf = l.tiene_geometria_plano ? "" : " (sin polígono en plano)";
       opt.textContent =
-        (l.poligono_nombre ? l.poligono_nombre + " - " : "") + "Lote " + l.codigo + suf;
+        (l.poligono_nombre ? l.poligono_nombre + " - " : "") +
+        "Lote " +
+        (l.codigo_display || l.codigo) +
+        suf;
       selLote.appendChild(opt);
     });
     if (prev) selLote.value = prev;
@@ -281,7 +284,7 @@
         var html =
           (f.properties && f.properties.popup_html) ||
           "Lote " +
-            f.properties.codigo +
+            (f.properties.codigo_display || f.properties.codigo) +
             " (" +
             (f.properties.poligono_nombre || "Sin polígono") +
             ")";

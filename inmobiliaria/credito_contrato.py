@@ -139,6 +139,7 @@ def resolver_inmueble_desde_formato(fmt: FormatoAceptacion):
     inv = resolver_inmueble_por_codigo_lote(
         num_lote=codigo,
         proyecto_nombre=(fmt.nombre_proyecto or "").strip(),
+        poligono_txt=(getattr(fmt, "poligono_txt", None) or "").strip(),
     )
     if inv is not None:
         return inv
@@ -318,7 +319,7 @@ def calcular_nueva_deuda_mes13(
         "interes_anual_pct": str(interes),
         "cuota_mensual_con_interes": str(cuota_con_interes) if cuota_con_interes is not None else "",
         "valor_financiamiento": str(_d(fmt.valor_financiamiento)),
-        "num_lote": (fmt.num_lote or "").strip(),
+        "num_lote": (fmt.num_lote_display or fmt.num_lote or "").strip(),
         "nombre_proyecto": (fmt.nombre_proyecto or "").strip(),
         "poligono_txt": (fmt.poligono_txt or "").strip(),
         "inmueble_id": inv.pk if inv is not None else None,
@@ -326,7 +327,7 @@ def calcular_nueva_deuda_mes13(
         "listado_cuotas": listado_cuotas,
         "autofill": True,
         "resumen": (
-            f"Lote {(fmt.num_lote or '—')} · valor ${_fmt(monto_inicial)} "
+            f"Lote {(fmt.num_lote_display or fmt.num_lote or '—')} · valor ${_fmt(monto_inicial)} "
             f"- desc. ${_fmt(desc)} - reserva ${_fmt(reserva_total)} "
             f"- prima ${_fmt(prima_total)} - cuotas 1-{meses_sin_int} (${_fmt(abono_cuotas)}) "
             f"= nueva deuda ${_fmt(nueva_deuda)}. "
@@ -583,6 +584,7 @@ def asegurar_contrato_contado_desde_formato(fmt: FormatoAceptacion):
         inv = resolver_inmueble_por_codigo_lote(
             num_lote=num_lote,
             proyecto_nombre=nom_proy,
+            poligono_txt=(fmt.poligono_txt or "").strip(),
         )
         if inv is not None:
             existente = (
@@ -661,6 +663,7 @@ def asegurar_contrato_reserva_prima_desde_formato(fmt: FormatoAceptacion):
         inv = resolver_inmueble_por_codigo_lote(
             num_lote=num_lote,
             proyecto_nombre=nom_proy,
+            poligono_txt=(fmt.poligono_txt or "").strip(),
         )
         if inv is not None:
             existente = (

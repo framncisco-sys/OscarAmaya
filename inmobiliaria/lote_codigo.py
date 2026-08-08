@@ -91,11 +91,39 @@ def variantes_codigo_bd(num_lote: str) -> list[str]:
     return uniq
 
 
+def codigos_lote_equivalentes(a: str, b: str, letra_poligono: str = "") -> bool:
+    """True si '1' y 'A01' (misma letra) representan el mismo lote."""
+    sa = (a or "").strip()
+    sb = (b or "").strip()
+    if not sa or not sb:
+        return False
+    if sa.casefold() == sb.casefold():
+        return True
+    letra = (letra_poligono or "").strip().upper()[:1]
+    la, ca = parse_codigo_lote_busqueda(sa)
+    lb, cb = parse_codigo_lote_busqueda(sb)
+    if ca is None or cb is None or ca != cb:
+        # Comparar displays normalizados (A-01 vs A01)
+        na = normalizar_codigo_lote(sa, letra or (la or ""))
+        nb = normalizar_codigo_lote(sb, letra or (lb or ""))
+        return na.casefold() == nb.casefold()
+    # Mismo correlativo: letras deben coincidir si ambas existen
+    letras = {x for x in (letra, la, lb) if x}
+    if len(letras) > 1:
+        return False
+    return True
+
+
+def letra_desde_poligono_txt(poligono_txt: str) -> str:
+    return letra_desde_nombre_poligono(poligono_txt or "")
+
+
 def resolver_inmueble_por_codigo_lote(
     *,
     num_lote: str,
     proyecto_nombre: str = "",
     proyecto_id: int | None = None,
+    poligono_txt: str = "",
 ):
     """
     Localiza un Inmueble por código crudo ('1') o display ('A01').
@@ -110,6 +138,9 @@ def resolver_inmueble_por_codigo_lote(
         return None
 
     letra, _corr = parse_codigo_lote_busqueda(raw)
+    if not letra:
+        letra = letra_desde_poligono_txt(poligono_txt) or None
+
     variants = variantes_codigo_bd(raw)
     q = Q()
     for v in variants:
@@ -133,6 +164,16 @@ def resolver_inmueble_por_codigo_lote(
         if by_proj:
             candidates = by_proj
 
+    pol_txt = (poligono_txt or "").strip().lower()
+    if pol_txt:
+        by_pol_name = [
+            c
+            for c in candidates
+            if c.poligono_id and pol_txt in (c.poligono.nombre or "").strip().lower()
+        ]
+        if by_pol_name:
+            candidates = by_pol_name
+
     if letra:
         by_letra = [
             c
@@ -140,7 +181,9 @@ def resolver_inmueble_por_codigo_lote(
             if (c.poligono_id and c.poligono.letra_codigo == letra)
             or normalizar_codigo_lote(
                 c.codigo, c.poligono.letra_codigo if c.poligono_id else ""
-            ).upper().startswith(letra)
+            )
+            .upper()
+            .startswith(letra)
         ]
         if by_letra:
             candidates = by_letra
@@ -148,13 +191,14 @@ def resolver_inmueble_por_codigo_lote(
     if len(candidates) == 1:
         return candidates[0]
     if len(candidates) > 1 and letra:
+        want = normalizar_codigo_lote(raw, letra).upper()
         exact_disp = [
             c
             for c in candidates
             if normalizar_codigo_lote(
                 c.codigo, c.poligono.letra_codigo if c.poligono_id else ""
             ).upper()
-            == normalizar_codigo_lote(raw, letra).upper()
+            == want
         ]
         if len(exact_disp) == 1:
             return exact_disp[0]

@@ -52,7 +52,7 @@ class ReciboComisionVendedorForm(forms.Form):
 def _concepto_comision_default(contrato: Contrato) -> str:
     inm = contrato.inmueble
     tipo = inm.get_tipo_display().lower() if inm else "inmueble"
-    codigo = inm.codigo if inm else "—"
+    codigo = inm.codigo_display if inm else "—"
     return (
         f"Comisión por intermediación en la venta del {tipo} {codigo} "
         f"(contrato {contrato.numero})."

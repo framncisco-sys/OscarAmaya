@@ -53,11 +53,24 @@
       .trim()
       .toLowerCase();
     if (!needle) return;
+    // Acepta correlativo viejo ("1") o display ("a01")
+    var needleAlt = needle;
+    var m = needle.match(/^([a-z])-?0*(\d+)$/i);
+    if (m) {
+      needleAlt = String(parseInt(m[2], 10));
+    } else if (/^\d+$/.test(needle)) {
+      needleAlt = needle.replace(/^0+/, "") || "0";
+    }
     var opts = loteSel.options || [];
     for (var i = 0; i < opts.length; i++) {
       var txt = String(opts[i].text || "").toLowerCase();
       var val = String(opts[i].value || "");
-      if (txt.indexOf(needle) !== -1 || txt.indexOf("lote " + needle) !== -1) {
+      if (!val) continue;
+      if (
+        txt.indexOf("lote " + needle) !== -1 ||
+        txt.indexOf("lote " + needleAlt) !== -1 ||
+        (m && txt.indexOf("lote " + m[1] + m[2].padStart(2, "0")) !== -1)
+      ) {
         loteSel.value = val;
         break;
       }

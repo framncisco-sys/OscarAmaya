@@ -451,7 +451,7 @@ def resumen_progreso_comision_vendedor(user) -> dict:
         cliente = ""
         if c.cliente_id:
             cliente = f"{(c.cliente.nombres or '').strip()} {(c.cliente.apellidos or '').strip()}".strip()
-        lote = inv.codigo if inv is not None else "—"
+        lote = inv.codigo_display if inv is not None else "—"
         proy = inv.proyecto.nombre if inv is not None and inv.proyecto_id else ""
 
         items.append(

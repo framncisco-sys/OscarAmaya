@@ -200,7 +200,7 @@ def concepto_comision_alquiler(inmueble: Inmueble) -> str:
 
         f"Comisión por intermediación en el arrendamiento del {tipo} "
 
-        f"{inmueble.codigo} — {inmueble.proyecto.nombre}."
+        f"{inmueble.codigo_display} — {inmueble.proyecto.nombre}."
 
     )
 

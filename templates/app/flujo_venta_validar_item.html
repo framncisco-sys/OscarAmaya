@@ -25,7 +25,7 @@
   {% if tipo == 'formato' %}
   <p style="margin:0 0 0.5rem;"><strong>Formato:</strong> #{{ formato.numero_formulario|stringformat:"04d" }}</p>
   <p style="margin:0 0 0.5rem;"><strong>Cliente:</strong> {{ formato.nombre_cliente }}</p>
-  <p style="margin:0;"><strong>Proyecto / lote:</strong> {{ formato.nombre_proyecto|default:"—" }} · {{ formato.num_lote|default:"—" }}</p>
+  <p style="margin:0;"><strong>Proyecto / lote:</strong> {{ formato.nombre_proyecto|default:"—" }} · {{ formato.num_lote_display }}</p>
   {% else %}
   <p style="margin:0 0 0.5rem;"><strong>Plan:</strong> {{ contrato.numero }}</p>
   <p style="margin:0 0 0.5rem;"><strong>Cliente:</strong> {{ contrato.cliente }}</p>

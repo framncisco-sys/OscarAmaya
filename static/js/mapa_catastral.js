@@ -400,7 +400,10 @@
       opt.value = String(l.id);
       var suffix = l.tiene_geometria_catastral ? "" : " (sin polígono en mapa)";
       opt.textContent =
-        (l.poligono_nombre ? l.poligono_nombre + " - " : "") + "Lote " + l.codigo + suffix;
+        (l.poligono_nombre ? l.poligono_nombre + " - " : "") +
+        "Lote " +
+        (l.codigo_display || l.codigo) +
+        suffix;
       selLote.appendChild(opt);
     });
     if (prev) selLote.value = prev;

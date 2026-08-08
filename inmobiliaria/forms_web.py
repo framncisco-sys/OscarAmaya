@@ -57,7 +57,7 @@ def mensaje_alerta_lote_ocupado(
     if inv is None:
         return None
     estado = inv.estado
-    codigo = (inv.codigo or "").strip() or "—"
+    codigo = (inv.codigo_display or "").strip() or "—"
     if estado == Inmueble.Estado.VENDIDO:
         return (
             f"El lote {codigo} ya está PAGADO TOTALMENTE / VENDIDO. "
@@ -117,20 +117,13 @@ def contrato_desde_formato_aceptacion(f: FormatoAceptacion) -> Contrato | None:
     nom_proy = (f.nombre_proyecto or "").strip()
     if not num_lote or not nom_proy:
         return None
-    inv_qs = (
-        Inmueble.objects.filter(codigo__iexact=num_lote)
-        .select_related("proyecto")
-        .order_by("id")
+    from inmobiliaria.lote_codigo import resolver_inmueble_por_codigo_lote
+
+    inv = resolver_inmueble_por_codigo_lote(
+        num_lote=num_lote,
+        proyecto_nombre=nom_proy,
+        poligono_txt=(f.poligono_txt or "").strip(),
     )
-    inv = None
-    nom_lower = nom_proy.lower()
-    for candidate in inv_qs:
-        pn = (candidate.proyecto.nombre or "").strip() if candidate.proyecto_id else ""
-        if pn.lower() == nom_lower:
-            inv = candidate
-            break
-    if inv is None and inv_qs.count() == 1:
-        inv = inv_qs.first()
     if inv is None:
         return None
     return (
@@ -3108,25 +3101,33 @@ class FormatoAceptacionForm(forms.ModelForm):
             stub = _FmtStub()
             stub.num_lote = num_lote
             stub.nombre_proyecto = (cleaned.get("nombre_proyecto") or "").strip()
+            stub.poligono_txt = (cleaned.get("poligono_txt") or "").strip()
             inv = resolver_inmueble_desde_formato(stub)
             # Si el resolver excluyó VENDIDO, buscar también vendidos para el mensaje.
             if inv is None and num_lote:
-                qs = Inmueble.objects.select_related("cliente_reserva").filter(
-                    codigo__iexact=num_lote
+                from inmobiliaria.lote_codigo import resolver_inmueble_por_codigo_lote
+
+                inv = resolver_inmueble_por_codigo_lote(
+                    num_lote=num_lote,
+                    proyecto_nombre=stub.nombre_proyecto,
+                    poligono_txt=(cleaned.get("poligono_txt") or "").strip(),
                 )
-                proy = stub.nombre_proyecto
-                if proy:
-                    inv = qs.filter(proyecto__nombre__icontains=proy).first() or qs.first()
-                else:
-                    inv = qs.first()
             mismo_lote_edit = False
             if (
                 inv is not None
                 and self.instance
                 and getattr(self.instance, "pk", None)
             ):
+                from inmobiliaria.lote_codigo import codigos_lote_equivalentes
+
                 prev = (self.instance.num_lote or "").strip()
-                mismo_lote_edit = prev.casefold() == num_lote.casefold()
+                letra = ""
+                if inv.poligono_id:
+                    letra = inv.poligono.letra_codigo
+                mismo_lote_edit = codigos_lote_equivalentes(prev, num_lote, letra)
+                if not mismo_lote_edit:
+                    prev_inv = resolver_inmueble_desde_formato(self.instance)
+                    mismo_lote_edit = bool(prev_inv and prev_inv.pk == inv.pk)
             if inv is not None and not mismo_lote_edit:
                 alerta = mensaje_alerta_lote_ocupado(inv, permitir_misma_reserva=False)
                 if alerta:
