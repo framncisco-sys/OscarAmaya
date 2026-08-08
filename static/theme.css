@@ -5509,12 +5509,181 @@ html[data-pbr-reduced-motion="1"] .pbr-system-loader__fill {
 
   .dash-bars__row {
     grid-template-columns: 1fr;
-    gap: 0.25rem;
+    gap: 0.35rem;
   }
 
   .dash-bars__value {
     text-align: left;
   }
+}
+
+/* Dashboard móvil / PWA: inventario y ocupación legibles */
+html[data-pbr-class="mobile"] .dash-grid-2,
+html[data-pbr-view="phone"] .dash-grid-2,
+html[data-pbr-view="tablet"] .dash-grid-2 {
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+  width: 100%;
+  max-width: 100%;
+}
+
+html[data-pbr-class="mobile"] .dash-panel,
+html[data-pbr-view="phone"] .dash-panel {
+  padding: 0.85rem 0.9rem;
+  overflow: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+html[data-pbr-class="mobile"] .dash-panel h2,
+html[data-pbr-view="phone"] .dash-panel h2 {
+  font-size: 1.05rem;
+  line-height: 1.3;
+  margin: 0 0 0.35rem;
+}
+
+html[data-pbr-class="mobile"] .dash-panel__sub,
+html[data-pbr-view="phone"] .dash-panel__sub {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+html[data-pbr-class="mobile"] .dash-bars__row,
+html[data-pbr-view="phone"] .dash-bars__row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label value"
+    "track track";
+  gap: 0.3rem 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+html[data-pbr-class="mobile"] .dash-bars__label,
+html[data-pbr-view="phone"] .dash-bars__label {
+  grid-area: label;
+  min-width: 0;
+}
+
+html[data-pbr-class="mobile"] .dash-bars__track,
+html[data-pbr-view="phone"] .dash-bars__track {
+  grid-area: track;
+  height: 0.7rem;
+}
+
+html[data-pbr-class="mobile"] .dash-bars__value,
+html[data-pbr-view="phone"] .dash-bars__value {
+  grid-area: value;
+  text-align: right;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+html[data-pbr-class="mobile"] .dash-heat__head,
+html[data-pbr-view="phone"] .dash-heat__head {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  margin-bottom: 0.5rem;
+}
+
+html[data-pbr-class="mobile"] .dash-heat__pct,
+html[data-pbr-view="phone"] .dash-heat__pct {
+  margin-left: 0;
+  font-size: 0.8rem;
+}
+
+html[data-pbr-class="mobile"] .dash-heat__legend,
+html[data-pbr-view="phone"] .dash-heat__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.55rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+html[data-pbr-class="mobile"] .dash-heat__note,
+html[data-pbr-view="phone"] .dash-heat__note {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+html[data-pbr-class="mobile"] .dash-heat__stack,
+html[data-pbr-view="phone"] .dash-heat__stack {
+  height: 0.75rem;
+}
+
+html[data-pbr-class="mobile"] .dash-foot,
+html[data-pbr-view="phone"] .dash-foot {
+  font-size: 0.72rem;
+  padding: 0 0.15rem;
+}
+
+/* Tarjetas de lotes en dashboard (además de @media 640) */
+html[data-pbr-class="mobile"] .dash-panel .data-panel--mobile-cards,
+html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards {
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-pbr-class="mobile"] .dash-panel .data-panel--mobile-cards .table,
+html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table {
+  display: block;
+  width: 100%;
+  border: 0;
+}
+
+html[data-pbr-class="mobile"] .dash-panel .data-panel--mobile-cards .table thead,
+html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table thead {
+  display: none;
+}
+
+html[data-pbr-class="mobile"] .dash-panel .data-panel--mobile-cards .table tbody,
+html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table tbody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+html[data-pbr-class="mobile"] .dash-panel .data-panel--mobile-cards .table tbody tr,
+html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table tbody tr {
+  display: block;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+html[data-pbr-class="mobile"] .dash-panel .data-panel--mobile-cards .table tbody td,
+html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table tbody td {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.3rem 0;
+  border: 0;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  text-align: right;
+}
+
+html[data-pbr-class="mobile"] .dash-panel .data-panel--mobile-cards .table tbody td::before,
+html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table tbody td::before {
+  content: attr(data-label);
+  font-weight: 600;
+  color: #64748b;
+  flex: 0 0 38%;
+  max-width: 38%;
+  text-align: left;
+}
+
+html[data-pbr-class="mobile"] .dash-panel .data-panel--mobile-cards .table tbody td.right,
+html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table tbody td.right {
+  text-align: right;
 }
 
 /* ——— Gestión hub (/app/) ——— */

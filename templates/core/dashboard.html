@@ -223,7 +223,7 @@
       {% endif %}
 
       <h2 style="margin-top:1.25rem;">Últimos registros</h2>
-      <div class="data-panel">
+      <div class="data-panel data-panel--mobile-cards">
         <table class="table dash-table">
           <thead>
             <tr>
@@ -237,13 +237,13 @@
           <tbody>
             {% for i in ultimos_inmuebles %}
             <tr>
-              <td>
+              <td data-label="Código">
                 <a href="{% url 'app:inmueble_update' i.pk %}" class="link-action"><strong>{{ i.codigo }}</strong></a>
               </td>
-              <td>{{ i.proyecto.nombre }}</td>
-              <td>{% if i.tipo == "LOTE" %}Lote{% else %}{{ i.get_tipo_display }}{% endif %}</td>
-              <td><span class="badge badge--{{ i.estado|lower }}">{{ i.get_estado_display }}</span></td>
-              <td class="right">${{ i.precio_lista|floatformat:2 }}</td>
+              <td data-label="Proyecto">{{ i.proyecto.nombre }}</td>
+              <td data-label="Tipo">{% if i.tipo == "LOTE" %}Lote{% else %}{{ i.get_tipo_display }}{% endif %}</td>
+              <td data-label="Estado"><span class="badge badge--{{ i.estado|lower }}">{{ i.get_estado_display }}</span></td>
+              <td class="right" data-label="Precio">${{ i.precio_lista|floatformat:2 }}</td>
             </tr>
             {% empty %}
             <tr><td colspan="5" class="muted">No hay lotes en inventario.</td></tr>
