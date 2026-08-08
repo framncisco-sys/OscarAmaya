@@ -3906,13 +3906,20 @@ html[data-pbr-view="phone"] .app-header .app-wrap.app-header__inner {
   }
 
   html[data-pbr-class="mobile"] .pbr-install-btn {
-    font-size: 0.7rem;
-    padding: 0.4rem 0.55rem;
+    font-size: 0.72rem;
+    padding: 0.35rem 0.7rem 0.35rem 0.4rem;
     min-height: 44px;
-    max-width: 5.5rem;
-    white-space: normal;
+    max-width: none;
+    gap: 0.35rem;
+  }
+
+  html[data-pbr-class="mobile"] .pbr-install-btn__icon {
+    width: 1.4rem;
+    height: 1.4rem;
+  }
+
+  html[data-pbr-class="mobile"] .pbr-install-btn__text {
     line-height: 1.15;
-    text-align: center;
   }
 
   html[data-pbr-class="mobile"] .app-user-chip__body {
@@ -7245,10 +7252,120 @@ html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table tbody t
   }
 }
 
-/* ——— PWA Fase 1–2: instalar + flujo venta móvil ——— */
+/* ——— PWA: botón Instalar app (elegante e interactivo) ——— */
 .pbr-install-btn {
+  --pbr-install-glow: rgba(232, 137, 42, 0.35);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.45rem;
+  padding: 0.45rem 1rem 0.45rem 0.85rem;
+  border: 1px solid rgba(0, 51, 102, 0.12);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, #0f2a4a 0%, #1a3d66 48%, #163556 100%);
+  color: #fff;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   white-space: nowrap;
-  font-weight: 600;
+  cursor: pointer;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.12) inset,
+    0 6px 16px rgba(15, 42, 74, 0.22);
+  overflow: hidden;
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.22s ease,
+    filter 0.22s ease,
+    background 0.22s ease;
+}
+
+.pbr-install-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.16) 50%,
+    transparent 65%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.55s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pbr-install-btn__icon,
+.pbr-install-btn__text {
+  position: relative;
+  z-index: 1;
+}
+
+.pbr-install-btn__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #f0b25a, #e8892a);
+  color: #1a2d42;
+  box-shadow: 0 2px 6px var(--pbr-install-glow);
+  flex-shrink: 0;
+}
+
+.pbr-install-btn__icon svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.pbr-install-btn:hover,
+.pbr-install-btn:focus-visible {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.16) inset,
+    0 10px 22px rgba(15, 42, 74, 0.28),
+    0 0 0 3px rgba(232, 137, 42, 0.18);
+  outline: none;
+}
+
+.pbr-install-btn:hover::before,
+.pbr-install-btn:focus-visible::before {
+  transform: translateX(120%);
+}
+
+.pbr-install-btn:active {
+  transform: translateY(0) scale(0.98);
+  filter: brightness(0.98);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.1) inset,
+    0 3px 10px rgba(15, 42, 74, 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pbr-install-btn,
+  .pbr-install-btn::before {
+    transition: none;
+  }
+
+  .pbr-install-btn:hover,
+  .pbr-install-btn:focus-visible {
+    transform: none;
+  }
+
+  .pbr-install-btn:hover::before,
+  .pbr-install-btn:focus-visible::before {
+    transform: none;
+  }
 }
 
 .pbr-wa-send__title {
@@ -7302,8 +7419,8 @@ html[data-pbr-view="phone"] .dash-panel .data-panel--mobile-cards .table tbody t
 @media (max-width: 640px) {
   .pbr-install-btn {
     min-height: 44px;
-    padding: 0.45rem 0.75rem;
-    font-size: 0.8125rem;
+    padding: 0.4rem 0.85rem 0.4rem 0.45rem;
+    font-size: 0.78rem;
   }
 
   #formato-aceptacion-form .field__control input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]),

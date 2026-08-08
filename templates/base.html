@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Paredes DI">
-  <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}?v=27">
+  <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}?v=28">
   <script>
     /* Detección inicial antes del CSS (evita salto de layout) */
     (function () {
@@ -60,12 +60,12 @@
     })();
   </script>
   <title>{% block title %}Paredes Bienes Raíces{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'theme.css' %}?v=27">
-  <script src="{% static 'js/pbr-viewport.js' %}?v=27" defer></script>
-  <script src="{% static 'js/pbr-offline.js' %}?v=27" defer></script>
-  <script src="{% static 'js/pbr-loader.js' %}?v=27" defer></script>
-  <script src="{% static 'js/pbr-header.js' %}?v=27" defer></script>
-  <script src="{% static 'js/pbr-pwa-install.js' %}?v=27" defer></script>
+  <link rel="stylesheet" href="{% static 'theme.css' %}?v=28">
+  <script src="{% static 'js/pbr-viewport.js' %}?v=28" defer></script>
+  <script src="{% static 'js/pbr-offline.js' %}?v=28" defer></script>
+  <script src="{% static 'js/pbr-loader.js' %}?v=28" defer></script>
+  <script src="{% static 'js/pbr-header.js' %}?v=28" defer></script>
+  <script src="{% static 'js/pbr-pwa-install.js' %}?v=28" defer></script>
   <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
   <link rel="manifest" href="{% url 'pbr_web_manifest' %}">
 </head>
@@ -81,9 +81,16 @@
         <img src="{% static marca_portal.logo|default:'logo_paredes_desarrollos.png' %}" alt="{{ marca_portal.nombre|default:'Paredes' }}" class="brand__img" decoding="async">
       </a>
       <div class="app-header__right">
-        <button type="button" class="btn-secondary btn-sm pbr-install-btn" data-pbr-install hidden
+        <button type="button" class="pbr-install-btn" data-pbr-install hidden
           data-pbr-install-tip="En iPhone/iPad: toque Compartir y luego «Añadir a pantalla de inicio».">
-          Instalar app
+          <span class="pbr-install-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v12"/>
+              <path d="M8 11l4 4 4-4"/>
+              <path d="M5 19h14"/>
+            </svg>
+          </span>
+          <span class="pbr-install-btn__text">Instalar app</span>
         </button>
         {% if request.user.is_authenticated %}
         <div class="app-user-chip" aria-label="Usuario en sesión">
