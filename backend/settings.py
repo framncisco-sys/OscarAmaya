@@ -274,6 +274,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'usuarios.context_processors.perfil_app',
                 'core.context_processors.sidebar_context',
+                'core.context_processors.pbr_assets_context',
             ],
         },
     },

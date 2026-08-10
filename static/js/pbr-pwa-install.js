@@ -38,6 +38,11 @@
     });
   }
 
+  function iconSuffix() {
+    var m = document.querySelector('meta[name="pbr-icon-v"]');
+    return "?v=" + ((m && m.content) || "34");
+  }
+
   function ensureModal() {
     if (modalEl) return modalEl;
     modalEl = document.createElement("div");
@@ -51,7 +56,7 @@
       '<div class="pbr-install-modal__card">' +
       '  <button type="button" class="pbr-install-modal__x" data-pbr-install-close aria-label="Cerrar">×</button>' +
       '  <div class="pbr-install-modal__badge" aria-hidden="true">' +
-      '    <img src="/static/icons/pwa-192.png?v=33" alt="" width="36" height="36" decoding="async">' +
+      '    <img src="/static/icons/pwa-192.png' + iconSuffix() + '" alt="" width="36" height="36" decoding="async">' +
       "  </div>" +
       '  <p class="pbr-install-modal__kicker">Paredes Desarrollos</p>' +
       '  <h2 id="pbr-install-modal-title" class="pbr-install-modal__title">Instalar en su iPhone</h2>' +

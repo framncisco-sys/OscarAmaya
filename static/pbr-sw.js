@@ -1,19 +1,26 @@
 /* PBR — Service Worker: caché de estáticos + páginas visitadas para modo sin conexión.
  * Versión de caché: subir el sufijo tras cambios importantes. */
-const CACHE_STATIC = "pbr-static-v33";
-const CACHE_PAGES = "pbr-pages-v33";
+const CACHE_STATIC = "pbr-static-v34";
+const CACHE_PAGES = "pbr-pages-v34";
 
 const PRECACHE_URLS = [
   "/static/offline.html",
-  "/static/theme.css?v=33",
-  "/static/icons/pwa-192.png?v=33",
-  "/static/icons/apple-touch-icon.png?v=33",
-  "/static/js/pbr-viewport.js?v=33",
-  "/static/js/pbr-offline.js?v=33",
-  "/static/js/pbr-loader.js?v=33",
-  "/static/js/pbr-header.js?v=33",
-  "/static/js/pbr-sidebar.js?v=33",
-  "/static/js/pbr-pwa-install.js?v=33",
+  "/static/theme.css?v=34",
+  "/static/icons/pwa-48.png?v=34",
+  "/static/icons/pwa-192.png?v=34",
+  "/static/icons/pwa-512.png?v=34",
+  "/static/icons/pwa-192-maskable.png?v=34",
+  "/static/icons/pwa-512-maskable.png?v=34",
+  "/static/icons/apple-touch-icon.png?v=34",
+  "/static/icons/apple-touch-icon-167.png?v=34",
+  "/static/icons/apple-touch-icon-152.png?v=34",
+  "/static/icons/apple-touch-icon-120.png?v=34",
+  "/static/js/pbr-viewport.js?v=34",
+  "/static/js/pbr-offline.js?v=34",
+  "/static/js/pbr-loader.js?v=34",
+  "/static/js/pbr-header.js?v=34",
+  "/static/js/pbr-sidebar.js?v=34",
+  "/static/js/pbr-pwa-install.js?v=34",
 ];
 
 /** No cachear HTML con tokens CSRF / sesión (provoca 403 al enviar formularios). */

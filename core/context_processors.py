@@ -22,6 +22,16 @@ def _es_ruta_catalogo(request) -> bool:
     return bool(match and getattr(match, "namespace", None) == "catalogo")
 
 
+from core.pbr_icons import PBR_APPLE_TOUCH_SIZES, PBR_ICON_VERSION
+
+
+def pbr_assets_context(_request):
+    return {
+        "pbr_icon_v": PBR_ICON_VERSION,
+        "pbr_apple_touch_sizes": PBR_APPLE_TOUCH_SIZES,
+    }
+
+
 def sidebar_context(request):
     marca_sesion = marca_from_session(request)
     # El catálogo público pertenece solo a Paredes Bienes Raíces (marca fija).

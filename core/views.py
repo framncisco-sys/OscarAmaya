@@ -22,6 +22,7 @@ from usuarios.roles import (
 from .dashboard_data import build_dashboard_bienes_raices_context, build_dashboard_context
 from .forms import LoginForm
 from .marcas import SESSION_KEY, es_bienes_raices, marca_from_session, set_marca
+from .pbr_icons import manifest_icons
 
 
 class PortalLoginView(LoginView):
@@ -205,46 +206,21 @@ def pbr_service_worker(_request: HttpRequest) -> HttpResponse:
 
 
 def pbr_web_manifest(_request: HttpRequest) -> HttpResponse:
-    """Manifest PWA (instalable); iconos PNG 192/512 + Apple touch."""
-    # Query ?v= fuerza recarga en Android/Chrome cuando cambia el arte.
-    icon_v = "33"
+    """Manifest PWA (instalable); iconos PNG para Android/Chrome."""
     payload = {
+        "id": "/",
         "name": "Paredes Desarrollos Inmobiliarios",
         "short_name": "Paredes DI",
         "description": "Gestión inmobiliaria, contratos, recibos y cartera.",
         "start_url": "/login/",
         "scope": "/",
         "display": "standalone",
+        "display_override": ["standalone", "browser"],
         "orientation": "portrait-primary",
         "background_color": "#ffffff",
         "theme_color": "#1a2d42",
         "lang": "es-SV",
-        "icons": [
-            {
-                "src": f"/static/icons/pwa-192.png?v={icon_v}",
-                "sizes": "192x192",
-                "type": "image/png",
-                "purpose": "any",
-            },
-            {
-                "src": f"/static/icons/pwa-512.png?v={icon_v}",
-                "sizes": "512x512",
-                "type": "image/png",
-                "purpose": "any",
-            },
-            {
-                "src": f"/static/icons/pwa-512-maskable.png?v={icon_v}",
-                "sizes": "512x512",
-                "type": "image/png",
-                "purpose": "maskable",
-            },
-            {
-                "src": f"/static/icons/pwa-512.png?v={icon_v}",
-                "sizes": "512x512",
-                "type": "image/png",
-                "purpose": "any maskable",
-            },
-        ],
+        "icons": manifest_icons(),
     }
     resp = HttpResponse(
         json.dumps(payload, ensure_ascii=False),

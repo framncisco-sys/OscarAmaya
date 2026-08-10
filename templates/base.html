@@ -10,9 +10,16 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Paredes DI">
-  <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}?v=33">
-  <link rel="icon" href="{% static 'icons/pwa-192.png' %}?v=33" type="image/png" sizes="192x192">
-  <link rel="icon" href="{% static 'icons/pwa-512.png' %}?v=33" type="image/png" sizes="512x512">
+  <meta name="application-name" content="Paredes DI">
+  <meta name="pbr-icon-v" content="{{ pbr_icon_v }}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/apple-touch-icon.png' %}?v={{ pbr_icon_v }}">
+  <link rel="apple-touch-icon" sizes="167x167" href="{% static 'icons/apple-touch-icon-167.png' %}?v={{ pbr_icon_v }}">
+  <link rel="apple-touch-icon" sizes="152x152" href="{% static 'icons/apple-touch-icon-152.png' %}?v={{ pbr_icon_v }}">
+  <link rel="apple-touch-icon" sizes="120x120" href="{% static 'icons/apple-touch-icon-120.png' %}?v={{ pbr_icon_v }}">
+  <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}?v={{ pbr_icon_v }}">
+  <link rel="icon" href="{% static 'icons/pwa-192.png' %}?v={{ pbr_icon_v }}" type="image/png" sizes="192x192">
+  <link rel="icon" href="{% static 'icons/pwa-512.png' %}?v={{ pbr_icon_v }}" type="image/png" sizes="512x512">
+  <link rel="icon" href="{% static 'icons/pwa-48.png' %}?v={{ pbr_icon_v }}" type="image/png" sizes="48x48">
   <script>
     /* Detección inicial antes del CSS (evita salto de layout) */
     (function () {
@@ -62,12 +69,12 @@
     })();
   </script>
   <title>{% block title %}Paredes Bienes Raíces{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'theme.css' %}?v=33">
-  <script src="{% static 'js/pbr-viewport.js' %}?v=33" defer></script>
-  <script src="{% static 'js/pbr-offline.js' %}?v=33" defer></script>
-  <script src="{% static 'js/pbr-loader.js' %}?v=33" defer></script>
-  <script src="{% static 'js/pbr-header.js' %}?v=33" defer></script>
-  <script src="{% static 'js/pbr-pwa-install.js' %}?v=33" defer></script>
+  <link rel="stylesheet" href="{% static 'theme.css' %}?v={{ pbr_icon_v }}">
+  <script src="{% static 'js/pbr-viewport.js' %}?v={{ pbr_icon_v }}" defer></script>
+  <script src="{% static 'js/pbr-offline.js' %}?v={{ pbr_icon_v }}" defer></script>
+  <script src="{% static 'js/pbr-loader.js' %}?v={{ pbr_icon_v }}" defer></script>
+  <script src="{% static 'js/pbr-header.js' %}?v={{ pbr_icon_v }}" defer></script>
+  <script src="{% static 'js/pbr-pwa-install.js' %}?v={{ pbr_icon_v }}" defer></script>
   <link rel="manifest" href="{% url 'pbr_web_manifest' %}">
 </head>
 <body class="{% block body_class %}app-body{% endblock %}">
@@ -85,7 +92,7 @@
         <button type="button" class="pbr-install-btn" data-pbr-install hidden
           data-pbr-install-tip="En iPhone/iPad: toque Compartir y luego «Añadir a pantalla de inicio».">
           <span class="pbr-install-btn__icon" aria-hidden="true">
-            <img src="{% static 'icons/pwa-192.png' %}?v=33" alt="" width="28" height="28" decoding="async">
+            <img src="{% static 'icons/pwa-192.png' %}?v={{ pbr_icon_v }}" alt="" width="28" height="28" decoding="async">
           </span>
           <span class="pbr-install-btn__text">Instalar app</span>
         </button>

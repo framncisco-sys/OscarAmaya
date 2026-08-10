@@ -11,6 +11,7 @@ from django.urls import include, path, re_path
 from django.views.generic import RedirectView
 from django.views.static import serve
 
+from core.pbr_icons import PBR_ICON_VERSION
 from core.views import (
     PortalLoginView,
     admin_legacy_redirect,
@@ -28,7 +29,13 @@ from core.views_whatsapp import whatsapp_webhook
 urlpatterns = [
     path("pbr-sw.js", pbr_service_worker, name="pbr_service_worker"),
     path("site.webmanifest", pbr_web_manifest, name="pbr_web_manifest"),
-    path("favicon.ico", RedirectView.as_view(url="/static/icons/pwa-192.png?v=33", permanent=True)),
+    path(
+        "favicon.ico",
+        RedirectView.as_view(
+            url=f"/static/icons/pwa-192.png?v={PBR_ICON_VERSION}",
+            permanent=True,
+        ),
+    ),
     path("webhooks/whatsapp/", whatsapp_webhook, name="whatsapp_webhook"),
     path("ping/", ping, name="ping"),
     path("", home, name="home"),
