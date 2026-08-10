@@ -214,8 +214,34 @@
   .formato-fisico-check--ok { color: #15803d; }
   .formato-fisico-check--warn { color: #b45309; }
   .formato-fisico-check--idle { color: #64748b; font-weight: 500; }
+  .formato-adjunto-actual {
     margin: 0.45rem 0 0;
     font-size: 0.85rem;
+  }
+  .formato-guardar-alerta {
+    margin: 0 0 0.65rem;
+    padding: 0.55rem 0.65rem;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: #991b1b;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+  }
+  @media (max-width: 640px) {
+    #formato-aceptacion-form {
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+    #formato-aceptacion-form .form-actions {
+      position: sticky;
+      bottom: 0;
+      z-index: 20;
+      background: rgba(255, 255, 255, 0.98);
+      padding: 0.75rem 0 max(0.75rem, env(safe-area-inset-bottom));
+      margin-top: 1rem;
+      border-top: 1px solid #e2e8f0;
+      box-shadow: 0 -4px 14px rgba(15, 23, 42, 0.08);
+    }
   }
 </style>
 
@@ -523,8 +549,9 @@
     {% endif %}
   </article>
 
+  <div id="formato-guardar-alerta" class="formato-guardar-alerta" role="alert" hidden></div>
   <div class="form-actions">
-    <button type="submit" class="btn-primary">Guardar</button>
+    <button type="submit" class="btn-primary" id="formato-guardar-btn">Guardar</button>
     <a href="{{ cancel_url }}" class="btn-secondary">Volver al listado</a>
   </div>
 </form>
@@ -532,7 +559,7 @@
 {{ proyectos_formato|json_script:"formato-proyectos-data" }}
 {{ formato_catalogo_inmuebles|json_script:"formato-catalogo-inmuebles-data" }}
 {{ formato_lote_estado_url_tpl|json_script:"formato-lote-estado-url-tpl" }}
-<script src="{% static 'js/formato_aceptacion_credito.js' %}?v=26" defer></script>
+<script src="{% static 'js/formato_aceptacion_credito.js' %}?v=27" defer></script>
 <script src="{% static 'js/formato_aceptacion_masks.js' %}" defer></script>
 <script>
 (function () {
@@ -554,7 +581,8 @@
     var norm = base.replace(/[_\-]+/g, " ").toLowerCase();
     var compact = norm.replace(/\s+/g, "");
     return variantesNumero(num).some(function (v) {
-      var re = new RegExp("(?<!\\d)" + v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?!\\d)");
+      var esc = v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      var re = new RegExp("(^|\\D)" + esc + "(\\D|$)");
       return re.test(norm) || re.test(compact);
     });
   }

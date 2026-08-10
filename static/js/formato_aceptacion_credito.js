@@ -952,15 +952,53 @@
 
     var formEl = document.getElementById("formato-aceptacion-form");
     if (formEl) {
-      formEl.addEventListener("submit", function () {
+      formEl.addEventListener("submit", function (ev) {
+        var alerta = document.getElementById("formato-guardar-alerta");
+        if (alerta) {
+          alerta.hidden = true;
+          alerta.textContent = "";
+        }
         // Los campos disabled no viajan en el POST; reactivar antes de guardar.
         setPlazosCamposEnabled(true);
+        if (plazo && numCuota) {
+          var yearsSync = parseInt(String(plazo.value || ""), 10);
+          if (isFinite(yearsSync) && yearsSync >= 1 && yearsSync <= 6) {
+            numCuota.value = String(yearsSync * 12);
+          }
+        }
         if (esContado()) {
           if (valorFin) setMoney(valorFin, 0);
           if (letra) letra.value = "";
           if (plazo) plazo.value = "";
           if (numCuota) numCuota.value = "";
           if (interes) interes.value = "";
+        }
+        if (!formEl.checkValidity()) {
+          ev.preventDefault();
+          var invalid = formEl.querySelector(":invalid");
+          if (invalid) {
+            invalid.scrollIntoView({ behavior: "smooth", block: "center" });
+            try {
+              invalid.focus({ preventScroll: true });
+            } catch (e1) {
+              try {
+                invalid.focus();
+              } catch (e2) {}
+            }
+          }
+          formEl.reportValidity();
+          if (alerta) {
+            alerta.hidden = false;
+            alerta.textContent =
+              "Revise los campos obligatorios arriba (nombre, Nº formulario, asesor, etc.). " +
+              "La pantalla subirá al primer campo pendiente.";
+          }
+          return;
+        }
+        var btn = document.getElementById("formato-guardar-btn");
+        if (btn && !btn.disabled) {
+          btn.disabled = true;
+          btn.textContent = "Guardando…";
         }
       });
     }
