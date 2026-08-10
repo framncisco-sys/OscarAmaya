@@ -487,7 +487,8 @@
         <span id="fname-fisico" class="formato-adjunto-fname muted">Ningún archivo seleccionado</span>
       </div>
       <p class="muted" style="margin: 0.35rem 0 0; font-size: 0.8rem;">
-        Suba el PDF del formato firmado: se comprueba que contenga el mismo Nº del encabezado.
+        Suba el PDF del formato firmado: se comprueba que el Nº coincida con el encabezado del PDF
+        o, si es escaneo sin texto, con el nombre del archivo (ej. «FORMATO DE ACEPTACION 0018.pdf»).
       </p>
       {% if object.pk and object.formato_aceptacion_fisico and object.formato_aceptacion_fisico.name and formato_adjunto_urls.fisico %}
       <p class="formato-adjunto-actual">

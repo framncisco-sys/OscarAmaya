@@ -73,20 +73,75 @@ def variantes_numero_formulario(numero: int) -> list[str]:
     return out
 
 
+def _nombre_archivo(archivo) -> str:
+    if archivo is None:
+        return ""
+    return (getattr(archivo, "name", None) or "").strip()
+
+
+def extraer_numero_desde_nombre_archivo(nombre: str) -> int | None:
+    """
+    Extrae el Nº de formulario del nombre del archivo (p. ej. «FORMATO DE ACEPTACION 18.pdf»).
+    Útil cuando el PDF es escaneo sin capa de texto.
+    """
+    base = (nombre or "").rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+    if base.lower().endswith(".pdf"):
+        base = base[:-4]
+    base = base.strip()
+    if not base:
+        return None
+
+    patrones = [
+        r"(?i)formato(?:\s|[_-])*de(?:\s|[_-])*aceptaci[oó]n(?:\s|[_-])*(\d+)",
+        r"(?i)formato(?:\s|[_-])*aceptaci[oó]n(?:\s|[_-])*(\d+)",
+        r"(?i)formulario(?:\s|[_-])*(\d+)",
+    ]
+    for pat in patrones:
+        m = re.search(pat, base)
+        if m:
+            try:
+                return int(m.group(1))
+            except ValueError:
+                continue
+
+    # Número al final del nombre: «… 0018»
+    m = re.search(r"(?<!\d)(\d{1,6})(?!\d)\s*$", base)
+    if m:
+        try:
+            return int(m.group(1))
+        except ValueError:
+            return None
+    return None
+
+
 def pdf_contiene_numero_formulario(archivo, numero: int) -> tuple[bool, str]:
     """
     True si el PDF incluye el número de formulario.
-    Busca el número solo y junto a etiquetas No. / Nº / N° / formulario.
+    Busca en el texto del PDF; si es escaneo sin texto, acepta el mismo Nº en el nombre del archivo.
     """
     texto = extraer_texto_pdf(archivo)
+    n = int(numero)
+    nombre = _nombre_archivo(archivo)
+
     if not texto.strip():
+        num_nombre = extraer_numero_desde_nombre_archivo(nombre)
+        if num_nombre is not None and num_nombre == n:
+            return True, ""
+        mostrado = f"{n:04d}"
+        if num_nombre is not None and num_nombre != n:
+            return (
+                False,
+                f"El PDF es escaneo sin texto legible. En el nombre del archivo aparece el Nº "
+                f"{num_nombre:04d}, pero usted ingresó {mostrado}. Corrija el número o renombre el PDF.",
+            )
         return (
             False,
-            "El PDF no tiene texto legible (puede ser solo imagen escaneada). "
-            "Use un PDF con el número visible como texto, o vuelva a generar/escanear con OCR.",
+            "El PDF no tiene texto legible (escaneo sin OCR). "
+            "Renombre el archivo incluyendo el mismo Nº del formulario, por ejemplo "
+            f"«FORMATO DE ACEPTACION {mostrado}.pdf», o use un PDF con texto seleccionable.",
         )
 
-    variantes = variantes_numero_formulario(numero)
+    variantes = variantes_numero_formulario(n)
     # Coincidencia con etiqueta típica del encabezado
     for v in variantes:
         patrones = [
@@ -103,7 +158,7 @@ def pdf_contiene_numero_formulario(archivo, numero: int) -> tuple[bool, str]:
         if re.search(rf"(?<!\d){re.escape(v)}(?!\d)", texto):
             return True, ""
 
-    mostrado = f"{int(numero):04d}"
+    mostrado = f"{n:04d}"
     return (
         False,
         f"El número ingresado ({mostrado}) no aparece en el PDF del formato físico. "
