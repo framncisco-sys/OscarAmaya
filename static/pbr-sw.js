@@ -1,19 +1,19 @@
 /* PBR — Service Worker: caché de estáticos + páginas visitadas para modo sin conexión.
  * Versión de caché: subir el sufijo tras cambios importantes. */
-const CACHE_STATIC = "pbr-static-v31";
-const CACHE_PAGES = "pbr-pages-v31";
+const CACHE_STATIC = "pbr-static-v32";
+const CACHE_PAGES = "pbr-pages-v32";
 
 const PRECACHE_URLS = [
   "/static/offline.html",
-  "/static/theme.css?v=31",
+  "/static/theme.css?v=32",
   "/static/favicon.svg",
-  "/static/icons/pwa-192.png?v=31",
-  "/static/js/pbr-viewport.js?v=31",
-  "/static/js/pbr-offline.js?v=31",
-  "/static/js/pbr-loader.js?v=31",
-  "/static/js/pbr-header.js?v=31",
-  "/static/js/pbr-sidebar.js?v=31",
-  "/static/js/pbr-pwa-install.js?v=31",
+  "/static/icons/pwa-192.png?v=32",
+  "/static/js/pbr-viewport.js?v=32",
+  "/static/js/pbr-offline.js?v=32",
+  "/static/js/pbr-loader.js?v=32",
+  "/static/js/pbr-header.js?v=32",
+  "/static/js/pbr-sidebar.js?v=32",
+  "/static/js/pbr-pwa-install.js?v=32",
 ];
 
 /** No cachear HTML con tokens CSRF / sesión (provoca 403 al enviar formularios). */

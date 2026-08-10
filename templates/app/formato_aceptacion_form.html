@@ -228,6 +228,15 @@
     border: 1px solid #fecaca;
     border-radius: 6px;
   }
+  .formato-guardar-alerta:not([hidden]) {
+    display: block;
+  }
+  html[data-pbr-class="mobile"] .formato-guardar-alerta:not([hidden]) {
+    position: sticky;
+    top: 0.35rem;
+    z-index: 25;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+  }
   @media (max-width: 640px) {
     #formato-aceptacion-form {
       padding-bottom: max(1rem, env(safe-area-inset-bottom));
@@ -385,7 +394,7 @@
 </div>
 {% endif %}
 
-<form id="formato-aceptacion-form" method="post" class="form-stack" enctype="multipart/form-data" style="max-width: 920px; margin: 0 auto;" data-pbr-offline="skip">
+<form id="formato-aceptacion-form" method="post" class="form-stack" enctype="multipart/form-data" style="max-width: 920px; margin: 0 auto;" data-pbr-offline="skip" novalidate>
   {% csrf_token %}
   {% if form.non_field_errors %}
     <div class="alert" role="alert">{{ form.non_field_errors }}</div>
@@ -590,7 +599,9 @@
     {% endif %}
   </article>
 
-  <div id="formato-guardar-alerta" class="formato-guardar-alerta" role="alert" hidden></div>
+  <div id="formato-guardar-alerta" class="formato-guardar-alerta" role="alert"{% if not form.errors %} hidden{% endif %}>
+    {% if form.errors %}No se guardó. Revise los campos marcados en rojo (nombre, Nº formulario, asesor, etc.).{% endif %}
+  </div>
   <div class="form-actions">
     <button type="submit" class="btn-primary" id="formato-guardar-btn">Guardar</button>
     <a href="{{ cancel_url }}" class="btn-secondary">Volver al listado</a>
@@ -600,9 +611,23 @@
 {{ proyectos_formato|json_script:"formato-proyectos-data" }}
 {{ formato_catalogo_inmuebles|json_script:"formato-catalogo-inmuebles-data" }}
 {{ formato_lote_estado_url_tpl|json_script:"formato-lote-estado-url-tpl" }}
-<script src="{% static 'js/formato_aceptacion_credito.js' %}?v=28" defer></script>
-<script src="{% static 'js/formato_aceptacion_masks.js' %}" defer></script>
+<script src="{% static 'js/formato_aceptacion_credito.js' %}?v=29" defer></script>
+<script src="{% static 'js/formato_aceptacion_masks.js' %}?v=29" defer></script>
 <script>
+(function () {
+  document.addEventListener("DOMContentLoaded", function () {
+    var form = document.getElementById("formato-aceptacion-form");
+    if (!form) return;
+    var err =
+      form.querySelector(".field__error") ||
+      form.querySelector(".alert[role=alert]");
+    if (err) {
+      window.setTimeout(function () {
+        err.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 120);
+    }
+  });
+})();
 (function () {
   function variantesNumero(num) {
     var n = parseInt(String(num), 10);

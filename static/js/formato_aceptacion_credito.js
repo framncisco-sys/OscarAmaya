@@ -952,6 +952,30 @@
 
     var formEl = document.getElementById("formato-aceptacion-form");
     if (formEl) {
+      function etiquetaCampo(el) {
+        if (!el) return "Campo obligatorio";
+        var field = el.closest(".field") || el.closest(".formato-papel__serie-field");
+        if (field) {
+          var lab = field.querySelector(".field__label");
+          if (lab && lab.textContent) return lab.textContent.trim();
+        }
+        if (el.id === "id_numero_formulario") return "Nº formulario";
+        if (el.name) return el.name.replace(/_/g, " ");
+        return "Campo obligatorio";
+      }
+
+      function camposInvalidos(form) {
+        var vistos = [];
+        var out = [];
+        form.querySelectorAll(":invalid").forEach(function (el) {
+          if (!el || el.disabled || el.type === "hidden") return;
+          if (vistos.indexOf(el) >= 0) return;
+          vistos.push(el);
+          out.push({ el: el, label: etiquetaCampo(el) });
+        });
+        return out;
+      }
+
       formEl.addEventListener("submit", function (ev) {
         var alerta = document.getElementById("formato-guardar-alerta");
         if (alerta) {
@@ -973,32 +997,45 @@
           if (numCuota) numCuota.value = "";
           if (interes) interes.value = "";
         }
-        if (!formEl.checkValidity()) {
+        formEl.checkValidity();
+        var invalidos = camposInvalidos(formEl);
+        if (invalidos.length) {
           ev.preventDefault();
-          var invalid = formEl.querySelector(":invalid");
-          if (invalid) {
-            invalid.scrollIntoView({ behavior: "smooth", block: "center" });
+          var primero = invalidos[0].el;
+          primero.scrollIntoView({ behavior: "smooth", block: "center" });
+          try {
+            primero.focus({ preventScroll: true });
+          } catch (e1) {
             try {
-              invalid.focus({ preventScroll: true });
-            } catch (e1) {
-              try {
-                invalid.focus();
-              } catch (e2) {}
-            }
+              primero.focus();
+            } catch (e2) {}
           }
-          formEl.reportValidity();
+          try {
+            formEl.reportValidity();
+          } catch (e3) {}
           if (alerta) {
             alerta.hidden = false;
+            var lista = invalidos
+              .slice(0, 4)
+              .map(function (x) {
+                return x.label;
+              })
+              .join(", ");
             alerta.textContent =
-              "Revise los campos obligatorios arriba (nombre, Nº formulario, asesor, etc.). " +
-              "La pantalla subirá al primer campo pendiente.";
+              "Complete: " +
+              lista +
+              (invalidos.length > 4 ? "…" : "") +
+              ". La pantalla subió al primer campo pendiente.";
           }
           return;
         }
         var btn = document.getElementById("formato-guardar-btn");
+        // Safari/iOS cancela el POST si deshabilitamos el botón en el mismo tick del submit.
         if (btn && !btn.disabled) {
-          btn.disabled = true;
-          btn.textContent = "Guardando…";
+          window.setTimeout(function () {
+            btn.disabled = true;
+            btn.textContent = "Guardando…";
+          }, 0);
         }
       });
     }
