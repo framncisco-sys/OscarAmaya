@@ -4231,6 +4231,38 @@ html[data-pbr-class="mobile"] body.app-body:not(.app-body--login) .app-main {
   padding: 0.75rem 0 max(1.25rem, env(safe-area-inset-bottom));
 }
 
+/* Teclado virtual (iOS/Android): no encoger el shell a un 100dvh reducido. */
+html[data-pbr-class="mobile"] {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html[data-pbr-class="mobile"].pbr-kbd-open {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
+html[data-pbr-class="mobile"].pbr-kbd-open body.app-body:not(.app-body--login) {
+  height: auto;
+  min-height: 100%;
+  max-height: none;
+  overflow: visible;
+}
+
+html[data-pbr-class="mobile"].pbr-kbd-open body.app-body:not(.app-body--login) .app-main {
+  flex: none;
+  min-height: auto;
+  max-height: none;
+  overflow: visible;
+  overflow-y: visible;
+}
+
+html[data-pbr-class="mobile"].pbr-kbd-open #formato-aceptacion-form .form-actions {
+  position: static;
+  box-shadow: none;
+}
+
 html[data-pbr-class="mobile"] .app-header .app-wrap.app-header__inner {
   min-height: 52px;
   padding-top: 0.45rem;
@@ -7643,6 +7675,17 @@ body.pbr-install-modal-open {
   #formato-aceptacion-form .formato-papel input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]) {
     min-height: 44px;
     font-size: 16px; /* evita zoom iOS */
+  }
+
+  #formato-aceptacion-form .formato-papel {
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding: 1rem 0.85rem 1.25rem;
+  }
+
+  #formato-aceptacion-form .formato-acept-row {
+    grid-template-columns: 1fr !important;
   }
 
   #formato-aceptacion-form .btn-primary,

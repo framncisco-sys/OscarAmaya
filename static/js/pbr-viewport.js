@@ -204,6 +204,83 @@
     /* older browsers */
   }
 
+  function isTextField(el) {
+    if (!el || !/^(INPUT|TEXTAREA|SELECT)$/i.test(el.tagName)) return false;
+    var t = (el.type || "").toLowerCase();
+    return (
+      t !== "checkbox" &&
+      t !== "radio" &&
+      t !== "button" &&
+      t !== "submit" &&
+      t !== "file" &&
+      t !== "hidden"
+    );
+  }
+
+  function syncVisualViewport() {
+    var html = document.documentElement;
+    if (html.dataset.pbrClass !== "mobile") return;
+    var vv = global.visualViewport;
+    if (!vv) return;
+    html.style.setProperty("--pbr-vvh", vv.height + "px");
+    html.style.setProperty("--pbr-vv-offset", vv.offsetTop + "px");
+  }
+
+  function setKeyboardOpen(open) {
+    var html = document.documentElement;
+    if (html.dataset.pbrClass !== "mobile") return;
+    if (open) {
+      html.classList.add("pbr-kbd-open");
+      syncVisualViewport();
+    } else {
+      html.classList.remove("pbr-kbd-open");
+      html.style.removeProperty("--pbr-vvh");
+      html.style.removeProperty("--pbr-vv-offset");
+    }
+  }
+
+  function scrollFieldIntoView(el) {
+    if (!el || !el.scrollIntoView) return;
+    window.setTimeout(function () {
+      try {
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+      } catch (e) {
+        el.scrollIntoView(true);
+      }
+      syncVisualViewport();
+    }, 320);
+  }
+
+  document.addEventListener(
+    "focusin",
+    function (ev) {
+      if (!isTextField(ev.target)) return;
+      setKeyboardOpen(true);
+      scrollFieldIntoView(ev.target);
+    },
+    true
+  );
+
+  document.addEventListener(
+    "focusout",
+    function () {
+      window.setTimeout(function () {
+        if (isTextField(document.activeElement)) return;
+        setKeyboardOpen(false);
+      }, 120);
+    },
+    true
+  );
+
+  if (global.visualViewport) {
+    global.visualViewport.addEventListener("resize", function () {
+      if (document.documentElement.classList.contains("pbr-kbd-open")) {
+        syncVisualViewport();
+      }
+    });
+    global.visualViewport.addEventListener("scroll", syncVisualViewport);
+  }
+
   global.pbrApplyViewport = function () {
     detect(true);
   };

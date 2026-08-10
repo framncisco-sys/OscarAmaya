@@ -231,6 +231,26 @@
   @media (max-width: 640px) {
     #formato-aceptacion-form {
       padding-bottom: max(1rem, env(safe-area-inset-bottom));
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    #formato-aceptacion-form .formato-papel {
+      max-width: 100%;
+      margin-left: 0;
+      margin-right: 0;
+      padding: 1rem 0.85rem 1.25rem;
+      box-sizing: border-box;
+    }
+    #formato-aceptacion-form .formato-acept-row {
+      grid-template-columns: 1fr !important;
+    }
+    #formato-aceptacion-form .field__control input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]),
+    #formato-aceptacion-form .field__control select,
+    #formato-aceptacion-form .field__control textarea,
+    #formato-aceptacion-form .formato-numero-input {
+      font-size: 16px !important;
+      min-height: 44px;
     }
     #formato-aceptacion-form .form-actions {
       position: sticky;
@@ -242,6 +262,27 @@
       border-top: 1px solid #e2e8f0;
       box-shadow: 0 -4px 14px rgba(15, 23, 42, 0.08);
     }
+  }
+  html[data-pbr-class="mobile"] #formato-aceptacion-form {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  html[data-pbr-class="mobile"] #formato-aceptacion-form .formato-papel {
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    box-sizing: border-box;
+  }
+  html[data-pbr-class="mobile"] #formato-aceptacion-form .formato-acept-row {
+    grid-template-columns: 1fr !important;
+  }
+  html[data-pbr-class="mobile"] #formato-aceptacion-form .field__control input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]),
+  html[data-pbr-class="mobile"] #formato-aceptacion-form .field__control select,
+  html[data-pbr-class="mobile"] #formato-aceptacion-form .field__control textarea,
+  html[data-pbr-class="mobile"] #formato-aceptacion-form .formato-numero-input {
+    font-size: 16px !important;
+    min-height: 44px;
   }
 </style>
 
@@ -559,7 +600,7 @@
 {{ proyectos_formato|json_script:"formato-proyectos-data" }}
 {{ formato_catalogo_inmuebles|json_script:"formato-catalogo-inmuebles-data" }}
 {{ formato_lote_estado_url_tpl|json_script:"formato-lote-estado-url-tpl" }}
-<script src="{% static 'js/formato_aceptacion_credito.js' %}?v=27" defer></script>
+<script src="{% static 'js/formato_aceptacion_credito.js' %}?v=28" defer></script>
 <script src="{% static 'js/formato_aceptacion_masks.js' %}" defer></script>
 <script>
 (function () {

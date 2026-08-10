@@ -207,7 +207,7 @@ def pbr_service_worker(_request: HttpRequest) -> HttpResponse:
 def pbr_web_manifest(_request: HttpRequest) -> HttpResponse:
     """Manifest PWA (instalable); iconos PNG 192/512 + Apple touch."""
     # Query ?v= fuerza recarga en Android/Chrome cuando cambia el arte.
-    icon_v = "29"
+    icon_v = "31"
     payload = {
         "name": "Paredes Desarrollos Inmobiliarios",
         "short_name": "Paredes DI",
