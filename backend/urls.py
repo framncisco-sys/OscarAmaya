@@ -28,7 +28,7 @@ from core.views_whatsapp import whatsapp_webhook
 urlpatterns = [
     path("pbr-sw.js", pbr_service_worker, name="pbr_service_worker"),
     path("site.webmanifest", pbr_web_manifest, name="pbr_web_manifest"),
-    path("favicon.ico", RedirectView.as_view(url="/static/favicon.svg", permanent=True)),
+    path("favicon.ico", RedirectView.as_view(url="/static/icons/pwa-192.png?v=33", permanent=True)),
     path("webhooks/whatsapp/", whatsapp_webhook, name="whatsapp_webhook"),
     path("ping/", ping, name="ping"),
     path("", home, name="home"),

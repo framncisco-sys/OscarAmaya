@@ -51,7 +51,7 @@
       '<div class="pbr-install-modal__card">' +
       '  <button type="button" class="pbr-install-modal__x" data-pbr-install-close aria-label="Cerrar">×</button>' +
       '  <div class="pbr-install-modal__badge" aria-hidden="true">' +
-      '    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M5 19h14"/></svg>' +
+      '    <img src="/static/icons/pwa-192.png?v=33" alt="" width="36" height="36" decoding="async">' +
       "  </div>" +
       '  <p class="pbr-install-modal__kicker">Paredes Desarrollos</p>' +
       '  <h2 id="pbr-install-modal-title" class="pbr-install-modal__title">Instalar en su iPhone</h2>' +

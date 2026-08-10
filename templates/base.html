@@ -10,7 +10,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Paredes DI">
-  <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}?v=32">
+  <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}?v=33">
+  <link rel="icon" href="{% static 'icons/pwa-192.png' %}?v=33" type="image/png" sizes="192x192">
+  <link rel="icon" href="{% static 'icons/pwa-512.png' %}?v=33" type="image/png" sizes="512x512">
   <script>
     /* Detección inicial antes del CSS (evita salto de layout) */
     (function () {
@@ -60,13 +62,12 @@
     })();
   </script>
   <title>{% block title %}Paredes Bienes Raíces{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'theme.css' %}?v=32">
-  <script src="{% static 'js/pbr-viewport.js' %}?v=32" defer></script>
-  <script src="{% static 'js/pbr-offline.js' %}?v=32" defer></script>
-  <script src="{% static 'js/pbr-loader.js' %}?v=32" defer></script>
-  <script src="{% static 'js/pbr-header.js' %}?v=32" defer></script>
-  <script src="{% static 'js/pbr-pwa-install.js' %}?v=32" defer></script>
-  <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+  <link rel="stylesheet" href="{% static 'theme.css' %}?v=33">
+  <script src="{% static 'js/pbr-viewport.js' %}?v=33" defer></script>
+  <script src="{% static 'js/pbr-offline.js' %}?v=33" defer></script>
+  <script src="{% static 'js/pbr-loader.js' %}?v=33" defer></script>
+  <script src="{% static 'js/pbr-header.js' %}?v=33" defer></script>
+  <script src="{% static 'js/pbr-pwa-install.js' %}?v=33" defer></script>
   <link rel="manifest" href="{% url 'pbr_web_manifest' %}">
 </head>
 <body class="{% block body_class %}app-body{% endblock %}">
@@ -84,11 +85,7 @@
         <button type="button" class="pbr-install-btn" data-pbr-install hidden
           data-pbr-install-tip="En iPhone/iPad: toque Compartir y luego «Añadir a pantalla de inicio».">
           <span class="pbr-install-btn__icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 3v12"/>
-              <path d="M8 11l4 4 4-4"/>
-              <path d="M5 19h14"/>
-            </svg>
+            <img src="{% static 'icons/pwa-192.png' %}?v=33" alt="" width="28" height="28" decoding="async">
           </span>
           <span class="pbr-install-btn__text">Instalar app</span>
         </button>
