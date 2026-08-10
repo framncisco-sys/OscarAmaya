@@ -407,8 +407,11 @@ def _generar_pdf_formato_aceptacion_bytes(formato: FormatoAceptacion) -> bytes:
         from docs.services import branding_pdf_context
 
         proyecto = _proyecto_para_pdf_formato(formato)
+        from inmobiliaria.formato_numero_pdf import qr_png_data_uri_formato
+
         ctx = {
             "formato": formato,
+            "formato_qr_src": qr_png_data_uri_formato(formato.numero_formulario),
             "proyecto": proyecto,
             "razon_social": getattr(
                 settings,

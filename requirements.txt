@@ -12,6 +12,8 @@ num2words>=0.5,<1
 phonenumbers>=8.13,<10
 pillow>=11,<13
 qrcode>=7.4,<9
+# Leer QR en escaneos del formato físico (alternativa a OCR)
+opencv-python-headless>=4.10,<5
 # Media persistente (DigitalOcean Spaces, AWS S3, MinIO…)
 django-storages[s3]>=1.14,<2
 boto3>=1.35,<2

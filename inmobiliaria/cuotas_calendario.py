@@ -227,9 +227,9 @@ def cuota_minima_y_con_interes(
     """
     Retorna (cuota_vendedor_sin_interes, cuota_desde_mes_13, saldo_tras_12).
 
-    La cuota de los meses 1–12 la escribe el asesor de ventas (sin interés).
-    Desde el mes 13: esa misma cuota + interés mensual sobre el saldo tras 12 pagos.
-    No se inventa la cuota si el asesor de ventas no la indicó.
+    Meses 1–12: cuota del asesor sin interés.
+    Desde el mes 13: PMT sobre el saldo restante (valor a financiar − 12 cuotas)
+    repartido en los meses que faltan, con interés anual.
     """
     if n_cuotas < 1:
         return None, None, None
@@ -251,11 +251,15 @@ def cuota_minima_y_con_interes(
     saldo = vf - (letra * Decimal(pagos_sin_int))
     if saldo < 0:
         saldo = Decimal("0")
-    interes_mes = (saldo * tasa / Decimal("100") / Decimal("12")).quantize(
-        Decimal("0.01"), rounding=ROUND_HALF_UP
-    )
-    cuota_13 = (letra + interes_mes).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    return letra, cuota_13, saldo.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    saldo = saldo.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    from inmobiliaria.credito_contrato import pmt_cuota
+
+    meses_restantes = n_cuotas - pagos_sin_int
+    cuota_13 = pmt_cuota(saldo, meses_restantes, tasa)
+    if cuota_13 is None:
+        cuota_13 = letra
+    return letra, cuota_13, saldo
 
 
 def texto_plan_financiamiento_a_plazos(fmt: FormatoAceptacion) -> str:
@@ -286,16 +290,17 @@ def texto_plan_financiamiento_a_plazos(fmt: FormatoAceptacion) -> str:
     c13 = format_monto_us(cuota_13 or letra, con_simbolo=True)
     return (
         f"Plan a plazos ({años} años, {n} cuotas): meses 1–12 sin interés "
-        f"(cuota del asesor de ventas {lm}). Desde el mes 13 la cuota ya lleva intereses "
-        f"({interes:g}% anual sobre saldo tras el primer año "
-        f"{format_monto_us(saldo or 0, con_simbolo=True)}) = {c13} mensuales."
+        f"(cuota del asesor de ventas {lm}). Desde el mes 13: cuota fija {c13} "
+        f"sobre saldo restante ({format_monto_us(saldo or 0, con_simbolo=True)}) "
+        f"con interés {interes:g}% anual en {n - 12} cuotas."
     )
 
 
 def filas_listado_cuotas_formato_aceptacion(fmt: FormatoAceptacion) -> list[dict[str, Any]]:
     """
     Filas para «listado de cuotas a pagar»: primas y plan mensual.
-    A plazos: meses 1–12 sin interés; desde el 13 cuota mínima + interés.
+    Misma lógica que el plan de pagos (mes 13): saldo tras reserva, prima y
+    12 cuotas sin interés, repartido con PMT en los meses restantes.
     """
     rows: list[dict[str, Any]] = []
     linea = 0
@@ -317,34 +322,63 @@ def filas_listado_cuotas_formato_aceptacion(fmt: FormatoAceptacion) -> list[dict
     if getattr(fmt, "tipo_financiamiento", None) == FormatoAceptacion.TipoFinanciamiento.CONTADO:
         return rows
 
-    n_cuotas = _n_cuotas_desde_formato(fmt)
-    if not n_cuotas:
+    n = _n_cuotas_desde_formato(fmt)
+    if not n:
         return rows
 
     fecha0 = fmt.fecha_primera_cuota or _parse_fecha_texto_formato(
         fmt.fecha_pago_mensual or ""
     )
-    if not fecha0:
+
+    from inmobiliaria.credito_contrato import calcular_nueva_deuda_mes13
+
+    data = calcular_nueva_deuda_mes13(fmt)
+    listado = data.get("listado_cuotas") or []
+
+    if not listado:
+        letra = fmt.letra_mensual
+        vf = fmt.valor_financiamiento
+        if (letra is None or letra <= 0) and vf is not None and vf > 0:
+            letra = (vf / Decimal(n)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if letra is not None and letra > 0:
+            interes = _interes_anual_desde_formato(fmt)
+            _, cuota_13, _ = cuota_minima_y_con_interes(
+                valor_financiamiento=vf,
+                letra_mensual=letra,
+                n_cuotas=n,
+                interes_anual_pct=interes,
+            )
+            for i in range(1, n + 1):
+                if i <= 12:
+                    monto = letra
+                    concepto = f"Cuota {i} (sin interés — cuota del asesor de ventas)"
+                else:
+                    monto = cuota_13 if cuota_13 is not None else letra
+                    concepto = f"Cuota {i} (con interés {interes:g}%)"
+                append_row(
+                    concepto,
+                    add_months(fecha0, i - 1) if fecha0 else None,
+                    monto,
+                )
         return rows
 
     interes = _interes_anual_desde_formato(fmt)
-    letra, cuota_13, _saldo = cuota_minima_y_con_interes(
-        valor_financiamiento=fmt.valor_financiamiento,
-        letra_mensual=fmt.letra_mensual,
-        n_cuotas=n_cuotas,
-        interes_anual_pct=interes,
-    )
-    if letra is None:
-        return rows
-
-    for i in range(n_cuotas):
-        num = i + 1
-        if num <= 12 or cuota_13 is None:
+    for row in listado:
+        try:
+            num = int(row.get("numero") or 0)
+            monto = Decimal(str(row.get("monto") or "0"))
+        except Exception:
+            continue
+        if num < 1 or monto <= 0:
+            continue
+        if num <= 12:
             concepto = f"Cuota {num} (sin interés — cuota del asesor de ventas)"
-            monto = letra
         else:
             concepto = f"Cuota {num} (con interés {interes:g}%)"
-            monto = cuota_13
-        append_row(concepto, add_months(fecha0, i), monto)
+        append_row(
+            concepto,
+            add_months(fecha0, num - 1) if fecha0 else None,
+            monto,
+        )
 
     return rows

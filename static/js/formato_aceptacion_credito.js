@@ -63,9 +63,9 @@
     return (P * r * pow) / (pow - 1);
   }
 
-  /** Cuota del vendedor (meses 1–12 sin interés) y cuota desde mes 13 (con interés). */
-  function planCuotasAPlazos(principal, letraMin, annualPct, nCuotas) {
-    var P = principal;
+  /** Cuota del vendedor (meses 1–12 sin interés) y cuota desde mes 13 (PMT sobre saldo). */
+  function planCuotasAPlazos(principalNeto, letraMin, annualPct, nCuotas) {
+    var P = principalNeto;
     var n = nCuotas;
     var letra = letraMin;
     if (!n || n < 1 || !isFinite(letra) || letra <= 0) {
@@ -79,8 +79,9 @@
     var tasa = isFinite(annualPct) && annualPct > 0 ? annualPct : 0;
     var saldo = P - letra * 12;
     if (saldo < 0) saldo = 0;
-    var interesMes = Math.round(((saldo * tasa) / 100 / 12) * 100) / 100;
-    var cuota13 = Math.round((letra + interesMes) * 100) / 100;
+    var mesesRest = n - 12;
+    var cuota13 = pmtCuota(saldo, tasa, mesesRest);
+    cuota13 = Math.round(cuota13 * 100) / 100;
     return { letra: letra, cuota13: cuota13 };
   }
 
@@ -232,7 +233,7 @@
       var letraVend = parseMoney(letra);
       if (!letraVend || letraVend <= 0) {
         box.textContent =
-          "Escriba la cuota de los meses 1–12 (sin interés). El mes 13 en adelante llevará esa cuota + intereses.";
+          "Escriba la cuota de los meses 1–12 (sin interés). Desde el mes 13 se reparte el saldo restante con intereses.";
         return;
       }
       var plan = planCuotasAPlazos(principal, letraVend, interVal, n);
@@ -250,11 +251,11 @@
       box.textContent =
         "Meses 1–12: cuota del vendedor $" +
         formatMoneyUS(plan.letra) +
-        " sin interés. Desde el mes 13: ya con intereses (" +
-        interVal +
-        "%) = $" +
+        " sin interés. Desde el mes 13: $" +
         formatMoneyUS(plan.cuota13) +
-        " mensuales.";
+        " mensuales (saldo restante ÷ meses que faltan, con " +
+        interVal +
+        "% anual).";
     }
 
     function recalcFin() {
@@ -1022,14 +1023,16 @@
       var fecha0 =
         (fechaPrimera && fechaPrimera.value ? parseDateInputValue(fechaPrimera.value) : null) ||
         (fechaPagoMensual && fechaPagoMensual.value ? parseDateInputValue(fechaPagoMensual.value) : null);
-      if (n && fecha0 && !esContado()) {
+      if (n && !esContado()) {
         var principal = parseMoney(valorFin);
         var interVal = parseFloat(String((interes && interes.value) || ""));
         if (!isFinite(interVal) || interVal < 0) interVal = 0;
-        var plan = planCuotasAPlazos(principal, parseMoney(letra), interVal, n);
+        var letraVal = parseMoney(letra);
+        if (!isFinite(letraVal) || letraVal <= 0) letraVal = letraParaListado(n);
+        var plan = planCuotasAPlazos(principal, letraVal, interVal, n);
         var i;
         for (i = 0; i < n; i += 1) {
-          var vd = addMonthsDate(fecha0, i);
+          var vd = fecha0 ? addMonthsDate(fecha0, i) : null;
           var num = i + 1;
           var concepto;
           var monto;
@@ -1049,7 +1052,7 @@
         tr0.innerHTML =
           "<td colspan=\"4\" class=\"muted\" style=\"padding:0.45rem 0.5rem;border:1px solid #e2e8f0;font-size:0.82rem;\">" +
           "Indique primas, fecha de primera cuota, plazo (1–6 años) y escriba la cuota de los meses 1–12 (sin interés). " +
-          "Desde el mes 13 esa cuota ya va con intereses.</td>";
+          "Desde el mes 13: saldo restante (tras reserva, prima y 12 cuotas) repartido con interés.</td>";
         tbodyListado.appendChild(tr0);
       }
       actualizarResumenPlan();

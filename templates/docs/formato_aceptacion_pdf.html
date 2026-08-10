@@ -15,7 +15,15 @@
       border: 2px solid #003366;
       color: #003366;
     }
-    .formato-acept-serie { text-align: right; font-size: 11px; color: #b91c1c; margin: 0 0 10px; }
+    .formato-acept-serie-wrap {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin: 0 0 10px;
+    }
+    .formato-acept-serie { text-align: right; font-size: 11px; color: #b91c1c; margin: 0; flex: 1; }
+    .formato-acept-qr { width: 52px; height: 52px; flex-shrink: 0; }
     .formato-acept-dir { text-align: center; font-size: 10px; color: #475569; margin: 0 0 14px; }
     .fa-sect {
       font-size: 10px;
@@ -58,7 +66,12 @@
 {% block content %}
 <p class="formato-acept-dir">{{ direccion_empresa }}</p>
 <h1 class="formato-acept-titulo">Formato de aceptación</h1>
-<p class="formato-acept-serie"><strong>No.</strong> {{ formato.numero_formulario|stringformat:"04d" }}</p>
+<div class="formato-acept-serie-wrap">
+  <p class="formato-acept-serie"><strong>No.</strong> {{ formato.numero_formulario|stringformat:"04d" }}</p>
+  {% if formato_qr_src %}
+  <img src="{{ formato_qr_src }}" alt="QR formato {{ formato.numero_formulario|stringformat:'04d' }}" class="formato-acept-qr" width="52" height="52" />
+  {% endif %}
+</div>
 
 <p class="fa-sect">Datos personales</p>
 <table class="fa-grid">
@@ -182,7 +195,7 @@
     <td class="fa-val" style="text-align:right;">{% if r.monto is not None %}{{ r.monto|money_us_symbol }}{% else %}—{% endif %}</td>
   </tr>
   {% empty %}
-  <tr><td class="fa-val" colspan="4">Complete primas, fecha de primera cuota, plazo (1–6 años) y cuota mínima. Meses 1–12 sin interés; desde el mes 13 cuota mínima + interés.</td></tr>
+  <tr><td class="fa-val" colspan="4">Complete primas, fecha de primera cuota, plazo (1–6 años) y cuota mínima. Meses 1–12 sin interés; desde el mes 13 el saldo restante se reparte con interés.</td></tr>
   {% endfor %}
 </table>
 

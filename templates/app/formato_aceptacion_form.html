@@ -198,7 +198,22 @@
     font-size: 0.85rem;
     flex: 1 1 12rem;
   }
-  .formato-adjunto-actual {
+  .formato-fisico-hint {
+    margin: 0.35rem 0 0;
+    padding: 0.55rem 0.65rem;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+  }
+  .formato-fisico-hint strong { color: #0f172a; }
+  .formato-fisico-hint ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
+  .formato-fisico-hint li { margin: 0.15rem 0; }
+  .formato-fisico-check { margin: 0.35rem 0 0; font-size: 0.82rem; font-weight: 600; }
+  .formato-fisico-check--ok { color: #15803d; }
+  .formato-fisico-check--warn { color: #b45309; }
+  .formato-fisico-check--idle { color: #64748b; font-weight: 500; }
     margin: 0.45rem 0 0;
     font-size: 0.85rem;
   }
@@ -324,7 +339,7 @@
         <div class="formato-papel__serie-field">
           <label class="field__label" for="{{ form.numero_formulario.id_for_label }}">No. formulario</label>
           <div class="field__control">{{ form.numero_formulario }}</div>
-          <p class="field__help muted">Debe coincidir con el PDF físico que suba abajo.</p>
+          <p class="field__help muted">Debe coincidir con el PDF físico que suba abajo (texto, QR o nombre del archivo).</p>
           {% if form.numero_formulario.errors %}
           <div class="field__error" role="alert">{{ form.numero_formulario.errors }}</div>
           {% endif %}
@@ -421,7 +436,7 @@
         <h3 class="formato-section-title" style="margin-top:0.5rem;font-size:0.72rem;">Listado de cuotas a pagar (referencia)</h3>
         <p class="muted" style="font-size:0.82rem;margin:0 0 0.35rem;">
           A plazos (máx. 6 años): el asesor de ventas <strong>escribe la cuota de los meses 1–12 sin interés</strong>;
-          <strong>desde el mes 13</strong> esa cuota ya va con el interés elegido. El listado y el PDF se arman solos al guardar.
+          <strong>desde el mes 13</strong> el saldo restante (valor − reserva − prima − 12 cuotas sin interés) se reparte con interés en los meses que faltan. El listado y el PDF se arman solos al guardar.
         </p>
         <p id="fmt-plan-plazos-resumen" class="muted" style="font-size:0.82rem;margin:0 0 0.65rem;color:#0f172a;font-weight:600;"></p>
         <div class="field__control" style="overflow-x:auto;">
@@ -486,10 +501,15 @@
         <button type="button" class="btn-secondary btn-sm formato-adjunto-examinar" data-file-input="{{ form.formato_aceptacion_fisico.id_for_label }}">Examinar</button>
         <span id="fname-fisico" class="formato-adjunto-fname muted">Ningún archivo seleccionado</span>
       </div>
-      <p class="muted" style="margin: 0.35rem 0 0; font-size: 0.8rem;">
-        Suba el PDF del formato firmado: se comprueba que el Nº coincida con el encabezado del PDF
-        o, si es escaneo sin texto, con el nombre del archivo (ej. «FORMATO DE ACEPTACION 0018.pdf»).
-      </p>
+      <div class="formato-fisico-hint" id="fmt-fisico-recomendaciones">
+        <strong>Verificación del Nº (escaneo sin OCR)</strong>
+        <ul>
+          <li><strong>Más fácil:</strong> renombre el archivo antes de subir, ej. <code id="fmt-fisico-nombre-ejemplo">Formato de aceptación 18.pdf</code></li>
+          <li><strong>Formatos del sistema:</strong> el PDF impreso trae un código QR junto al Nº; basta con que se vea en el escaneo</li>
+          <li><strong>Opcional:</strong> escanear con OCR para que el número quede como texto dentro del PDF</li>
+        </ul>
+      </div>
+      <p id="fmt-fisico-check" class="formato-fisico-check formato-fisico-check--idle muted" aria-live="polite"></p>
       {% if object.pk and object.formato_aceptacion_fisico and object.formato_aceptacion_fisico.name and formato_adjunto_urls.fisico %}
       <p class="formato-adjunto-actual">
         Archivo guardado:
@@ -512,10 +532,82 @@
 {{ proyectos_formato|json_script:"formato-proyectos-data" }}
 {{ formato_catalogo_inmuebles|json_script:"formato-catalogo-inmuebles-data" }}
 {{ formato_lote_estado_url_tpl|json_script:"formato-lote-estado-url-tpl" }}
-<script src="{% static 'js/formato_aceptacion_credito.js' %}?v=23" defer></script>
+<script src="{% static 'js/formato_aceptacion_credito.js' %}?v=26" defer></script>
 <script src="{% static 'js/formato_aceptacion_masks.js' %}" defer></script>
 <script>
 (function () {
+  function variantesNumero(num) {
+    var n = parseInt(String(num), 10);
+    if (!isFinite(n) || n < 1) return [];
+    var out = [String(n)];
+    [2, 3, 4, 5, 6].forEach(function (w) {
+      var p = String(n);
+      while (p.length < w) p = "0" + p;
+      if (out.indexOf(p) === -1) out.push(p);
+    });
+    return out;
+  }
+
+  function numeroEnNombreArchivo(nombre, num) {
+    if (!nombre || !num) return false;
+    var base = String(nombre).replace(/\.[^.]+$/, "");
+    var norm = base.replace(/[_\-]+/g, " ").toLowerCase();
+    var compact = norm.replace(/\s+/g, "");
+    return variantesNumero(num).some(function (v) {
+      var re = new RegExp("(?<!\\d)" + v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?!\\d)");
+      return re.test(norm) || re.test(compact);
+    });
+  }
+
+  function numeroFormularioActual() {
+    var el = document.getElementById("id_numero_formulario");
+    if (el && el.value) {
+      var n = parseInt(String(el.value), 10);
+      return isFinite(n) && n > 0 ? n : null;
+    }
+    var serie = document.querySelector(".formato-papel__serie");
+    if (serie) {
+      var m = serie.textContent.match(/(\d+)/);
+      if (m) return parseInt(m[1], 10);
+    }
+    return null;
+  }
+
+  function actualizarEjemploNombre() {
+    var num = numeroFormularioActual();
+    var ej = document.getElementById("fmt-fisico-nombre-ejemplo");
+    if (ej && num) ej.textContent = "Formato de aceptación " + num + ".pdf";
+  }
+
+  function actualizarCheckFisico(nombreArchivo) {
+    var box = document.getElementById("fmt-fisico-check");
+    if (!box) return;
+    var num = numeroFormularioActual();
+    if (!nombreArchivo) {
+      box.textContent = "Seleccione el PDF del formato firmado.";
+      box.className = "formato-fisico-check formato-fisico-check--idle muted";
+      return;
+    }
+    if (!num) {
+      box.textContent = "Escriba el Nº de formulario arriba y renombre el archivo con ese mismo número.";
+      box.className = "formato-fisico-check formato-fisico-check--warn";
+      return;
+    }
+    if (numeroEnNombreArchivo(nombreArchivo, num)) {
+      box.textContent =
+        "El nombre del archivo incluye el Nº " +
+        num +
+        ": se aceptará aunque el escaneo no tenga OCR.";
+      box.className = "formato-fisico-check formato-fisico-check--ok";
+      return;
+    }
+    box.textContent =
+      "Renombre el archivo a «Formato de aceptación " +
+      num +
+      ".pdf» o asegúrese de que el escaneo muestre el QR del encabezado.";
+    box.className = "formato-fisico-check formato-fisico-check--warn";
+  }
+
   document.querySelectorAll(".formato-adjunto-examinar").forEach(function (btn) {
     btn.addEventListener("click", function () {
       var id = btn.getAttribute("data-file-input");
@@ -527,12 +619,32 @@
     input.addEventListener("change", function () {
       var targetId = input.getAttribute("data-fname-target");
       var label = targetId ? document.getElementById(targetId) : null;
-      if (!label) return;
-      label.textContent = (input.files && input.files[0])
-        ? input.files[0].name
-        : "Ningún archivo seleccionado";
+      var nombre =
+        input.files && input.files[0] ? input.files[0].name : "Ningún archivo seleccionado";
+      if (label) label.textContent = nombre;
+      if (input.id === "id_formato_aceptacion_fisico") {
+        actualizarCheckFisico(input.files && input.files[0] ? input.files[0].name : "");
+      }
     });
   });
+
+  var numInput = document.getElementById("id_numero_formulario");
+  if (numInput) {
+    numInput.addEventListener("input", function () {
+      actualizarEjemploNombre();
+      var fisico = document.getElementById("id_formato_aceptacion_fisico");
+      var fname = document.getElementById("fname-fisico");
+      var nombre =
+        fisico && fisico.files && fisico.files[0]
+          ? fisico.files[0].name
+          : fname && fname.textContent !== "Ningún archivo seleccionado"
+            ? fname.textContent
+            : "";
+      actualizarCheckFisico(nombre);
+    });
+  }
+  actualizarEjemploNombre();
+  actualizarCheckFisico("");
 })();
 </script>
 {% endblock %}
