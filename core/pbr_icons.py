@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 # Versión global de caché (CSS, JS, SW, iconos). Subir tras cada despliegue importante.
-PBR_CACHE_VERSION = "40"
+PBR_CACHE_VERSION = "41"
 
 # Alias usado por iconos PWA
 PBR_ICON_VERSION = PBR_CACHE_VERSION

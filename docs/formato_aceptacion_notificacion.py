@@ -11,6 +11,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
+from django.utils.html import format_html
 
 from inmobiliaria.phone_sv import digitos_telefono_e164_sv
 
@@ -76,7 +77,8 @@ def _intentara_envio_automatico(formato: "FormatoAceptacion") -> bool:
     """True si hay destino y canal configurado (correo o WhatsApp Meta)."""
     if not getattr(settings, "FORMATO_ACEPTACION_ENVIAR_AL_GUARDAR", True):
         return False
-    tiene_email = bool(_email_destino_formato(formato)) and getattr(
+    destinos, _ = _destinos_email_formato(formato)
+    tiene_email = bool(destinos) and getattr(
         settings, "FORMATO_ACEPTACION_ENVIAR_EMAIL", True
     )
     tiene_tel = bool(digitos_telefono_e164_sv(_telefono_destino_formato(formato)))
@@ -133,33 +135,73 @@ def construir_url_whatsapp_formato_pdf(
     return f"https://wa.me/{tel}?text={urllib.parse.quote(texto)}"
 
 
+def _email_oficina_formato() -> str:
+    return (getattr(settings, "RECIBO_EMAIL_FALLBACK", "") or "").strip()
+
+
+def _destinos_email_formato(formato: "FormatoAceptacion") -> tuple[list[str], bool]:
+    """
+    Destinatarios del PDF: cliente (si tiene correo) + bandeja de oficina.
+    Devuelve (lista, solo_oficina).
+    """
+    cliente_email = _email_destino_formato(formato)
+    oficina = _email_oficina_formato()
+    destinos: list[str] = []
+    if cliente_email:
+        destinos.append(cliente_email)
+    if oficina and oficina.lower() not in {d.lower() for d in destinos}:
+        destinos.append(oficina)
+    solo_oficina = bool(destinos) and not cliente_email
+    return destinos, solo_oficina
+
+
 def enviar_formato_pdf_por_email(
-    formato: "FormatoAceptacion", pdf_bytes: bytes
+    formato: "FormatoAceptacion", pdf_bytes: bytes, *, public_pdf_url: str | None = None
 ) -> tuple[bool, str | None]:
     """
-    Intenta enviar el PDF por correo.
-    Retorna (éxito, mensaje de error breve para mostrar al usuario si falló el envío SMTP).
+    Envía el PDF por correo (cliente y/o bandeja de oficina vía Brevo/SMTP).
+    Retorna (éxito, mensaje de error breve para mostrar al usuario si falló el envío).
     """
     if not getattr(settings, "FORMATO_ACEPTACION_ENVIAR_EMAIL", True):
         return False, None
-    destino = _email_destino_formato(formato)
-    if not destino:
+    destinos, solo_oficina = _destinos_email_formato(formato)
+    if not destinos:
         logger.warning(
-            "Formato Nº %s: sin correo del cliente (vincule contrato con email); no se envía PDF por correo.",
+            "Formato Nº %s: sin correo del cliente ni RECIBO_EMAIL_FALLBACK; no se envía PDF.",
             formato.numero_formulario,
         )
         return False, None
-    wa_url = construir_url_whatsapp_formato_pdf(formato, None)
+    if solo_oficina:
+        logger.info(
+            "Formato Nº %s: cliente sin correo; PDF a bandeja de oficina %s",
+            formato.numero_formulario,
+            destinos[0],
+        )
+    wa_url = construir_url_whatsapp_formato_pdf(formato, public_pdf_url)
+    nombre = (formato.nombre_cliente or "").strip() or "cliente"
     body = render_to_string(
         "docs/email_formato_aceptacion_pdf.txt",
         {
             "formato": formato,
             "numero_fmt": f"{formato.numero_formulario:04d}",
-            "nombre_cliente": (formato.nombre_cliente or "").strip(),
+            "nombre_cliente": nombre,
             "empresa_nombre": _empresa_nombre(),
             "whatsapp_url": wa_url,
         },
     ).strip()
+    if solo_oficina:
+        body = (
+            f"[Aviso interno] El cliente «{nombre}» no tiene correo registrado. "
+            f"Este PDF llegó a la bandeja de oficina ({', '.join(destinos)}). "
+            f"Reenvíelo al cliente por WhatsApp si aplica.\n\n"
+            + body
+        )
+    elif len(destinos) > 1:
+        body = (
+            f"[Copia oficina] Formato del cliente «{nombre}». "
+            f"Destinatarios: {', '.join(destinos)}.\n\n"
+            + body
+        )
     nombre_archivo = f"formato_aceptacion_{formato.numero_formulario:04d}.pdf"
     msg = EmailMessage(
         subject=getattr(
@@ -169,7 +211,7 @@ def enviar_formato_pdf_por_email(
         ),
         body=body,
         from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None) or "noreply@localhost",
-        to=[destino],
+        to=destinos,
     )
     msg.attach(nombre_archivo, pdf_bytes, "application/pdf")
     try:
@@ -177,7 +219,7 @@ def enviar_formato_pdf_por_email(
         logger.info(
             "Formato Nº %s: correo con PDF → %s",
             formato.numero_formulario,
-            destino,
+            ", ".join(destinos),
         )
         return True, None
     except Exception as e:
@@ -338,12 +380,12 @@ def notificar_formato_pdf_tras_guardado(
 
     dest_email = _email_destino_formato(formato)
     to = digitos_telefono_e164_sv(_telefono_destino_formato(formato))
-    puede_correo = bool(dest_email) and getattr(
+    destinos_correo, solo_oficina = _destinos_email_formato(formato)
+    puede_correo = bool(destinos_correo) and getattr(
         settings, "FORMATO_ACEPTACION_ENVIAR_EMAIL", True
     ) and _correo_configurado()
     puede_wa = bool(to) and _whatsapp_meta_activo_formato()
 
-    # Sin correo del cliente ni WhatsApp Meta activo: el PDF ya está en «Descargar PDF».
     if not puede_correo and not puede_wa:
         return
 
@@ -403,6 +445,37 @@ def notificar_formato_pdf_tras_guardado(
         partes.append("WhatsApp con PDF")
     elif wa_ok:
         partes.append("WhatsApp (solo texto)")
+
+    wa_url = construir_url_whatsapp_formato_pdf(formato, None)
+
+    if correo_ok:
+        if solo_oficina:
+            txt = (
+                "PDF del formato enviado a la bandeja de oficina "
+                f"({', '.join(destinos_correo)}). "
+                "El cliente no tiene correo registrado."
+            )
+        else:
+            txt = (
+                "PDF del formato enviado por correo a "
+                + ", ".join(destinos_correo)
+                + "."
+            )
+        if partes:
+            txt = "PDF del formato generado y enviado vía: " + ", ".join(partes) + "."
+        if wa_url and to and not wa_ok:
+            messages.success(
+                request,
+                format_html(
+                    '{} <a href="{}" target="_blank" rel="noopener noreferrer">'
+                    "Abrir WhatsApp al cliente</a> para compartir el PDF.",
+                    txt,
+                    wa_url,
+                ),
+            )
+        else:
+            messages.success(request, txt)
+        return
 
     if partes:
         messages.success(

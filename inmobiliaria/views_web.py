@@ -603,6 +603,7 @@ def _formato_aceptacion_form_sections(form: forms.FormatoAceptacionForm) -> list
                 row(G("lugar_nacimiento"), G("fecha_nacimiento")),
                 row(G("dui_numero"), G("dui_exp_lugar"), G("dui_exp_fecha"), G("nit_numero")),
                 row(G("direccion_domicilio"), G("telefono_domicilio")),
+                row(G("correo_cliente")),
                 row(G("direccion_notificacion"), G("telefono_notificacion")),
                 row(G("trabaja_lo_propio"), G("nombre_empresa_trabajo")),
                 row(G("direccion_trabajo"), G("telefono_trabajo")),

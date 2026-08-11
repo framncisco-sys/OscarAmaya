@@ -2601,6 +2601,20 @@ def _choices_elaborado_por_vendedores() -> list[tuple[str, str]]:
 class FormatoAceptacionForm(forms.ModelForm):
     """Formato de aceptación; adjuntos (DUI y formato físico) se suben como archivos."""
 
+    correo_cliente = forms.EmailField(
+        label="Correo electrónico del cliente",
+        required=False,
+        widget=forms.EmailInput(
+            attrs={
+                "class": "input",
+                "placeholder": "cliente@correo.com",
+                "autocomplete": "email",
+                "inputmode": "email",
+            }
+        ),
+        help_text="Opcional. Se guarda en el cliente para enviar el PDF por correo (Brevo).",
+    )
+
     class Meta:
         model = FormatoAceptacion
         fields = _FORMATO_ACEPTACION_FIELDS
@@ -2999,6 +3013,44 @@ class FormatoAceptacionForm(forms.ModelForm):
             for fname in _FORMATO_ADJUNTOS_FIELDS:
                 self.fields.pop(fname, None)
 
+        if "correo_cliente" in self.fields and not self.is_bound:
+            correo_ini = ""
+            inst = self.instance
+            if inst is not None and getattr(inst, "contrato_id", None):
+                c = getattr(inst, "contrato", None)
+                if c is None:
+                    c = (
+                        Contrato.objects.filter(pk=inst.contrato_id)
+                        .select_related("cliente")
+                        .first()
+                    )
+                if c and c.cliente_id:
+                    correo_ini = (c.cliente.email or "").strip()
+            if not correo_ini and inst is not None and getattr(inst, "pk", None):
+                from inmobiliaria.credito_contrato import _norm_dui, _norm_nombre
+                from inmobiliaria.models import Cliente
+
+                dui = _norm_dui(getattr(inst, "dui_numero", ""))
+                if dui:
+                    for cli in Cliente.objects.exclude(email="").only("dui", "email")[:300]:
+                        if _norm_dui(cli.dui) == dui:
+                            correo_ini = (cli.email or "").strip()
+                            break
+                if not correo_ini:
+                    nom = _norm_nombre(getattr(inst, "nombre_cliente", ""))
+                    if nom:
+                        for cli in Cliente.objects.exclude(email="").only(
+                            "nombres", "apellidos", "email"
+                        )[:300]:
+                            cn = _norm_nombre(
+                                f"{cli.nombres or ''} {cli.apellidos or ''}"
+                            )
+                            if cn == nom:
+                                correo_ini = (cli.email or "").strip()
+                                break
+            if correo_ini:
+                self.initial["correo_cliente"] = correo_ini
+
     def clean_numero_formulario(self):
         num = self.cleaned_data.get("numero_formulario")
         if num is None:
@@ -3290,6 +3342,14 @@ class FormatoAceptacionForm(forms.ModelForm):
                     instance.observaciones_financiamiento = f"{plan}\n{obs}"
         if commit:
             instance.save()
+            correo = (self.cleaned_data.get("correo_cliente") or "").strip()
+            if correo:
+                from inmobiliaria.credito_contrato import cliente_desde_formato_aceptacion
+
+                cli = cliente_desde_formato_aceptacion(instance)
+                if (cli.email or "").strip().casefold() != correo.casefold():
+                    cli.email = correo[:254]
+                    cli.save(update_fields=["email"])
         return instance
 
 
