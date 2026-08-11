@@ -1,7 +1,41 @@
 ﻿{% extends "docs/_base_pdf.html" %}
 {% load money_fmt %}
-{% block pdf_brand_captions %}
-{% include "docs/_pdf_brand_captions.html" with razon_social=empresa_nombre inmobiliaria_kicker="Desarrollos inmobiliarios" pie_inmobiliaria=pie_inmobiliaria %}
+{% block pdf_header %}
+<div class="pdf-header">
+  <table class="pdf-header-logos">
+    <tr>
+      <td>
+        <img src="{{ logo_desarrollos_src }}" alt="Paredes Desarrollos Inmobiliarios" class="pdf-logo" width="100%" height="100">
+      </td>
+      <td>
+        <img src="{{ proyecto_logo_src }}" alt="{{ proyecto.nombre|default:'Proyecto' }}" class="pdf-logo" width="100%" height="100">
+      </td>
+      <td>
+        <img src="{{ logo_bienes_src }}" alt="Paredes Bienes Raíces" class="pdf-logo" width="100%" height="100">
+      </td>
+    </tr>
+  </table>
+  <table class="pdf-brand-captions">
+    <tr>
+      <td class="pdf-brand-cell pdf-brand-cell--proyecto">
+        <p class="pdf-brand-kicker">Proyecto</p>
+        <p class="pdf-brand-name">{% firstof proyecto.nombre proyecto_nombre "—" %}</p>
+        {% if proyecto.direccion or proyecto.municipio or proyecto.departamento %}
+        <p class="pdf-brand-meta">
+          {% if proyecto.direccion %}{{ proyecto.direccion }}{% endif %}
+          {% if proyecto.municipio %}{% if proyecto.direccion %} · {% endif %}{{ proyecto.municipio|title }}{% endif %}
+          {% if proyecto.departamento %}{% if proyecto.direccion or proyecto.municipio %} · {% endif %}Dpto. {{ proyecto.departamento|title }}{% endif %}
+        </p>
+        {% endif %}
+      </td>
+      <td class="pdf-brand-cell pdf-brand-cell--inmobiliaria">
+        <p class="pdf-brand-kicker">Desarrollos inmobiliarios</p>
+        <p class="pdf-brand-name">Paredes Desarrollos Inmobiliarios</p>
+        {% if pie_inmobiliaria %}<p class="pdf-brand-meta">{{ pie_inmobiliaria }}</p>{% endif %}
+      </td>
+    </tr>
+  </table>
+</div>
 {% endblock %}
 {% block pdf_extra_styles %}
     body { position: relative; }

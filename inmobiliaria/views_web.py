@@ -80,6 +80,7 @@ from .cuotas_calendario import (
     fecha_primera_cuota_desde_formato_contrato,
     monto_uniforme_por_cuota,
 )
+from core.pbr_icons import PBR_CACHE_VERSION
 from docs.services import generar_pdf_desde_plantilla
 
 from .formato_aceptacion_db import (
@@ -2456,8 +2457,9 @@ class FormatoAceptacionUpdateView(
         )
         ctx["cancel_url"] = reverse("app:formato_aceptacion_list")
         ctx["form_multipart"] = True
-        ctx["formato_pdf_url"] = reverse(
-            "app:formato_aceptacion_pdf", kwargs={"pk": self.object.pk}
+        ctx["formato_pdf_url"] = (
+            reverse("app:formato_aceptacion_pdf", kwargs={"pk": self.object.pk})
+            + f"?v={PBR_CACHE_VERSION}&t={int(self.object.actualizado_en.timestamp())}"
         )
         ctx["firmas_completas"] = self.object.firmas_completas
         ctx["firmas_storage_perdidas"] = _formato_firmas_ausentes_en_storage(
@@ -2526,6 +2528,10 @@ def formato_aceptacion_pdf(request: HttpRequest, pk: int) -> HttpResponse:
     filename = f"formato_aceptacion_{formato.numero_formulario:04d}.pdf"
     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
     resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    resp["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp["Pragma"] = "no-cache"
+    resp["Expires"] = "0"
+    resp["X-PBR-PDF-Version"] = PBR_CACHE_VERSION
     return resp
 
 

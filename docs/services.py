@@ -265,7 +265,12 @@ def _logo_en_caja_para_pdf(
         ).hexdigest()[:28]
         out = cache_dir / f"hdr_{key}.png"
         if out.is_file():
-            return out.as_uri()
+            try:
+                raw = out.read_bytes()
+                b64 = base64.b64encode(raw).decode("ascii")
+                return f"data:image/png;base64,{b64}"
+            except OSError:
+                pass
 
         img = Image.open(path).convert("RGBA")
         bbox = _logo_content_bbox_rgba(img)
@@ -284,8 +289,15 @@ def _logo_en_caja_para_pdf(
         img = img.resize((nw, nh), Image.Resampling.LANCZOS)
         canvas = Image.new("RGBA", (ancho, alto), (255, 255, 255, 0))
         canvas.paste(img, ((ancho - nw) // 2, (alto - nh) // 2), img)
-        canvas.save(out, format="PNG", optimize=True)
-        return out.as_uri()
+        buf = BytesIO()
+        canvas.save(buf, format="PNG", optimize=True)
+        raw = buf.getvalue()
+        try:
+            out.write_bytes(raw)
+        except OSError:
+            pass
+        b64 = base64.b64encode(raw).decode("ascii")
+        return f"data:image/png;base64,{b64}"
     except Exception:
         logger.exception("No se pudo normalizar logo PDF: %s", path)
         return path.as_uri()

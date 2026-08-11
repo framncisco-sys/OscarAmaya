@@ -40,7 +40,7 @@
 
   function iconSuffix() {
     var m = document.querySelector('meta[name="pbr-cache-v"]') || document.querySelector('meta[name="pbr-icon-v"]');
-    return "?v=" + ((m && m.content) || "41");
+    return "?v=" + ((m && m.content) || "42");
   }
 
   function ensureModal() {

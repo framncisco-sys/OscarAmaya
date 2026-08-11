@@ -88,7 +88,7 @@
           <a href="{% url 'app:formato_aceptacion_edit' f.pk %}" class="link-action"
             title="Si no inició sesión como superusuario, se pedirá usuario y contraseña de superusuario antes de editar o eliminar.">Editar</a>
           {% if f.firmas_completas %}
-          <a href="{% url 'app:formato_aceptacion_pdf' f.pk %}" class="link-action" target="_blank" rel="noopener">PDF</a>
+          <a href="{% url 'app:formato_aceptacion_pdf' f.pk %}?v={{ pbr_cache_v }}&amp;t={{ f.actualizado_en|date:'U' }}" class="link-action" target="_blank" rel="noopener">PDF</a>
           {% endif %}
           {% if formato_promesa_lista_ok %}
           {% if f.promesa_venta_escaneada and f.promesa_venta_escaneada.name %}
