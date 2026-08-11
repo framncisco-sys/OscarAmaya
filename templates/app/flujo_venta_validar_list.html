@@ -59,7 +59,12 @@
   </table>
 </div>
 {% else %}
-<p class="muted" style="margin:0 0 1.5rem;">No hay formatos pendientes.</p>
+<p class="muted" style="margin:0 0 0.5rem;">No hay formatos pendientes de validación.</p>
+<p class="muted" style="margin:0 0 1.5rem;font-size:0.9rem;">
+  Los formatos que guarda <strong>administrador o gerencia</strong> quedan validados al instante y aparecen en
+  <a href="{% url 'app:formato_aceptacion_list' %}" class="link-action">Formatos guardados</a>.
+  Aquí solo se listan los que registra el rol <strong>Proyectos, lotes y mapa</strong> y aún esperan su visto bueno.
+</p>
 {% endif %}
 
 <h2 class="page-title" style="font-size:1.1rem;margin:0 0 0.75rem;">Planes de pagos</h2>

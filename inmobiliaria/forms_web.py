@@ -2438,6 +2438,10 @@ _FORMATO_ACEPTACION_EXCLUDE = (
     "precio_validado_por",
     "precio_validado_en",
     "precio_validacion_nota",
+    "validacion_gerencia",
+    "validado_gerencia_por",
+    "validado_gerencia_en",
+    "validacion_gerencia_nota",
 )
 _FORMATO_ACEPTACION_FIELDS = [
     f.name
