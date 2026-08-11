@@ -21,6 +21,7 @@ from core.views import (
     home,
     ping,
     portal_marca,
+    pbr_offline_page,
     pbr_service_worker,
     pbr_web_manifest,
 )
@@ -28,6 +29,7 @@ from core.views_whatsapp import whatsapp_webhook
 
 urlpatterns = [
     path("pbr-sw.js", pbr_service_worker, name="pbr_service_worker"),
+    path("offline/", pbr_offline_page, name="pbr_offline"),
     path("site.webmanifest", pbr_web_manifest, name="pbr_web_manifest"),
     path(
         "favicon.ico",

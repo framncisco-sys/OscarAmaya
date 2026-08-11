@@ -23,5 +23,5 @@
   data-ancho="{{ object.recorte_ancho_pct|default_if_none:'' }}"
   data-alto="{{ object.recorte_alto_pct|default_if_none:'' }}"
 ></div>
-<script src="{% static 'js/poligono_crop.js' %}" defer></script>
+<script src="{% static 'js/poligono_crop.js' %}?v={{ pbr_cache_v }}" defer></script>
 {% endblock %}

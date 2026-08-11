@@ -22,7 +22,7 @@ from usuarios.roles import (
 from .dashboard_data import build_dashboard_bienes_raices_context, build_dashboard_context
 from .forms import LoginForm
 from .marcas import SESSION_KEY, es_bienes_raices, marca_from_session, set_marca
-from .pbr_icons import manifest_icons
+from .pbr_icons import PBR_CACHE_VERSION, manifest_icons
 
 
 class PortalLoginView(LoginView):
@@ -199,8 +199,17 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 def pbr_service_worker(_request: HttpRequest) -> HttpResponse:
     """Service Worker en la raíz del sitio (alcance /) para caché y modo sin conexión."""
     path = Path(settings.BASE_DIR) / "static" / "pbr-sw.js"
-    body = path.read_text(encoding="utf-8")
+    body = path.read_text(encoding="utf-8").replace("__PBR_CACHE_VERSION__", PBR_CACHE_VERSION)
     resp = HttpResponse(body, content_type="application/javascript; charset=utf-8")
+    resp["Cache-Control"] = "no-store, max-age=0"
+    return resp
+
+
+def pbr_offline_page(_request: HttpRequest) -> HttpResponse:
+    """Página sin conexión con theme.css versionado (misma clave que precache del SW)."""
+    path = Path(settings.BASE_DIR) / "static" / "offline.html"
+    body = path.read_text(encoding="utf-8").replace("__PBR_CACHE_V__", PBR_CACHE_VERSION)
+    resp = HttpResponse(body, content_type="text/html; charset=utf-8")
     resp["Cache-Control"] = "no-store, max-age=0"
     return resp
 

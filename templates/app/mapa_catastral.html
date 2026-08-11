@@ -115,5 +115,5 @@
     googleMapsEnabled: {% if google_maps_api_key %}true{% else %}false{% endif %},
   };
 </script>
-<script src="{% static 'js/mapa_catastral.js' %}"></script>
+<script src="{% static 'js/mapa_catastral.js' %}?v={{ pbr_cache_v }}"></script>
 {% endblock %}

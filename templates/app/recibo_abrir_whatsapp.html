@@ -22,5 +22,5 @@
   </p>
 </div>
 {{ share_payload|json_script:"pbr-wa-share-data" }}
-<script src="{% static 'js/pbr-recibo-wa-share.js' %}"></script>
+<script src="{% static 'js/pbr-recibo-wa-share.js' %}?v={{ pbr_cache_v }}"></script>
 {% endblock %}

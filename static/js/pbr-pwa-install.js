@@ -39,8 +39,8 @@
   }
 
   function iconSuffix() {
-    var m = document.querySelector('meta[name="pbr-icon-v"]');
-    return "?v=" + ((m && m.content) || "34");
+    var m = document.querySelector('meta[name="pbr-cache-v"]') || document.querySelector('meta[name="pbr-icon-v"]');
+    return "?v=" + ((m && m.content) || "36");
   }
 
   function ensureModal() {

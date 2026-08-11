@@ -191,7 +191,7 @@
     {% block content %}{% endblock %}
   </main>
   {% block extra_js %}{% endblock %}
-  <script src="{% static 'js/pbr-recibo-wa.js' %}" defer></script>
+  <script src="{% static 'js/pbr-recibo-wa.js' %}?v={{ pbr_cache_v }}" defer></script>
   <script>
     (function () {
       var swUrl = "{% url 'pbr_service_worker' %}";

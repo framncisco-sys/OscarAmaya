@@ -1,26 +1,26 @@
 /* PBR — Service Worker: caché de estáticos + páginas visitadas para modo sin conexión.
- * Versión de caché: subir el sufijo tras cambios importantes. */
-const CACHE_STATIC = "pbr-static-v35";
-const CACHE_PAGES = "pbr-pages-v35";
+ * __PBR_CACHE_VERSION__ se sustituye al servir desde Django (core.views.pbr_service_worker). */
+const CACHE_STATIC = "pbr-static-v__PBR_CACHE_VERSION__";
+const CACHE_PAGES = "pbr-pages-v__PBR_CACHE_VERSION__";
 
 const PRECACHE_URLS = [
-  "/static/offline.html",
-  "/static/theme.css?v=35",
-  "/static/icons/pwa-48.png?v=35",
-  "/static/icons/pwa-192.png?v=35",
-  "/static/icons/pwa-512.png?v=35",
-  "/static/icons/pwa-192-maskable.png?v=35",
-  "/static/icons/pwa-512-maskable.png?v=35",
-  "/static/icons/apple-touch-icon.png?v=35",
-  "/static/icons/apple-touch-icon-167.png?v=35",
-  "/static/icons/apple-touch-icon-152.png?v=35",
-  "/static/icons/apple-touch-icon-120.png?v=35",
-  "/static/js/pbr-viewport.js?v=35",
-  "/static/js/pbr-offline.js?v=35",
-  "/static/js/pbr-loader.js?v=35",
-  "/static/js/pbr-header.js?v=35",
-  "/static/js/pbr-sidebar.js?v=35",
-  "/static/js/pbr-pwa-install.js?v=35",
+  "/offline/",
+  "/static/theme.css?v=__PBR_CACHE_VERSION__",
+  "/static/icons/pwa-48.png?v=__PBR_CACHE_VERSION__",
+  "/static/icons/pwa-192.png?v=__PBR_CACHE_VERSION__",
+  "/static/icons/pwa-512.png?v=__PBR_CACHE_VERSION__",
+  "/static/icons/pwa-192-maskable.png?v=__PBR_CACHE_VERSION__",
+  "/static/icons/pwa-512-maskable.png?v=__PBR_CACHE_VERSION__",
+  "/static/icons/apple-touch-icon.png?v=__PBR_CACHE_VERSION__",
+  "/static/icons/apple-touch-icon-167.png?v=__PBR_CACHE_VERSION__",
+  "/static/icons/apple-touch-icon-152.png?v=__PBR_CACHE_VERSION__",
+  "/static/icons/apple-touch-icon-120.png?v=__PBR_CACHE_VERSION__",
+  "/static/js/pbr-viewport.js?v=__PBR_CACHE_VERSION__",
+  "/static/js/pbr-offline.js?v=__PBR_CACHE_VERSION__",
+  "/static/js/pbr-loader.js?v=__PBR_CACHE_VERSION__",
+  "/static/js/pbr-header.js?v=__PBR_CACHE_VERSION__",
+  "/static/js/pbr-sidebar.js?v=__PBR_CACHE_VERSION__",
+  "/static/js/pbr-pwa-install.js?v=__PBR_CACHE_VERSION__",
 ];
 
 /** No cachear HTML con tokens CSRF / sesión (provoca 403 al enviar formularios). */
@@ -114,7 +114,7 @@ self.addEventListener("fetch", (event) => {
             (await caches.match(request)) ||
             (await caches.match(request, { ignoreSearch: true }));
           if (cachedPage) return cachedPage;
-          const offline = await caches.match("/static/offline.html");
+          const offline = await caches.match("/offline/");
           if (offline) return offline;
           return new Response(
             "<!DOCTYPE html><html lang='es'><meta charset='utf-8'><title>Sin conexión</title>" +

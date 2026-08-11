@@ -5,7 +5,7 @@
 
 {% block extrahead %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'theme.css' %}">
+  <link rel="stylesheet" href="{% static 'theme.css' %}?v={{ pbr_cache_v }}">
 {% endblock %}
 
 {% block branding %}

@@ -611,8 +611,8 @@
 {{ proyectos_formato|json_script:"formato-proyectos-data" }}
 {{ formato_catalogo_inmuebles|json_script:"formato-catalogo-inmuebles-data" }}
 {{ formato_lote_estado_url_tpl|json_script:"formato-lote-estado-url-tpl" }}
-<script src="{% static 'js/formato_aceptacion_credito.js' %}?v=29" defer></script>
-<script src="{% static 'js/formato_aceptacion_masks.js' %}?v=29" defer></script>
+<script src="{% static 'js/formato_aceptacion_credito.js' %}?v={{ pbr_cache_v }}" defer></script>
+<script src="{% static 'js/formato_aceptacion_masks.js' %}?v={{ pbr_cache_v }}" defer></script>
 <script>
 (function () {
   document.addEventListener("DOMContentLoaded", function () {
