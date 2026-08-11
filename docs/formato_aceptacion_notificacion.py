@@ -336,24 +336,41 @@ def notificar_formato_pdf_tras_guardado(
         if prev_firmas_completas:
             return
 
+    dest_email = _email_destino_formato(formato)
+    to = digitos_telefono_e164_sv(_telefono_destino_formato(formato))
+    puede_correo = bool(dest_email) and getattr(
+        settings, "FORMATO_ACEPTACION_ENVIAR_EMAIL", True
+    ) and _correo_configurado()
+    puede_wa = bool(to) and _whatsapp_meta_activo_formato()
+
+    # Sin correo del cliente ni WhatsApp Meta activo: el PDF ya está en «Descargar PDF».
+    if not puede_correo and not puede_wa:
+        return
+
     from inmobiliaria.views_web import _generar_pdf_formato_aceptacion_bytes
 
     try:
         pdf_bytes = _generar_pdf_formato_aceptacion_bytes(formato)
     except Exception as e:
-        logger.exception("Formato Nº %s: error al generar PDF para notificar: %s", formato.numero_formulario, e)
+        logger.exception(
+            "Formato Nº %s: error al generar PDF para notificar: %s",
+            formato.numero_formulario,
+            e,
+        )
         messages.warning(
             request,
-            "No se pudo generar el PDF para enviar al cliente. Revise los documentos adjuntos y el almacenamiento.",
+            "No se pudo generar el PDF. Revise los documentos adjuntos y el almacenamiento.",
         )
         return
 
-    correo_ok, correo_err = enviar_formato_pdf_por_email(formato, pdf_bytes)
-    to = digitos_telefono_e164_sv(_telefono_destino_formato(formato))
+    correo_ok, correo_err = (False, None)
+    if puede_correo:
+        correo_ok, correo_err = enviar_formato_pdf_por_email(formato, pdf_bytes)
+
     wa_ok = False
     wa_adjunto = False
     wa_detalle: str | None = None
-    if _whatsapp_meta_activo_formato() and to:
+    if puede_wa:
         try:
             from core.whatsapp_cloud import enviar_recibo_whatsapp_cloud
 
@@ -385,52 +402,30 @@ def notificar_formato_pdf_tras_guardado(
     if wa_ok and wa_adjunto:
         partes.append("WhatsApp con PDF")
     elif wa_ok:
-        partes.append("WhatsApp (solo texto; revise configuración si esperaba el PDF)")
+        partes.append("WhatsApp (solo texto)")
+
     if partes:
-        messages.info(
+        messages.success(
             request,
-            "Se notificó al cliente el PDF del formato de aceptación vía: " + ", ".join(partes) + ".",
+            "PDF del formato generado y enviado al cliente vía: " + ", ".join(partes) + ".",
         )
-    else:
-        if not _email_destino_formato(formato) and not to:
-            messages.info(
-                request,
-                "PDF del formato generado correctamente. "
-                "No se envió al cliente porque no hay correo ni teléfono en el formato o cliente vinculado. "
-                "Use «Descargar PDF» o compártalo manualmente.",
-            )
-        elif not _intentara_envio_automatico(formato):
-            messages.info(
-                request,
-                "PDF del formato generado correctamente. "
-                "El envío automático por correo/WhatsApp no está activo o falta el correo del cliente. "
-                "Puede descargarlo con «Descargar PDF».",
-            )
-        elif not correo_ok and not wa_ok:
-            hints: list[str] = []
-            if correo_err:
-                hints.append(f"Correo: {correo_err}")
-            elif _email_destino_formato(formato) and getattr(
-                settings, "FORMATO_ACEPTACION_ENVIAR_EMAIL", True
-            ):
-                hints.append(
-                    "Correo: revise Brevo/SMTP (EMAIL_HOST, credenciales) y el remitente autorizado."
-                )
-            if wa_detalle:
-                hints.append(f"WhatsApp (Meta): {wa_detalle}")
-            elif to and getattr(settings, "WHATSAPP_CLOUD_ENABLED", False):
-                if not _whatsapp_meta_activo_formato():
-                    hints.append(
-                        "WhatsApp: complete WHATSAPP_CLOUD_ACCESS_TOKEN y WHATSAPP_CLOUD_PHONE_NUMBER_ID "
-                        "o desactive WHATSAPP_CLOUD_ENABLED si no usará Meta."
-                    )
-            msg_txt = (
-                "PDF del formato generado; el envío automático al cliente no se completó. "
-                "Revise Brevo/SMTP o WhatsApp Cloud (Meta)."
-            )
-            if hints:
-                msg_txt += " " + " · ".join(hints)
-            messages.warning(request, msg_txt)
+        return
+
+    # PDF generado pero envío falló: no mostrar error rojo al usuario (el guardado ya fue exitoso).
+    logger.warning(
+        "Formato Nº %s: PDF generado pero envío automático falló (correo=%s wa=%s). correo_err=%s wa_detalle=%s",
+        formato.numero_formulario,
+        correo_ok,
+        wa_ok,
+        correo_err,
+        wa_detalle,
+    )
+    messages.info(
+        request,
+        "PDF del formato generado correctamente. "
+        "Puede descargarlo con «Descargar PDF» y compartirlo al cliente "
+        "(correo o WhatsApp manual si el envío automático no aplicó).",
+    )
 
 
 def notificar_promesa_escaneada_tras_subir(
