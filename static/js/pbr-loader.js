@@ -16,6 +16,10 @@
 
   document.body.classList.add("pbr-loader-active");
 
+  var isMobile =
+    document.documentElement.getAttribute("data-pbr-class") === "mobile" ||
+    document.documentElement.getAttribute("data-pbr-view") === "phone";
+
   function setProgress(p) {
     progress = Math.min(100, Math.max(0, p));
     fill.style.width = progress + "%";
@@ -34,9 +38,9 @@
     }, reduce ? 120 : 480);
   }
 
-  if (reduce) {
+  if (reduce || isMobile) {
     setProgress(100);
-    window.setTimeout(finish, 200);
+    window.setTimeout(finish, isMobile ? 280 : 200);
     return;
   }
 

@@ -22,12 +22,13 @@ def _es_ruta_catalogo(request) -> bool:
     return bool(match and getattr(match, "namespace", None) == "catalogo")
 
 
-from core.pbr_icons import PBR_APPLE_TOUCH_SIZES, PBR_ICON_VERSION
+from core.pbr_icons import PBR_APPLE_TOUCH_SIZES, PBR_CACHE_VERSION, PBR_ICON_VERSION
 
 
 def pbr_assets_context(_request):
     return {
         "pbr_icon_v": PBR_ICON_VERSION,
+        "pbr_cache_v": PBR_CACHE_VERSION,
         "pbr_apple_touch_sizes": PBR_APPLE_TOUCH_SIZES,
     }
 

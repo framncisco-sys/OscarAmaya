@@ -11,7 +11,7 @@ from django.urls import include, path, re_path
 from django.views.generic import RedirectView
 from django.views.static import serve
 
-from core.pbr_icons import PBR_ICON_VERSION
+from core.pbr_icons import PBR_CACHE_VERSION, PBR_ICON_VERSION
 from core.views import (
     PortalLoginView,
     admin_legacy_redirect,
@@ -32,7 +32,7 @@ urlpatterns = [
     path(
         "favicon.ico",
         RedirectView.as_view(
-            url=f"/static/icons/pwa-192.png?v={PBR_ICON_VERSION}",
+            url=f"/static/icons/pwa-192.png?v={PBR_CACHE_VERSION}",
             permanent=True,
         ),
     ),

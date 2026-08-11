@@ -12,6 +12,18 @@
   <meta name="apple-mobile-web-app-title" content="Paredes DI">
   <meta name="application-name" content="Paredes DI">
   <meta name="pbr-icon-v" content="{{ pbr_icon_v }}">
+  <meta name="pbr-cache-v" content="{{ pbr_cache_v }}">
+  <style>
+    /* iOS/PWA: contenido visible aunque falle theme.css o el loader */
+    html, body.app-body { background: #eef2f7; color: #0f172a; }
+    html[data-pbr-class="mobile"] body.app-body { min-height: 100%; min-height: -webkit-fill-available; }
+    /* iPhone: nunca bloquear la app con el loader */
+    html[data-pbr-class="mobile"] #pbr-system-loader,
+    html[data-pbr-view="phone"] #pbr-system-loader { display: none !important; }
+    html[data-pbr-class="mobile"] body.pbr-loader-active,
+    html[data-pbr-view="phone"] body.pbr-loader-active { overflow: visible !important; }
+    #pbr-system-loader.pbr-system-loader--done { display: none !important; opacity: 0 !important; visibility: hidden !important; }
+  </style>
   <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/apple-touch-icon.png' %}?v={{ pbr_icon_v }}">
   <link rel="apple-touch-icon" sizes="167x167" href="{% static 'icons/apple-touch-icon-167.png' %}?v={{ pbr_icon_v }}">
   <link rel="apple-touch-icon" sizes="152x152" href="{% static 'icons/apple-touch-icon-152.png' %}?v={{ pbr_icon_v }}">
@@ -69,17 +81,37 @@
     })();
   </script>
   <title>{% block title %}Paredes Bienes Raíces{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'theme.css' %}?v={{ pbr_icon_v }}">
-  <script src="{% static 'js/pbr-viewport.js' %}?v={{ pbr_icon_v }}" defer></script>
-  <script src="{% static 'js/pbr-offline.js' %}?v={{ pbr_icon_v }}" defer></script>
-  <script src="{% static 'js/pbr-loader.js' %}?v={{ pbr_icon_v }}" defer></script>
-  <script src="{% static 'js/pbr-header.js' %}?v={{ pbr_icon_v }}" defer></script>
-  <script src="{% static 'js/pbr-pwa-install.js' %}?v={{ pbr_icon_v }}" defer></script>
+  <link rel="stylesheet" href="{% static 'theme.css' %}?v={{ pbr_cache_v }}">
+  <script src="{% static 'js/pbr-viewport.js' %}?v={{ pbr_cache_v }}" defer></script>
+  <script src="{% static 'js/pbr-offline.js' %}?v={{ pbr_cache_v }}" defer></script>
+  <script src="{% static 'js/pbr-loader.js' %}?v={{ pbr_cache_v }}" defer></script>
+  <script src="{% static 'js/pbr-header.js' %}?v={{ pbr_cache_v }}" defer></script>
+  <script src="{% static 'js/pbr-pwa-install.js' %}?v={{ pbr_cache_v }}" defer></script>
   <link rel="manifest" href="{% url 'pbr_web_manifest' %}">
 </head>
 <body class="{% block body_class %}app-body{% endblock %}">
 {% timezone "America/El_Salvador" %}
   {% include "includes/pbr_system_loader.html" %}
+  <script>
+    /* iPhone: quitar loader al instante (no esperar pbr-loader.js). */
+    (function () {
+      var html = document.documentElement;
+      var mobile =
+        html.getAttribute("data-pbr-class") === "mobile" ||
+        html.getAttribute("data-pbr-view") === "phone";
+      function dismissLoader() {
+        var l = document.getElementById("pbr-system-loader");
+        if (!l || l.classList.contains("pbr-system-loader--done")) return;
+        l.classList.add("pbr-system-loader--done");
+        document.body.classList.remove("pbr-loader-active");
+        window.setTimeout(function () {
+          if (l.parentNode) l.parentNode.removeChild(l);
+        }, mobile ? 40 : 220);
+      }
+      if (mobile) dismissLoader();
+      window.setTimeout(dismissLoader, mobile ? 900 : 3200);
+    })();
+  </script>
   <div id="pbr-offline-bar" class="pbr-offline-bar pbr-offline-bar--offline" role="status" aria-live="polite" hidden>
     Sin conexión. Puede consultar pantallas ya abiertas; para guardar necesitará internet.
   </div>
@@ -163,6 +195,25 @@
   <script>
     (function () {
       var swUrl = "{% url 'pbr_service_worker' %}";
+      var cacheV = "{{ pbr_cache_v }}";
+      try {
+        var prev = localStorage.getItem("pbr_cache_v");
+        if (prev && prev !== cacheV && "serviceWorker" in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            regs.forEach(function (r) {
+              r.unregister();
+            });
+          });
+          if ("caches" in window) {
+            caches.keys().then(function (keys) {
+              keys.forEach(function (k) {
+                if (k.indexOf("pbr-") === 0) caches.delete(k);
+              });
+            });
+          }
+        }
+        localStorage.setItem("pbr_cache_v", cacheV);
+      } catch (e) {}
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker
           .register(swUrl, { scope: "/" })

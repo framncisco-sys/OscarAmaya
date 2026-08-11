@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-# Subir tras cambiar PNG en static/icons/
-PBR_ICON_VERSION = "34"
+# Versión global de caché (CSS, JS, SW, iconos). Subir tras cada despliegue importante.
+PBR_CACHE_VERSION = "35"
+
+# Alias usado por iconos PWA
+PBR_ICON_VERSION = PBR_CACHE_VERSION
 
 # Android / manifest (purpose=any)
 PBR_PWA_SIZES_ANY = (48, 72, 96, 144, 192, 384, 512)
