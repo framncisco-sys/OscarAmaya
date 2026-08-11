@@ -438,11 +438,6 @@ def _generar_pdf_formato_aceptacion_bytes(formato: FormatoAceptacion) -> bytes:
             "formato": formato,
             "formato_qr_src": qr_png_data_uri_formato(formato.numero_formulario),
             "proyecto": proyecto,
-            "razon_social": getattr(
-                settings,
-                "PBR_PROMESA_RAZON_SOCIAL_VENDEDOR",
-                "PAREDES BIENES RAÍCES",
-            ),
             "direccion_empresa": _formato_aceptacion_direccion_impreso(),
             "pie_inmobiliaria": "Formato de aceptación — documento interno",
             "firma_aceptante_src": uri_a,

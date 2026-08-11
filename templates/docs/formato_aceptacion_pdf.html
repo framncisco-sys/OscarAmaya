@@ -1,7 +1,7 @@
 ﻿{% extends "docs/_base_pdf.html" %}
 {% load money_fmt %}
 {% block pdf_brand_captions %}
-{% include "docs/_pdf_brand_captions.html" with razon_social=razon_social pie_inmobiliaria=pie_inmobiliaria %}
+{% include "docs/_pdf_brand_captions.html" with razon_social=empresa_nombre inmobiliaria_kicker="Desarrollos inmobiliarios" pie_inmobiliaria=pie_inmobiliaria %}
 {% endblock %}
 {% block pdf_extra_styles %}
     body { position: relative; }

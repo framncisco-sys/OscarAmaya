@@ -90,10 +90,10 @@ def _intentara_envio_automatico(formato: "FormatoAceptacion") -> bool:
 
 
 def _empresa_nombre() -> str:
-    return (
-        (getattr(settings, "PBR_PROMESA_RAZON_SOCIAL_VENDEDOR", "") or "").strip()
-        or "Paredes Bienes Raíces"
-    )
+    """Formato de aceptación = Paredes Desarrollos Inmobiliarios (no Bienes Raíces)."""
+    from core.marcas import MARCAS, SLUG_DESARROLLOS
+
+    return str(MARCAS[SLUG_DESARROLLOS]["nombre"])
 
 
 def construir_url_whatsapp_promesa_formato(formato: "FormatoAceptacion") -> str | None:

@@ -13,7 +13,7 @@
       {% endif %}
     </td>
     <td class="pdf-brand-cell pdf-brand-cell--inmobiliaria">
-      <p class="pdf-brand-kicker">Inmobiliaria</p>
+      <p class="pdf-brand-kicker">{% firstof inmobiliaria_kicker "Inmobiliaria" %}</p>
       <p class="pdf-brand-name">{% firstof razon_social empresa_nombre "Paredes Desarrollos Inmobiliarios" %}</p>
       {% if emisor_nit %}<p class="pdf-brand-meta"><strong>NIT</strong> {{ emisor_nit }}</p>{% endif %}
       {% if pie_inmobiliaria %}<p class="pdf-brand-meta">{{ pie_inmobiliaria }}</p>{% endif %}
