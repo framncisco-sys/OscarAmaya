@@ -18,31 +18,16 @@
       width: 33.33%;
       text-align: center;
       vertical-align: middle;
-      padding: 4px 8px;
-      height: 96px;
+      padding: 2px 4px;
+      height: 104px;
     }
     .pdf-logo {
-      display: inline-block;
-      vertical-align: middle;
-      width: auto;
+      display: block;
+      margin: 0 auto;
+      width: 320px;
+      height: 100px;
+      max-width: 100%;
       border: 0;
-      object-fit: contain;
-    }
-    .pdf-logo--desarrollos,
-    .pdf-logo--bienes,
-    .pdf-logo--empresa,
-    .pdf-logo--proyecto,
-    .pdf-logo--pbr-br {
-      height: 72px;
-      max-height: 72px;
-      width: auto;
-      max-width: 220px;
-      object-fit: contain;
-    }
-    .pdf-logo--proyecto {
-      height: 78px;
-      max-height: 78px;
-      max-width: 240px;
     }
     .pdf-brand-captions { width: 100%; border-collapse: collapse; margin-top: 4px; }
     .pdf-brand-captions .pdf-brand-cell {
@@ -95,13 +80,13 @@
     <table class="pdf-header-logos">
       <tr>
         <td>
-          <img src="{% firstof logo_desarrollos_src empresa_logo_src 'logo_paredes_desarrollos.png' %}" alt="Paredes Desarrollos Inmobiliarios" class="pdf-logo pdf-logo--desarrollos">
+          <img src="{% firstof logo_desarrollos_src empresa_logo_src 'logo_paredes_desarrollos.png' %}" alt="Paredes Desarrollos Inmobiliarios" class="pdf-logo" width="{% firstof pdf_header_logo_width 320 %}" height="{% firstof pdf_header_logo_height 100 %}">
         </td>
         <td>
-          <img src="{% firstof proyecto_logo_src 'logo_valle_alegre.png' %}" alt="{% firstof proyecto_nombre 'Proyecto' %}" class="pdf-logo pdf-logo--proyecto">
+          <img src="{% firstof proyecto_logo_src 'logo_valle_alegre.png' %}" alt="{% firstof proyecto_nombre 'Proyecto' %}" class="pdf-logo" width="{% firstof pdf_header_logo_width 320 %}" height="{% firstof pdf_header_logo_height 100 %}">
         </td>
         <td>
-          <img src="{% firstof logo_bienes_src 'logo_paredes_bienes_raices.png' %}" alt="Paredes Bienes Raíces" class="pdf-logo pdf-logo--bienes">
+          <img src="{% firstof logo_bienes_src 'logo_paredes_bienes_raices.png' %}" alt="Paredes Bienes Raíces" class="pdf-logo" width="{% firstof pdf_header_logo_width 320 %}" height="{% firstof pdf_header_logo_height 100 %}">
         </td>
       </tr>
     </table>

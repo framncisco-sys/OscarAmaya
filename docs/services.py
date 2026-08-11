@@ -182,6 +182,115 @@ def _proyecto_logo_src_para_pdf(proyecto) -> str:
     return "logo_valle_alegre.png"
 
 
+PDF_HEADER_LOGO_WIDTH = 320
+PDF_HEADER_LOGO_HEIGHT = 100
+
+
+def _logo_content_bbox_rgba(
+    img, *, white: int = 248, alpha_floor: int = 28
+) -> tuple[int, int, int, int] | None:
+    """Recorta márgenes casi blancos / transparentes alrededor del logo."""
+    w, h = img.size
+    raw = img.tobytes()
+    left, top, right, bottom = w, h, -1, -1
+    for y in range(h):
+        row = y * w * 4
+        for x in range(w):
+            i = row + x * 4
+            r, g, b, a = raw[i], raw[i + 1], raw[i + 2], raw[i + 3]
+            if a < alpha_floor:
+                continue
+            if r > white and g > white and b > white:
+                continue
+            if left > x:
+                left = x
+            if right < x:
+                right = x
+            if top > y:
+                top = y
+            if bottom < y:
+                bottom = y
+    if right < 0:
+        return None
+    return (left, top, right + 1, bottom + 1)
+
+
+def _path_desde_logo_src(src: str | Path | None) -> Path | None:
+    if src is None:
+        return None
+    if isinstance(src, Path):
+        return src if src.is_file() else None
+    raw = str(src).strip()
+    if not raw:
+        return None
+    if raw.lower().startswith("file:"):
+        parsed = urlparse(raw)
+        path = unquote(parsed.path)
+        if os.name == "nt" and path.startswith("/") and len(path) > 2 and path[2] == ":":
+            path = path[1:]
+        p = Path(path)
+        return p if p.is_file() else None
+    found = finders.find(raw)
+    if found:
+        p = Path(found)
+        return p if p.is_file() else None
+    p = Path(settings.BASE_DIR) / "static" / raw
+    return p if p.is_file() else None
+
+
+def _logo_en_caja_para_pdf(
+    src: str | Path | None,
+    *,
+    ancho: int = PDF_HEADER_LOGO_WIDTH,
+    alto: int = PDF_HEADER_LOGO_HEIGHT,
+) -> str:
+    """
+    Escala el logo para llenar una caja fija (mismo tamaño visual en cabecera PDF).
+    Recorta márgenes blancos, centra en canvas transparente y cachea en disco.
+    """
+    path = _path_desde_logo_src(src)
+    if path is None:
+        return str(src or "")
+    try:
+        from PIL import Image
+
+        cache_dir = Path(tempfile.gettempdir()) / "pbr-pdf-logos"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            mtime = path.stat().st_mtime_ns
+        except OSError:
+            mtime = 0
+        key = hashlib.sha256(
+            f"{path.resolve()}:{mtime}:{ancho}x{alto}".encode("utf-8", errors="replace")
+        ).hexdigest()[:28]
+        out = cache_dir / f"hdr_{key}.png"
+        if out.is_file():
+            return out.as_uri()
+
+        img = Image.open(path).convert("RGBA")
+        bbox = _logo_content_bbox_rgba(img)
+        if bbox:
+            pad = 4
+            left = max(0, bbox[0] - pad)
+            top = max(0, bbox[1] - pad)
+            right = min(img.width, bbox[2] + pad)
+            bottom = min(img.height, bbox[3] + pad)
+            img = img.crop((left, top, right, bottom))
+        w, h = img.size
+        if w < 1 or h < 1:
+            return path.as_uri()
+        scale = min(ancho / w, alto / h)
+        nw, nh = max(1, int(w * scale)), max(1, int(h * scale))
+        img = img.resize((nw, nh), Image.Resampling.LANCZOS)
+        canvas = Image.new("RGBA", (ancho, alto), (255, 255, 255, 0))
+        canvas.paste(img, ((ancho - nw) // 2, (alto - nh) // 2), img)
+        canvas.save(out, format="PNG", optimize=True)
+        return out.as_uri()
+    except Exception:
+        logger.exception("No se pudo normalizar logo PDF: %s", path)
+        return path.as_uri()
+
+
 def _watermark_faded_src(proyecto, *, opacity: float = 0.11) -> str:
     """
     Marca de agua atenuada (PNG con alfa).
@@ -241,15 +350,19 @@ def branding_pdf_context(proyecto=None, *, empresa_default: str = "desarrollos")
     des = MARCAS[SLUG_DESARROLLOS]
     br = MARCAS[SLUG_BIENES_RAICES]
     empresa_logo, empresa_nombre = _branding_empresa_pdf(default_slug=empresa_default)
-    proy_logo = _proyecto_logo_src_para_pdf(proyecto)
+    proy_path = _proyecto_logo_path(proyecto)
+    proy_logo_raw = proy_path.as_uri() if proy_path is not None else "logo_valle_alegre.png"
+    slot = dict(ancho=PDF_HEADER_LOGO_WIDTH, alto=PDF_HEADER_LOGO_HEIGHT)
     return {
-        "logo_desarrollos_src": str(des["logo"]),
-        "logo_bienes_src": str(br["logo"]),
-        "empresa_logo_src": "logo_paredes_desarrollos.png",
+        "logo_desarrollos_src": _logo_en_caja_para_pdf(str(des["logo"]), **slot),
+        "logo_bienes_src": _logo_en_caja_para_pdf(str(br["logo"]), **slot),
+        "empresa_logo_src": _logo_en_caja_para_pdf("logo_paredes_desarrollos.png", **slot),
         "empresa_logo_alt": str(des["nombre"]),
         "empresa_nombre": str(des["nombre"]),
         "razon_social_desarrollos": "Paredes Desarrollos Inmobiliarios, S.A.S. de C.V.",
-        "proyecto_logo_src": proy_logo,
+        "proyecto_logo_src": _logo_en_caja_para_pdf(proy_logo_raw, **slot),
+        "pdf_header_logo_width": PDF_HEADER_LOGO_WIDTH,
+        "pdf_header_logo_height": PDF_HEADER_LOGO_HEIGHT,
         # Sombra atenuada (solo para recibo / fondo). No usar como logo de cabecera.
         "watermark_logo_src": _watermark_faded_src(proyecto, opacity=0.18),
         "proyecto_nombre": (proyecto.nombre if proyecto is not None else "") or "",
