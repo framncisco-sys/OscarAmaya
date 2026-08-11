@@ -976,12 +976,45 @@
         return out;
       }
 
+      function syncCamposAntesDeGuardar() {
+        if (window.PbrTelIntl && typeof window.PbrTelIntl.format === "function") {
+          formEl.querySelectorAll('input[data-tel-intl="1"]').forEach(function (el) {
+            if (!el.disabled && !el.readOnly) window.PbrTelIntl.format(el);
+          });
+        }
+        formEl.querySelectorAll(".input-monto-us, .input-numero-us").forEach(function (el) {
+          if (!el.disabled && !el.readOnly && el.value) {
+            el.dispatchEvent(new Event("blur", { bubbles: true }));
+          }
+        });
+        if (mapOk && selLote && selLote.value) {
+          var Lsync = porId[String(selLote.value)];
+          if (Lsync) {
+            if (hidLote) hidLote.value = Lsync.codigo_display || Lsync.codigo || "";
+            if (hidPol) hidPol.value = Lsync.poligono_nombre || "";
+          }
+        } else if (mapOk && selPol && selPol.value && hidPol && !String(hidPol.value || "").trim()) {
+          var optPol = selPol.selectedOptions && selPol.selectedOptions[0];
+          if (optPol) hidPol.value = (optPol.textContent || "").trim();
+        }
+      }
+
+      function marcarInvalido(el) {
+        if (!el) return;
+        var field = el.closest(".field") || el.closest(".formato-papel__serie-field");
+        if (field) field.classList.add("field--invalid");
+      }
+
       formEl.addEventListener("submit", function (ev) {
         var alerta = document.getElementById("formato-guardar-alerta");
+        formEl.querySelectorAll(".field--invalid").forEach(function (node) {
+          node.classList.remove("field--invalid");
+        });
         if (alerta) {
           alerta.hidden = true;
           alerta.textContent = "";
         }
+        syncCamposAntesDeGuardar();
         // Los campos disabled no viajan en el POST; reactivar antes de guardar.
         setPlazosCamposEnabled(true);
         if (plazo && numCuota) {
@@ -997,11 +1030,64 @@
           if (numCuota) numCuota.value = "";
           if (interes) interes.value = "";
         }
+        var elaborado = document.getElementById("id_elaborado_por");
+        if (elaborado && elaborado.required && !String(elaborado.value || "").trim()) {
+          ev.preventDefault();
+          marcarInvalido(elaborado);
+          elaborado.scrollIntoView({ behavior: "smooth", block: "center" });
+          try {
+            elaborado.focus({ preventScroll: true });
+          } catch (eLab) {
+            elaborado.focus();
+          }
+          if (alerta) {
+            alerta.hidden = false;
+            alerta.innerHTML =
+              "<strong>No se guardó.</strong> Seleccione el asesor de ventas (Elaborado por).";
+          }
+          return;
+        }
+        if (!esContado()) {
+          if (plazo && !String(plazo.value || "").trim()) {
+            ev.preventDefault();
+            marcarInvalido(plazo);
+            plazo.scrollIntoView({ behavior: "smooth", block: "center" });
+            try {
+              plazo.focus({ preventScroll: true });
+            } catch (ePl) {
+              plazo.focus();
+            }
+            if (alerta) {
+              alerta.hidden = false;
+              alerta.innerHTML =
+                "<strong>No se guardó.</strong> Elija el plazo (años) del financiamiento.";
+            }
+            return;
+          }
+          var letraVal = parseMoney(letra);
+          if (!letraVal || letraVal <= 0) {
+            ev.preventDefault();
+            marcarInvalido(letra);
+            if (letra) letra.scrollIntoView({ behavior: "smooth", block: "center" });
+            try {
+              if (letra) letra.focus({ preventScroll: true });
+            } catch (eLt) {
+              if (letra) letra.focus();
+            }
+            if (alerta) {
+              alerta.hidden = false;
+              alerta.innerHTML =
+                "<strong>No se guardó.</strong> Escriba la cuota de los meses 1–12 (sin interés).";
+            }
+            return;
+          }
+        }
         formEl.checkValidity();
         var invalidos = camposInvalidos(formEl);
         if (invalidos.length) {
           ev.preventDefault();
           var primero = invalidos[0].el;
+          marcarInvalido(primero);
           primero.scrollIntoView({ behavior: "smooth", block: "center" });
           try {
             primero.focus({ preventScroll: true });

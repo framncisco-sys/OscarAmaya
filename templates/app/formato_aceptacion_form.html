@@ -231,6 +231,23 @@
   .formato-guardar-alerta:not([hidden]) {
     display: block;
   }
+  .formato-guardar-alerta__lista {
+    margin: 0.45rem 0 0;
+    padding-left: 1.15rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+  .formato-guardar-alerta__lista li {
+    margin: 0.2rem 0;
+  }
+  #formato-aceptacion-form .field--invalid,
+  #formato-aceptacion-form .formato-papel__serie-field.field--invalid {
+    border-radius: 8px;
+    outline: 2px solid #b91c1c;
+    outline-offset: 2px;
+    padding: 0.35rem;
+    margin: -0.35rem;
+  }
   html[data-pbr-class="mobile"] .formato-guardar-alerta:not([hidden]) {
     position: sticky;
     top: 0.35rem;
@@ -600,7 +617,19 @@
   </article>
 
   <div id="formato-guardar-alerta" class="formato-guardar-alerta" role="alert"{% if not form.errors %} hidden{% endif %}>
-    {% if form.errors %}No se guardó. Revise los campos marcados en rojo (nombre, Nº formulario, asesor, etc.).{% endif %}
+    {% if form.errors %}
+    <strong>No se guardó.</strong> Corrija lo siguiente:
+    <ul class="formato-guardar-alerta__lista">
+      {% for field in form %}
+        {% for error in field.errors %}
+        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+        {% endfor %}
+      {% endfor %}
+      {% for error in form.non_field_errors %}
+      <li>{{ error }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
   </div>
   <div class="form-actions">
     <button type="submit" class="btn-primary" id="formato-guardar-btn">Guardar</button>
@@ -618,14 +647,15 @@
   document.addEventListener("DOMContentLoaded", function () {
     var form = document.getElementById("formato-aceptacion-form");
     if (!form) return;
-    var err =
-      form.querySelector(".field__error") ||
-      form.querySelector(".alert[role=alert]");
-    if (err) {
-      window.setTimeout(function () {
-        err.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 120);
-    }
+    var errs = form.querySelectorAll(".field__error");
+    if (!errs.length) return;
+    errs.forEach(function (el) {
+      var field = el.closest(".field") || el.closest(".formato-papel__serie-field");
+      if (field) field.classList.add("field--invalid");
+    });
+    window.setTimeout(function () {
+      errs[0].scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 180);
   });
 })();
 (function () {
