@@ -378,6 +378,31 @@ def _formato_editar_acceso_permitido(request: HttpRequest) -> bool:
     )
 
 
+def _formato_aceptacion_tras_guardado_inventario(
+    request: HttpRequest, formato: FormatoAceptacion
+) -> None:
+    """Vincula contrato y aparta el lote en inventario al guardar el formato."""
+    from inmobiliaria.formato_reserva import (
+        aplicar_reserva_lote_desde_formato,
+        vincular_contrato_desde_formato_si_falta,
+    )
+
+    try:
+        vincular_contrato_desde_formato_si_falta(formato)
+        if aplicar_reserva_lote_desde_formato(formato):
+            lote = (formato.num_lote or "").strip() or "—"
+            messages.info(
+                request,
+                f"Lote {lote} marcado en reserva en el inventario "
+                f"(ya no aparece como disponible para otros asesores).",
+            )
+    except Exception:
+        logger.exception(
+            "Reserva de inventario tras guardar formato pk=%s",
+            getattr(formato, "pk", None),
+        )
+
+
 def _formato_aceptacion_tras_guardado_notificar(
     request: HttpRequest, formato: FormatoAceptacion, prev_firmas_completas: bool
 ) -> None:
@@ -2320,6 +2345,7 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
                 "Si es Contado → paso 2 (recibo total). "
                 "Si es a plazos → 3 reserva → 4 prima → 5 plan → 6 cuotas.",
             )
+        _formato_aceptacion_tras_guardado_inventario(self.request, self.object)
         _formato_aceptacion_tras_guardado_notificar(self.request, self.object, prev_firmas)
         return response
 
@@ -2420,6 +2446,7 @@ class FormatoAceptacionUpdateView(
             )
         else:
             messages.success(self.request, "Cambios guardados.")
+        _formato_aceptacion_tras_guardado_inventario(self.request, self.object)
         _formato_aceptacion_tras_guardado_notificar(self.request, self.object, prev_firmas)
         return response
 

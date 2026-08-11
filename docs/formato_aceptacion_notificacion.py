@@ -41,8 +41,50 @@ def _telefono_destino_formato(formato: "FormatoAceptacion") -> str:
 def _email_destino_formato(formato: "FormatoAceptacion") -> str:
     c = formato.contrato
     if c is not None and c.cliente_id:
-        return (getattr(c.cliente, "email", None) or "").strip()
+        em = (getattr(c.cliente, "email", None) or "").strip()
+        if em:
+            return em
+    from inmobiliaria.credito_contrato import _norm_dui, _norm_nombre
+    from inmobiliaria.models import Cliente
+
+    dui = _norm_dui(formato.dui_numero)
+    if dui:
+        for cli in Cliente.objects.exclude(email="").only("dui", "email")[:800]:
+            if _norm_dui(cli.dui) == dui and (cli.email or "").strip():
+                return cli.email.strip()
+    nombre = _norm_nombre(formato.nombre_cliente)
+    if nombre:
+        for cli in Cliente.objects.exclude(email="").only(
+            "nombres", "apellidos", "email"
+        )[:800]:
+            cn = _norm_nombre(f"{cli.nombres or ''} {cli.apellidos or ''}")
+            if cn == nombre and (cli.email or "").strip():
+                return cli.email.strip()
     return ""
+
+
+def _correo_configurado() -> bool:
+    if getattr(settings, "BREVO_API_KEY", "").strip():
+        return True
+    backend = (getattr(settings, "EMAIL_BACKEND", "") or "").lower()
+    if "console" in backend or "locmem" in backend or "dummy" in backend:
+        return False
+    return bool((getattr(settings, "EMAIL_HOST", "") or "").strip())
+
+
+def _intentara_envio_automatico(formato: "FormatoAceptacion") -> bool:
+    """True si hay destino y canal configurado (correo o WhatsApp Meta)."""
+    if not getattr(settings, "FORMATO_ACEPTACION_ENVIAR_AL_GUARDAR", True):
+        return False
+    tiene_email = bool(_email_destino_formato(formato)) and getattr(
+        settings, "FORMATO_ACEPTACION_ENVIAR_EMAIL", True
+    )
+    tiene_tel = bool(digitos_telefono_e164_sv(_telefono_destino_formato(formato)))
+    if tiene_email and _correo_configurado():
+        return True
+    if tiene_tel and _whatsapp_meta_activo_formato():
+        return True
+    return False
 
 
 def _empresa_nombre() -> str:
@@ -353,7 +395,16 @@ def notificar_formato_pdf_tras_guardado(
         if not _email_destino_formato(formato) and not to:
             messages.info(
                 request,
-                "PDF del formato listo; no se envió al cliente (sin correo ni teléfono registrados en contrato o formato).",
+                "PDF del formato generado correctamente. "
+                "No se envió al cliente porque no hay correo ni teléfono en el formato o cliente vinculado. "
+                "Use «Descargar PDF» o compártalo manualmente.",
+            )
+        elif not _intentara_envio_automatico(formato):
+            messages.info(
+                request,
+                "PDF del formato generado correctamente. "
+                "El envío automático por correo/WhatsApp no está activo o falta el correo del cliente. "
+                "Puede descargarlo con «Descargar PDF».",
             )
         elif not correo_ok and not wa_ok:
             hints: list[str] = []
@@ -363,7 +414,7 @@ def notificar_formato_pdf_tras_guardado(
                 settings, "FORMATO_ACEPTACION_ENVIAR_EMAIL", True
             ):
                 hints.append(
-                    "Correo: revise SMTP (EMAIL_HOST, puerto, TLS) y credenciales de la cuenta remitente."
+                    "Correo: revise Brevo/SMTP (EMAIL_HOST, credenciales) y el remitente autorizado."
                 )
             if wa_detalle:
                 hints.append(f"WhatsApp (Meta): {wa_detalle}")
@@ -374,8 +425,8 @@ def notificar_formato_pdf_tras_guardado(
                         "o desactive WHATSAPP_CLOUD_ENABLED si no usará Meta."
                     )
             msg_txt = (
-                "PDF del formato generado; el envío automático no se completó. "
-                "Revise SMTP y WhatsApp Cloud (Meta)."
+                "PDF del formato generado; el envío automático al cliente no se completó. "
+                "Revise Brevo/SMTP o WhatsApp Cloud (Meta)."
             )
             if hints:
                 msg_txt += " " + " · ".join(hints)
