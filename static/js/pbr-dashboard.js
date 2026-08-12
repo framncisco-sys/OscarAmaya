@@ -236,6 +236,54 @@
     });
   }
 
+  function setupStatChartHover(chart, data) {
+    if (!chart || !data || !data.estado) return;
+    var keyByClass = {
+      "dash-stat--ok": "DISPONIBLE",
+      "dash-stat--warn": "RESERVADO",
+      "dash-stat--sold": "VENDIDO",
+    };
+    var stats = document.querySelectorAll(".dash-stat");
+    if (!stats.length) return;
+
+    function indexForStat(el) {
+      var key = null;
+      Object.keys(keyByClass).forEach(function (cls) {
+        if (el.classList.contains(cls)) key = keyByClass[cls];
+      });
+      if (!key) return -1;
+      for (var i = 0; i < data.estado.length; i++) {
+        if (data.estado[i].key === key) return i;
+      }
+      return -1;
+    }
+
+    function clearActive() {
+      chart.setActiveElements([]);
+      chart.update();
+      stats.forEach(function (s) {
+        s.classList.remove("is-chart-active");
+      });
+    }
+
+    stats.forEach(function (stat) {
+      stat.addEventListener("mouseenter", function () {
+        var idx = indexForStat(stat);
+        if (idx < 0) return;
+        chart.setActiveElements([{ datasetIndex: 0, index: idx }]);
+        chart.update();
+        stats.forEach(function (s) {
+          s.classList.toggle("is-chart-active", s === stat);
+        });
+      });
+      stat.addEventListener("focus", function () {
+        stat.dispatchEvent(new Event("mouseenter"));
+      });
+    });
+
+    document.querySelector(".dash-stats")?.addEventListener("mouseleave", clearActive);
+  }
+
   function init() {
     if (!document.querySelector(".dash--v2")) return;
     setupKpiCounters();
@@ -245,8 +293,9 @@
 
     var estadoCanvas = document.getElementById("pbr-dash-chart-estado");
     var poligonoCanvas = document.getElementById("pbr-dash-chart-poligono");
-    buildEstadoChart(estadoCanvas, data);
+    var estadoChart = buildEstadoChart(estadoCanvas, data);
     buildPoligonoChart(poligonoCanvas, data);
+    setupStatChartHover(estadoChart, data);
 
     var centerTotal = document.getElementById("pbr-dash-chart-center");
     if (centerTotal && data.totales) {

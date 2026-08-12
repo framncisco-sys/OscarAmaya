@@ -1053,6 +1053,10 @@ class InmuebleLoteListView(AppLoginRequiredMixin, ListView):
         pid = (self.request.GET.get("proyecto") or "").strip()
         if pid.isdigit():
             qs = qs.filter(proyecto_id=int(pid))
+        estado = (self.request.GET.get("estado") or "").strip().upper()
+        estados_validos = {e.value for e in Inmueble.Estado}
+        if estado in estados_validos:
+            qs = qs.filter(estado=estado)
         return qs
 
     def get_context_data(self, **kwargs):
@@ -1068,6 +1072,7 @@ class InmuebleLoteListView(AppLoginRequiredMixin, ListView):
             ctx["listado_meta"] = "Lotes y locales comerciales por proyecto y polígono (sin casas)."
             ctx["nuevo_boton_label"] = "Nuevo lote o local"
         pid = (self.request.GET.get("proyecto") or "").strip()
+        proy = None
         if pid.isdigit():
             proy = Proyecto.objects.filter(pk=int(pid)).first()
             if proy:
@@ -1076,6 +1081,20 @@ class InmuebleLoteListView(AppLoginRequiredMixin, ListView):
                     f"Inventario del proyecto activo «{proy.nombre}» "
                     "(disponibles, reserva y pagados)."
                 )
+        estado = (self.request.GET.get("estado") or "").strip().upper()
+        estados_validos = {e.value for e in Inmueble.Estado}
+        if estado in estados_validos:
+            ctx["filtro_estado"] = estado
+            ctx["filtro_estado_label"] = Inmueble.Estado(estado).label
+            if pid.isdigit() and proy:
+                ctx["listado_page_title"] = f"{Inmueble.Estado(estado).label} · {proy.nombre}"
+            else:
+                ctx["listado_page_title"] = f"Lotes · {Inmueble.Estado(estado).label}"
+            ctx["listado_meta"] = (
+                f"Solo lotes con estado «{Inmueble.Estado(estado).label}»."
+            )
+        else:
+            ctx["filtro_estado"] = ""
         ctx["nuevo_url"] = reverse("app:inmueble_create")
         ctx["es_listado_casas"] = False
         return ctx

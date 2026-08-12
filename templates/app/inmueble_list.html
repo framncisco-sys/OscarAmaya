@@ -8,6 +8,9 @@
     <p class="page-toolbar__meta">{{ listado_meta|default:"Inventario por proyecto y polígono." }}</p>
   </div>
   <div class="page-toolbar__actions">
+    {% if filtro_estado %}
+    <a href="{% url 'app:inmueble_list' %}{% if request.GET.proyecto %}?proyecto={{ request.GET.proyecto }}{% endif %}" class="btn-secondary btn-sm">Quitar filtro</a>
+    {% endif %}
     <a href="{{ nuevo_url }}" class="btn-primary btn-sm">{{ nuevo_boton_label|default:"Nuevo" }}</a>
   </div>
 </header>

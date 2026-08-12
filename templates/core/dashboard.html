@@ -19,15 +19,52 @@
       <p class="dash-meta muted">
         Actualizado {{ dashboard_actualizado|date:"d/m/Y H:i" }}
       </p>
-      {% if total_inventario_venta %}
-      <div class="dash-pills" aria-label="Resumen rápido">
-        <span class="dash-pill dash-pill--ok"><strong data-dash-count="{{ disponibles }}">{{ disponibles }}</strong> disp.</span>
-        <span class="dash-pill dash-pill--warn"><strong data-dash-count="{{ reservados }}">{{ reservados }}</strong> res.</span>
-        <span class="dash-pill dash-pill--sold"><strong data-dash-count="{{ vendidos }}">{{ vendidos }}</strong> pag.</span>
-      </div>
-      {% endif %}
     </div>
   </header>
+
+  {% if total_inventario_venta %}
+  {% widthratio disponibles total_inventario_venta 100 as pct_disponibles %}
+  {% widthratio reservados total_inventario_venta 100 as pct_reservados %}
+  {% widthratio vendidos total_inventario_venta 100 as pct_vendidos %}
+  <section class="dash-stats" aria-label="Resumen de inventario">
+    <a href="{% url 'app:inmueble_list' %}?estado=DISPONIBLE" class="dash-stat dash-stat--ok" title="Ver lotes disponibles">
+      <span class="dash-stat__icon" aria-hidden="true">{% pbr_icon "check" size="lg" %}</span>
+      <span class="dash-stat__body">
+        <strong class="dash-stat__n" data-dash-count="{{ disponibles }}">{{ disponibles }}</strong>
+        <span class="dash-stat__label">Disponibles</span>
+        <span class="dash-stat__hint">Clic para ver listado</span>
+      </span>
+      <span class="dash-stat__side">
+        <span class="dash-stat__pct">{{ pct_disponibles }}%</span>
+        <span class="dash-stat__arrow" aria-hidden="true">→</span>
+      </span>
+    </a>
+    <a href="{% url 'app:inmueble_list' %}?estado=RESERVADO" class="dash-stat dash-stat--warn" title="Ver lotes reservados">
+      <span class="dash-stat__icon" aria-hidden="true">{% pbr_icon "clock" size="lg" %}</span>
+      <span class="dash-stat__body">
+        <strong class="dash-stat__n" data-dash-count="{{ reservados }}">{{ reservados }}</strong>
+        <span class="dash-stat__label">Reservados</span>
+        <span class="dash-stat__hint">Apartados activos</span>
+      </span>
+      <span class="dash-stat__side">
+        <span class="dash-stat__pct">{{ pct_reservados }}%</span>
+        <span class="dash-stat__arrow" aria-hidden="true">→</span>
+      </span>
+    </a>
+    <a href="{% url 'app:inmueble_list' %}?estado=VENDIDO" class="dash-stat dash-stat--sold" title="Ver lotes pagados totalmente">
+      <span class="dash-stat__icon" aria-hidden="true">{% pbr_icon "home" size="lg" %}</span>
+      <span class="dash-stat__body">
+        <strong class="dash-stat__n" data-dash-count="{{ vendidos }}">{{ vendidos }}</strong>
+        <span class="dash-stat__label">Pagados</span>
+        <span class="dash-stat__hint">Contado o liquidados</span>
+      </span>
+      <span class="dash-stat__side">
+        <span class="dash-stat__pct">{{ pct_vendidos }}%</span>
+        <span class="dash-stat__arrow" aria-hidden="true">→</span>
+      </span>
+    </a>
+  </section>
+  {% endif %}
 
   <section class="grid-kpis dash-kpis dash-kpis--v2" aria-label="Indicadores">
     <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:proyecto_list' %}">
