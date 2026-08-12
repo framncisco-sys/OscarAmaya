@@ -8962,3 +8962,281 @@ html[data-pbr-class="mobile"] .app-sidebar--v3 .app-sidebar__modules {
   color: var(--pbr-accent);
 }
 
+/* ——— Sesión v2 (pie del sidebar oscuro) ——— */
+.app-sidebar__session--v2 {
+  margin-top: 0.15rem;
+}
+
+.app-sidebar__session--v2 .app-sidebar__session-card {
+  padding: 0.65rem 0.6rem 0.55rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.app-sidebar__session--v2 .app-sidebar__session-card:hover {
+  transform: none;
+  border-color: rgba(96, 165, 250, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.app-sidebar__session-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.55rem;
+}
+
+.app-sidebar__session--v2 .app-sidebar__session-avatar {
+  width: 2.35rem;
+  height: 2.35rem;
+  font-size: 0.88rem;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+}
+
+.app-sidebar__session--v2 .app-sidebar__session-avatar-dot {
+  border-color: #1e293b;
+  width: 0.55rem;
+  height: 0.55rem;
+}
+
+.app-sidebar__session-identity {
+  min-width: 0;
+  flex: 1;
+}
+
+.app-sidebar__session--v2 .app-sidebar__session-name {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #f8fafc;
+  line-height: 1.25;
+}
+
+.app-sidebar__session--v2 .app-sidebar__session-login {
+  margin: 0.05rem 0 0;
+  font-size: 0.66rem;
+  color: #64748b;
+}
+
+.app-sidebar__session-role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.28rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.2);
+}
+
+.app-sidebar__session-role-pill::before {
+  content: "";
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+}
+
+.app-sidebar__session-role-pill--admin {
+  color: #c4b5fd;
+  background: rgba(124, 58, 237, 0.15);
+  border-color: rgba(167, 139, 250, 0.25);
+}
+
+.app-sidebar__session-org {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.app-sidebar__session-org--compact {
+  margin-bottom: 0.45rem;
+  padding: 0.38rem 0.45rem;
+}
+
+.app-sidebar__session-org-logo {
+  width: 1.85rem;
+  height: 1.85rem;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0.12rem;
+}
+
+.app-sidebar__session-org-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #93c5fd;
+}
+
+.app-sidebar__session-org-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.06rem;
+}
+
+.app-sidebar__session-org-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.app-sidebar__session-org-text strong {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-sidebar__session-org-note {
+  font-size: 0.62rem;
+  color: #64748b;
+}
+
+.app-sidebar__session-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.app-sidebar__session--v2 .app-sidebar__session-logout {
+  margin: 0;
+}
+
+.app-sidebar__session-link {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.42rem 0.48rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  color: #cbd5e1;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  line-height: 1.2;
+  text-align: left;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.app-sidebar__session-link .pbr-icon,
+.app-sidebar__session-link svg {
+  flex-shrink: 0;
+  color: #94a3b8;
+  transition: color 0.14s ease;
+}
+
+.app-sidebar__session-link span {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-sidebar__session-link:hover {
+  background: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.28);
+  color: #f1f5f9;
+  transform: none;
+  box-shadow: none;
+}
+
+.app-sidebar__session-link:hover .pbr-icon,
+.app-sidebar__session-link:hover svg {
+  color: #93c5fd;
+}
+
+.app-sidebar__session-link--secure {
+  border-color: rgba(148, 163, 184, 0.08);
+}
+
+.app-sidebar__session-link--danger {
+  margin-top: 0.12rem;
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.15);
+  background: rgba(248, 113, 113, 0.06);
+}
+
+.app-sidebar__session-link--danger .pbr-icon,
+.app-sidebar__session-link--danger svg {
+  color: #f87171;
+}
+
+.app-sidebar__session-link--danger:hover {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #fecaca;
+}
+
+.app-sidebar__session-link--danger:hover svg {
+  color: #fca5a5;
+}
+
+/* Sidebar claro (sin --dark): sesión v2 legible */
+.app-sidebar:not(.app-sidebar--dark) .app-sidebar__session--v2 .app-sidebar__session-card {
+  background: linear-gradient(165deg, #fff 0%, #f8fafc 100%);
+  border-color: rgba(0, 51, 102, 0.1);
+}
+
+.app-sidebar:not(.app-sidebar--dark) .app-sidebar__session--v2 .app-sidebar__session-name {
+  color: var(--pbr-text);
+}
+
+.app-sidebar:not(.app-sidebar--dark) .app-sidebar__session-link {
+  background: #fff;
+  border-color: rgba(0, 51, 102, 0.12);
+  color: var(--pbr-text);
+}
+
+.app-sidebar:not(.app-sidebar--dark) .app-sidebar__session-link:hover {
+  background: var(--pbr-accent-soft);
+  border-color: rgba(0, 51, 102, 0.2);
+  color: var(--pbr-accent);
+}
+
+.app-sidebar:not(.app-sidebar--dark) .app-sidebar__session-org {
+  background: rgba(0, 51, 102, 0.04);
+  border-color: rgba(0, 51, 102, 0.1);
+}
+
+.app-sidebar:not(.app-sidebar--dark) .app-sidebar__session-org-text strong {
+  color: var(--pbr-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar__session-link {
+    transition: none !important;
+  }
+}
+
