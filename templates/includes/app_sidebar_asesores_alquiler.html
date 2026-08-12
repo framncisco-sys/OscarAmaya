@@ -1,28 +1,24 @@
-﻿{% if sidebar_nav and puede_gestionar_vendedores_app %}
-<section class="app-sidebar__hub app-sidebar__hub--asesores-alquiler{% if sidebar_nav.asesores_alquiler_active %} app-sidebar__hub--active{% endif %}" aria-label="Asesores de alquiler" data-pbr-sidebar-hub>
-  <header class="app-sidebar__hub-head">
-    <span class="app-sidebar__hub-badge app-sidebar__hub-badge--asesores-alquiler" aria-hidden="true">🔑</span>
-    <div class="app-sidebar__hub-titles">
-      <span class="app-sidebar__hub-title">Asesores alquiler</span>
-      <span class="app-sidebar__hub-sub">Arrendamientos · comisiones</span>
-    </div>
-  </header>
-
-  <div class="app-sidebar__hub-body">
-    <a href="{% url 'app:asesor_alquiler_list' %}" class="app-sidebar__quick app-sidebar__quick--solo{% if sidebar_nav.asesor_alquiler_list_active %} is-active{% endif %}"{% if sidebar_nav.asesor_alquiler_list_active %} aria-current="page"{% endif %}>
-      <span class="app-sidebar__quick-icon" aria-hidden="true">📋</span>
-      <span class="app-sidebar__quick-text">
-        <strong>Catálogo de asesores</strong>
-        <small>Independiente de Asesores de ventas de proyectos{% if sidebar_stats.asesores_alquiler %} · {{ sidebar_stats.asesores_alquiler }} activo{{ sidebar_stats.asesores_alquiler|pluralize }}{% endif %}</small>
-      </span>
-    </a>
-    <a href="{% url 'app:asesor_alquiler_create' %}" class="app-sidebar__quick app-sidebar__quick--solo{% if sidebar_nav.asesor_alquiler_create_active %} is-active{% endif %}"{% if sidebar_nav.asesor_alquiler_create_active %} aria-current="page"{% endif %}>
-      <span class="app-sidebar__quick-icon" aria-hidden="true">➕</span>
-      <span class="app-sidebar__quick-text">
-        <strong>Nuevo asesor</strong>
-        <small>Alta para recibos de comisión de alquiler</small>
-      </span>
-    </a>
+﻿{% load pbr_ui %}
+{% if sidebar_nav and puede_gestionar_vendedores_app %}
+{% url 'app:asesor_alquiler_list' as asesor_list_url %}
+{% url 'app:asesor_alquiler_create' as asesor_create_url %}
+<section class="app-sidebar__hub app-sidebar__hub--asesores-alquiler app-sidebar__hub--minimal{% if sidebar_nav.asesores_alquiler_active %} app-sidebar__hub--active{% endif %}" aria-label="Asesores de alquiler" data-pbr-sidebar-hub>
+  <div class="app-sidebar__hub-body app-sidebar__hub-body--compact">
+    <details class="app-sidebar__accord app-sidebar__accord--alquiler" data-pbr-accord{% if sidebar_nav.asesores_alquiler_active %} open{% endif %}>
+      <summary class="app-sidebar__accord-summary">
+        <span class="app-sidebar__accord-icon app-sidebar__accord-icon--alquiler" aria-hidden="true">{% pbr_icon "key" size="sm" %}</span>
+        <span class="app-sidebar__accord-label">
+          Asesores alquiler
+          <small class="app-sidebar__accord-sub">Arrendamientos · comisiones</small>
+        </span>
+        {% if sidebar_stats and sidebar_stats.asesores_alquiler %}<span class="app-sidebar__stat">{{ sidebar_stats.asesores_alquiler }}</span>{% endif %}
+        <span class="app-sidebar__accord-chevron" aria-hidden="true"></span>
+      </summary>
+      <div class="app-sidebar__accord-panel app-sidebar__accord-panel--nav">
+        {% include "includes/_sidebar_nav_item.html" with href=asesor_list_url label="Catálogo de asesores" subtitle="Independiente de ventas" icon="clipboard" active=sidebar_nav.asesor_alquiler_list_active stat=sidebar_stats.asesores_alquiler %}
+        {% include "includes/_sidebar_nav_item.html" with href=asesor_create_url label="Nuevo asesor" subtitle="Recibos de comisión alquiler" icon="plus" active=sidebar_nav.asesor_alquiler_create_active %}
+      </div>
+    </details>
   </div>
 </section>
 {% endif %}

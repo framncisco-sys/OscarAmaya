@@ -1,35 +1,31 @@
+{% load pbr_ui %}
 {% if sidebar_nav %}
-<section class="app-sidebar__hub app-sidebar__hub--inmuebles{% if sidebar_nav.inmuebles_active %} app-sidebar__hub--active{% endif %}" aria-label="Inmuebles" data-pbr-sidebar-hub>
-  <header class="app-sidebar__hub-head">
-    <span class="app-sidebar__hub-badge" aria-hidden="true">🏘</span>
-    <div class="app-sidebar__hub-titles">
-      <span class="app-sidebar__hub-title">Inmuebles</span>
-      <span class="app-sidebar__hub-sub">Alquiler · venta</span>
-    </div>
-  </header>
-
-  <div class="app-sidebar__hub-body">
-    <a href="{% url 'app:inmuebles_alquiler_hub' %}" class="app-sidebar__quick app-sidebar__quick--solo{% if sidebar_nav.inmuebles_alquiler_nav_active %} is-active{% endif %}"{% if sidebar_nav.inmuebles_alquiler_nav_active %} aria-current="page"{% endif %}>
-      <span class="app-sidebar__quick-icon" aria-hidden="true">🔑</span>
-      <span class="app-sidebar__quick-text">
-        <strong>Alquileres</strong>
-        <small>Locales y casas{% if sidebar_stats %} · {{ sidebar_stats.alquiler_locales|add:sidebar_stats.alquiler_casas }} en cartera{% endif %}</small>
-      </span>
-    </a>
-    <a href="{% url 'app:inmuebles_venta_hub' %}" class="app-sidebar__quick app-sidebar__quick--solo{% if sidebar_nav.inmuebles_venta_nav_active %} is-active{% endif %}"{% if sidebar_nav.inmuebles_venta_nav_active %} aria-current="page"{% endif %}>
-      <span class="app-sidebar__quick-icon" aria-hidden="true">🏡</span>
-      <span class="app-sidebar__quick-text">
-        <strong>Venta</strong>
-        <small>Casas y lotes{% if sidebar_stats %} · {{ sidebar_stats.casas_venta|add:sidebar_stats.lotes_locales }} en inventario{% endif %}</small>
-      </span>
-    </a>
-    <a href="{% url 'catalogo:list' %}" class="app-sidebar__quick app-sidebar__quick--solo" target="_blank" rel="noopener" title="Abre el enlace público para enviarlo al cliente">
-      <span class="app-sidebar__quick-icon" aria-hidden="true">📷</span>
-      <span class="app-sidebar__quick-text">
-        <strong>Catálogo para clientes</strong>
-        <small>Paredes Bienes Raíces · fotos sin login</small>
-      </span>
-    </a>
+{% url 'app:inmuebles_alquiler_hub' as alquiler_hub_url %}
+{% url 'app:inmuebles_venta_hub' as venta_hub_url %}
+{% url 'catalogo:list' as catalogo_url %}
+<section class="app-sidebar__hub app-sidebar__hub--inmuebles app-sidebar__hub--minimal{% if sidebar_nav.inmuebles_active %} app-sidebar__hub--active{% endif %}" aria-label="Inmuebles" data-pbr-sidebar-hub>
+  <div class="app-sidebar__hub-body app-sidebar__hub-body--compact">
+    <details class="app-sidebar__accord app-sidebar__accord--inmuebles" data-pbr-accord{% if sidebar_nav.inmuebles_active %} open{% endif %}>
+      <summary class="app-sidebar__accord-summary">
+        <span class="app-sidebar__accord-icon app-sidebar__accord-icon--inmuebles" aria-hidden="true">{% pbr_icon "building" size="sm" %}</span>
+        <span class="app-sidebar__accord-label">
+          Inmuebles
+          <small class="app-sidebar__accord-sub">Alquiler · venta · catálogo</small>
+        </span>
+        {% if sidebar_stats %}<span class="app-sidebar__stat" title="En cartera">{{ sidebar_stats.alquiler_locales|add:sidebar_stats.alquiler_casas|add:sidebar_stats.casas_venta|add:sidebar_stats.lotes_locales }}</span>{% endif %}
+        <span class="app-sidebar__accord-chevron" aria-hidden="true"></span>
+      </summary>
+      <div class="app-sidebar__accord-panel app-sidebar__accord-panel--nav">
+        {% if sidebar_stats %}
+        {% include "includes/_sidebar_nav_item.html" with href=alquiler_hub_url label="Alquileres" subtitle="Locales y casas en cartera" icon="key" active=sidebar_nav.inmuebles_alquiler_nav_active stat=sidebar_stats.alquiler_locales|add:sidebar_stats.alquiler_casas %}
+        {% include "includes/_sidebar_nav_item.html" with href=venta_hub_url label="Venta" subtitle="Casas y lotes en inventario" icon="home" active=sidebar_nav.inmuebles_venta_nav_active stat=sidebar_stats.casas_venta|add:sidebar_stats.lotes_locales %}
+        {% else %}
+        {% include "includes/_sidebar_nav_item.html" with href=alquiler_hub_url label="Alquileres" subtitle="Locales y casas en cartera" icon="key" active=sidebar_nav.inmuebles_alquiler_nav_active %}
+        {% include "includes/_sidebar_nav_item.html" with href=venta_hub_url label="Venta" subtitle="Casas y lotes en inventario" icon="home" active=sidebar_nav.inmuebles_venta_nav_active %}
+        {% endif %}
+        {% include "includes/_sidebar_nav_item.html" with href=catalogo_url label="Catálogo público" subtitle="Enlace para clientes ↗" icon="external" target="_blank" rel="noopener noreferrer" title_attr="Abre el catálogo web sin login" %}
+      </div>
+    </details>
   </div>
 </section>
 {% endif %}

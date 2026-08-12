@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% load static pbr_ui %}
+{% load static %}
 {% block content %}
 {# En móvil el menú es un cajón (drawer); aquí solo queda el formulario a pantalla completa. #}
 <div class="app-layout">
   <div class="app-content">
     {% block app_content %}{% endblock %}
   </div>
-  <aside class="app-sidebar app-sidebar--v3 app-sidebar--dark" id="pbr-app-sidebar" aria-label="Módulos">
+  <aside class="app-sidebar app-sidebar--v4" id="pbr-app-sidebar" aria-label="Módulos">
     {% if marca_portal %}
     <div class="app-sidebar__brand-chip" title="{{ marca_portal.nombre }}">
       <img src="{% static marca_portal.logo %}" alt="" class="app-sidebar__brand-chip-logo" decoding="async" aria-hidden="true">
@@ -19,20 +19,18 @@
 
     <div class="app-sidebar__toolbar">
       <button type="button" class="app-sidebar__search-toggle" id="pbr-sidebar-search-toggle" aria-expanded="false" aria-controls="pbr-sidebar-search-panel">
-        {% pbr_icon "search" size="sm" %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
         <span>Buscar en el menú</span>
         <kbd class="app-sidebar__search-kbd" aria-hidden="true">/</kbd>
       </button>
       <div class="app-sidebar__search-panel" id="pbr-sidebar-search-panel" hidden>
-        <label class="app-sidebar__search" for="pbr-sidebar-search">
-          <input type="search" id="pbr-sidebar-search" class="app-sidebar__search-input" placeholder="Escriba para filtrar…" autocomplete="off" enterkeyhint="search">
-          <button type="button" class="app-sidebar__search-clear" id="pbr-sidebar-search-clear" hidden aria-label="Limpiar búsqueda">×</button>
-        </label>
-        <p class="app-sidebar__search-empty" id="pbr-sidebar-search-empty" hidden>Sin coincidencias.</p>
+        <label class="visually-hidden" for="pbr-sidebar-search">Filtrar opciones del menú</label>
+        <input type="search" id="pbr-sidebar-search" class="app-sidebar__search-input" placeholder="Escriba para filtrar…" autocomplete="off" spellcheck="false">
+        <button type="button" class="app-sidebar__search-clear" id="pbr-sidebar-search-clear" hidden aria-label="Limpiar búsqueda">×</button>
       </div>
     </div>
 
-    <div class="app-sidebar__modules" id="pbr-sidebar-modules">
+    <div class="app-sidebar__scroll" id="pbr-sidebar-modules">
     {% if es_vendedor_restringido %}
     {% include "includes/app_sidebar_vendedor_flujo.html" %}
     {% else %}
@@ -50,7 +48,6 @@
       {% endif %}
     {% endif %}
     </div>
-
     {% include "includes/app_sidebar_session.html" %}
   </aside>
 </div>

@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  var ACCORD_STORAGE_KEY = "pbr-sidebar-accord-open";
+  var SEARCH_KEY = "pbr-sidebar-search-v1";
 
   function isMobileClass() {
     var c = document.documentElement.getAttribute("data-pbr-class") || "";
@@ -9,156 +9,34 @@
     return c === "mobile" || view === "phone" || view === "tablet";
   }
 
-  function normalizeSearchText(value) {
-    return (value || "")
+  function prefersReducedMotion() {
+    return (
+      document.documentElement.getAttribute("data-pbr-reduced-motion") === "1" ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
+  }
+
+  function norm(s) {
+    return String(s || "")
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .trim();
   }
 
-  function accordId(details) {
-    var hub = details.closest("[data-pbr-sidebar-hub]");
-    var hubLabel = hub ? hub.getAttribute("aria-label") || "hub" : "hub";
-    var label = details.querySelector(".app-sidebar__accord-label");
-    var text = label ? label.textContent.trim() : "section";
-    return hubLabel + "::" + text;
+  function linkLabel(a) {
+    var t = a.getAttribute("data-pbr-nav") || "";
+    if (t) return t;
+    t = (a.textContent || "").replace(/\s+/g, " ").trim();
+    a.setAttribute("data-pbr-nav", t);
+    return t;
   }
 
-  function readAccordState() {
-    try {
-      var raw = sessionStorage.getItem(ACCORD_STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
-    } catch (e) {
-      return {};
-    }
-  }
-
-  function writeAccordState(state) {
-    try {
-      sessionStorage.setItem(ACCORD_STORAGE_KEY, JSON.stringify(state));
-    } catch (e) {
-      /* ignore */
-    }
-  }
-
-  function setupSearchToggle() {
-    var toggle = document.getElementById("pbr-sidebar-search-toggle");
-    var panel = document.getElementById("pbr-sidebar-search-panel");
-    var input = document.getElementById("pbr-sidebar-search");
-    if (!toggle || !panel) return;
-
-    function setOpen(open) {
-      panel.hidden = !open;
-      toggle.setAttribute("aria-expanded", open ? "true" : "false");
-      if (open && input) {
-        window.setTimeout(function () {
-          input.focus();
-        }, 60);
-      }
-    }
-
-    toggle.addEventListener("click", function () {
-      setOpen(panel.hidden);
-    });
-
-    return setOpen;
-  }
-
-  function setupSidebarSearch(setSearchOpen) {
-    var input = document.getElementById("pbr-sidebar-search");
-    var clearBtn = document.getElementById("pbr-sidebar-search-clear");
-    var modules = document.getElementById("pbr-sidebar-modules");
-    var emptyMsg = document.getElementById("pbr-sidebar-search-empty");
-    if (!input || !modules) return;
-
-    function setHidden(el, hidden) {
-      if (!el) return;
-      el.hidden = hidden;
-      el.classList.toggle("is-search-hidden", hidden);
-    }
-
-    function resetVisibility() {
-      modules.querySelectorAll(".is-search-hidden").forEach(function (el) {
-        el.hidden = false;
-        el.classList.remove("is-search-hidden");
-      });
-      modules.querySelectorAll("[data-pbr-sidebar-hub]").forEach(function (hub) {
-        hub.hidden = false;
-      });
-      if (emptyMsg) emptyMsg.hidden = true;
-      if (clearBtn) clearBtn.hidden = true;
-    }
-
-    function applyFilter() {
-      var q = normalizeSearchText(input.value);
-      if (clearBtn) clearBtn.hidden = !q;
-      if (!q) {
-        resetVisibility();
-        applySidebarForView();
-        return;
-      }
-
-      var anyVisible = false;
-      modules.querySelectorAll("[data-pbr-sidebar-hub]").forEach(function (hub) {
-        var hubVisible = false;
-
-        hub.querySelectorAll(".app-sidebar__quick").forEach(function (link) {
-          var match = normalizeSearchText(link.textContent).indexOf(q) >= 0;
-          setHidden(link, !match);
-          if (match) hubVisible = true;
-        });
-
-        hub.querySelectorAll("[data-pbr-accord]").forEach(function (details) {
-          var accordVisible = false;
-          var summary = details.querySelector(".app-sidebar__accord-summary");
-          var summaryMatch =
-            summary && normalizeSearchText(summary.textContent).indexOf(q) >= 0;
-
-          details.querySelectorAll(".app-sidebar__accord-panel a").forEach(function (a) {
-            var match = summaryMatch || normalizeSearchText(a.textContent).indexOf(q) >= 0;
-            setHidden(a, !match);
-            if (match) accordVisible = true;
-          });
-
-          if (accordVisible) {
-            details.open = true;
-            details.classList.add("is-search-open");
-          } else {
-            details.classList.remove("is-search-open");
-          }
-          setHidden(details, !accordVisible);
-          if (accordVisible) hubVisible = true;
-        });
-
-        hub.hidden = !hubVisible;
-        if (hubVisible) anyVisible = true;
-      });
-
-      if (emptyMsg) emptyMsg.hidden = anyVisible;
-    }
-
-    input.addEventListener("input", applyFilter);
-    input.addEventListener("search", applyFilter);
-
-    if (clearBtn) {
-      clearBtn.addEventListener("click", function () {
-        input.value = "";
-        input.focus();
-        resetVisibility();
-        applySidebarForView();
-      });
-    }
-
-    document.addEventListener("keydown", function (e) {
-      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
-      var tag = (e.target && e.target.tagName) || "";
-      if (/^(INPUT|TEXTAREA|SELECT)$/.test(tag)) return;
-      if (!document.getElementById("pbr-app-sidebar")) return;
-      e.preventDefault();
-      if (setSearchOpen) setSearchOpen(true);
-      input.focus();
-      input.select();
+  function indexNavItems() {
+    var root = document.getElementById("pbr-sidebar-modules");
+    if (!root) return;
+    root.querySelectorAll("a[href]").forEach(function (a) {
+      linkLabel(a);
     });
   }
 
@@ -166,15 +44,10 @@
     var hubs = document.querySelectorAll("[data-pbr-sidebar-hub]");
     if (!hubs.length) return;
 
-    var searchInput = document.getElementById("pbr-sidebar-search");
-    if (searchInput && normalizeSearchText(searchInput.value)) return;
-
     var view = document.documentElement.getAttribute("data-pbr-view") || "desktop";
     var deviceClass = document.documentElement.getAttribute("data-pbr-class") || "computer";
     var expandAll = view === "tv" || view === "large" || deviceClass === "tv";
     var mobile = isMobileClass();
-    var saved = readAccordState();
-    var hasActive = !!document.querySelector("#pbr-sidebar-modules a.is-active");
 
     hubs.forEach(function (hub) {
       var accordions = hub.querySelectorAll("[data-pbr-accord]");
@@ -189,11 +62,6 @@
         if (details.__pbrAccordBound) return;
         details.__pbrAccordBound = true;
         details.addEventListener("toggle", function () {
-          var id = accordId(details);
-          var state = readAccordState();
-          state[id] = details.open;
-          writeAccordState(state);
-
           var currentView = document.documentElement.getAttribute("data-pbr-view") || "desktop";
           var currentClass = document.documentElement.getAttribute("data-pbr-class") || "computer";
           if (currentView === "tv" || currentView === "large" || currentClass === "tv") return;
@@ -202,10 +70,6 @@
           accordions.forEach(function (other) {
             if (other !== details && other.open) {
               other.open = false;
-              var oid = accordId(other);
-              var st = readAccordState();
-              st[oid] = false;
-              writeAccordState(st);
             }
           });
         });
@@ -220,29 +84,159 @@
         if (active) {
           var parentAccord = active.closest("[data-pbr-accord]");
           if (parentAccord) parentAccord.open = true;
-        } else if (!hasActive) {
-          accordions.forEach(function (details) {
-            var id = accordId(details);
-            if (Object.prototype.hasOwnProperty.call(saved, id)) {
-              details.open = !!saved[id];
-            }
-          });
         }
       }
     });
   }
 
   function scrollActiveIntoView() {
-    var modules = document.getElementById("pbr-sidebar-modules");
-    if (!modules) return;
-    var active = modules.querySelector("a.is-active");
-    if (!active) return;
+    if (isMobileClass()) return;
+    var scroll = document.getElementById("pbr-sidebar-modules");
+    var active = scroll && scroll.querySelector("a.is-active");
+    if (!scroll || !active) return;
     window.requestAnimationFrame(function () {
-      try {
-        active.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      } catch (e) {
-        active.scrollIntoView(true);
+      var sTop = scroll.scrollTop;
+      var sH = scroll.clientHeight;
+      var aTop = active.offsetTop;
+      var aH = active.offsetHeight;
+      var parent = active.offsetParent;
+      while (parent && parent !== scroll) {
+        aTop += parent.offsetTop;
+        parent = parent.offsetParent;
       }
+      if (aTop < sTop + 40 || aTop + aH > sTop + sH - 40) {
+        scroll.scrollTo({
+          top: Math.max(0, aTop - sH / 2 + aH / 2),
+          behavior: prefersReducedMotion() ? "auto" : "smooth",
+        });
+      }
+    });
+  }
+
+  function setupSearch() {
+    var toggle = document.getElementById("pbr-sidebar-search-toggle");
+    var panel = document.getElementById("pbr-sidebar-search-panel");
+    var input = document.getElementById("pbr-sidebar-search");
+    var clearBtn = document.getElementById("pbr-sidebar-search-clear");
+    var root = document.getElementById("pbr-sidebar-modules");
+    if (!toggle || !panel || !input || !root) return;
+
+    function setOpen(open) {
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      panel.hidden = !open;
+      toggle.classList.toggle("is-open", open);
+      if (open) {
+        window.setTimeout(function () {
+          input.focus();
+        }, 60);
+      } else if (!input.value.trim()) {
+        input.value = "";
+        filterNav("");
+        if (clearBtn) clearBtn.hidden = true;
+      }
+    }
+
+    function filterNav(q) {
+      var needle = norm(q);
+      var hubs = root.querySelectorAll("[data-pbr-sidebar-hub]");
+      var anyVisible = false;
+
+      hubs.forEach(function (hub) {
+        var hubMatch = false;
+        var accordions = hub.querySelectorAll("[data-pbr-accord]");
+        var quickLinks = hub.querySelectorAll(".app-sidebar__quick");
+
+        quickLinks.forEach(function (link) {
+          var match = !needle || norm(linkLabel(link)).indexOf(needle) !== -1;
+          link.hidden = !match;
+          if (match) hubMatch = true;
+        });
+
+        accordions.forEach(function (details) {
+          var labelEl = details.querySelector(".app-sidebar__accord-label");
+          var summaryText = norm(labelEl ? labelEl.textContent : "");
+          var sectionMatch = summaryText.indexOf(needle) !== -1;
+          var links = details.querySelectorAll(
+            ".app-sidebar__accord-panel a[href], .app-sidebar__nav-item"
+          );
+          var linkMatch = false;
+          links.forEach(function (a) {
+            var match = !needle || sectionMatch || norm(linkLabel(a)).indexOf(needle) !== -1;
+            a.hidden = !match;
+            if (match) linkMatch = true;
+          });
+          var show = !needle || sectionMatch || linkMatch;
+          details.hidden = !show;
+          if (needle && linkMatch && !sectionMatch) details.open = true;
+          if (show) hubMatch = true;
+        });
+
+        hub.hidden = !hubMatch && !!needle;
+        if (hubMatch || !needle) anyVisible = true;
+      });
+
+      root.classList.toggle("is-filtering", !!needle);
+      root.classList.toggle("is-filter-empty", !!needle && !anyVisible);
+      if (clearBtn) clearBtn.hidden = !needle;
+    }
+
+    toggle.addEventListener("click", function () {
+      setOpen(panel.hidden);
+    });
+
+    if (clearBtn) {
+      clearBtn.addEventListener("click", function () {
+        input.value = "";
+        filterNav("");
+        clearBtn.hidden = true;
+        input.focus();
+      });
+    }
+
+    input.addEventListener("input", function () {
+      filterNav(input.value);
+    });
+
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        input.value = "";
+        filterNav("");
+        setOpen(false);
+        toggle.focus();
+      }
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      var tag = (e.target && e.target.tagName) || "";
+      if (/^(INPUT|TEXTAREA|SELECT)$/.test(tag) || e.target.isContentEditable) return;
+      e.preventDefault();
+      setOpen(true);
+    });
+
+    try {
+      var saved = sessionStorage.getItem(SEARCH_KEY);
+      if (saved) {
+        input.value = saved;
+        filterNav(saved);
+        setOpen(true);
+      }
+    } catch (err) {}
+
+    input.addEventListener("change", function () {
+      try {
+        sessionStorage.setItem(SEARCH_KEY, input.value);
+      } catch (err2) {}
+    });
+  }
+
+  function setupNavRipple() {
+    if (prefersReducedMotion()) return;
+    var root = document.getElementById("pbr-sidebar-modules");
+    if (!root) return;
+    root.addEventListener("click", function (e) {
+      var a = e.target.closest(".app-sidebar__accord-panel a, .app-sidebar__quick");
+      if (!a || a.hidden) return;
     });
   }
 
@@ -334,13 +328,24 @@
     }
   }
 
-  var setSearchOpen = setupSearchToggle();
-  setupSidebarSearch(setSearchOpen);
-  applySidebarForView();
-  scrollActiveIntoView();
-  setupMobileDrawer();
+  function init() {
+    indexNavItems();
+    applySidebarForView();
+    setupSearch();
+    setupNavRipple();
+    setupMobileDrawer();
+    scrollActiveIntoView();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+
   window.addEventListener("pbr:viewport", function () {
     applySidebarForView();
     setupMobileDrawer();
+    scrollActiveIntoView();
   });
 })();

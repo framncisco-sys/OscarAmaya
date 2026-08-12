@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
@@ -128,6 +129,266 @@ def pmt_cuota(principal: Decimal, n_meses: int, tasa_anual_pct: Decimal) -> Deci
     return Decimal(str(round(pay, 2)))
 
 
+def _info_cuotas_cliente(cliente: Cliente | None) -> dict[int, dict[str, Any]]:
+    """Estado, fechas, recargo y referencia de pago por número de cuota."""
+    from django.utils import timezone
+
+    from inmobiliaria.pago_desglose import desglose_aplicado_por_cuota
+    from inmobiliaria.recargo_administrativo import (
+        detalle_recargo_por_cuota,
+        parametro_recargo_activo,
+    )
+
+    from .models import CuotaProgramada
+
+    info: dict[int, dict[str, Any]] = {}
+    if cliente is None:
+        return info
+
+    hoy = timezone.localdate()
+    param = parametro_recargo_activo()
+    dias_gracia = int(param.dias_gracia) if param else 0
+    monto_unitario = (param.monto_recargo if param else None) or Decimal("0")
+
+    contratos = []
+    base = contratos_base_cliente(cliente).first()
+    if base is not None:
+        contratos.append(base)
+    plan = plan_mes13_del_cliente(cliente)
+    if plan is not None and (base is None or plan.pk != base.pk):
+        contratos.append(plan)
+
+    for contrato in contratos:
+        qs = (
+            CuotaProgramada.objects.filter(contrato_id=contrato.pk)
+            .select_related("pago")
+            .order_by("numero")
+        )
+        for c in qs:
+            num = int(c.numero)
+            if num in info:
+                continue
+
+            liquidada = (
+                c.estado == CuotaProgramada.Estado.PAGADA or c.pago_id is not None
+            )
+            fecha_pago = None
+            if liquidada:
+                fecha_pago = (c.pago.fecha if c.pago_id and c.pago else None) or c.pagado_en
+
+            dias_atraso: int | None = None
+            if fecha_pago is not None and c.vence_en:
+                dias_atraso = max(0, (fecha_pago - c.vence_en).days)
+            elif (
+                c.estado
+                in (
+                    CuotaProgramada.Estado.PENDIENTE,
+                    CuotaProgramada.Estado.VENCIDA,
+                )
+                and c.vence_en
+                and hoy > c.vence_en
+            ):
+                dias_atraso = (hoy - c.vence_en).days
+
+            dg = desglose_aplicado_por_cuota(c)
+            det = detalle_recargo_por_cuota(
+                c,
+                hoy=hoy,
+                dias_gracia=dias_gracia,
+                monto_unitario=monto_unitario,
+            )
+            recargo_cobrado = dg["recargo"] if dg["tiene_pago"] else Decimal("0.00")
+            genera = bool(det["genera_recargo"]) and not liquidada
+            recargo_pendiente = (
+                Decimal(det["monto_recargo_unitario"] or 0).quantize(Decimal("0.01"))
+                if genera
+                else Decimal("0.00")
+            )
+
+            info[num] = {
+                "estado": c.estado,
+                "pagado_en": c.pagado_en.isoformat() if c.pagado_en else "",
+                "fecha_pago": fecha_pago.isoformat() if fecha_pago else "",
+                "recargo": str(recargo_cobrado.quantize(Decimal("0.01"))),
+                "genera_recargo": genera,
+                "recargo_pendiente": str(recargo_pendiente),
+                "dias_atraso": dias_atraso,
+                "pago_referencia": (
+                    (c.pago.referencia or "").strip() if c.pago_id and c.pago else ""
+                ),
+                "monto_pagado": (
+                    str(dg["total_pago"].quantize(Decimal("0.01")))
+                    if dg["total_pago"] is not None
+                    else ""
+                ),
+            }
+    return info
+
+
+def _cuotas_registradas_cliente(
+    cliente: Cliente | None,
+) -> tuple[dict[int, str], dict[int, str]]:
+    """Estado y fecha de pago por número de cuota (plan base del cliente)."""
+    estados: dict[int, str] = {}
+    pagado_en: dict[int, str] = {}
+    for num, row in _info_cuotas_cliente(cliente).items():
+        estados[num] = row.get("estado") or ""
+        fp = row.get("fecha_pago") or row.get("pagado_en") or ""
+        if fp:
+            pagado_en[num] = fp
+    return estados, pagado_en
+
+
+def _estado_cuota_proyectada(
+    *,
+    numero: int,
+    vence: date | None,
+    estado_db: str | None,
+    hoy: date,
+) -> tuple[str, str]:
+    from .models import CuotaProgramada
+
+    labels = {
+        CuotaProgramada.Estado.PAGADA: "Pagada",
+        CuotaProgramada.Estado.PENDIENTE: "Pendiente",
+        CuotaProgramada.Estado.VENCIDA: "Vencida",
+    }
+    if estado_db:
+        return estado_db, labels.get(estado_db, estado_db.title())
+    if vence is not None and vence < hoy:
+        return CuotaProgramada.Estado.VENCIDA, "Vencida"
+    return CuotaProgramada.Estado.PENDIENTE, "Pendiente"
+
+
+def construir_listado_amortizacion_bancaria(
+    *,
+    principal: Decimal,
+    letra: Decimal,
+    cuota_con_interes: Decimal | None,
+    n_total: int,
+    meses_sin_int: int,
+    interes_anual: Decimal,
+    fecha0: date | None,
+    cliente: Cliente | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """
+    Tabla tipo banco: cuota, capital, interés, saldo insoluto y estado por fila.
+    Meses 1–12 sin interés; desde el 13 amortización con tasa mensual.
+    """
+    from django.utils import timezone
+
+    from inmobiliaria.cuotas_calendario import add_months
+
+    rows: list[dict[str, Any]] = []
+    if n_total < 1 or letra <= 0:
+        return rows, {}
+
+    hoy = timezone.localdate()
+    info_map = _info_cuotas_cliente(cliente)
+    estados_db = {n: r.get("estado") for n, r in info_map.items() if r.get("estado")}
+    pagado_map = {
+        n: r.get("fecha_pago") or r.get("pagado_en") or ""
+        for n, r in info_map.items()
+        if r.get("fecha_pago") or r.get("pagado_en")
+    }
+    letra_q = letra.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    cuota_int = (
+        cuota_con_interes.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if cuota_con_interes is not None
+        else letra_q
+    )
+    tasa_mensual = (interes_anual / Decimal("12")).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+    r_mensual = interes_anual / Decimal("100") / Decimal("12")
+
+    saldo = principal.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    tot_cuota = Decimal("0")
+    tot_capital = Decimal("0")
+    tot_interes = Decimal("0")
+    tot_recargo = Decimal("0")
+
+    for i in range(1, n_total + 1):
+        vence = add_months(fecha0, i - 1) if fecha0 else None
+        saldo_ini = saldo
+        sin_interes = i <= meses_sin_int
+
+        if sin_interes:
+            cuota = letra_q
+            interes_m = Decimal("0.00")
+            capital = cuota
+            fase = "sin_interes"
+            concepto_corto = f"Cuota {i}"
+            concepto_largo = f"Cuota {i} (sin interés — cuota del asesor de ventas)"
+        else:
+            cuota = cuota_int
+            interes_m = (saldo_ini * r_mensual).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            capital = (cuota - interes_m).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            if i == n_total:
+                capital = saldo_ini
+                cuota = (capital + interes_m).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            fase = "con_interes"
+            concepto_corto = f"Cuota {i}"
+            concepto_largo = f"Cuota {i} (con interés {interes_anual:g}%)"
+
+        saldo = (saldo_ini - capital).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if saldo < 0:
+            saldo = Decimal("0.00")
+
+        estado, estado_label = _estado_cuota_proyectada(
+            numero=i,
+            vence=vence,
+            estado_db=estados_db.get(i),
+            hoy=hoy,
+        )
+        estado_str = estado.value if hasattr(estado, "value") else str(estado)
+
+        ci = info_map.get(i, {})
+        recargo_val = Decimal(str(ci.get("recargo") or "0")).quantize(Decimal("0.01"))
+        recargo_pend = Decimal(str(ci.get("recargo_pendiente") or "0")).quantize(Decimal("0.01"))
+        tot_recargo += recargo_val
+
+        tot_cuota += cuota
+        tot_capital += capital
+        tot_interes += interes_m
+
+        rows.append(
+            {
+                "numero": i,
+                "concepto": concepto_largo,
+                "concepto_corto": concepto_corto,
+                "fecha": vence.isoformat() if vence else "",
+                "monto": str(cuota),
+                "capital": str(capital),
+                "interes": str(interes_m),
+                "saldo_inicial": str(saldo_ini),
+                "saldo": str(saldo),
+                "fase": fase,
+                "estado": estado_str,
+                "estado_label": estado_label,
+                "pagado_en": ci.get("fecha_pago") or ci.get("pagado_en") or pagado_map.get(i, ""),
+                "fecha_pago": ci.get("fecha_pago", ""),
+                "recargo": str(recargo_val),
+                "recargo_pendiente": str(recargo_pend),
+                "genera_recargo": bool(ci.get("genera_recargo")),
+                "dias_atraso": ci.get("dias_atraso"),
+                "pago_referencia": ci.get("pago_referencia", ""),
+                "monto_pagado": ci.get("monto_pagado", ""),
+                "tasa_mensual_pct": str(tasa_mensual if not sin_interes else Decimal("0")),
+            }
+        )
+
+    totales = {
+        "saldo_inicial": str(principal.quantize(Decimal("0.01"))),
+        "total_cuotas": str(tot_cuota.quantize(Decimal("0.01"))),
+        "total_capital": str(tot_capital.quantize(Decimal("0.01"))),
+        "total_interes": str(tot_interes.quantize(Decimal("0.01"))),
+        "total_recargo": str(tot_recargo.quantize(Decimal("0.01"))),
+        "tasa_anual_pct": str(interes_anual),
+        "tasa_mensual_pct": str(tasa_mensual),
+        "n_cuotas": n_total,
+    }
+    return rows, totales
+
+
 def resolver_inmueble_desde_formato(fmt: FormatoAceptacion):
     """Localiza el lote del inventario por No. de lote (+ proyecto) del formato."""
     from .lote_codigo import resolver_inmueble_por_codigo_lote
@@ -189,8 +450,9 @@ def calcular_nueva_deuda_mes13(
     cliente: Cliente | None = None,
 ) -> dict[str, Any]:
     """
-    Monto inicial − descuento − reserva pagada − prima − cuotas 1–12
-    → nueva deuda; cuotas restantes desde el mes 13 con interés.
+    Misma lógica que el formato de aceptación (JS ``planCuotasAPlazos``):
+    valor a financiar (tras reserva/prima) − 12 cuotas sin interés → saldo;
+    desde el mes 13: PMT sobre ese saldo en los meses restantes.
     """
     anos = _plazo_anos(fmt)
     n_total = _n_cuotas(fmt)
@@ -249,9 +511,18 @@ def calcular_nueva_deuda_mes13(
         Decimal("0.01"), rounding=ROUND_HALF_UP
     )
 
-    nueva_deuda = (
-        monto_inicial - desc - reserva_total - prima_total - abono_cuotas
-    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    # Principal = valor a financiar (igual que id_valor_financiamiento en el formato).
+    principal = _d(fmt.valor_financiamiento).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if principal <= 0:
+        principal = (
+            monto_inicial - reserva_total - prima_total
+        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if desc > 0:
+        principal = (principal - desc).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if principal < 0:
+        principal = Decimal("0.00")
+
+    nueva_deuda = (principal - abono_cuotas).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     if nueva_deuda < 0:
         nueva_deuda = Decimal("0.00")
 
@@ -265,28 +536,25 @@ def calcular_nueva_deuda_mes13(
     if meses_restantes > 0 and nueva_deuda > 0:
         cuota_con_interes = pmt_cuota(nueva_deuda, meses_restantes, interes)
 
+    from inmobiliaria.cuotas_calendario import _parse_fecha_texto_formato
+
+    fecha0 = fmt.fecha_primera_cuota or _parse_fecha_texto_formato(
+        fmt.fecha_pago_mensual or ""
+    )
+
     listado_cuotas: list[dict[str, Any]] = []
+    listado_totales: dict[str, Any] = {}
     if n_total and letra is not None and letra > 0:
-        for i in range(1, n_total + 1):
-            if i <= meses_sin_int:
-                listado_cuotas.append(
-                    {
-                        "numero": i,
-                        "concepto": f"Cuota {i} (sin interes)",
-                        "monto": str(letra.quantize(Decimal("0.01"))),
-                        "fase": "sin_interes",
-                    }
-                )
-            else:
-                monto_i = cuota_con_interes if cuota_con_interes is not None else letra
-                listado_cuotas.append(
-                    {
-                        "numero": i,
-                        "concepto": f"Cuota {i} (con interes {interes:g}%)",
-                        "monto": str(monto_i.quantize(Decimal("0.01"))),
-                        "fase": "con_interes",
-                    }
-                )
+        listado_cuotas, listado_totales = construir_listado_amortizacion_bancaria(
+            principal=principal,
+            letra=letra,
+            cuota_con_interes=cuota_con_interes,
+            n_total=n_total,
+            meses_sin_int=meses_sin_int,
+            interes_anual=interes,
+            fecha0=fecha0,
+            cliente=cliente,
+        )
 
     lote_label = ""
     if inv is not None:
@@ -318,19 +586,22 @@ def calcular_nueva_deuda_mes13(
         "n_cuotas_restantes": meses_restantes,
         "interes_anual_pct": str(interes),
         "cuota_mensual_con_interes": str(cuota_con_interes) if cuota_con_interes is not None else "",
-        "valor_financiamiento": str(_d(fmt.valor_financiamiento)),
+        "valor_financiamiento": str(principal),
+        "fecha_primera_cuota": fecha0.isoformat() if fecha0 else "",
         "num_lote": (fmt.num_lote_display or fmt.num_lote or "").strip(),
         "nombre_proyecto": (fmt.nombre_proyecto or "").strip(),
         "poligono_txt": (fmt.poligono_txt or "").strip(),
         "inmueble_id": inv.pk if inv is not None else None,
         "inmueble_label": lote_label,
         "listado_cuotas": listado_cuotas,
+        "listado_totales": listado_totales,
         "autofill": True,
         "resumen": (
             f"Lote {(fmt.num_lote_display or fmt.num_lote or '—')} · valor ${_fmt(monto_inicial)} "
             f"- desc. ${_fmt(desc)} - reserva ${_fmt(reserva_total)} "
             f"- prima ${_fmt(prima_total)} - cuotas 1-{meses_sin_int} (${_fmt(abono_cuotas)}) "
-            f"= nueva deuda ${_fmt(nueva_deuda)}. "
+            f"= nueva deuda ${_fmt(nueva_deuda)} "
+            f"(sobre valor a financiar ${_fmt(principal)}). "
             + (
                 f"Desde mes 13: {meses_restantes} cuotas de ${_fmt(cuota_con_interes)} "
                 f"({interes:g}% anual)."

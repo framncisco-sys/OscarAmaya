@@ -1,14 +1,14 @@
 {% extends "app/base_app.html" %}
-{% block title %}Plan de cuotas y estado de cuenta | {{ marca_portal.nombre }}{% endblock %}
+{% block title %}Estado de cuenta | {{ contrato.numero }} | {{ marca_portal.nombre }}{% endblock %}
 {% block app_content %}
-<header class="page-toolbar">
+<header class="page-toolbar no-print">
   <div class="page-toolbar__intro">
-    <h1 class="page-title">Plan de cuotas y estado de cuenta</h1>
+    <h1 class="page-title">Estado de cuenta</h1>
     <p class="page-toolbar__meta">
       Contrato <strong>{{ contrato.numero }}</strong> —
-      <a href="{% url 'app:contrato_update' contrato.pk %}">Editar plan de pagos</a>
-      · <a href="{% url 'app:pago_list' %}?contrato={{ contrato.pk }}">Pagos de este contrato</a>
-      · <a href="{% url 'app:cliente_estado_cuenta_pdf' contrato.cliente_id %}" target="_blank" rel="noopener">Estado de cuenta del cliente (PDF)</a>
+      <a href="{% url 'app:contrato_update' contrato.pk %}">Editar plan</a>
+      · <a href="{% url 'app:pago_list' %}?contrato={{ contrato.pk }}">Pagos</a>
+      · <a href="{% url 'app:cliente_estado_cuenta_pdf' contrato.cliente_id %}" target="_blank" rel="noopener">PDF del cliente</a>
     </p>
   </div>
   <div class="page-toolbar__actions">
@@ -16,207 +16,143 @@
   </div>
 </header>
 
-{% if cobro_mes.cuota %}
-<section class="card" style="border-left:4px solid {% if cobro_mes.monto_recargo %}#c2410c{% else %}#1e3a5f{% endif %};">
-  <h2 style="font-size:1rem;margin:0 0 0.5rem;">A cobrar en la próxima cuota</h2>
-  <p style="margin:0 0 0.5rem;">{{ cobro_mes.nota }}</p>
-  <p style="margin:0;font-size:1.25rem;font-weight:700;">
-    Total: ${{ cobro_mes.monto_total }}
-    <span class="muted" style="font-size:0.9rem;font-weight:500;">
-      (cuota ${{ cobro_mes.monto_cuota }}{% if cobro_mes.monto_recargo %} + <span style="color:#c2410c;font-weight:700;">recargo administrativo ${{ cobro_mes.monto_recargo }}</span>{% endif %})
-    </span>
-  </p>
-  {% if cobro_mes.monto_recargo %}
-  <p style="margin:0.75rem 0 0;font-size:0.9rem;color:#9a3412;">
-    Ese recargo corresponde a atraso(s) de cuota(s) anterior(es). No se cobró en el recibo de la cuota atrasada; se suma aquí.
-  </p>
+<article class="ec-bank ec-bank--screen">
+  <header class="ec-bank__hero">
+    <h1 class="ec-bank__title">Estado de cuenta</h1>
+    <p class="ec-bank__meta">
+      Documento de cartera · Corte al {{ hoy|date:"d/m/Y" }}
+      · Emitido {{ emitido_en|date:"d/m/Y H:i" }}
+      · Plan <strong>{{ contrato.numero }}</strong>
+    </p>
+  </header>
+
+  {% if cobro_mes.cuota %}
+  <aside class="ec-bank__alert{% if cobro_mes.monto_recargo %} ec-bank__alert--recargo{% endif %}" role="status">
+    <div class="ec-bank__alert-head">
+      <strong>Próximo cobro</strong>
+      <span class="ec-bank__alert-total">${{ cobro_mes.monto_total }}</span>
+    </div>
+    <p class="ec-bank__alert-body">{{ cobro_mes.nota }}</p>
+    <p class="ec-bank__alert-detail">
+      Cuota ${{ cobro_mes.monto_cuota }}{% if cobro_mes.monto_recargo %} · Recargo administrativo <strong>${{ cobro_mes.monto_recargo }}</strong>{% endif %}
+    </p>
+  </aside>
   {% endif %}
+
+  <table class="ec-bank__dl">
+    <tr><td class="ec-bank__dl-lbl">Cliente</td><td><strong>{{ contrato.cliente.apellidos }}, {{ contrato.cliente.nombres }}</strong></td></tr>
+    <tr><td class="ec-bank__dl-lbl">DUI / documento</td><td>{{ contrato.cliente.dui|default:"—" }}{% if contrato.cliente.nit %} · NIT {{ contrato.cliente.nit }}{% endif %}</td></tr>
+    <tr><td class="ec-bank__dl-lbl">Teléfono</td><td>{{ contrato.cliente.telefono|default:"—" }}</td></tr>
+    <tr><td class="ec-bank__dl-lbl">Correo</td><td>{{ contrato.cliente.email|default:"—" }}</td></tr>
+    <tr><td class="ec-bank__dl-lbl">Inmueble</td><td>{{ contrato.inmueble.codigo_display }} — {{ contrato.inmueble.get_tipo_display }} · {{ contrato.inmueble.proyecto.nombre }}</td></tr>
+    <tr><td class="ec-bank__dl-lbl">Modalidad</td><td>{{ contrato.get_modalidad_financiamiento_display }}{% if contrato.plan_anos %} · {{ contrato.get_plan_anos_display }}{% endif %}</td></tr>
+  </table>
+
+  <div class="ec-bank__kpis">
+    <div class="ec-bank__kpi">
+      <span class="ec-bank__kpi-label">Precio acordado</span>
+      <strong class="ec-bank__kpi-val">${{ contrato.precio_final }}</strong>
+    </div>
+    <div class="ec-bank__kpi">
+      <span class="ec-bank__kpi-label">Pagado (capital)</span>
+      <strong class="ec-bank__kpi-val ec-bank__kpi-val--ok">${{ total_pagado }}</strong>
+    </div>
+    <div class="ec-bank__kpi">
+      <span class="ec-bank__kpi-label">Saldo estimado</span>
+      <strong class="ec-bank__kpi-val{% if saldo_estimado > 0 %} ec-bank__kpi-val--warn{% else %} ec-bank__kpi-val--ok{% endif %}">${{ saldo_estimado }}</strong>
+    </div>
+    <div class="ec-bank__kpi">
+      <span class="ec-bank__kpi-label">Recargos cobrados</span>
+      <strong class="ec-bank__kpi-val ec-bank__kpi-val--recargo">${{ total_recargos }}</strong>
+    </div>
+  </div>
+
+  {% if cuotas_resumen.total_cuotas %}
+  <div class="ec-bank__kpis ec-bank__kpis--mini">
+    <div class="ec-bank__kpi ec-bank__kpi--mini">
+      <span class="ec-bank__kpi-label">Cuotas en plan</span>
+      <strong class="ec-bank__kpi-val">{{ cuotas_resumen.total_cuotas }}</strong>
+    </div>
+    <div class="ec-bank__kpi ec-bank__kpi--mini">
+      <span class="ec-bank__kpi-label">Pagadas</span>
+      <strong class="ec-bank__kpi-val ec-bank__kpi-val--ok">{{ cuotas_resumen.pagadas }}</strong>
+    </div>
+    <div class="ec-bank__kpi ec-bank__kpi--mini">
+      <span class="ec-bank__kpi-label">Pendientes</span>
+      <strong class="ec-bank__kpi-val">{{ cuotas_resumen.pendientes }}</strong>
+    </div>
+    <div class="ec-bank__kpi ec-bank__kpi--mini">
+      <span class="ec-bank__kpi-label">Vencidas</span>
+      <strong class="ec-bank__kpi-val{% if cuotas_resumen.vencidas %} ec-bank__kpi-val--bad{% endif %}">{{ cuotas_resumen.vencidas }}</strong>
+    </div>
+    <div class="ec-bank__kpi ec-bank__kpi--mini">
+      <span class="ec-bank__kpi-label">Plan total</span>
+      <strong class="ec-bank__kpi-val">${{ cuotas_resumen.monto_plan_total }}</strong>
+    </div>
+    <div class="ec-bank__kpi ec-bank__kpi--mini">
+      <span class="ec-bank__kpi-label">Por pagar (cuotas)</span>
+      <strong class="ec-bank__kpi-val ec-bank__kpi-val--warn">${{ cuotas_resumen.monto_cuotas_por_pagar }}</strong>
+    </div>
+  </div>
+  {% endif %}
+
   {% if param_recargo %}
-  <p class="muted" style="margin:0.75rem 0 0;font-size:0.875rem;">
-    Política activa: ${{ param_recargo.monto_recargo }} de recargo · {{ param_recargo.dias_gracia }} día(s) de gracia.
+  <p class="ec-bank__policy">
+    Política de recargo administrativo: <strong>${{ param_recargo.monto_recargo }}</strong>
+    · {{ param_recargo.dias_gracia }} día(s) de gracia tras el vencimiento.
     <a href="{% url 'app:parametro_mora_list' %}">Configurar</a>
   </p>
-  {% else %}
-  <p class="muted" style="margin:0.75rem 0 0;font-size:0.875rem;">
-    No hay política de recargo activa.
-    <a href="{% url 'app:parametro_mora_create' %}">Definir monto y días de gracia</a>
-  </p>
   {% endif %}
-</section>
-{% endif %}
 
-<section class="card">
-  <h2 style="font-size:1rem;margin:0 0 0.75rem;">Resumen del plan de cuotas</h2>
-  {% if cuotas_resumen.total_cuotas %}
-  <dl class="resumen-cuotas-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(11rem,1fr));gap:0.75rem 1.25rem;margin:0 0 1rem;">
-    <div><dt class="muted" style="font-size:0.8rem;margin:0;">Cuotas en el plan</dt><dd style="margin:0.15rem 0 0;font-size:1.15rem;font-weight:600;">{{ cuotas_resumen.total_cuotas }}</dd></div>
-    <div><dt class="muted" style="font-size:0.8rem;margin:0;">Pagadas</dt><dd style="margin:0.15rem 0 0;font-size:1.15rem;font-weight:600;color:#15803d;">{{ cuotas_resumen.pagadas }}</dd></div>
-    <div><dt class="muted" style="font-size:0.8rem;margin:0;">Pendientes</dt><dd style="margin:0.15rem 0 0;font-size:1.15rem;font-weight:600;">{{ cuotas_resumen.pendientes }}</dd></div>
-    <div><dt class="muted" style="font-size:0.8rem;margin:0;">Vencidas (sin pagar)</dt><dd style="margin:0.15rem 0 0;font-size:1.15rem;font-weight:600;color:#b91c1c;">{{ cuotas_resumen.vencidas }}</dd></div>
-    <div><dt class="muted" style="font-size:0.8rem;margin:0;">Monto total del plan</dt><dd style="margin:0.15rem 0 0;font-weight:600;">${{ cuotas_resumen.monto_plan_total }}</dd></div>
-    <div><dt class="muted" style="font-size:0.8rem;margin:0;">Ya cubierto (cuotas pagadas)</dt><dd style="margin:0.15rem 0 0;font-weight:600;color:#15803d;">${{ cuotas_resumen.monto_cuotas_pagadas }}</dd></div>
-    <div><dt class="muted" style="font-size:0.8rem;margin:0;">Falta por cuotas programadas</dt><dd style="margin:0.15rem 0 0;font-weight:600;color:#b45309;">${{ cuotas_resumen.monto_cuotas_por_pagar }}</dd></div>
-  </dl>
-  <p class="muted" style="font-size:0.875rem;margin:0;">Los montos «falta» son la suma de cuotas aún no marcadas como pagadas. El recargo administrativo se muestra aparte en «A cobrar este mes».</p>
-  {% else %}
-  <p class="muted">Este contrato no tiene cuotas programadas cargadas. Si el financiamiento es en cuotas, genéreelas o regístrelas al editar el contrato (formulario de cuotas).</p>
-  {% endif %}
-</section>
+  <section class="ec-bank__block">
+    <header class="ec-bank__block-head">
+      <h2>Detalle de cuotas</h2>
+      <span class="ec-bank__block-sub">Movimientos programados · fechas de pago · recargos</span>
+    </header>
+    <p class="ec-bank__block-hint">
+      <strong>Vencimiento</strong> = fecha del plan.
+      <strong>Fecha pago</strong> = día en que entró el dinero.
+      El recargo por atraso se cobra en la <strong>siguiente</strong> cuota (fila «Próxima»).
+    </p>
+    {% include "includes/_estado_cuenta_cuotas_table.html" with filas_cuotas=filas_cuotas %}
+  </section>
 
-<section class="card">
-  <h2 style="font-size:1rem;margin:0 0 0.75rem;">Resumen general</h2>
-  <p><strong>Cliente:</strong> {{ contrato.cliente }}</p>
-  <p><strong>Inmueble:</strong> {{ contrato.inmueble.codigo_display }} — {{ contrato.inmueble.proyecto.nombre }}</p>
-  <p><strong>Precio acordado:</strong> ${{ contrato.precio_final }}</p>
-  <p><strong>Modalidad de financiamiento:</strong> {{ contrato.get_modalidad_financiamiento_display }}</p>
-  {% if contrato.meses_sin_interes %}
-  <p><strong>Meses iniciales sin interés:</strong> {{ contrato.meses_sin_interes }}</p>
-  {% endif %}
-  {% if contrato.plan_anos %}
-  <p><strong>Plazo (años):</strong> {{ contrato.get_plan_anos_display }}</p>
-  {% endif %}
-  {% if contrato.tasa_interes_anual is not None %}
-  <p><strong>Tasa anual (referencia):</strong> {{ contrato.tasa_interes_anual }}</p>
-  {% endif %}
-  {% if contrato.precio_lista_referencia %}
-  <p><strong>Precio de lista (referencia):</strong> ${{ contrato.precio_lista_referencia }}</p>
-  {% endif %}
-  {% if contrato.descuento_efectivo_monto %}
-  <p><strong>Descuento registrado (efectivo u otra condición):</strong> ${{ contrato.descuento_efectivo_monto }}</p>
-  {% endif %}
-  {% if contrato.precio_lista_referencia %}
-  <p class="muted"><strong>Diferencia lista − precio acordado:</strong> ${{ contrato.descuento_implicito_vs_referencia }}</p>
-  {% endif %}
-  <p><strong>Total pagado (suma de movimientos):</strong> ${{ total_pagado }}</p>
-  <p><strong>Saldo estimado (precio − pagos):</strong> ${{ saldo_estimado }}</p>
-  <p class="muted" style="margin-top:0.75rem;">El saldo es orientativo; valide con política de capital.</p>
-  <p class="muted" style="margin-top:0.5rem;">
-    Si no pagan una cuota y pasan los <strong>días de gracia</strong>, al mes siguiente aparece
-    <strong>cuota + recargo administrativo</strong>.
-    Configure el monto y la gracia en
-    <a href="{% url 'app:parametro_mora_list' %}">Recargo administrativo</a>.
-  </p>
-</section>
+  <section class="ec-bank__block">
+    <header class="ec-bank__block-head">
+      <h2>Historial de pagos</h2>
+      <span class="ec-bank__block-sub">Recibos registrados en el sistema</span>
+    </header>
+    <div class="ec-bank__table-wrap">
+      <table class="ec-bank-table ec-bank-table--compact">
+        <thead>
+          <tr>
+            <th scope="col">Fecha</th>
+            <th scope="col">Concepto</th>
+            <th scope="col" class="ec-bank-table__num">Monto</th>
+            <th scope="col" class="ec-bank-table__num">Recargo incl.</th>
+            <th scope="col">Referencia</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pagos %}
+          <tr>
+            <td>{{ p.fecha|date:"d/m/Y" }}</td>
+            <td>{{ p.get_concepto_display }}</td>
+            <td class="ec-bank-table__num ec-bank-table__cuota">${{ p.monto }}</td>
+            <td class="ec-bank-table__num">{% if p.monto_recargo_incluido %}<span class="ec-bank-monto ec-bank-monto--recargo">${{ p.monto_recargo_incluido }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+            <td>{{ p.referencia|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="ec-bank-empty">Sin pagos registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-<section class="card">
-  <h2 style="font-size:1rem;margin:0 0 0.75rem;">Detalle de cada cuota</h2>
-  <p class="muted" style="font-size:0.875rem;margin:0 0 0.75rem;">
-    <strong>Vencimiento</strong> = fecha de la cuota en el plan.
-    <strong>Realizó el pago</strong> = día en que entró el dinero (no el vencimiento).
-    El recargo de un atraso se cobra en la <strong>próxima</strong> cuota (fila resaltada).
-    Corte {{ hoy|date:"d/m/Y" }}.
-  </p>
-  <table class="table">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Vencimiento</th>
-        <th class="right">Cuota</th>
-        <th class="right">Recargo</th>
-        <th class="right">A capital</th>
-        <th class="right">Total a pagar / pagado</th>
-        <th>Estado</th>
-        <th>Realizó el pago</th>
-        <th>Ref. pago</th>
-        <th>Cumplimiento</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in filas_cuotas %}
-      {% with c=row.cuota %}
-      <tr{% if row.es_proxima %} style="background:#fff7ed;"{% endif %}>
-        <td>{{ c.numero }}{% if row.es_proxima %} <span style="color:#c2410c;font-weight:600;">(próxima)</span>{% endif %}</td>
-        <td>{{ c.vence_en|date:"d/m/Y" }}</td>
-        <td class="right">${{ c.monto }}</td>
-        <td class="right">
-          {% if row.es_proxima and row.a_cobrar_recargo %}
-            <span style="color:#c2410c;font-weight:700;">${{ row.a_cobrar_recargo }}</span>
-          {% elif row.recargo_cobrado %}
-            <span style="color:#c2410c;">${{ row.recargo_cobrado }}</span>
-          {% else %}
-            —
-          {% endif %}
-        </td>
-        <td class="right">
-          {% if row.abono_capital %}
-            <span style="color:#047857;">${{ row.abono_capital }}</span>
-          {% else %}
-            —
-          {% endif %}
-        </td>
-        <td class="right">
-          {% if row.es_proxima and row.a_cobrar_total %}
-            <strong style="color:#c2410c;">${{ row.a_cobrar_total }}</strong>
-          {% elif row.total_pago_fila is not None %}
-            <strong>${{ row.total_pago_fila }}</strong>
-          {% elif row.pago_monto is not None %}
-            ${{ row.pago_monto }}
-          {% else %}
-            —
-          {% endif %}
-        </td>
-        <td>{{ c.get_estado_display }}</td>
-        <td>
-          {% if row.fecha_pago %}
-            {{ row.fecha_pago|date:"d/m/Y" }}
-            {% if row.fecha_registro and row.fecha_registro != row.fecha_pago %}
-              <span class="muted" style="display:block;font-size:0.75rem;">Registrado {{ row.fecha_registro|date:"d/m/Y" }}</span>
-            {% endif %}
-          {% else %}—{% endif %}
-        </td>
-        <td>{{ row.pago_referencia|default:"—" }}</td>
-        <td>
-          {% if row.es_proxima and row.a_cobrar_recargo %}
-            <span style="color:#c2410c;font-weight:600;">Incluye recargo por atraso(s) anterior(es)</span>
-          {% elif row.dias_tarde_al_pagar is not None %}
-            {% if row.dias_tarde_al_pagar > 0 %}
-              <span style="color:#b45309;font-weight:600;">{{ row.dias_tarde_al_pagar }} día{% if row.dias_tarde_al_pagar != 1 %}s{% endif %} después del vencimiento</span>
-              <span class="muted" style="display:block;font-size:0.8rem;">El recargo se cobra en la cuota siguiente</span>
-            {% else %}
-              A tiempo o antes
-            {% endif %}
-          {% elif row.genera_recargo %}
-            <span style="color:#b91c1c;font-weight:600;">Genera recargo administrativo</span>
-            <span class="muted" style="display:block;font-size:0.8rem;">Gracia venció el {{ row.fecha_limite_gracia|date:"d/m/Y" }}</span>
-          {% elif row.dias_impago_tras_venc %}
-            <span style="color:#b45309;font-weight:600;">Impaga: {{ row.dias_impago_tras_venc }} día{% if row.dias_impago_tras_venc != 1 %}s{% endif %} tras vencimiento</span>
-            <span class="muted" style="display:block;font-size:0.8rem;">Gracia hasta {{ row.fecha_limite_gracia|date:"d/m/Y" }}</span>
-          {% else %}
-            —
-          {% endif %}
-        </td>
-      </tr>
-      {% endwith %}
-      {% empty %}
-      <tr><td colspan="10" class="muted">No hay cuotas cargadas para este contrato.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
-
-<section class="card">
-  <h2 style="font-size:1rem;margin:0 0 0.75rem;">Pagos registrados</h2>
-  <table class="table">
-    <thead>
-      <tr>
-        <th>Fecha</th>
-        <th>Concepto</th>
-        <th class="right">Monto</th>
-        <th>Ref.</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for p in pagos %}
-      <tr>
-        <td>{{ p.fecha }}</td>
-        <td>{{ p.get_concepto_display }}</td>
-        <td class="right">${{ p.monto }}</td>
-        <td>{{ p.referencia|default:"—" }}</td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="4" class="muted">Sin pagos.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
+  <footer class="ec-bank__pie">
+    Saldo orientativo (precio − pagos de capital). No sustituye certificaciones formales.
+    {{ marca_portal.nombre|default:"Paredes Desarrollos Inmobiliarios" }} · Contrato #{{ contrato.numero }}
+  </footer>
+</article>
 {% endblock %}

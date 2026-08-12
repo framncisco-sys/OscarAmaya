@@ -1,38 +1,30 @@
-{% if sidebar_nav and puede_gestionar_vendedores_app %}
 {% load pbr_ui %}
-<section class="app-sidebar__hub app-sidebar__hub--vendedores{% if sidebar_nav.vendedores_active %} app-sidebar__hub--active{% endif %}" aria-label="Asesores de ventas" data-pbr-sidebar-hub>
-  <details class="app-sidebar__accord app-sidebar__accord--hub" data-pbr-accord{% if sidebar_nav.vendedores_active %} open{% endif %}>
-    <summary class="app-sidebar__accord-summary app-sidebar__hub-head">
-      <span class="app-sidebar__hub-badge app-sidebar__hub-badge--vendedores" aria-hidden="true">{% pbr_icon "user" size="sm" %}</span>
-      <div class="app-sidebar__hub-titles">
-        <span class="app-sidebar__hub-title">Asesores de ventas</span>
-        <span class="app-sidebar__hub-sub">Registro · comisión · contratos de venta</span>
+{% if sidebar_nav and puede_gestionar_vendedores_app %}
+{% url 'app:vendedor_list' as vendedor_list_url %}
+{% url 'app:vendedor_create' as vendedor_create_url %}
+{% url 'app:recibo_comision_casa_venta' as recibo_url %}
+<section class="app-sidebar__hub app-sidebar__hub--vendedores app-sidebar__hub--minimal{% if sidebar_nav.vendedores_active %} app-sidebar__hub--active{% endif %}" aria-label="Asesores de ventas" data-pbr-sidebar-hub>
+  <div class="app-sidebar__hub-body app-sidebar__hub-body--compact">
+    <details class="app-sidebar__accord app-sidebar__accord--vendedores" data-pbr-accord{% if sidebar_nav.vendedores_active %} open{% endif %}>
+      <summary class="app-sidebar__accord-summary">
+        <span class="app-sidebar__accord-icon app-sidebar__accord-icon--vendedores" aria-hidden="true">{% pbr_icon "users" size="sm" %}</span>
+        <span class="app-sidebar__accord-label">
+          Asesores de ventas
+          <small class="app-sidebar__accord-sub">Registro · comisión · contratos</small>
+        </span>
+        {% if sidebar_stats and sidebar_stats.vendedores %}<span class="app-sidebar__stat" title="Asesores activos">{{ sidebar_stats.vendedores }}</span>{% endif %}
+        <span class="app-sidebar__accord-chevron" aria-hidden="true"></span>
+      </summary>
+      <div class="app-sidebar__accord-panel app-sidebar__accord-panel--nav">
+        {% if sidebar_stats %}
+        {% include "includes/_sidebar_nav_item.html" with href=vendedor_list_url label="Catálogo de asesores" subtitle="Registrados en proyectos" icon="clipboard" active=sidebar_nav.vendedor_list_active stat=sidebar_stats.vendedores stat_title="Asesores activos" %}
+        {% else %}
+        {% include "includes/_sidebar_nav_item.html" with href=vendedor_list_url label="Catálogo de asesores" subtitle="Registrados en proyectos" icon="clipboard" active=sidebar_nav.vendedor_list_active %}
+        {% endif %}
+        {% include "includes/_sidebar_nav_item.html" with href=vendedor_create_url label="Nuevo asesor" subtitle="Alta para contratos y comisiones" icon="plus" active=sidebar_nav.vendedor_create_active %}
+        {% include "includes/_sidebar_nav_item.html" with href=recibo_url label="Recibo de comisión" subtitle="Elija contrato y emita PDF" icon="receipt" active=sidebar_nav.recibo_comision_vendedor_active %}
       </div>
-      <span class="app-sidebar__accord-chevron" aria-hidden="true"></span>
-    </summary>
-    <div class="app-sidebar__accord-panel app-sidebar__hub-body app-sidebar__hub-body--accord">
-      <a href="{% url 'app:vendedor_list' %}" class="app-sidebar__quick app-sidebar__quick--solo{% if sidebar_nav.vendedor_list_active %} is-active{% endif %}"{% if sidebar_nav.vendedor_list_active %} aria-current="page"{% endif %}>
-        <span class="app-sidebar__quick-icon" aria-hidden="true">{% pbr_icon "clipboard" %}</span>
-        <span class="app-sidebar__quick-text">
-          <strong>Catálogo de asesores de ventas</strong>
-          <small>Asesores registrados{% if sidebar_stats.vendedores %} · {{ sidebar_stats.vendedores }} activo{{ sidebar_stats.vendedores|pluralize }}{% endif %}</small>
-        </span>
-      </a>
-      <a href="{% url 'app:vendedor_create' %}" class="app-sidebar__quick app-sidebar__quick--solo{% if sidebar_nav.vendedor_create_active %} is-active{% endif %}"{% if sidebar_nav.vendedor_create_active %} aria-current="page"{% endif %}>
-        <span class="app-sidebar__quick-icon" aria-hidden="true">{% pbr_icon "plus" %}</span>
-        <span class="app-sidebar__quick-text">
-          <strong>Nuevo asesor de ventas</strong>
-          <small>Alta para contratos y comisiones de venta de proyectos</small>
-        </span>
-      </a>
-      <a href="{% url 'app:recibo_comision_casa_venta' %}" class="app-sidebar__quick app-sidebar__quick--solo{% if sidebar_nav.recibo_comision_vendedor_active %} is-active{% endif %}"{% if sidebar_nav.recibo_comision_vendedor_active %} aria-current="page"{% endif %}>
-        <span class="app-sidebar__quick-icon" aria-hidden="true">{% pbr_icon "receipt" %}</span>
-        <span class="app-sidebar__quick-text">
-          <strong>Generar recibo de comisión de asesor</strong>
-          <small>Elija el contrato y emita el PDF de comisión</small>
-        </span>
-      </a>
-    </div>
-  </details>
+    </details>
+  </div>
 </section>
 {% endif %}

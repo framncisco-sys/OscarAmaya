@@ -1,0 +1,10 @@
+{# Enlace compacto del menú lateral: icono SVG + título + subtítulo + stat #}
+{% load pbr_ui %}
+<a href="{{ href }}" class="app-sidebar__nav-item{% if active %} is-active{% endif %}{% if extra_class %} {{ extra_class }}{% endif %}"{% if active %} aria-current="page"{% endif %}{% if target %} target="{{ target }}" rel="{{ rel|default:'noopener' }}"{% endif %}{% if title_attr %} title="{{ title_attr }}"{% endif %}>
+  <span class="app-sidebar__nav-item-icon" aria-hidden="true">{% pbr_icon icon size="sm" %}</span>
+  <span class="app-sidebar__nav-item-text">
+    <strong>{{ label }}</strong>
+    {% if subtitle %}<small>{{ subtitle }}</small>{% endif %}
+  </span>
+  {% if stat %}<span class="app-sidebar__stat"{% if stat_title %} title="{{ stat_title }}"{% endif %}>{{ stat }}</span>{% endif %}
+</a>

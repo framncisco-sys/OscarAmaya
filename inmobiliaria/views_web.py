@@ -1095,6 +1095,18 @@ class InmuebleLoteListView(AppLoginRequiredMixin, ListView):
             )
         else:
             ctx["filtro_estado"] = ""
+        qs = self.get_queryset()
+        total = qs.count()
+        ctx["listado_total"] = total
+        disp = qs.filter(estado=Inmueble.Estado.DISPONIBLE).count()
+        res = qs.filter(estado=Inmueble.Estado.RESERVADO).count()
+        pag = qs.filter(estado=Inmueble.Estado.VENDIDO).count()
+        ctx["listado_conteo"] = {"total": total, "disponibles": disp, "reservados": res, "pagados": pag}
+        base_meta = ctx.get("listado_meta") or ""
+        ctx["listado_meta"] = (
+            f"{base_meta} · {total} lote{'s' if total != 1 else ''} "
+            f"({disp} disp. · {res} res. · {pag} pag.)"
+        ).strip(" · ")
         ctx["nuevo_url"] = reverse("app:inmueble_create")
         ctx["es_listado_casas"] = False
         return ctx
@@ -2759,124 +2771,38 @@ def formato_aceptacion_compraventa_descargar(request: HttpRequest, pk: int) -> H
 
 @login_required
 def contrato_estado_cuenta(request: HttpRequest, pk: int) -> HttpResponse:
-    from inmobiliaria.recargo_administrativo import (
-        detalle_recargo_por_cuota,
-        parametro_recargo_activo,
-        resumen_cobro_contrato,
-    )
+    from inmobiliaria.estado_cuenta import build_bloque_contrato
+    from inmobiliaria.recargo_administrativo import parametro_recargo_activo
 
     base = Contrato.objects.select_related("cliente", "inmueble", "inmueble__proyecto")
     contrato = get_object_or_404(
         filtrar_contratos_queryset_por_vendedor(base, request.user),
         pk=pk,
     )
-    pagos = contrato.pagos.all().order_by("-fecha", "-id")
-    cuotas_qs = (
-        contrato.cuotas_programadas.select_related("pago")
-        .prefetch_related("pago__cuotas_aplicadas")
-        .order_by("numero")
-    )
     hoy = timezone.localdate()
     param = parametro_recargo_activo()
-    dias_gracia = int(param.dias_gracia) if param else 0
-    monto_unitario = (param.monto_recargo if param else None) or Decimal("0")
-    cobro = resumen_cobro_contrato(contrato, hoy=hoy)
-
-    filas_cuotas: list[dict] = []
-    from inmobiliaria.pago_desglose import desglose_aplicado_por_cuota
-
-    for c in cuotas_qs:
-        liquidada = (
-            c.estado == CuotaProgramada.Estado.PAGADA or c.pago_id is not None
-        )
-        fecha_pago = None
-        if liquidada:
-            fecha_pago = (c.pago.fecha if c.pago_id else None) or c.pagado_en
-        dias_tarde_al_pagar: int | None = None
-        dias_impago_tras_venc: int | None = None
-        if fecha_pago is not None:
-            dias_tarde_al_pagar = max(0, (fecha_pago - c.vence_en).days)
-        elif c.estado in (
-            CuotaProgramada.Estado.PENDIENTE,
-            CuotaProgramada.Estado.VENCIDA,
-        ) and hoy > c.vence_en:
-            dias_impago_tras_venc = (hoy - c.vence_en).days
-        pago_monto = c.pago.monto if c.pago_id else None
-        pago_referencia = None
-        if c.pago_id:
-            ref = (c.pago.referencia or "").strip()
-            pago_referencia = ref or None
-        det = detalle_recargo_por_cuota(
-            c,
-            hoy=hoy,
-            dias_gracia=dias_gracia,
-            monto_unitario=monto_unitario,
-        )
-        es_proxima = cobro.cuota is not None and cobro.cuota.pk == c.pk
-        dg = desglose_aplicado_por_cuota(c)
-        fecha_registro = None
-        if c.pago_id and getattr(c.pago, "creado_en", None):
-            fecha_registro = timezone.localtime(c.pago.creado_en).date()
-        filas_cuotas.append(
-            {
-                "cuota": c,
-                "fecha_pago": fecha_pago,
-                "fecha_registro": fecha_registro,
-                "dias_tarde_al_pagar": dias_tarde_al_pagar,
-                "dias_impago_tras_venc": dias_impago_tras_venc,
-                "pago_monto": pago_monto,
-                "pago_referencia": pago_referencia,
-                "genera_recargo": det["genera_recargo"],
-                "fecha_limite_gracia": det["fecha_limite_gracia"],
-                "es_proxima": es_proxima,
-                "a_cobrar_total": cobro.monto_total if es_proxima else None,
-                "a_cobrar_recargo": cobro.monto_recargo if es_proxima else None,
-                "recargo_cobrado": dg["recargo"] if dg["tiene_pago"] else None,
-                "abono_capital": dg["capital"] if dg["tiene_pago"] else None,
-                "total_pago_fila": dg["total_pago"],
-                "es_ultima_del_pago": dg["es_ultima_del_pago"],
-            }
-        )
-
-    qp = contrato.cuotas_programadas
-    monto_plan_total = qp.aggregate(t=Sum("monto"))["t"] or Decimal("0")
-    monto_cuotas_pagadas = (
-        qp.filter(estado=CuotaProgramada.Estado.PAGADA).aggregate(t=Sum("monto"))["t"]
-        or Decimal("0")
-    )
-    monto_cuotas_por_pagar = monto_plan_total - monto_cuotas_pagadas
-    cuotas_resumen = {
-        "total_cuotas": qp.count(),
-        "pagadas": qp.filter(estado=CuotaProgramada.Estado.PAGADA).count(),
-        "pendientes": qp.filter(estado=CuotaProgramada.Estado.PENDIENTE).count(),
-        "vencidas": qp.filter(estado=CuotaProgramada.Estado.VENCIDA).count(),
-        "monto_plan_total": monto_plan_total,
-        "monto_cuotas_pagadas": monto_cuotas_pagadas,
-        "monto_cuotas_por_pagar": monto_cuotas_por_pagar,
-    }
-
-    total_pagado_bruto = pagos.aggregate(t=Sum("monto"))["t"] or Decimal("0")
-    total_recargos = (
-        pagos.filter(concepto=Pago.Concepto.MORA).aggregate(t=Sum("monto"))["t"]
-        or Decimal("0")
-    ) + (
-        pagos.filter(concepto=Pago.Concepto.CUOTA).aggregate(
-            t=Sum("monto_recargo_incluido")
-        )["t"]
-        or Decimal("0")
-    )
-    # El recargo administrativo no reduce el capital del contrato.
-    total_pagado = (total_pagado_bruto - total_recargos).quantize(Decimal("0.01"))
-    saldo_estimado = contrato.precio_final - total_pagado
+    bloque = build_bloque_contrato(contrato, hoy=hoy, param=param)
+    resumen = bloque["resumen"]
+    pagos = contrato.pagos.all().order_by("-fecha", "-id")
     context = {
         "contrato": contrato,
         "pagos": pagos,
-        "filas_cuotas": filas_cuotas,
-        "cuotas_resumen": cuotas_resumen,
+        "filas_cuotas": bloque["filas_cuotas"],
+        "cuotas_resumen": {
+            "total_cuotas": resumen["total_cuotas"],
+            "pagadas": resumen["pagadas"],
+            "pendientes": resumen["pendientes"],
+            "vencidas": resumen["vencidas"],
+            "monto_plan_total": resumen["monto_plan_total"],
+            "monto_cuotas_pagadas": resumen["monto_cuotas_pagadas"],
+            "monto_cuotas_por_pagar": resumen["monto_cuotas_por_pagar"],
+        },
         "hoy": hoy,
-        "total_pagado": total_pagado,
-        "saldo_estimado": saldo_estimado,
-        "cobro_mes": cobro,
+        "emitido_en": timezone.now(),
+        "total_pagado": resumen["total_pagado"],
+        "total_recargos": resumen["total_recargos"],
+        "saldo_estimado": resumen["saldo_estimado"],
+        "cobro_mes": bloque["cobro_mes"],
         "param_recargo": param,
     }
     return render(request, "app/contrato_estado_cuenta.html", context)

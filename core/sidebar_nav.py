@@ -104,10 +104,6 @@ _PROYECTOS = frozenset(
         "mapa_catastral",
         "api_mapa_catastral",
         "api_mapa_catastral_guardar",
-        "inmueble_list",
-        "inmueble_create",
-        "inmueble_update",
-        "inmueble_delete",
     }
 )
 
@@ -224,15 +220,14 @@ def build_sidebar_nav(url_name: str | None, *, pago_concepto: str | None = None)
         "open_cartera": in_set(_CARTERA),
         "open_docs": in_set(_DOCS),
         "open_admin": in_set(_ADMIN),
-        "open_vendedores": in_set(_VENDEDORES),
         "index_active": u == "index",
         "proyecto_active": u in {"proyecto_list", "proyecto_create", "proyecto_update"},
         "poligono_active": u in {"poligono_list", "poligono_create", "poligono_update"},
+        "inmueble_list_active": u
+        in {"inmueble_list", "inmueble_create", "inmueble_update", "inmueble_delete"},
         "mapa_editor_active": u in {"mapa_editor", "api_mapa_proyecto", "api_mapa_guardar_lote"},
         "mapa_catastral_active": u
         in {"mapa_catastral", "api_mapa_catastral", "api_mapa_catastral_guardar"},
-        "inmueble_list_active": u
-        in {"inmueble_list", "inmueble_create", "inmueble_update", "inmueble_delete"},
         "contrato_active": u
         in {
             "contrato_create",

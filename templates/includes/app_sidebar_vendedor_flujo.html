@@ -1,7 +1,10 @@
+{% load pbr_ui %}
 {% if sidebar_nav and es_vendedor_restringido %}
+{% url 'app:index' as index_url %}
+{% url 'app:pago_list' as pago_list_url %}
 <section class="app-sidebar__hub app-sidebar__hub--gestion app-sidebar__hub--active app-sidebar__hub--vendedor" aria-label="Flujo de venta" data-pbr-sidebar-hub>
   <header class="app-sidebar__hub-head">
-    <span class="app-sidebar__hub-badge app-sidebar__hub-badge--gestion" aria-hidden="true">①</span>
+    <span class="app-sidebar__hub-badge app-sidebar__hub-badge--gestion" aria-hidden="true">{% pbr_icon "flow" size="sm" %}</span>
     <div class="app-sidebar__hub-titles">
       <span class="app-sidebar__hub-title">Flujo de venta</span>
       <span class="app-sidebar__hub-sub">Recibos con validación gerencia</span>
@@ -9,48 +12,37 @@
   </header>
 
   <div class="app-sidebar__hub-body">
-    <div class="app-sidebar__accord-panel vend-side" style="display:block;border:0;padding:0;">
-      <a href="{% url 'app:index' %}"{% if sidebar_nav.index_active %} class="is-active" aria-current="page"{% endif %}>
-        Inicio
-      </a>
-      <a href="{% url 'app:pago_list' %}?validacion=validado"{% if sidebar_nav.pago_list_active and request.GET.validacion == 'validado' %} class="is-active" aria-current="page"{% endif %}>
-        Recibos listos (PDF / WhatsApp)
-      </a>
+    <div class="app-sidebar__accord-panel app-sidebar__accord-panel--nav vend-side" style="display:block;border:0;padding:0;margin-left:0;">
+      {% include "includes/_sidebar_sub_link.html" with href=index_url label="Inicio" icon="home" active=sidebar_nav.index_active %}
+      {% if sidebar_nav.pago_list_active and request.GET.validacion == 'validado' %}
+      {% include "includes/_sidebar_sub_link.html" with href=pago_list_url|add:"?validacion=validado" label="Recibos listos (PDF / WhatsApp)" icon="receipt" active=True %}
+      {% else %}
+      {% include "includes/_sidebar_sub_link.html" with href=pago_list_url|add:"?validacion=validado" label="Recibos listos (PDF / WhatsApp)" icon="receipt" active=False %}
+      {% endif %}
 
       <p class="app-sidebar__accord-hint">1 formato → 2 contado <em>o</em> 3–6 a plazos. Solo los recibos validan gerencia.</p>
-      <a href="{% url 'app:formato_aceptacion' %}"{% if sidebar_nav.formato_active %} class="is-active" aria-current="page"{% endif %}>
-        1. Formato de aceptación (nuevo){% if sidebar_stats and sidebar_stats.formatos %}<span class="app-sidebar__stat" title="Formatos">{{ sidebar_stats.formatos }}</span>{% endif %}
-      </a>
-      <a href="{% url 'app:pago_create' %}?concepto=CONTADO"{% if sidebar_nav.pago_contado_active %} class="is-active" aria-current="page"{% endif %}>
-        2. Contado: recibo total del lote
-      </a>
-      <a href="{% url 'app:pago_create' %}?concepto=RESERVA"{% if sidebar_nav.pago_reserva_active %} class="is-active" aria-current="page"{% endif %}>
-        3. Reserva pagada (recibo)
-      </a>
-      <a href="{% url 'app:pago_create' %}?concepto=PRIMA"{% if sidebar_nav.pago_prima_active %} class="is-active" aria-current="page"{% endif %}>
-        4. Prima pagada (recibo)
-      </a>
-      <a href="{% url 'app:contrato_create' %}"{% if sidebar_nav.contrato_active %} class="is-active" aria-current="page"{% endif %}>
-        5. Nuevo plan de pagos
-      </a>
-      <a href="{% url 'app:pago_create' %}?concepto=CUOTA"{% if sidebar_nav.pago_cuota_active %} class="is-active" aria-current="page"{% endif %}>
-        6. Recibos a plazos
-      </a>
-      <a href="{% url 'app:contrato_list' %}"{% if sidebar_nav.contrato_list_active %} class="is-active" aria-current="page"{% endif %}>
-        Listado de planes de pagos{% if sidebar_stats %}<span class="app-sidebar__stat">{{ sidebar_stats.contratos_activos }}</span>{% endif %}
-      </a>
-      <a href="{% url 'app:estado_cuenta_hub' %}"{% if sidebar_nav.estado_cuenta_active %} class="is-active" aria-current="page"{% endif %}>
-        Estado de cuenta (imprimir PDF)
-      </a>
-      <a href="{% url 'app:pago_list' %}"{% if sidebar_nav.pago_list_active and not request.GET.validacion %} class="is-active" aria-current="page"{% endif %}>
-        Todos los pagos / estado de recibos{% if sidebar_stats and sidebar_stats.pagos_pendientes_validacion %}<span class="app-sidebar__stat">{{ sidebar_stats.pagos_pendientes_validacion }}</span>{% endif %}
-      </a>
-      <a href="{% url 'app:formato_aceptacion_list' %}"{% if sidebar_nav.formato_list_active %} class="is-active" aria-current="page"{% endif %}>
-        Formatos guardados
-      </a>
-      <a href="{% url 'app:docs_list' %}"{% if sidebar_nav.docs_active %} class="is-active" aria-current="page"{% endif %}>
-        Documentos PDF (descargar de nuevo)
-      </a>
+      {% url 'app:formato_aceptacion' as formato_url %}
+      {% include "includes/_sidebar_sub_link.html" with href=formato_url label="1. Formato de aceptación (nuevo)" icon="file" active=sidebar_nav.formato_active stat=sidebar_stats.formatos stat_title="Formatos" %}
+      {% url 'app:pago_create' as pago_base_url %}
+      {% include "includes/_sidebar_sub_link.html" with href=pago_base_url|add:"?concepto=CONTADO" label="2. Contado: recibo total del lote" icon="payment" active=sidebar_nav.pago_contado_active %}
+      {% include "includes/_sidebar_sub_link.html" with href=pago_base_url|add:"?concepto=RESERVA" label="3. Reserva pagada (recibo)" icon="clock" active=sidebar_nav.pago_reserva_active %}
+      {% include "includes/_sidebar_sub_link.html" with href=pago_base_url|add:"?concepto=PRIMA" label="4. Prima pagada (recibo)" icon="payment" active=sidebar_nav.pago_prima_active %}
+      {% url 'app:contrato_create' as contrato_create_url %}
+      {% include "includes/_sidebar_sub_link.html" with href=contrato_create_url label="5. Nuevo plan de pagos" icon="chart" active=sidebar_nav.contrato_active %}
+      {% include "includes/_sidebar_sub_link.html" with href=pago_base_url|add:"?concepto=CUOTA" label="6. Recibos a plazos" icon="receipt" active=sidebar_nav.pago_cuota_active %}
+      {% url 'app:contrato_list' as contrato_list_url %}
+      {% include "includes/_sidebar_sub_link.html" with href=contrato_list_url label="Listado de planes de pagos" icon="clipboard" active=sidebar_nav.contrato_list_active stat=sidebar_stats.contratos_activos %}
+      {% url 'app:estado_cuenta_hub' as estado_cuenta_url %}
+      {% include "includes/_sidebar_sub_link.html" with href=estado_cuenta_url label="Estado de cuenta (PDF)" icon="chart" active=sidebar_nav.estado_cuenta_active %}
+      {% if sidebar_nav.pago_list_active and not request.GET.validacion %}
+      {% include "includes/_sidebar_sub_link.html" with href=pago_list_url label="Todos los pagos / estado de recibos" icon="payment" active=True stat=sidebar_stats.pagos_pendientes_validacion %}
+      {% else %}
+      {% include "includes/_sidebar_sub_link.html" with href=pago_list_url label="Todos los pagos / estado de recibos" icon="payment" active=False stat=sidebar_stats.pagos_pendientes_validacion %}
+      {% endif %}
+      {% url 'app:formato_aceptacion_list' as formato_list_url %}
+      {% include "includes/_sidebar_sub_link.html" with href=formato_list_url label="Formatos guardados" icon="folder" active=sidebar_nav.formato_list_active %}
+      {% url 'app:docs_list' as docs_list_url %}
+      {% include "includes/_sidebar_sub_link.html" with href=docs_list_url label="Documentos PDF (descargar de nuevo)" icon="file" active=sidebar_nav.docs_active %}
     </div>
   </div>
 </section>

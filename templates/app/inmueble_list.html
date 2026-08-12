@@ -14,6 +14,14 @@
     <a href="{{ nuevo_url }}" class="btn-primary btn-sm">{{ nuevo_boton_label|default:"Nuevo" }}</a>
   </div>
 </header>
+{% if listado_conteo %}
+<section class="listado-resumen" aria-label="Resumen del inventario">
+  <span class="listado-resumen__chip listado-resumen__chip--total"><strong>{{ listado_conteo.total }}</strong> total</span>
+  <a href="{% url 'app:inmueble_list' %}?estado=DISPONIBLE{% if request.GET.proyecto %}&amp;proyecto={{ request.GET.proyecto }}{% endif %}" class="listado-resumen__chip listado-resumen__chip--disp"><strong>{{ listado_conteo.disponibles }}</strong> disponibles</a>
+  <a href="{% url 'app:inmueble_list' %}?estado=RESERVADO{% if request.GET.proyecto %}&amp;proyecto={{ request.GET.proyecto }}{% endif %}" class="listado-resumen__chip listado-resumen__chip--res"><strong>{{ listado_conteo.reservados }}</strong> reservados</a>
+  <a href="{% url 'app:inmueble_list' %}?estado=VENDIDO{% if request.GET.proyecto %}&amp;proyecto={{ request.GET.proyecto }}{% endif %}" class="listado-resumen__chip listado-resumen__chip--pag"><strong>{{ listado_conteo.pagados }}</strong> pagados</a>
+</section>
+{% endif %}
 <div class="data-panel">
 <table class="table">
   <thead>

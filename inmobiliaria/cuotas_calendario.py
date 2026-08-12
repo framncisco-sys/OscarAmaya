@@ -146,6 +146,7 @@ def aplicar_calendario_desde_formato_cliente(
     from inmobiliaria.credito_contrato import (
         buscar_formato_plazos_del_cliente,
         credito_plazos_para_cliente,
+        es_plan_mes13,
     )
 
     if not contrato.cliente_id:
@@ -180,6 +181,9 @@ def aplicar_calendario_desde_formato_cliente(
         fecha_primera = getattr(contrato, "fecha_firma", None) or timezone.localdate()
 
     listado = data.get("listado_cuotas") or []
+    if es_plan_mes13(contrato):
+        # Plan PP-: solo cuotas con interés (mes 13 en adelante), misma numeración del formato.
+        listado = [row for row in listado if int(row.get("numero") or 0) >= 13]
     nuevas = construir_cuotas_desde_listado_credito(
         contrato, fecha_primera=fecha_primera, listado_cuotas=listado
     )

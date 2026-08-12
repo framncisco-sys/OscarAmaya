@@ -1,0 +1,104 @@
+{# Tabla de cuotas — estilo estado de cuenta bancario #}
+<div class="ec-bank__table-wrap">
+  <table class="ec-bank-table">
+    <thead>
+      <tr>
+        <th scope="col">Cuota</th>
+        <th scope="col">Vencimiento</th>
+        <th scope="col">Fecha pago</th>
+        <th scope="col" class="ec-bank-table__num">Días</th>
+        <th scope="col" class="ec-bank-table__num">Monto cuota</th>
+        <th scope="col" class="ec-bank-table__num">Recargo</th>
+        <th scope="col" class="ec-bank-table__num">Abono capital</th>
+        <th scope="col" class="ec-bank-table__num">Total pagado</th>
+        <th scope="col">Estado</th>
+        <th scope="col">Referencia</th>
+        <th scope="col">Cumplimiento</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in filas_cuotas %}
+      {% with c=row.cuota %}
+      <tr class="{% if row.es_proxima %}is-proxima{% elif c.estado == 'VENCIDA' %}is-vencida{% elif c.estado == 'PAGADA' %}is-pagada{% endif %}">
+        <td>
+          <strong>{{ c.numero }}</strong>
+          {% if row.es_proxima %}<span class="ec-bank-tag ec-bank-tag--proxima">Próxima</span>{% endif %}
+        </td>
+        <td>{{ c.vence_en|date:"d/m/Y" }}</td>
+        <td>
+          {% if row.fecha_pago %}
+            <span class="ec-bank-fecha-pago">{{ row.fecha_pago|date:"d/m/Y" }}</span>
+            {% if row.fecha_registro and row.fecha_registro != row.fecha_pago %}
+            <span class="ec-bank-sub">Reg. {{ row.fecha_registro|date:"d/m/Y" }}</span>
+            {% endif %}
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td class="ec-bank-table__num">
+          {% if row.dias_tarde_al_pagar is not None and row.dias_tarde_al_pagar > 0 %}
+            <span class="ec-bank-tag ec-bank-tag--warn">{{ row.dias_tarde_al_pagar }}</span>
+          {% elif row.dias_impago_tras_venc %}
+            <span class="ec-bank-tag ec-bank-tag--bad">{{ row.dias_impago_tras_venc }}</span>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td class="ec-bank-table__num ec-bank-table__cuota">${{ c.monto }}</td>
+        <td class="ec-bank-table__num">
+          {% if row.es_proxima and row.a_cobrar_recargo %}
+            <span class="ec-bank-monto ec-bank-monto--recargo">${{ row.a_cobrar_recargo }}</span>
+          {% elif row.recargo_cobrado %}
+            <span class="ec-bank-monto ec-bank-monto--recargo">${{ row.recargo_cobrado }}</span>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td class="ec-bank-table__num">
+          {% if row.abono_capital %}
+            <span class="ec-bank-monto ec-bank-monto--ok">${{ row.abono_capital }}</span>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td class="ec-bank-table__num">
+          {% if row.es_proxima and row.a_cobrar_total %}
+            <strong class="ec-bank-monto ec-bank-monto--total">${{ row.a_cobrar_total }}</strong>
+          {% elif row.total_pago_fila is not None %}
+            <strong class="ec-bank-monto ec-bank-monto--total">${{ row.total_pago_fila }}</strong>
+          {% elif row.pago_monto is not None %}
+            ${{ row.pago_monto }}
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          <span class="ec-bank-badge ec-bank-badge--{{ c.estado|lower }}">{{ c.get_estado_display }}</span>
+        </td>
+        <td>{{ row.pago_referencia|default:"—" }}</td>
+        <td class="ec-bank-cumpl">
+          {% if row.es_proxima and row.a_cobrar_recargo %}
+            <span class="ec-bank-nota ec-bank-nota--warn">Incluye recargo por atraso(s) anterior(es)</span>
+          {% elif row.dias_tarde_al_pagar is not None %}
+            {% if row.dias_tarde_al_pagar > 0 %}
+              <span class="ec-bank-nota ec-bank-nota--warn">{{ row.dias_tarde_al_pagar }} día{% if row.dias_tarde_al_pagar != 1 %}s{% endif %} después del vencimiento</span>
+            {% else %}
+              <span class="ec-bank-nota ec-bank-nota--ok">A tiempo</span>
+            {% endif %}
+          {% elif row.genera_recargo %}
+            <span class="ec-bank-nota ec-bank-nota--bad">Genera recargo administrativo</span>
+            <span class="ec-bank-sub">Gracia hasta {{ row.fecha_limite_gracia|date:"d/m/Y" }}</span>
+          {% elif row.dias_impago_tras_venc %}
+            <span class="ec-bank-nota ec-bank-nota--warn">Impaga {{ row.dias_impago_tras_venc }} día{% if row.dias_impago_tras_venc != 1 %}s{% endif %}</span>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endwith %}
+      {% empty %}
+      <tr><td colspan="11" class="ec-bank-empty">No hay cuotas cargadas para este contrato.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -1,68 +1,119 @@
-{# Panel: plan de pagos a plazos (carga automática desde formato + pagos) #}
-<section id="contrato-credito-plazos-panel" class="card" style="margin:0 0 1.25rem;padding:1rem 1.1rem;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;display:none;" hidden>
-  <h2 class="field__label" style="margin:0 0 0.35rem;font-size:1rem;color:#0f172a;">Plan desde el mes 13 (con interés)</h2>
-  <p id="contrato-credito-msg" class="muted" style="margin:0 0 0.75rem;font-size:0.85rem;"></p>
-  <p id="contrato-credito-elegibilidad" class="muted" style="margin:0 0 0.75rem;font-size:0.85rem;display:none;"></p>
-  <div id="contrato-credito-detalle" style="display:none;">
-    <p class="muted" style="margin:0 0 0.65rem;font-size:0.82rem;">
-      Lote: <strong id="cc-lote">—</strong>
-      · Proyecto: <strong id="cc-proyecto">—</strong>
-      · Formato Nº <strong id="cc-formato">—</strong>
-      · Plazo: <strong id="cc-plazo">—</strong>
-    </p>
-
-    <dl style="display:grid;grid-template-columns:1fr;gap:0.55rem;margin:0 0 1rem;font-size:0.92rem;max-width:36rem;">
-      <div style="display:flex;justify-content:space-between;gap:1rem;padding:0.45rem 0.6rem;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">
-        <dt style="margin:0;font-weight:600;">Reserva pagada</dt>
-        <dd id="cc-reserva" style="margin:0;font-weight:800;color:#0f766e;">—</dd>
-      </div>
-      <div style="display:flex;justify-content:space-between;gap:1rem;padding:0.45rem 0.6rem;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">
-        <dt style="margin:0;font-weight:600;">Prima pagada</dt>
-        <dd id="cc-prima" style="margin:0;font-weight:800;color:#0f766e;">—</dd>
-      </div>
-      <div style="display:flex;justify-content:space-between;gap:1rem;padding:0.45rem 0.6rem;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">
-        <dt style="margin:0;font-weight:600;">Suma total cuotas meses 1–12 (sin interés)</dt>
-        <dd id="cc-abonado-cuotas" style="margin:0;font-weight:800;">—</dd>
-      </div>
-      <div style="display:flex;justify-content:space-between;gap:1rem;padding:0.45rem 0.6rem;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;">
-        <dt style="margin:0;font-weight:600;line-height:1.35;">
-          Monto inicial <span class="muted" style="font-weight:500;">(−)</span> reserva
-          <span class="muted" style="font-weight:500;">(−)</span> prima
-          <span class="muted" style="font-weight:500;">(−)</span> cuotas 1–12
-        </dt>
-        <dd id="cc-formula" style="margin:0;font-weight:700;text-align:right;white-space:nowrap;">—</dd>
-      </div>
-      <div style="display:flex;justify-content:space-between;gap:1rem;padding:0.55rem 0.65rem;background:#fef2f2;border-radius:8px;border:1px solid #fecaca;">
-        <dt style="margin:0;font-weight:700;">Nuevo monto adeudado</dt>
-        <dd id="cc-deuda" style="margin:0;font-weight:900;color:#b91c1c;font-size:1.05rem;">—</dd>
-      </div>
-      <div style="display:flex;justify-content:space-between;gap:1rem;padding:0.55rem 0.65rem;background:#ecfdf5;border-radius:8px;border:1px solid #a7f3d0;">
-        <dt style="margin:0;font-weight:700;line-height:1.35;">
-          Cuota mensual + intereses<br>
-          <span class="muted" style="font-weight:500;font-size:0.82rem;">del mes 13 hasta el plazo elegido</span>
-        </dt>
-        <dd id="cc-cuota13" style="margin:0;font-weight:900;color:#003366;font-size:1.05rem;">—</dd>
-      </div>
-    </dl>
-
-    <p id="cc-detalle-montos" class="muted" style="margin:0 0 0.75rem;font-size:0.8rem;line-height:1.45;"></p>
-    <p id="cc-resumen" class="muted" style="margin:0 0 0.85rem;font-size:0.82rem;line-height:1.4;"></p>
-
-    <h3 class="field__label" style="margin:0 0 0.4rem;font-size:0.82rem;letter-spacing:0.06em;text-transform:uppercase;color:#0f172a;">Todas las cuotas a pagar</h3>
-    <div style="overflow-x:auto;max-height:22rem;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;background:#fff;">
-      <table style="width:100%;border-collapse:collapse;font-size:0.84rem;">
-        <thead style="position:sticky;top:0;background:#f1f5f9;">
-          <tr>
-            <th scope="col" style="text-align:left;padding:0.4rem 0.55rem;border-bottom:1px solid #e2e8f0;">N.º</th>
-            <th scope="col" style="text-align:left;padding:0.4rem 0.55rem;border-bottom:1px solid #e2e8f0;">Concepto</th>
-            <th scope="col" style="text-align:right;padding:0.4rem 0.55rem;border-bottom:1px solid #e2e8f0;">Monto</th>
-          </tr>
-        </thead>
-        <tbody id="cc-listado-cuotas-body">
-          <tr><td colspan="3" class="muted" style="padding:0.5rem;">—</td></tr>
-        </tbody>
-      </table>
+{# Panel: plan de pagos mes 13 — estado de cuenta / amortización bancaria #}
+<section id="contrato-credito-plazos-panel" class="plan-mes13 ec-bank ec-bank--projected" hidden aria-live="polite">
+  <header class="plan-mes13__head ec-bank__head-toolbar no-print">
+    <div>
+      <h2 class="plan-mes13__title">Plan desde el mes 13 (con interés)</h2>
+      <p id="contrato-credito-msg" class="plan-mes13__lead muted"></p>
     </div>
+    <a id="plan-mes13-link-formato" class="btn-secondary btn-sm plan-mes13__link-fmt" href="#" hidden>Ver formato</a>
+  </header>
+
+  <div id="contrato-credito-elegibilidad" class="plan-mes13__alert" hidden role="status"></div>
+
+  <div id="contrato-credito-detalle" class="plan-mes13__body" hidden>
+    <header class="ec-bank__hero">
+      <h2 class="ec-bank__title">Estado de cuenta proyectado</h2>
+      <p id="cc-ec-meta" class="ec-bank__meta">Tabla de amortización · cuotas, fechas de pago y recargos administrativos</p>
+    </header>
+
+    <div class="plan-mes13__meta ec-bank__chips">
+      <span class="plan-mes13__chip ec-bank__chip"><span class="muted">Lote</span> <strong id="cc-lote">—</strong></span>
+      <span class="plan-mes13__chip ec-bank__chip"><span class="muted">Proyecto</span> <strong id="cc-proyecto">—</strong></span>
+      <span class="plan-mes13__chip ec-bank__chip"><span class="muted">Formato</span> <strong id="cc-formato">—</strong></span>
+      <span class="plan-mes13__chip ec-bank__chip"><span class="muted">Plazo</span> <strong id="cc-plazo">—</strong></span>
+    </div>
+
+    <div class="plan-mes13__progress-wrap ec-bank__progress">
+      <div class="plan-mes13__progress-head">
+        <span>Cuotas 1–12 sin interés (plan base)</span>
+        <strong id="cc-progreso-texto">0 / 12</strong>
+      </div>
+      <div class="plan-mes13__progress" role="progressbar" aria-valuemin="0" aria-valuemax="12" aria-valuenow="0">
+        <div id="cc-progreso-bar" class="plan-mes13__progress-bar"></div>
+      </div>
+    </div>
+
+    <div class="ec-bank__kpis plan-mes13__grid">
+      <article class="ec-bank__kpi plan-mes13__kpi plan-mes13__kpi--ok">
+        <span class="ec-bank__kpi-label plan-mes13__kpi-label">Reserva</span>
+        <strong id="cc-reserva" class="ec-bank__kpi-val plan-mes13__kpi-val">—</strong>
+      </article>
+      <article class="ec-bank__kpi plan-mes13__kpi plan-mes13__kpi--ok">
+        <span class="ec-bank__kpi-label plan-mes13__kpi-label">Prima</span>
+        <strong id="cc-prima" class="ec-bank__kpi-val plan-mes13__kpi-val">—</strong>
+      </article>
+      <article class="ec-bank__kpi plan-mes13__kpi">
+        <span class="ec-bank__kpi-label plan-mes13__kpi-label">Cuotas 1–12</span>
+        <strong id="cc-abonado-cuotas" class="ec-bank__kpi-val plan-mes13__kpi-val">—</strong>
+      </article>
+      <article class="ec-bank__kpi plan-mes13__kpi plan-mes13__kpi--info">
+        <span class="ec-bank__kpi-label plan-mes13__kpi-label">Valor a financiar</span>
+        <strong id="cc-valor-fin" class="ec-bank__kpi-val plan-mes13__kpi-val">—</strong>
+      </article>
+      <article class="ec-bank__kpi plan-mes13__kpi plan-mes13__kpi--formula">
+        <span class="ec-bank__kpi-label plan-mes13__kpi-label">Cálculo del saldo</span>
+        <strong id="cc-formula" class="ec-bank__kpi-val plan-mes13__kpi-val plan-mes13__kpi-val--sm">—</strong>
+      </article>
+      <article class="ec-bank__kpi plan-mes13__kpi plan-mes13__kpi--deuda">
+        <span class="ec-bank__kpi-label plan-mes13__kpi-label">Nueva deuda (mes 13)</span>
+        <strong id="cc-deuda" class="ec-bank__kpi-val plan-mes13__kpi-val">—</strong>
+      </article>
+      <article class="ec-bank__kpi plan-mes13__kpi plan-mes13__kpi--cuota">
+        <span class="ec-bank__kpi-label plan-mes13__kpi-label">Cuota mensual + intereses</span>
+        <strong id="cc-cuota13" class="ec-bank__kpi-val plan-mes13__kpi-val">—</strong>
+        <small class="plan-mes13__kpi-hint">Desde el mes 13 hasta el fin del plazo</small>
+      </article>
+    </div>
+
+    <p id="cc-detalle-montos" class="plan-mes13__hint ec-bank__policy muted"></p>
+    <p id="cc-resumen" class="plan-mes13__resumen ec-bank__policy"></p>
+
+    <section class="ec-bank__block">
+      <header class="ec-bank__block-head plan-mes13__table-head">
+        <div>
+          <h3 class="ec-bank__block-head-title plan-mes13__table-title">Tabla de amortización</h3>
+          <p id="cc-amort-meta" class="ec-bank__block-sub plan-mes13__table-sub muted">Capital · interés · saldo · fechas de pago · recargos</p>
+        </div>
+        <div class="plan-mes13__filters ec-bank__filters" role="tablist" aria-label="Filtrar cuotas">
+          <button type="button" class="plan-mes13__filter ec-bank__filter is-active" data-plan-filter="todas" role="tab" aria-selected="true">Todas</button>
+          <button type="button" class="plan-mes13__filter ec-bank__filter" data-plan-filter="sin_interes" role="tab" aria-selected="false">1–12 sin interés</button>
+          <button type="button" class="plan-mes13__filter ec-bank__filter" data-plan-filter="con_interes" role="tab" aria-selected="false">Desde mes 13</button>
+        </div>
+      </header>
+      <div id="cc-amort-totales" class="plan-mes13__amort-totales ec-bank__totals-bar" hidden></div>
+      <div class="ec-bank__table-wrap plan-mes13__table-scroll plan-mes13__table-scroll--wide">
+        <table class="ec-bank-table plan-mes13__table plan-mes13__table--bank">
+          <thead>
+            <tr>
+              <th scope="col">N.º</th>
+              <th scope="col">Vencimiento</th>
+              <th scope="col">Fecha pago</th>
+              <th scope="col" class="ec-bank-table__num">Días</th>
+              <th scope="col" class="ec-bank-table__num">Saldo inicial</th>
+              <th scope="col" class="ec-bank-table__num">Cuota</th>
+              <th scope="col" class="ec-bank-table__num">Capital</th>
+              <th scope="col" class="ec-bank-table__num">Interés</th>
+              <th scope="col" class="ec-bank-table__num">Recargo</th>
+              <th scope="col" class="ec-bank-table__num">Saldo</th>
+              <th scope="col">Estado</th>
+            </tr>
+          </thead>
+          <tbody id="cc-listado-cuotas-body">
+            <tr><td colspan="11" class="ec-bank-empty muted">—</td></tr>
+          </tbody>
+          <tfoot id="cc-listado-cuotas-foot" hidden>
+            <tr class="ec-bank-table__foot plan-mes13__foot-row">
+              <th scope="row" colspan="5">Totales del plan</th>
+              <td class="ec-bank-table__num" id="cc-foot-cuota">—</td>
+              <td class="ec-bank-table__num" id="cc-foot-capital">—</td>
+              <td class="ec-bank-table__num" id="cc-foot-interes">—</td>
+              <td class="ec-bank-table__num" id="cc-foot-recargo">—</td>
+              <td colspan="2"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
   </div>
 </section>
 <script>

@@ -1,0 +1,7 @@
+{# Sub-enlace del acordeón (Gestión): icono SVG + texto + stat #}
+{% load pbr_ui %}
+<a href="{{ href }}" class="app-sidebar__sub-link{% if active %} is-active{% endif %}"{% if active %} aria-current="page"{% endif %}>
+  <span class="app-sidebar__sub-link-icon" aria-hidden="true">{% pbr_icon icon size="sm" %}</span>
+  <span class="app-sidebar__sub-link-text">{{ label }}</span>
+  {% if stat %}<span class="app-sidebar__stat"{% if stat_title %} title="{{ stat_title }}"{% endif %}>{{ stat }}</span>{% endif %}
+</a>
