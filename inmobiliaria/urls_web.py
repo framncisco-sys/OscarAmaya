@@ -5,7 +5,7 @@ from django.views.generic import RedirectView
 
 from docs import views_web as docs_views
 
-from . import views_asesor_alquiler, views_recibo_alquiler, views_web as views
+from . import views_asesor_alquiler, views_contable, views_recibo_alquiler, views_web as views
 
 app_name = "app"
 
@@ -239,6 +239,26 @@ urlpatterns = [
         name="formato_aceptacion_compraventa_descargar",
     ),
     path("reportes/pagos.csv", views.export_pagos_csv, name="export_pagos_csv"),
+    path(
+        "contable/libro-ventas/",
+        views_contable.contable_libro_ventas,
+        name="contable_libro_ventas",
+    ),
+    path(
+        "contable/ingresos-mes/",
+        views_contable.contable_ingresos_mes,
+        name="contable_ingresos_mes",
+    ),
+    path(
+        "contable/cuentas-por-cobrar/",
+        views_contable.contable_cuentas_por_cobrar,
+        name="contable_cuentas_por_cobrar",
+    ),
+    path(
+        "contable/capital-intereses/",
+        views_contable.contable_estado_capital_intereses,
+        name="contable_estado_capital_intereses",
+    ),
     path("pagos/", views.PagoListView.as_view(), name="pago_list"),
     path("pagos/nuevo/", views.PagoCreateView.as_view(), name="pago_create"),
     path(

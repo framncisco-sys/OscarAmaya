@@ -1,0 +1,35 @@
+{% extends "docs/contable/_base_contable_pdf.html" %}
+{% block content %}
+<h1>Cuentas por Cobrar</h1>
+<p class="sub">Antigüedad de saldos · Corte {{ hoy|date:"d/m/Y" }} · Emitido {{ emitido_en|date:"d/m/Y H:i" }}</p>
+<table class="ec-kpi">
+  <tr>
+    <td><span class="k">Total por cobrar</span><span class="v">${{ total_pendiente }}</span></td>
+    <td><span class="k">Planes con saldo</span><span class="v">{{ n_clientes }}</span></td>
+  </tr>
+</table>
+{% for titulo, filas in secciones %}
+<p class="ec-section">{{ titulo }} ({{ filas|length }})</p>
+<table class="ec-table">
+  <thead>
+    <tr>
+      <th>Cliente</th><th>Plan</th><th>Días</th><th>Cuotas</th><th>Vencimiento</th><th class="num">Saldo</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td>{{ f.cliente.apellidos }}, {{ f.cliente.nombres }}</td>
+      <td>{{ f.contrato.numero }}</td>
+      <td>{% if f.dias_atraso %}{{ f.dias_atraso }}{% else %}—{% endif %}</td>
+      <td>{{ f.cuotas_pendientes }}</td>
+      <td>{{ f.proximo_vencimiento|date:"d/m/Y" }}</td>
+      <td class="num">${{ f.saldo_pendiente }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="muted">Ninguno.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endfor %}
+{% endblock %}

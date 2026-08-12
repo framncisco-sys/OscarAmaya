@@ -15,6 +15,7 @@ from .roles import (
     puede_gestionar_vendedores,
     puede_validar_abonos,
     puede_ver_historial_auditoria,
+    puede_ver_reportes_contables,
 )
 
 
@@ -25,6 +26,7 @@ def perfil_app(request):
             "puede_gestionar_usuarios_app": False,
             "puede_gestionar_vendedores_app": False,
             "puede_validar_abonos_app": False,
+            "puede_ver_reportes_contables_app": False,
             "puede_aprobar_precio_formato_app": False,
             "puede_ver_historial_auditoria": False,
             "puede_cambiar_empresa": False,
@@ -56,6 +58,7 @@ def perfil_app(request):
         "puede_gestionar_usuarios_app": puede_gestionar_usuarios(request.user),
         "puede_gestionar_vendedores_app": puede_gestionar_vendedores(request.user),
         "puede_validar_abonos_app": puede_validar_abonos(request.user),
+        "puede_ver_reportes_contables_app": puede_ver_reportes_contables(request.user),
         "puede_aprobar_precio_formato_app": puede_aprobar_precio_formato(request.user),
         "puede_ver_historial_auditoria": puede_ver_historial_auditoria(request.user),
         "puede_cambiar_empresa": puede_cambiar_empresa(request.user),

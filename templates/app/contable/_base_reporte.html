@@ -1,0 +1,29 @@
+{% extends "app/base_app.html" %}
+{% block title %}{{ page_title }} | {{ marca_portal.nombre }}{% endblock %}
+{% block app_content %}
+<div class="contable-reporte-wrap">
+  {% include "includes/_contable_report_header.html" %}
+
+  <header class="page-toolbar contable-reporte-wrap__toolbar">
+    <div class="page-toolbar__intro">
+      <h1 class="page-title contable-reporte-wrap__title">{{ page_title }}</h1>
+      <p class="page-toolbar__meta">{{ page_meta }}</p>
+      <p class="muted contable-reporte-wrap__emitido">Emitido {{ emitido_en|date:"d/m/Y H:i" }}</p>
+    </div>
+    <div class="page-toolbar__actions contable-reporte-wrap__actions contable-export-actions">
+      {% block contable_toolbar_actions %}
+      {% if mes_valor %}
+      <a href="?mes={{ mes_valor }}&amp;export=pdf" class="btn-primary btn-sm">Descargar PDF</a>
+      <a href="?mes={{ mes_valor }}&amp;export=xlsx" class="btn-secondary btn-sm">Descargar Excel</a>
+      {% else %}
+      <a href="?export=pdf" class="btn-primary btn-sm">Descargar PDF</a>
+      <a href="?export=xlsx" class="btn-secondary btn-sm">Descargar Excel</a>
+      {% endif %}
+      <button type="button" class="btn-secondary btn-sm" onclick="window.print()">Imprimir</button>
+      {% endblock %}
+    </div>
+  </header>
+
+  {% block contable_report_body %}{% endblock %}
+</div>
+{% endblock %}

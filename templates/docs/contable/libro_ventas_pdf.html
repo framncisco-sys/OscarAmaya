@@ -1,0 +1,40 @@
+{% extends "docs/contable/_base_contable_pdf.html" %}
+{% block content %}
+<h1>Libro de Ventas (IVA)</h1>
+<p class="sub">Período {{ inicio|date:"d/m/Y" }} — {{ fin|date:"d/m/Y" }} · Emitido {{ emitido_en|date:"d/m/Y H:i" }}</p>
+<table class="ec-table">
+  <thead>
+    <tr>
+      <th>Fecha</th><th>Comprobante</th><th>Cliente</th><th>Plan</th><th>Concepto</th>
+      <th class="num">Gravado</th><th class="num">IVA est.</th><th class="num">Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td>{{ f.fecha|date:"d/m/Y" }}</td>
+      <td>{{ f.comprobante }}</td>
+      <td>{{ f.cliente }}</td>
+      <td>{{ f.contrato }}</td>
+      <td>{{ f.concepto }}</td>
+      <td class="num">${{ f.gravado }}</td>
+      <td class="num">${{ f.iva }}</td>
+      <td class="num">${{ f.monto }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="8" class="muted">Sin comprobantes en el período.</td></tr>
+    {% endfor %}
+  </tbody>
+  {% if filas %}
+  <tfoot>
+    <tr>
+      <td colspan="5">Totales</td>
+      <td class="num">${{ total_gravado }}</td>
+      <td class="num">${{ total_iva }}</td>
+      <td class="num">${{ total_monto }}</td>
+    </tr>
+  </tfoot>
+  {% endif %}
+</table>
+<p class="sub">IVA estimado proporcional al desglose registrado en cada plan. Validar con contador antes de DGII.</p>
+{% endblock %}

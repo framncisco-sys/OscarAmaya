@@ -45,6 +45,9 @@
       {% endif %}
       {% if muestra_sidebar_gestion %}
       {% include "includes/app_sidebar_gestion.html" %}
+      {% if puede_ver_reportes_contables_app %}
+      {% include "includes/app_sidebar_contable.html" %}
+      {% endif %}
       {% endif %}
     {% endif %}
     </div>

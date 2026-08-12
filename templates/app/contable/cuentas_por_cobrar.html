@@ -1,0 +1,19 @@
+{% extends "app/contable/_base_reporte.html" %}
+{% block contable_report_body %}
+<p class="muted contable-reporte-wrap__corte">Corte al {{ hoy|date:"d/m/Y" }}.</p>
+
+<div class="kpi-grid" style="margin-top:0.5rem;">
+  <div class="kpi-card">
+    <span class="kpi-card__label">Total por cobrar</span>
+    <strong class="kpi-card__value">${{ total_pendiente }}</strong>
+  </div>
+  <div class="kpi-card">
+    <span class="kpi-card__label">Planes con saldo</span>
+    <strong class="kpi-card__value">{{ n_clientes }}</strong>
+  </div>
+</div>
+
+{% for titulo, filas in secciones %}
+{% include "app/contable/_bucket_tabla.html" with titulo=titulo filas=filas %}
+{% endfor %}
+{% endblock %}

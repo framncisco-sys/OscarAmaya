@@ -132,6 +132,18 @@ def puede_validar_abonos(user: AbstractUser | None) -> bool:
     return p.rol in (p.Rol.ADMINISTRADOR, p.Rol.GERENCIA)
 
 
+def puede_ver_reportes_contables(user: AbstractUser | None) -> bool:
+    """Reportes contables (IVA, renta, cartera): admin, gerencia y cartera/finanzas."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    p = obtener_perfil(user)
+    if not p or not p.activo_en_app:
+        return False
+    return p.rol in (p.Rol.ADMINISTRADOR, p.Rol.GERENCIA, p.Rol.CARTERA)
+
+
 def es_rol_proyectos(user: AbstractUser | None) -> bool:
     """Rol «Proyectos, lotes y mapa»: inventarios/mapa y debe pasar por cola de gerencia."""
     if not user or not user.is_authenticated:

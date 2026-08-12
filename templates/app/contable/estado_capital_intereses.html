@@ -1,0 +1,58 @@
+{% extends "app/contable/_base_reporte.html" %}
+{% block contable_toolbar_actions %}
+<a href="{% url 'app:estado_cuenta_hub' %}" class="btn-secondary btn-sm">Estado de cuenta por cliente (PDF)</a>
+<button type="button" class="btn-secondary btn-sm" onclick="window.print()">Imprimir / PDF</button>
+{% endblock %}
+{% block contable_report_body %}
+{% include "app/contable/_mes_filtro.html" %}
+
+<div class="kpi-grid" style="margin-top:1rem;">
+  <div class="kpi-card">
+    <span class="kpi-card__label">Total recibido</span>
+    <strong class="kpi-card__value">${{ total_recibido }}</strong>
+  </div>
+  <div class="kpi-card">
+    <span class="kpi-card__label">Capital (cuotas + abonos)</span>
+    <strong class="kpi-card__value">${{ total_capital }}</strong>
+  </div>
+  <div class="kpi-card">
+    <span class="kpi-card__label">Intereses est.</span>
+    <strong class="kpi-card__value">${{ total_interes }}</strong>
+  </div>
+</div>
+
+<section class="card contable-reporte" style="margin-top:1rem;">
+  <div class="data-panel">
+    <table class="table table--compact">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Cliente</th>
+          <th>Plan</th>
+          <th>Concepto</th>
+          <th class="num">Capital</th>
+          <th class="num">Interés est.</th>
+          <th class="num">Recargo</th>
+          <th class="num">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in filas %}
+        <tr>
+          <td>{{ f.pago.fecha|date:"d/m/Y" }}</td>
+          <td>{{ f.cliente.apellidos }}, {{ f.cliente.nombres }}</td>
+          <td class="muted">{{ f.contrato.numero }}</td>
+          <td>{{ f.pago.get_concepto_display }}</td>
+          <td class="num">${{ f.capital }}</td>
+          <td class="num">${{ f.interes }}</td>
+          <td class="num">${{ f.recargo }}</td>
+          <td class="num"><strong>${{ f.total }}</strong></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="muted">Sin pagos validados en el período.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

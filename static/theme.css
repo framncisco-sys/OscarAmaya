@@ -10409,7 +10409,163 @@ html[data-pbr-class="mobile"] .app-sidebar--v4 {
 .app-sidebar.app-sidebar--v4 .app-sidebar__accord--clientes[open],
 .app-sidebar.app-sidebar--v4 .app-sidebar__accord--inmuebles[open],
 .app-sidebar.app-sidebar--v4 .app-sidebar__accord--alquiler[open],
-.app-sidebar.app-sidebar--v4 .app-sidebar__accord--vendedores[open] {
+.app-sidebar.app-sidebar--v4 .app-sidebar__accord--vendedores[open],
+.app-sidebar.app-sidebar--v4 .app-sidebar__accord--contable[open] {
   background: var(--sb-surface) !important;
   border-color: var(--sb-gold-bright) !important;
+}
+
+.app-sidebar--v4 .app-sidebar__hub--contable .app-sidebar__accord-icon--contable {
+  background: rgba(192, 142, 72, 0.14);
+  border: 1px solid var(--sb-border-gold);
+  color: var(--sb-gold-bright);
+}
+
+/* —— Reportes contables —— */
+.contable-mes-filtro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--pbr-radius);
+  border: 1px solid var(--pbr-border-light);
+  background: var(--pbr-surface);
+}
+
+.contable-mes-filtro label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--pbr-muted);
+}
+
+.contable-mes-filtro__hint {
+  font-size: 0.78rem;
+}
+
+.contable-reporte .table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@media print {
+  .app-sidebar,
+  .app-nav-backdrop,
+  .contable-reporte-wrap__actions,
+  .contable-mes-filtro {
+    display: none !important;
+  }
+
+  .contable-report-header {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+.contable-report-header {
+  margin-bottom: 1rem;
+  padding: 0.85rem 0.95rem 0.75rem;
+  border-radius: var(--pbr-radius-lg);
+  border: 1px solid var(--pbr-border-light);
+  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+  box-shadow: var(--pbr-shadow-sm);
+}
+
+.contable-report-header__logos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+  align-items: center;
+  margin-bottom: 0.55rem;
+}
+
+.contable-report-header__logo-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 5.5rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.contable-report-header__logo {
+  display: block;
+  max-width: 100%;
+  max-height: 5rem;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.contable-report-header__captions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-top: 1px solid var(--pbr-border-light);
+}
+
+.contable-report-header__caption {
+  padding: 0.55rem 0.75rem;
+  background: #f8fafc;
+}
+
+.contable-report-header__caption--proyecto {
+  border-right: 1px solid var(--pbr-border-light);
+}
+
+.contable-report-header__kicker {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--pbr-accent);
+  margin-bottom: 0.2rem;
+}
+
+.contable-report-header__name {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--pbr-accent);
+  margin-bottom: 0.15rem;
+}
+
+.contable-report-header__meta {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--pbr-muted);
+  line-height: 1.4;
+}
+
+.contable-reporte-wrap__title {
+  color: var(--pbr-accent);
+}
+
+.contable-reporte-wrap__emitido,
+.contable-reporte-wrap__corte {
+  font-size: 0.78rem;
+  margin: 0.25rem 0 0;
+}
+
+.contable-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  .contable-report-header__logos {
+    grid-template-columns: 1fr;
+  }
+
+  .contable-report-header__captions {
+    grid-template-columns: 1fr;
+  }
+
+  .contable-report-header__caption--proyecto {
+    border-right: 0;
+    border-bottom: 1px solid var(--pbr-border-light);
+  }
 }

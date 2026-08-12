@@ -169,6 +169,15 @@ _ADMIN = frozenset(
     }
 )
 
+_CONTABLE = frozenset(
+    {
+        "contable_libro_ventas",
+        "contable_ingresos_mes",
+        "contable_cuentas_por_cobrar",
+        "contable_estado_capital_intereses",
+    }
+)
+
 _GESTION = frozenset({"index"}) | _PROYECTOS | _CARTERA | _DOCS | _ADMIN
 
 
@@ -216,6 +225,11 @@ def build_sidebar_nav(url_name: str | None, *, pago_concepto: str | None = None)
         },
         "cliente_create_active": u == "cliente_create",
         "gestion_active": in_set(_GESTION),
+        "contable_active": in_set(_CONTABLE),
+        "contable_libro_ventas_active": u == "contable_libro_ventas",
+        "contable_ingresos_active": u == "contable_ingresos_mes",
+        "contable_cxp_active": u == "contable_cuentas_por_cobrar",
+        "contable_capital_active": u == "contable_estado_capital_intereses",
         "open_proyectos": in_set(_PROYECTOS),
         "open_cartera": in_set(_CARTERA),
         "open_docs": in_set(_DOCS),

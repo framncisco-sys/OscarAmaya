@@ -1,0 +1,27 @@
+{% load pbr_ui %}
+{% if sidebar_nav %}
+{% url 'app:contable_libro_ventas' as libro_ventas_url %}
+{% url 'app:contable_ingresos_mes' as ingresos_mes_url %}
+{% url 'app:contable_cuentas_por_cobrar' as cxp_url %}
+{% url 'app:contable_estado_capital_intereses' as capital_intereses_url %}
+<section class="app-sidebar__hub app-sidebar__hub--contable app-sidebar__hub--minimal{% if sidebar_nav.contable_active %} app-sidebar__hub--active{% endif %}" aria-label="Contable" data-pbr-sidebar-hub>
+  <div class="app-sidebar__hub-body app-sidebar__hub-body--compact">
+    <details class="app-sidebar__accord app-sidebar__accord--contable" data-pbr-accord{% if sidebar_nav.contable_active %} open{% endif %}>
+      <summary class="app-sidebar__accord-summary">
+        <span class="app-sidebar__accord-icon app-sidebar__accord-icon--contable" aria-hidden="true">{% pbr_icon "ledger" size="sm" %}</span>
+        <span class="app-sidebar__accord-label">
+          Contable
+          <small class="app-sidebar__accord-sub">IVA · renta · cartera</small>
+        </span>
+        <span class="app-sidebar__accord-chevron" aria-hidden="true"></span>
+      </summary>
+      <div class="app-sidebar__accord-panel app-sidebar__accord-panel--nav">
+        {% include "includes/_sidebar_sub_link.html" with href=libro_ventas_url label="Libro de Ventas (IVA)" icon="receipt" active=sidebar_nav.contable_libro_ventas_active %}
+        {% include "includes/_sidebar_sub_link.html" with href=ingresos_mes_url label="Ingresos del mes (Pago a Cuenta)" icon="payment" active=sidebar_nav.contable_ingresos_active %}
+        {% include "includes/_sidebar_sub_link.html" with href=cxp_url label="Cuentas por cobrar (antigüedad)" icon="chart" active=sidebar_nav.contable_cxp_active %}
+        {% include "includes/_sidebar_sub_link.html" with href=capital_intereses_url label="Capital e intereses por cliente" icon="file" active=sidebar_nav.contable_capital_active %}
+      </div>
+    </details>
+  </div>
+</section>
+{% endif %}

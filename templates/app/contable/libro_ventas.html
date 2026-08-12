@@ -1,0 +1,54 @@
+{% extends "app/contable/_base_reporte.html" %}
+{% block contable_report_body %}
+{% include "app/contable/_mes_filtro.html" %}
+
+<section class="card contable-reporte" style="margin-top:1rem;">
+  <div class="data-panel">
+    <table class="table table--compact">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Comprobante</th>
+          <th>Cliente</th>
+          <th>Plan</th>
+          <th>Concepto</th>
+          <th class="num">Gravado</th>
+          <th class="num">IVA est.</th>
+          <th class="num">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in filas %}
+        <tr>
+          <td>{{ f.fecha|date:"d/m/Y" }}</td>
+          <td><code>{{ f.comprobante }}</code></td>
+          <td>{{ f.cliente }}</td>
+          <td class="muted">{{ f.contrato }}</td>
+          <td>{{ f.concepto }}</td>
+          <td class="num">${{ f.gravado }}</td>
+          <td class="num">${{ f.iva }}</td>
+          <td class="num"><strong>${{ f.monto }}</strong></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="muted">Sin comprobantes validados en este mes.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if filas %}
+      <tfoot>
+        <tr>
+          <th colspan="5">Totales del mes</th>
+          <th class="num">${{ total_gravado }}</th>
+          <th class="num">${{ total_iva }}</th>
+          <th class="num">${{ total_monto }}</th>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</section>
+
+<p class="muted contable-reporte__nota">
+  El IVA estimado se calcula de forma proporcional al <em>desglose IVA</em> registrado en cada plan de pagos.
+  Confirme cifras con su contador antes de la declaración DGII.
+</p>
+{% endblock %}

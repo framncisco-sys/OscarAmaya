@@ -1,0 +1,20 @@
+{% extends "docs/_base_pdf.html" %}
+{% block pdf_brand_captions %}
+{% include "docs/_pdf_brand_captions.html" with razon_social=empresa_nombre pie_inmobiliaria=pie_inmobiliaria %}
+{% endblock %}
+{% block pdf_extra_styles %}
+    body { font-size: 10px; }
+    h1 { font-size: 16px; text-align: center; margin: 0 0 6px; color: #003366; text-transform: uppercase; }
+    .sub { text-align: center; font-size: 9px; color: #64748b; margin: 0 0 12px; }
+    .ec-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 8.5px; }
+    .ec-table th { background: #003366; color: #fff; padding: 5px 4px; text-align: left; font-size: 7.5px; text-transform: uppercase; }
+    .ec-table td { padding: 4px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+    .ec-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .ec-table tfoot td { font-weight: 700; background: #f1f5f9; }
+    .ec-kpi { width: 100%; border-collapse: collapse; margin: 0 0 10px; }
+    .ec-kpi td { border: 1px solid #cbd5e1; padding: 6px; text-align: center; background: #f8fafc; }
+    .ec-kpi .k { font-size: 7px; text-transform: uppercase; color: #64748b; }
+    .ec-kpi .v { font-size: 11px; font-weight: 800; }
+    .ec-section { margin: 12px 0 0; font-size: 10px; font-weight: 800; color: #003366; text-transform: uppercase; }
+    .muted { color: #94a3b8; font-style: italic; }
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "app/contable/_base_reporte.html" %}
+{% block contable_report_body %}
+{% include "app/contable/_mes_filtro.html" %}
+
+<div class="kpi-grid" style="margin-top:1rem;">
+  <div class="kpi-card">
+    <span class="kpi-card__label">Total recibido</span>
+    <strong class="kpi-card__value">${{ total_recibido }}</strong>
+  </div>
+  <div class="kpi-card">
+    <span class="kpi-card__label">Comprobantes</span>
+    <strong class="kpi-card__value">{{ n_comprobantes }}</strong>
+  </div>
+  <div class="kpi-card">
+    <span class="kpi-card__label">Cuotas (capital prog.)</span>
+    <strong class="kpi-card__value">${{ total_cuotas }}</strong>
+  </div>
+  <div class="kpi-card">
+    <span class="kpi-card__label">Abono a capital</span>
+    <strong class="kpi-card__value">${{ total_capital }}</strong>
+  </div>
+  <div class="kpi-card">
+    <span class="kpi-card__label">Intereses est.</span>
+    <strong class="kpi-card__value">${{ total_interes }}</strong>
+  </div>
+  <div class="kpi-card">
+    <span class="kpi-card__label">Recargos admin.</span>
+    <strong class="kpi-card__value">${{ total_recargo }}</strong>
+  </div>
+</div>
+
+<section class="card contable-reporte" style="margin-top:1rem;">
+  <h2 class="page-title" style="font-size:1rem;margin:0 0 0.75rem;">Por concepto</h2>
+  <div class="data-panel">
+    <table class="table table--compact">
+      <thead>
+        <tr><th>Concepto</th><th class="num">Monto</th></tr>
+      </thead>
+      <tbody>
+        {% for concepto, monto in filas_concepto %}
+        <tr>
+          <td>{{ concepto }}</td>
+          <td class="num">${{ monto }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="2" class="muted">Sin ingresos registrados en el mes.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

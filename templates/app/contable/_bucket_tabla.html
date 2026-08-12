@@ -1,0 +1,33 @@
+<section class="card contable-reporte contable-reporte--bucket" style="margin-top:1rem;">
+  <h2 class="page-title" style="font-size:1rem;margin:0 0 0.75rem;">{{ titulo }} <span class="muted">({{ filas|length }})</span></h2>
+  <div class="data-panel">
+    <table class="table table--compact">
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Plan</th>
+          <th>Proyecto</th>
+          <th>Días atraso</th>
+          <th>Cuotas pend.</th>
+          <th>Próx. venc.</th>
+          <th class="num">Saldo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in filas %}
+        <tr>
+          <td><strong>{{ f.cliente.apellidos }}, {{ f.cliente.nombres }}</strong></td>
+          <td><a href="{% url 'app:contrato_estado_cuenta' f.contrato.pk %}">{{ f.contrato.numero }}</a></td>
+          <td class="muted">{% if f.contrato.inmueble.proyecto %}{{ f.contrato.inmueble.proyecto.nombre }}{% else %}—{% endif %}</td>
+          <td>{% if f.dias_atraso %}{{ f.dias_atraso }}{% else %}<span class="muted">Al día</span>{% endif %}</td>
+          <td>{{ f.cuotas_pendientes }}</td>
+          <td>{{ f.proximo_vencimiento|date:"d/m/Y" }}</td>
+          <td class="num"><strong>${{ f.saldo_pendiente }}</strong></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="muted">Ningún plan en esta categoría.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>

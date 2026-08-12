@@ -1,0 +1,58 @@
+{% load static %}
+<header class="contable-report-header" aria-label="Identidad corporativa">
+  <div class="contable-report-header__logos">
+    <div class="contable-report-header__logo-cell">
+      <img
+        src="{% static logo_desarrollos_static %}"
+        alt="Paredes Desarrollos Inmobiliarios"
+        class="contable-report-header__logo"
+        decoding="async"
+      >
+    </div>
+    <div class="contable-report-header__logo-cell">
+      {% if proyecto and proyecto.tiene_logo %}
+      <img
+        src="{{ proyecto.logo.url }}"
+        alt="{{ proyecto_nombre }}"
+        class="contable-report-header__logo contable-report-header__logo--proyecto"
+        decoding="async"
+      >
+      {% else %}
+      <img
+        src="{% static proyecto_logo_fallback %}"
+        alt="{{ proyecto_nombre }}"
+        class="contable-report-header__logo contable-report-header__logo--proyecto"
+        decoding="async"
+      >
+      {% endif %}
+    </div>
+    <div class="contable-report-header__logo-cell">
+      <img
+        src="{% static logo_bienes_static %}"
+        alt="Paredes Bienes Raíces"
+        class="contable-report-header__logo"
+        decoding="async"
+      >
+    </div>
+  </div>
+  <div class="contable-report-header__captions">
+    <div class="contable-report-header__caption contable-report-header__caption--proyecto">
+      <span class="contable-report-header__kicker">Proyecto</span>
+      <strong class="contable-report-header__name">{% if proyecto %}{{ proyecto.nombre }}{% else %}{{ proyecto_nombre }}{% endif %}</strong>
+      {% if proyecto %}
+      {% if proyecto.direccion or proyecto.municipio or proyecto.departamento %}
+      <p class="contable-report-header__meta">
+        {% if proyecto.direccion %}{{ proyecto.direccion }}{% endif %}
+        {% if proyecto.municipio %}{% if proyecto.direccion %} · {% endif %}{{ proyecto.municipio|title }}{% endif %}
+        {% if proyecto.departamento %}{% if proyecto.direccion or proyecto.municipio %} · {% endif %}Dpto. {{ proyecto.departamento|title }}{% endif %}
+      </p>
+      {% endif %}
+      {% endif %}
+    </div>
+    <div class="contable-report-header__caption contable-report-header__caption--empresa">
+      <span class="contable-report-header__kicker">Inmobiliaria</span>
+      <strong class="contable-report-header__name">{{ empresa_nombre }}</strong>
+      {% if pie_inmobiliaria %}<p class="contable-report-header__meta">{{ pie_inmobiliaria }}</p>{% endif %}
+    </div>
+  </div>
+</header>

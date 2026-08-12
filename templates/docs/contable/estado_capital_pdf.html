@@ -1,0 +1,36 @@
+{% extends "docs/contable/_base_contable_pdf.html" %}
+{% block content %}
+<h1>Capital e Intereses</h1>
+<p class="sub">{{ inicio|date:"d/m/Y" }} — {{ fin|date:"d/m/Y" }} · Emitido {{ emitido_en|date:"d/m/Y H:i" }}</p>
+<table class="ec-kpi">
+  <tr>
+    <td><span class="k">Total recibido</span><span class="v">${{ total_recibido }}</span></td>
+    <td><span class="k">Capital</span><span class="v">${{ total_capital }}</span></td>
+    <td><span class="k">Intereses est.</span><span class="v">${{ total_interes }}</span></td>
+  </tr>
+</table>
+<table class="ec-table">
+  <thead>
+    <tr>
+      <th>Fecha</th><th>Cliente</th><th>Plan</th><th>Concepto</th>
+      <th class="num">Capital</th><th class="num">Interés</th><th class="num">Recargo</th><th class="num">Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in filas %}
+    <tr>
+      <td>{{ f.pago.fecha|date:"d/m/Y" }}</td>
+      <td>{{ f.cliente.apellidos }}, {{ f.cliente.nombres }}</td>
+      <td>{{ f.contrato.numero }}</td>
+      <td>{{ f.pago.get_concepto_display }}</td>
+      <td class="num">${{ f.capital }}</td>
+      <td class="num">${{ f.interes }}</td>
+      <td class="num">${{ f.recargo }}</td>
+      <td class="num">${{ f.total }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="8" class="muted">Sin pagos en el período.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

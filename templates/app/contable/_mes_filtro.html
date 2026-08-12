@@ -1,0 +1,6 @@
+<form class="contable-mes-filtro" method="get" action="">
+  <label for="contable-mes">Período</label>
+  <input type="month" id="contable-mes" name="mes" value="{{ mes_valor }}" class="input">
+  <button type="submit" class="btn-primary btn-sm">Actualizar</button>
+  <span class="muted contable-mes-filtro__hint">{{ mes_inicio|date:"d/m/Y" }} — {{ mes_fin|date:"d/m/Y" }}</span>
+</form>

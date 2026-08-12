@@ -1,0 +1,24 @@
+{% extends "docs/contable/_base_contable_pdf.html" %}
+{% block content %}
+<h1>Ingresos del Mes</h1>
+<p class="sub">Pago a Cuenta · {{ inicio|date:"d/m/Y" }} — {{ fin|date:"d/m/Y" }} · Emitido {{ emitido_en|date:"d/m/Y H:i" }}</p>
+<table class="ec-kpi">
+  <tr>
+    <td><span class="k">Total recibido</span><span class="v">${{ total_recibido }}</span></td>
+    <td><span class="k">Comprobantes</span><span class="v">{{ n_comprobantes }}</span></td>
+    <td><span class="k">Capital</span><span class="v">${{ total_capital }}</span></td>
+    <td><span class="k">Intereses est.</span><span class="v">${{ total_interes }}</span></td>
+  </tr>
+</table>
+<p class="ec-section">Por concepto</p>
+<table class="ec-table">
+  <thead><tr><th>Concepto</th><th class="num">Monto</th></tr></thead>
+  <tbody>
+    {% for concepto, monto in filas_concepto %}
+    <tr><td>{{ concepto }}</td><td class="num">${{ monto }}</td></tr>
+    {% empty %}
+    <tr><td colspan="2" class="muted">Sin ingresos en el período.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
