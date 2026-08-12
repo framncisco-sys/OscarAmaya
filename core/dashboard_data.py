@@ -278,6 +278,36 @@ def build_dashboard_context(
         "proyecto_rows": proyecto_rows,
         "reservas_por_vencer": reservas_por_vencer,
         "reservas_vencidas_ct": reservas_vencidas_ct,
+        "dashboard_charts": {
+            "estado": [
+                {
+                    "key": e["key"],
+                    "label": e["label"],
+                    "count": e["count"],
+                    "pct": e["pct"],
+                }
+                for e in estado_breakdown
+            ],
+            "poligonos": [
+                {
+                    "nombre": r["obj"].nombre,
+                    "proyecto": r["obj"].proyecto.nombre,
+                    "vendidos": r["vendidos"],
+                    "reservados": r["reservados"],
+                    "disponibles": r["disponibles"],
+                    "total": r["total"],
+                    "ocupacion_pct": r["ocupacion_pct"],
+                }
+                for r in poligono_rows
+            ],
+            "totales": {
+                "inventario": total_inventario,
+                "disponibles": disponibles,
+                "reservados": reservados,
+                "vendidos": vendidos,
+                "valor_disponible": float(valor_disponible),
+            },
+        },
         # Compatibilidad con plantilla antigua
         "total_inmuebles": total_inventario,
         "poligono_stats": [r["obj"] for r in poligono_rows],

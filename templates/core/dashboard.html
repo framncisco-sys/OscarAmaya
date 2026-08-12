@@ -1,86 +1,152 @@
 {% extends "app/base_app.html" %}
-{% load static %}
+{% load static pbr_ui %}
 
 {% block title %}Dashboard | {{ marca_portal.nombre }}{% endblock %}
 
 {% block app_content %}
-<div class="dash">
-  <header class="dash-header">
+{% if dashboard_charts %}{{ dashboard_charts|json_script:"pbr-dash-charts" }}{% endif %}
+<div class="dash dash--v2">
+  <header class="dash-header dash-header--v2">
     <div>
-    <p class="dash-header__eyebrow">{{ marca_portal.nombre }}</p>
-    <h1 class="page-title dash-header__title">Dashboard</h1>
+      <p class="dash-header__eyebrow">{{ marca_portal.nombre }}</p>
+      <h1 class="page-title dash-header__title">Dashboard</h1>
       <p class="page-lead dash-header__lead">
-        Lotificación y cartera en tiempo real (solo lotes de proyecto).
+        Lotificación y cartera en tiempo real.
         Gestión diaria en <a href="{% url 'app:index' %}">Gestión</a>.
       </p>
     </div>
-    <p class="dash-meta muted">
-      Actualizado {{ dashboard_actualizado|date:"d/m/Y H:i" }}
-    </p>
+    <div class="dash-header__aside">
+      <p class="dash-meta muted">
+        Actualizado {{ dashboard_actualizado|date:"d/m/Y H:i" }}
+      </p>
+      {% if total_inventario_venta %}
+      <div class="dash-pills" aria-label="Resumen rápido">
+        <span class="dash-pill dash-pill--ok"><strong data-dash-count="{{ disponibles }}">{{ disponibles }}</strong> disp.</span>
+        <span class="dash-pill dash-pill--warn"><strong data-dash-count="{{ reservados }}">{{ reservados }}</strong> res.</span>
+        <span class="dash-pill dash-pill--sold"><strong data-dash-count="{{ vendidos }}">{{ vendidos }}</strong> pag.</span>
+      </div>
+      {% endif %}
+    </div>
   </header>
 
-  <section class="grid-kpis dash-kpis" aria-label="Indicadores">
+  <section class="grid-kpis dash-kpis dash-kpis--v2" aria-label="Indicadores">
     <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:proyecto_list' %}">
-      <span class="dash-kpi__icon" aria-hidden="true">🏗</span>
+      <span class="dash-kpi__icon" aria-hidden="true">{% pbr_icon "building" size="lg" %}</span>
       <h3>Proyectos activos</h3>
-      <p>{{ total_proyectos }}</p>
+      <p><span class="dash-kpi__value" data-dash-count="{{ total_proyectos }}">{{ total_proyectos }}</span></p>
       <span class="dash-kpi__hint">Lotificaciones</span>
     </a>
     <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:inmueble_list' %}">
-      <span class="dash-kpi__icon" aria-hidden="true">📦</span>
+      <span class="dash-kpi__icon" aria-hidden="true">{% pbr_icon "box" size="lg" %}</span>
       <h3>Lotes en inventario</h3>
-      <p>{{ total_inventario_venta }}</p>
+      <p><span class="dash-kpi__value" data-dash-count="{{ total_inventario_venta }}">{{ total_inventario_venta }}</span></p>
       <span class="dash-kpi__hint">Lotificación</span>
     </a>
     <article class="card kpi dash-kpi dash-kpi--ok">
-      <span class="dash-kpi__icon" aria-hidden="true">✓</span>
+      <span class="dash-kpi__icon" aria-hidden="true">{% pbr_icon "check" size="lg" %}</span>
       <h3>Disponibles</h3>
-      <p>{{ disponibles }}</p>
-      <span class="dash-kpi__hint">${{ valor_inventario_disponible|floatformat:0 }} USD en lista</span>
+      <p><span class="dash-kpi__value" data-dash-count="{{ disponibles }}">{{ disponibles }}</span></p>
+      <span class="dash-kpi__hint">$<span data-dash-money="{{ valor_inventario_disponible|floatformat:0 }}">{{ valor_inventario_disponible|floatformat:0 }}</span> USD en lista</span>
     </article>
     <article class="card kpi dash-kpi dash-kpi--warn">
-      <span class="dash-kpi__icon" aria-hidden="true">⏳</span>
+      <span class="dash-kpi__icon" aria-hidden="true">{% pbr_icon "clock" size="lg" %}</span>
       <h3>Reservados</h3>
-      <p>{{ reservados }}</p>
+      <p><span class="dash-kpi__value" data-dash-count="{{ reservados }}">{{ reservados }}</span></p>
       <span class="dash-kpi__hint">Apartados activos</span>
     </article>
     <article class="card kpi dash-kpi dash-kpi--sold">
-      <span class="dash-kpi__icon" aria-hidden="true">🏠</span>
+      <span class="dash-kpi__icon" aria-hidden="true">{% pbr_icon "home" size="lg" %}</span>
       <h3>Pagados totalmente</h3>
-      <p>{{ vendidos }}</p>
+      <p><span class="dash-kpi__value" data-dash-count="{{ vendidos }}">{{ vendidos }}</span></p>
       <span class="dash-kpi__hint">Contado o cuotas liquidadas</span>
     </article>
     <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:formato_aceptacion_list' %}">
-      <span class="dash-kpi__icon" aria-hidden="true">📄</span>
-      <h3>Formatos de aceptación activos</h3>
-      <p>{{ total_formatos_activos }}</p>
+      <span class="dash-kpi__icon" aria-hidden="true">{% pbr_icon "file" size="lg" %}</span>
+      <h3>Formatos activos</h3>
+      <p><span class="dash-kpi__value" data-dash-count="{{ total_formatos_activos }}">{{ total_formatos_activos }}</span></p>
       <span class="dash-kpi__hint">En cartera</span>
     </a>
     {% if total_vendedores is not None %}
     <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:vendedor_list' %}">
-      <span class="dash-kpi__icon" aria-hidden="true">👤</span>
-      <h3>Asesores de ventas activos</h3>
-      <p>{{ total_vendedores }}</p>
+      <span class="dash-kpi__icon" aria-hidden="true">{% pbr_icon "user" size="lg" %}</span>
+      <h3>Asesores activos</h3>
+      <p><span class="dash-kpi__value" data-dash-count="{{ total_vendedores }}">{{ total_vendedores }}</span></p>
       <span class="dash-kpi__hint">Catálogo de ventas</span>
     </a>
     {% endif %}
     {% if total_usuarios_activos is not None %}
     <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:usuario_list' %}">
-      <span class="dash-kpi__icon" aria-hidden="true">🔐</span>
-      <h3>Usuarios del sistema activos</h3>
-      <p>{{ total_usuarios_activos }}</p>
+      <span class="dash-kpi__icon" aria-hidden="true">{% pbr_icon "lock" size="lg" %}</span>
+      <h3>Usuarios activos</h3>
+      <p><span class="dash-kpi__value" data-dash-count="{{ total_usuarios_activos }}">{{ total_usuarios_activos }}</span></p>
       <span class="dash-kpi__hint">Cuentas con acceso</span>
     </a>
     {% endif %}
     {% if dashboard_mis_contratos %}
     <article class="card kpi dash-kpi">
-      <span class="dash-kpi__icon" aria-hidden="true">📋</span>
+      <span class="dash-kpi__icon" aria-hidden="true">{% pbr_icon "clipboard" size="lg" %}</span>
       <h3>Mis contratos</h3>
-      <p>{{ dashboard_mis_contratos.count }}</p>
+      <p><span class="dash-kpi__value" data-dash-count="{{ dashboard_mis_contratos.count }}">{{ dashboard_mis_contratos.count }}</span></p>
       <span class="dash-kpi__hint">${{ dashboard_mis_contratos.comision_total|floatformat:2 }} comisión est.</span>
     </article>
     {% endif %}
   </section>
+
+  {% if dashboard_charts.estado or dashboard_charts.poligonos %}
+  <section class="dash-charts" aria-label="Gráficas del inventario">
+    <article class="card dash-chart-card">
+      <div class="dash-chart-card__head">
+        <div>
+          <h2>Estado del inventario</h2>
+          <p class="muted dash-panel__sub">Distribución de lotes por estado</p>
+        </div>
+      </div>
+      <div class="dash-chart-card__body dash-chart-card__body--donut">
+        {% if dashboard_charts.estado %}
+        <div class="dash-chart-wrap">
+          <canvas id="pbr-dash-chart-estado" aria-label="Gráfica de dona del inventario"></canvas>
+          <div class="dash-chart-center" aria-hidden="true">
+            <span class="dash-chart-center__n" id="pbr-dash-chart-center">{{ total_inventario_venta }}</span>
+            <span class="dash-chart-center__l">lotes</span>
+            <span class="dash-chart-center__v" id="pbr-dash-chart-valor">${{ valor_inventario_disponible|floatformat:0 }}</span>
+            <span class="dash-chart-center__s">USD disponibles</span>
+          </div>
+        </div>
+        <ul class="dash-chart-legend">
+          {% for e in estado_breakdown %}
+          <li class="dash-chart-legend__item dash-chart-legend__item--{{ e.key|lower }}">
+            <span class="dash-chart-legend__dot"></span>
+            <span class="dash-chart-legend__label">{{ e.label }}</span>
+            <strong>{{ e.count }}</strong>
+            <span class="muted">({{ e.pct }}%)</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="muted">Sin lotes en inventario.</p>
+        {% endif %}
+      </div>
+    </article>
+
+    <article class="card dash-chart-card">
+      <div class="dash-chart-card__head">
+        <div>
+          <h2>Ocupación por polígono</h2>
+          <p class="muted dash-panel__sub">Apilado: pagado · reservado · disponible</p>
+        </div>
+      </div>
+      <div class="dash-chart-card__body">
+        {% if dashboard_charts.poligonos %}
+        <div class="dash-chart-wrap dash-chart-wrap--bar">
+          <canvas id="pbr-dash-chart-poligono" aria-label="Gráfica de barras por polígono"></canvas>
+        </div>
+        {% else %}
+        <p class="muted">No hay polígonos con lotes registrados.</p>
+        {% endif %}
+      </div>
+    </article>
+  </section>
+  {% endif %}
 
   {% if reservas_vencidas_ct or reservas_por_vencer %}
   <section class="card dash-alert">
@@ -125,11 +191,12 @@
   <section class="card dash-panel dash-proyectos" aria-label="Lotes por proyecto activo">
     <h2>Lotes por proyecto activo</h2>
     <p class="muted dash-panel__sub">
-      Disponibles, en reserva y pagados totalmente (contado liquidado o todas las cuotas pagadas).
+      Disponibles, en reserva y pagados totalmente.
     </p>
     <ul class="dash-proy-list">
       {% for row in proyecto_rows %}
-      <li class="dash-proy">
+      {% if row.total %}
+      <li class="dash-proy dash-proy--v2">
         <div class="dash-proy__head">
           <div>
             <strong class="dash-proy__name">{{ row.obj.nombre }}</strong>
@@ -146,153 +213,125 @@
           <div class="dash-proy__stat dash-proy__stat--res">
             <span class="dash-proy__stat-n">{{ row.reservados }}</span>
             <span class="dash-proy__stat-l">En reserva</span>
-            <span class="dash-proy__stat-h">Apartados</span>
           </div>
           <div class="dash-proy__stat dash-proy__stat--pag">
             <span class="dash-proy__stat-n">{{ row.pagados_totales }}</span>
-            <span class="dash-proy__stat-l">Pagados totalmente</span>
-            <span class="dash-proy__stat-h">Cerrados</span>
+            <span class="dash-proy__stat-l">Pagados</span>
           </div>
           <div class="dash-proy__stat dash-proy__stat--tot">
             <span class="dash-proy__stat-n">{{ row.total }}</span>
-            <span class="dash-proy__stat-l">Total lotes</span>
-            <span class="dash-proy__stat-h">En inventario</span>
+            <span class="dash-proy__stat-l">Total</span>
           </div>
         </div>
-        {% if row.total %}
         <div class="dash-heat__stack dash-proy__bar" role="presentation" title="{{ row.pagados_totales }} pagados, {{ row.reservados }} reserva, {{ row.disponibles }} disponibles">
           {% if row.pagados_pct %}<span class="dash-heat__seg dash-heat__seg--vendido" style="width:{{ row.pagados_pct }}%;"></span>{% endif %}
           {% if row.reservados_pct %}<span class="dash-heat__seg dash-heat__seg--reservado" style="width:{{ row.reservados_pct }}%;"></span>{% endif %}
           {% if row.disponibles_pct %}<span class="dash-heat__seg dash-heat__seg--disponible" style="width:{{ row.disponibles_pct }}%;"></span>{% endif %}
         </div>
-        {% endif %}
       </li>
+      {% endif %}
       {% endfor %}
     </ul>
   </section>
   {% endif %}
 
-  <section class="grid-modulos dash-modulos" aria-label="Accesos rápidos">
+  <section class="grid-modulos dash-modulos dash-modulos--v2" aria-label="Accesos rápidos">
     <a class="card modulo dash-modulo" href="{% url 'app:proyecto_list' %}">
-      <span class="dash-modulo__icon">🏗</span>
+      <span class="dash-modulo__icon">{% pbr_icon "building" size="lg" %}</span>
       <h3>Proyectos</h3>
       <p>Lotificaciones y planos maestros.</p>
     </a>
     <a class="card modulo dash-modulo" href="{% url 'app:poligono_list' %}">
-      <span class="dash-modulo__icon">🗺</span>
+      <span class="dash-modulo__icon">{% pbr_icon "map" size="lg" %}</span>
       <h3>Polígonos</h3>
       <p>Etapas y agrupación de lotes.</p>
     </a>
     <a class="card modulo dash-modulo" href="{% url 'app:inmueble_list' %}">
-      <span class="dash-modulo__icon">📦</span>
+      <span class="dash-modulo__icon">{% pbr_icon "box" size="lg" %}</span>
       <h3>Lotes</h3>
-      <p>Inventario de lotificación por proyecto.</p>
+      <p>Inventario por proyecto.</p>
     </a>
     <a class="card modulo dash-modulo" href="{% url 'app:contrato_list' %}">
-      <span class="dash-modulo__icon">📄</span>
+      <span class="dash-modulo__icon">{% pbr_icon "file" size="lg" %}</span>
       <h3>{% if contratos_restriccion_vendedor %}Mis contratos{% else %}Contratos{% endif %}</h3>
-      <p>Ventas de lotes, promesas y comisiones.</p>
+      <p>Ventas, promesas y comisiones.</p>
     </a>
     <a class="card modulo dash-modulo" href="{% url 'app:pago_list' %}">
-      <span class="dash-modulo__icon">💵</span>
+      <span class="dash-modulo__icon">{% pbr_icon "payment" size="lg" %}</span>
       <h3>Pagos</h3>
       <p>Cobros y cuotas de cartera.</p>
     </a>
   </section>
 
-  <div class="dash-grid-2">
-    <section class="card dash-panel">
-      <h2>Estado del inventario (lotes)</h2>
-      <p class="muted dash-panel__sub">Solo lotes de lotificación (sistema Desarrollos).</p>
-      {% if estado_breakdown %}
-      <ul class="dash-bars" aria-label="Distribución por estado">
-        {% for e in estado_breakdown %}
-        <li class="dash-bars__row">
-          <span class="dash-bars__label">
-            <span class="badge badge--{{ e.key|lower }}">{{ e.label }}</span>
-          </span>
-          <div class="dash-bars__track" role="presentation">
-            <div class="dash-bars__fill dash-bars__fill--{{ e.key|lower }}" style="width: {{ e.pct }}%;"></div>
-          </div>
-          <span class="dash-bars__value">{{ e.count }} <span class="muted">({{ e.pct }}%)</span></span>
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <p class="muted">Sin lotes en inventario.</p>
-      {% endif %}
+  <section class="card dash-panel dash-panel--table">
+    <h2>Últimos registros</h2>
+    <p class="muted dash-panel__sub">Lotes agregados o modificados recientemente.</p>
+    <div class="data-panel data-panel--mobile-cards">
+      <table class="table dash-table dash-table--v2">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Proyecto</th>
+            <th>Tipo</th>
+            <th>Estado</th>
+            <th class="right">Precio</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in ultimos_inmuebles %}
+          <tr>
+            <td data-label="Código">
+              <a href="{% url 'app:inmueble_update' i.pk %}" class="link-action"><strong>{{ i.codigo_display }}</strong></a>
+            </td>
+            <td data-label="Proyecto">{{ i.proyecto.nombre }}</td>
+            <td data-label="Tipo">{% if i.tipo == "LOTE" %}Lote{% else %}{{ i.get_tipo_display }}{% endif %}</td>
+            <td data-label="Estado"><span class="badge badge--{{ i.estado|lower }}">{{ i.get_estado_display }}</span></td>
+            <td class="right" data-label="Precio">${{ i.precio_lista|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="muted">No hay lotes en inventario.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-      <h2 style="margin-top:1.25rem;">Últimos registros</h2>
-      <div class="data-panel data-panel--mobile-cards">
-        <table class="table dash-table">
-          <thead>
-            <tr>
-              <th>Código</th>
-              <th>Proyecto</th>
-              <th>Tipo</th>
-              <th>Estado</th>
-              <th class="right">Precio</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for i in ultimos_inmuebles %}
-            <tr>
-              <td data-label="Código">
-                <a href="{% url 'app:inmueble_update' i.pk %}" class="link-action"><strong>{{ i.codigo_display }}</strong></a>
-              </td>
-              <td data-label="Proyecto">{{ i.proyecto.nombre }}</td>
-              <td data-label="Tipo">{% if i.tipo == "LOTE" %}Lote{% else %}{{ i.get_tipo_display }}{% endif %}</td>
-              <td data-label="Estado"><span class="badge badge--{{ i.estado|lower }}">{{ i.get_estado_display }}</span></td>
-              <td class="right" data-label="Precio">${{ i.precio_lista|floatformat:2 }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5" class="muted">No hay lotes en inventario.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="card dash-panel">
-      <h2>Ocupación por polígono</h2>
-      <p class="muted dash-panel__sub">Solo lotes de venta con inventario asignado. Ordenado por más vendidos.</p>
-      {% if poligono_rows %}
-      <ul class="dash-heat">
-        {% for row in poligono_rows %}
-        <li class="dash-heat__item">
-          <div class="dash-heat__head">
-            <strong>{{ row.obj.nombre }}</strong>
-            <span class="muted">{{ row.obj.proyecto.nombre }}</span>
-            <span class="dash-heat__pct">{{ row.ocupacion_pct }}% vendido/reservado</span>
-          </div>
-          <div class="dash-heat__stack" role="presentation" title="{{ row.vendidos }} vendidos, {{ row.reservados }} reservados, {{ row.disponibles }} disponibles">
-            {% if row.vendidos_pct %}<span class="dash-heat__seg dash-heat__seg--vendido" style="width:{{ row.vendidos_pct }}%;"></span>{% endif %}
-            {% if row.reservados_pct %}<span class="dash-heat__seg dash-heat__seg--reservado" style="width:{{ row.reservados_pct }}%;"></span>{% endif %}
-            {% if row.disponibles_pct %}<span class="dash-heat__seg dash-heat__seg--disponible" style="width:{{ row.disponibles_pct }}%;"></span>{% endif %}
-          </div>
-          <div class="dash-heat__legend muted">
-            <span>{{ row.total }} lotes</span>
-            <span>· {{ row.vendidos }} vend.</span>
-            <span>· {{ row.reservados }} res.</span>
-            <span>· {{ row.disponibles }} disp.</span>
-          </div>
-        </li>
-        {% endfor %}
-      </ul>
-      <p class="dash-heat__note muted">
-            <span class="dash-heat__dot dash-heat__dot--vendido"></span> Pagado totalmente
-        <span class="dash-heat__dot dash-heat__dot--reservado"></span> Reservado
-        <span class="dash-heat__dot dash-heat__dot--disponible"></span> Disponible
-      </p>
-      {% else %}
-      <p class="muted">No hay polígonos con lotes registrados.</p>
-      {% endif %}
-    </section>
-  </div>
+  {% if poligono_rows %}
+  <details class="card dash-panel dash-panel--collapsible">
+    <summary>Detalle por polígono ({{ poligono_rows|length }})</summary>
+    <ul class="dash-heat dash-heat--compact">
+      {% for row in poligono_rows %}
+      <li class="dash-heat__item">
+        <div class="dash-heat__head">
+          <strong>{{ row.obj.nombre }}</strong>
+          <span class="muted">{{ row.obj.proyecto.nombre }}</span>
+          <span class="dash-heat__pct">{{ row.ocupacion_pct }}% ocupado</span>
+        </div>
+        <div class="dash-heat__stack" role="presentation">
+          {% if row.vendidos_pct %}<span class="dash-heat__seg dash-heat__seg--vendido" style="width:{{ row.vendidos_pct }}%;"></span>{% endif %}
+          {% if row.reservados_pct %}<span class="dash-heat__seg dash-heat__seg--reservado" style="width:{{ row.reservados_pct }}%;"></span>{% endif %}
+          {% if row.disponibles_pct %}<span class="dash-heat__seg dash-heat__seg--disponible" style="width:{{ row.disponibles_pct }}%;"></span>{% endif %}
+        </div>
+        <div class="dash-heat__legend muted">
+          <span>{{ row.total }} lotes</span>
+          <span>· {{ row.vendidos }} pag.</span>
+          <span>· {{ row.reservados }} res.</span>
+          <span>· {{ row.disponibles }} disp.</span>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </details>
+  {% endif %}
 
   <p class="dash-foot muted">
-    Los totales son de lotes de lotificación. Alquileres y venta de casas pertenecen a Bienes Raíces.
-    Polígonos sin lotes no se listan.
+    Totales de lotificación. Alquileres y casas pertenecen a Bienes Raíces.
   </p>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous" defer></script>
+<script src="{% static 'js/pbr-dashboard.js' %}?v={{ pbr_cache_v }}" defer></script>
 {% endblock %}

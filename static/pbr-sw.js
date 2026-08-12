@@ -20,6 +20,7 @@ const PRECACHE_URLS = [
   "/static/js/pbr-loader.js?v=__PBR_CACHE_VERSION__",
   "/static/js/pbr-header.js?v=__PBR_CACHE_VERSION__",
   "/static/js/pbr-sidebar.js?v=__PBR_CACHE_VERSION__",
+  "/static/js/pbr-dashboard.js?v=__PBR_CACHE_VERSION__",
   "/static/js/pbr-pwa-install.js?v=__PBR_CACHE_VERSION__",
 ];
 

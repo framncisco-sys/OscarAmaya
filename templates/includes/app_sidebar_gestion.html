@@ -1,7 +1,8 @@
 ﻿{% if sidebar_nav %}
+{% load pbr_ui %}
 <section class="app-sidebar__hub app-sidebar__hub--gestion{% if sidebar_nav.gestion_active %} app-sidebar__hub--active{% endif %}" aria-label="Gestión y cartera" data-pbr-sidebar-hub>
   <header class="app-sidebar__hub-head">
-    <span class="app-sidebar__hub-badge app-sidebar__hub-badge--gestion" aria-hidden="true">📋</span>
+    <span class="app-sidebar__hub-badge app-sidebar__hub-badge--gestion" aria-hidden="true">{% pbr_icon "clipboard" size="sm" %}</span>
     <div class="app-sidebar__hub-titles">
       <span class="app-sidebar__hub-title">Gestión</span>
       <span class="app-sidebar__hub-sub">Lotificación · contratos · cartera</span>
@@ -10,7 +11,7 @@
 
   <div class="app-sidebar__hub-body">
     <a href="{% url 'app:index' %}" class="app-sidebar__quick app-sidebar__quick--inicio{% if sidebar_nav.index_active %} is-active{% endif %}"{% if sidebar_nav.index_active %} aria-current="page"{% endif %}>
-      <span class="app-sidebar__quick-icon" aria-hidden="true">🏠</span>
+      <span class="app-sidebar__quick-icon" aria-hidden="true">{% pbr_icon "home" %}</span>
       <span class="app-sidebar__quick-text">
         <strong>Inicio</strong>
         <small>Resumen y pasos del flujo</small>
@@ -19,7 +20,7 @@
 
     <details class="app-sidebar__accord" data-pbr-accord{% if sidebar_nav.open_docs or sidebar_nav.open_cartera or sidebar_nav.formato_active or sidebar_nav.contrato_active or sidebar_nav.pago_active or sidebar_nav.recibo_comision_vendedor_active or sidebar_nav.vendedores_active or sidebar_nav.flujo_validar_active %} open{% endif %}>
       <summary class="app-sidebar__accord-summary">
-        <span class="app-sidebar__accord-icon" aria-hidden="true">①</span>
+        <span class="app-sidebar__accord-icon" aria-hidden="true">{% pbr_icon "flow" size="sm" %}</span>
         <span class="app-sidebar__accord-label">Flujo de venta</span>
         <span class="app-sidebar__accord-chevron" aria-hidden="true"></span>
       </summary>
@@ -85,7 +86,7 @@
 
     <details class="app-sidebar__accord" data-pbr-accord{% if sidebar_nav.open_proyectos %} open{% endif %}>
       <summary class="app-sidebar__accord-summary">
-        <span class="app-sidebar__accord-icon" aria-hidden="true">🏗</span>
+        <span class="app-sidebar__accord-icon" aria-hidden="true">{% pbr_icon "building" size="sm" %}</span>
         <span class="app-sidebar__accord-label">Proyectos y mapas</span>
         <span class="app-sidebar__accord-chevron" aria-hidden="true"></span>
       </summary>
@@ -98,13 +99,15 @@
         </a>
         <a href="{% url 'app:mapa_editor' %}"{% if sidebar_nav.mapa_editor_active %} class="is-active" aria-current="page"{% endif %}>Mapa interactivo</a>
         <a href="{% url 'app:mapa_catastral' %}"{% if sidebar_nav.mapa_catastral_active %} class="is-active" aria-current="page"{% endif %}>Mapa catastral</a>
-        <a href="{% url 'app:inmueble_list' %}">Lotes del proyecto</a>
+        <a href="{% url 'app:inmueble_list' %}"{% if sidebar_nav.inmueble_list_active %} class="is-active" aria-current="page"{% endif %}>
+          Lotes del proyecto{% if sidebar_stats %}<span class="app-sidebar__stat" title="Lotes registrados">{{ sidebar_stats.lotes_locales }}</span>{% endif %}
+        </a>
       </div>
     </details>
 
     <details class="app-sidebar__accord" data-pbr-accord{% if sidebar_nav.mora_active or sidebar_nav.aviso_cobro_active %} open{% endif %}>
       <summary class="app-sidebar__accord-summary">
-        <span class="app-sidebar__accord-icon" aria-hidden="true">⚙</span>
+        <span class="app-sidebar__accord-icon" aria-hidden="true">{% pbr_icon "gear" size="sm" %}</span>
         <span class="app-sidebar__accord-label">Cartera avanzada</span>
         <span class="app-sidebar__accord-chevron" aria-hidden="true"></span>
       </summary>
@@ -121,7 +124,7 @@
     {% if puede_gestionar_usuarios_app or puede_ver_historial_auditoria %}
     <details class="app-sidebar__accord app-sidebar__accord--admin" data-pbr-accord{% if sidebar_nav.open_admin %} open{% endif %}>
       <summary class="app-sidebar__accord-summary">
-        <span class="app-sidebar__accord-icon" aria-hidden="true">⚙</span>
+        <span class="app-sidebar__accord-icon" aria-hidden="true">{% pbr_icon "lock" size="sm" %}</span>
         <span class="app-sidebar__accord-label">Administración</span>
         <span class="app-sidebar__accord-chevron" aria-hidden="true"></span>
       </summary>
