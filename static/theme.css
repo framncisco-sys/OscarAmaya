@@ -9236,6 +9236,53 @@ html[data-pbr-class="mobile"] .app-sidebar--v3 .app-sidebar__modules {
   background: rgba(201, 169, 98, 0.22);
 }
 
+/* Acordeón a nivel de hub (ej. Asesores de ventas) */
+.app-sidebar__accord--hub {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-sidebar__accord--hub > .app-sidebar__accord-summary.app-sidebar__hub-head {
+  padding: 0 0.1rem 0.35rem;
+  margin-bottom: 0;
+  cursor: pointer;
+  list-style: none;
+  align-items: flex-start;
+}
+
+.app-sidebar__accord--hub > .app-sidebar__accord-summary.app-sidebar__hub-head::-webkit-details-marker {
+  display: none;
+}
+
+.app-sidebar__accord--hub .app-sidebar__hub-titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-sidebar__accord--hub .app-sidebar__accord-chevron {
+  align-self: center;
+  flex-shrink: 0;
+  margin-left: 0.25rem;
+}
+
+.app-sidebar__accord--hub[open] > .app-sidebar__accord-summary.app-sidebar__hub-head {
+  margin-bottom: 0.15rem;
+}
+
+.app-sidebar__accord--hub .app-sidebar__hub-body--accord {
+  margin-left: 0;
+  padding: 0.05rem 0 0.1rem;
+  border-left: 0;
+  gap: 0.1rem;
+}
+
+.app-sidebar--dark .app-sidebar__accord--hub > .app-sidebar__accord-summary:hover {
+  background: var(--sb-hover);
+  border-radius: 7px;
+}
+
 /* Dashboard: tarjetas de gráfica más elegantes */
 .dash--v2 .dash-chart-card {
   background: linear-gradient(165deg, #ffffff 0%, #f8fafc 55%, #f1f5f9 100%);

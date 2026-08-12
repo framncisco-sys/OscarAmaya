@@ -224,6 +224,7 @@ def build_sidebar_nav(url_name: str | None, *, pago_concepto: str | None = None)
         "open_cartera": in_set(_CARTERA),
         "open_docs": in_set(_DOCS),
         "open_admin": in_set(_ADMIN),
+        "open_vendedores": in_set(_VENDEDORES),
         "index_active": u == "index",
         "proyecto_active": u in {"proyecto_list", "proyecto_create", "proyecto_update"},
         "poligono_active": u in {"poligono_list", "poligono_create", "poligono_update"},
