@@ -1,5 +1,5 @@
 ﻿{% extends "app/base_app.html" %}
-{% load static %}
+{% load static money_fmt %}
 {% block title %}{{ form_title }} | Paredes Bienes Raíces{% endblock %}
 {% block app_content %}
 <style>
@@ -313,6 +313,11 @@
 </style>
 
 <h1 class="page-title" style="max-width: 920px; margin-left: auto; margin-right: auto;">{{ form_title }}</h1>
+{% if object %}
+<div style="max-width: 920px; margin: 0.65rem auto 0;">
+  {% include "includes/precio_negociado_sello.html" with formato=object %}
+</div>
+{% endif %}
 <p class="muted page-lead" style="max-width: 920px; margin-left: auto; margin-right: auto;">
   <a href="{% url 'app:formato_aceptacion_list' %}" class="link-action">← Listado de formatos</a>
 </p>
@@ -411,7 +416,7 @@
 </div>
 {% endif %}
 
-<form id="formato-aceptacion-form" method="post" class="form-stack" enctype="multipart/form-data" style="max-width: 920px; margin: 0 auto;" data-pbr-offline="skip" novalidate>
+<form id="formato-aceptacion-form" method="post" class="form-stack{% if object and object.tiene_precio_negociado_aprobado %} formato-form--precio-negociado{% endif %}" enctype="multipart/form-data" style="max-width: 920px; margin: 0 auto;" data-pbr-offline="skip" novalidate{% if object %} data-pbr-validacion-precio="{{ object.validacion_precio }}" data-pbr-precio-fijado="{% if object.validacion_precio == 'APROBADO' or object.validacion_precio == 'RECHAZADO' or object.validacion_precio == 'PENDIENTE' %}1{% else %}0{% endif %}" data-pbr-precio-vigente="{{ object.valor_inmueble }}" data-pbr-precio-sistema="{{ object.valor_inmueble_sistema }}"{% endif %}>
   {% csrf_token %}
   {% if form.non_field_errors %}
     <div class="alert" role="alert">{{ form.non_field_errors }}</div>
@@ -508,10 +513,11 @@
       {% endfor %}
       {% if sec.title == "Datos del crédito" %}
       <p id="pbr-etapa-venta-info" class="muted" style="font-size:0.88rem;margin:0 0 0.75rem;padding:0.55rem 0.7rem;border-radius:8px;background:#f1f5f9;border:1px solid #e2e8f0;" hidden></p>
-      <div id="pbr-precios-lote-panel" class="muted" style="font-size:0.9rem;margin:0 0 0.85rem;padding:0.65rem 0.75rem;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe;" hidden>
+      <div id="pbr-precios-lote-panel" class="muted pbr-precios-lote-panel" style="font-size:0.9rem;margin:0 0 0.85rem;padding:0.65rem 0.75rem;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe;" hidden>
         <p style="margin:0 0 0.35rem;font-weight:700;color:#0f172a;">Precios del lote</p>
         <p id="pbr-precio-lista-line" style="margin:0 0 0.25rem;color:#334155;"></p>
         <p id="pbr-precio-etapa-line" style="margin:0;color:#0f172a;font-weight:600;"></p>
+        <p id="pbr-precio-negociado-line" class="pbr-precio-negociado-inline" style="margin:0.45rem 0 0;" hidden></p>
         <p id="pbr-precio-etapa-aviso" style="margin:0.4rem 0 0;color:#b45309;font-weight:600;" hidden></p>
       </div>
       <p id="pbr-prima-proyecto-info" class="muted" style="font-size:0.88rem;margin:0 0 0.75rem;padding:0.55rem 0.7rem;border-radius:8px;background:#ecfdf5;border:1px solid #a7f3d0;" hidden></p>
@@ -522,6 +528,27 @@
         (sistema ${{ object.valor_inmueble_sistema }}).
         {% if puede_aprobar_precio_formato_app %}
         <a href="{% url 'app:formato_precio_aprobar' object.pk %}">Revisar ahora</a>
+        {% endif %}
+      </div>
+      {% elif object and object.validacion_precio == 'APROBADO' and not object.tiene_precio_negociado_aprobado %}
+      <div class="alert alert--success" role="status" style="margin-bottom:0.85rem;">
+        Cambio de precio <strong>aprobado</strong> (mismo monto de etapa).
+      </div>
+      {% elif object and object.validacion_precio == 'RECHAZADO' %}
+      <div class="alert alert--danger" role="status" style="margin-bottom:0.85rem;">
+        Cambio de precio <strong>rechazado</strong>:
+        se mantiene ${{ object.valor_inmueble }}
+        {% if object.valor_inmueble_solicitado %}
+        (habían solicitado ${{ object.valor_inmueble_solicitado }})
+        {% endif %}
+        {% if object.precio_validado_por %}
+        · {{ object.precio_validado_por.get_full_name|default:object.precio_validado_por.username }}
+        {% endif %}
+        {% if object.precio_validado_en %}
+        · {{ object.precio_validado_en|date:"d/m/Y H:i" }}
+        {% endif %}
+        {% if object.precio_validacion_nota %}
+        <br><span class="muted">Motivo: {{ object.precio_validacion_nota }}</span>
         {% endif %}
       </div>
       {% endif %}
@@ -542,7 +569,16 @@
                 <th scope="col" style="text-align:right;padding:0.4rem 0.55rem;border:1px solid #e2e8f0;">Monto</th>
               </tr>
             </thead>
-            <tbody id="fmt-listado-cuotas-body"></tbody>
+            <tbody id="fmt-listado-cuotas-body">
+            {% for row in formato_listado_cuotas %}
+              <tr>
+                <td style="padding:0.35rem 0.5rem;border:1px solid #e2e8f0;">{{ row.linea }}</td>
+                <td style="padding:0.35rem 0.5rem;border:1px solid #e2e8f0;">{{ row.concepto }}</td>
+                <td style="padding:0.35rem 0.5rem;border:1px solid #e2e8f0;">{% if row.fecha %}{{ row.fecha|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+                <td style="padding:0.35rem 0.5rem;border:1px solid #e2e8f0;text-align:right;">{% if row.monto %}${{ row.monto|money_us }}{% else %}—{% endif %}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
           </table>
         </div>
       </div>
@@ -640,6 +676,7 @@
 {{ proyectos_formato|json_script:"formato-proyectos-data" }}
 {{ formato_catalogo_inmuebles|json_script:"formato-catalogo-inmuebles-data" }}
 {{ formato_lote_estado_url_tpl|json_script:"formato-lote-estado-url-tpl" }}
+{% if formato_plan_cuotas_json %}{{ formato_plan_cuotas_json|json_script:"formato-plan-cuotas-servidor" }}{% endif %}
 <script src="{% static 'js/formato_aceptacion_credito.js' %}?v={{ pbr_cache_v }}" defer></script>
 <script src="{% static 'js/formato_aceptacion_masks.js' %}?v={{ pbr_cache_v }}" defer></script>
 <script>

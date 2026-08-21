@@ -37,13 +37,14 @@
       <th>Nombre</th>
       <th>Inmueble / proyecto</th>
       <th>Validación</th>
+      <th>Precio</th>
       <th>Documentos</th>
       <th>Acciones</th>
     </tr>
   </thead>
   <tbody>
     {% for f in items %}
-    <tr>
+    <tr{% if f.tiene_precio_negociado_aprobado %} class="table-row--precio-negociado"{% elif f.pendiente_validacion_precio %} class="table-row--precio-pendiente"{% endif %}>
       <td><strong>{{ f.numero_formulario|stringformat:"04d" }}</strong></td>
       <td>{{ f.nombre_cliente }}</td>
       <td class="muted">
@@ -65,6 +66,12 @@
         {% elif f.validacion_gerencia == 'RECHAZADO' %}
         <span class="badge badge--vendido">Rechazado</span>
         {% else %}
+        <span class="muted">—</span>
+        {% endif %}
+      </td>
+      <td>
+        {% include "includes/precio_negociado_sello.html" with formato=f compact=1 %}
+        {% if not f.tiene_precio_negociado_aprobado and not f.pendiente_validacion_precio and f.validacion_precio != 'RECHAZADO' %}
         <span class="muted">—</span>
         {% endif %}
       </td>
@@ -128,7 +135,7 @@
     </tr>
     {% empty %}
     <tr>
-      <td colspan="6" class="muted">
+      <td colspan="7" class="muted">
         Todavía no hay formatos guardados.
       </td>
     </tr>

@@ -118,6 +118,8 @@ def _formato_aceptacion_qs_contrato_pdf():
         "contrato__cliente",
         "contrato__inmueble",
         "contrato__inmueble__proyecto",
+        "precio_validado_por",
+        "precio_solicitado_por",
     )
     return formato_aceptacion_defer_missing_columns(qs)
 
@@ -413,6 +415,29 @@ def _formato_aceptacion_tras_guardado_notificar(
         notificar_formato_pdf_tras_guardado(request, formato, prev_firmas_completas)
     except Exception:
         logger.exception("Notificación automática del formato de aceptación tras guardar")
+
+
+def _formato_plan_cuotas_ctx(fmt: FormatoAceptacion | None) -> dict:
+    """Listado de cuotas calculado en servidor (fuente de verdad al abrir el formato)."""
+    if fmt is None or not getattr(fmt, "pk", None):
+        return {"formato_listado_cuotas": [], "formato_plan_cuotas_json": []}
+    from inmobiliaria.cuotas_calendario import filas_listado_cuotas_formato_aceptacion
+    from inmobiliaria.formato_precio import sincronizar_financiamiento_formato
+
+    sincronizar_financiamiento_formato(fmt, persistir=True)
+    rows = filas_listado_cuotas_formato_aceptacion(fmt)
+    json_rows = []
+    for r in rows:
+        f = r.get("fecha")
+        json_rows.append(
+            {
+                "linea": r.get("linea"),
+                "concepto": r.get("concepto") or "",
+                "fecha": f.strftime("%d/%m/%Y") if f else "—",
+                "monto": str(r["monto"]) if r.get("monto") is not None else "",
+            }
+        )
+    return {"formato_listado_cuotas": rows, "formato_plan_cuotas_json": json_rows}
 
 
 def _generar_pdf_formato_aceptacion_bytes(formato: FormatoAceptacion) -> bytes:
@@ -2403,6 +2428,7 @@ class FormatoAceptacionCreateStandaloneView(AppLoginRequiredMixin, CreateView):
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
         ctx.update(_formato_ctx_expediente_archivos(getattr(self, "object", None)))
+        ctx.update(_formato_plan_cuotas_ctx(None))
         return ctx
 
 
@@ -2422,6 +2448,8 @@ class FormatoAceptacionListView(AppLoginRequiredMixin, ListView):
             "contrato",
             "contrato__inmueble",
             "contrato__inmueble__proyecto",
+            "precio_validado_por",
+            "precio_solicitado_por",
         )
         qs = formato_aceptacion_defer_missing_columns(qs)
         if es_vendedor_restringido(self.request.user):
@@ -2450,6 +2478,16 @@ class FormatoAceptacionUpdateView(
         kw = super().get_form_kwargs()
         kw["user"] = self.request.user
         return kw
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        from inmobiliaria.formato_precio import asegurar_precio_vigente_formato
+
+        asegurar_precio_vigente_formato(obj, persistir=True)
+        from inmobiliaria.formato_precio import sincronizar_financiamiento_formato
+
+        sincronizar_financiamiento_formato(obj, persistir=True)
+        return obj
 
     def form_valid(self, form):
         from inmobiliaria.validacion_gerencia import aplicar_validacion_formato_o_plan
@@ -2507,6 +2545,7 @@ class FormatoAceptacionUpdateView(
         form = ctx.get("form") or self.get_form()
         ctx["formato_sections"] = _formato_aceptacion_form_sections(form)
         ctx.update(_formato_ctx_expediente_archivos(self.object))
+        ctx.update(_formato_plan_cuotas_ctx(self.object))
         return ctx
 
 
@@ -3330,18 +3369,30 @@ def formato_precio_pendiente_list(request: HttpRequest) -> HttpResponse:
         FormatoAceptacion.objects.filter(
             validacion_precio=FormatoAceptacion.ValidacionPrecio.PENDIENTE
         )
-        .select_related("precio_solicitado_por")
+        .select_related("precio_solicitado_por", "precio_validado_por")
         .order_by("-precio_solicitado_en", "-pk")
+    )
+    recientes = (
+        FormatoAceptacion.objects.filter(
+            validacion_precio__in=(
+                FormatoAceptacion.ValidacionPrecio.APROBADO,
+                FormatoAceptacion.ValidacionPrecio.RECHAZADO,
+            ),
+            precio_validado_en__isnull=False,
+        )
+        .select_related("precio_validado_por", "precio_solicitado_por")
+        .order_by("-precio_validado_en", "-pk")[:20]
     )
     return render(
         request,
         "app/formato_precio_pendiente_list.html",
-        {"formatos": qs},
+        {"formatos": qs, "formatos_recientes": recientes},
     )
 
 
 @login_required
 def formato_precio_aprobar(request: HttpRequest, pk: int) -> HttpResponse:
+    from inmobiliaria.formato_precio import aplicar_aprobacion_precio_formato
     from usuarios.roles import puede_aprobar_precio_formato
 
     if not puede_aprobar_precio_formato(request.user):
@@ -3361,21 +3412,12 @@ def formato_precio_aprobar(request: HttpRequest, pk: int) -> HttpResponse:
         )
 
     nota = (request.POST.get("validacion_nota") or "").strip()[:255] or "Precio aprobado"
-    if fmt.valor_inmueble_solicitado is not None:
-        fmt.valor_inmueble = fmt.valor_inmueble_solicitado
-    fmt.validacion_precio = FormatoAceptacion.ValidacionPrecio.APROBADO
-    fmt.precio_validado_por = request.user
-    fmt.precio_validado_en = timezone.localtime()
-    fmt.precio_validacion_nota = nota
-    fmt.save(
-        update_fields=[
-            "valor_inmueble",
-            "validacion_precio",
-            "precio_validado_por",
-            "precio_validado_en",
-            "precio_validacion_nota",
-        ]
-    )
+    try:
+        aplicar_aprobacion_precio_formato(fmt, request.user, nota=nota)
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return HttpResponseRedirect(reverse("app:formato_precio_pendiente_list"))
+
     messages.success(
         request,
         f"Precio aprobado en formato #{fmt.numero_formulario:04d}: ${fmt.valor_inmueble}.",
@@ -3385,6 +3427,7 @@ def formato_precio_aprobar(request: HttpRequest, pk: int) -> HttpResponse:
 
 @login_required
 def formato_precio_rechazar(request: HttpRequest, pk: int) -> HttpResponse:
+    from inmobiliaria.formato_precio import aplicar_rechazo_precio_formato
     from usuarios.roles import puede_aprobar_precio_formato
 
     if not puede_aprobar_precio_formato(request.user):
@@ -3412,21 +3455,16 @@ def formato_precio_rechazar(request: HttpRequest, pk: int) -> HttpResponse:
             {"formato": fmt, "accion": "rechazar"},
         )
 
-    if fmt.valor_inmueble_sistema is not None:
-        fmt.valor_inmueble = fmt.valor_inmueble_sistema
-    fmt.validacion_precio = FormatoAceptacion.ValidacionPrecio.RECHAZADO
-    fmt.precio_validado_por = request.user
-    fmt.precio_validado_en = timezone.localtime()
-    fmt.precio_validacion_nota = nota
-    fmt.save(
-        update_fields=[
-            "valor_inmueble",
-            "validacion_precio",
-            "precio_validado_por",
-            "precio_validado_en",
-            "precio_validacion_nota",
-        ]
-    )
+    try:
+        aplicar_rechazo_precio_formato(fmt, request.user, nota=nota)
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return render(
+            request,
+            "app/formato_precio_validar.html",
+            {"formato": fmt, "accion": "rechazar"},
+        )
+
     messages.success(
         request,
         f"Cambio de precio rechazado en formato #{fmt.numero_formulario:04d}. "

@@ -1966,6 +1966,23 @@ class FormatoAceptacion(models.Model):
     def pendiente_validacion_precio(self) -> bool:
         return self.validacion_precio == self.ValidacionPrecio.PENDIENTE
 
+    @property
+    def precio_negociado_aprobado(self) -> bool:
+        return self.validacion_precio == self.ValidacionPrecio.APROBADO
+
+    @property
+    def tiene_precio_negociado_aprobado(self) -> bool:
+        """Gerencia aprobó un monto distinto al precio de etapa/sistema."""
+        if not self.precio_negociado_aprobado:
+            return False
+        from inmobiliaria.etapa_venta import decimales_iguales
+
+        sistema = self.valor_inmueble_sistema
+        vigente = self.valor_inmueble
+        if sistema is not None and vigente is not None:
+            return not decimales_iguales(sistema, vigente)
+        return self.valor_inmueble_solicitado is not None
+
     def save(self, *args, **kwargs):
         # El vendedor ingresa el número; no se autoasigna.
         super().save(*args, **kwargs)

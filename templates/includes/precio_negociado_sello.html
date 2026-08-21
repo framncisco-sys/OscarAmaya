@@ -1,0 +1,42 @@
+{% load money_fmt pbr_ui %}
+{# Sello / badge de precio negociado aprobado por gerencia. Requiere objeto FormatoAceptacion. #}
+{% if formato.pendiente_validacion_precio %}
+<span class="pbr-precio-badge pbr-precio-badge--pendiente" title="Cambio de precio en cola de gerencia">
+  {% pbr_icon "clock" size="sm" %}
+  Precio pendiente
+  {% if formato.valor_inmueble_solicitado %}· ${{ formato.valor_inmueble_solicitado|money_us }}{% endif %}
+</span>
+{% elif formato.tiene_precio_negociado_aprobado %}
+{% if compact %}
+<span class="pbr-precio-badge pbr-precio-badge--aprobado" title="Precio distinto al de etapa, aprobado por gerencia">
+  {% pbr_icon "check" size="sm" %}
+  Precio negociado · ${{ formato.valor_inmueble|money_us }}
+</span>
+{% else %}
+<aside class="pbr-precio-negociado-sello" role="status" aria-label="Precio negociado aprobado">
+  <div class="pbr-precio-negociado-sello__icon" aria-hidden="true">{% pbr_icon "check" size="lg" %}</div>
+  <div class="pbr-precio-negociado-sello__body">
+    <p class="pbr-precio-negociado-sello__titulo">Precio negociado — aprobado por gerencia</p>
+    <p class="pbr-precio-negociado-sello__montos">
+      {% if formato.valor_inmueble_sistema %}
+      <span class="pbr-precio-negociado-sello__antes">Etapa ${{ formato.valor_inmueble_sistema|money_us }}</span>
+      <span class="pbr-precio-negociado-sello__flecha" aria-hidden="true">→</span>
+      {% endif %}
+      <strong class="pbr-precio-negociado-sello__vigente">${{ formato.valor_inmueble|money_us }}</strong>
+      <span class="pbr-precio-negociado-sello__usd">USD vigente</span>
+    </p>
+    <p class="pbr-precio-negociado-sello__meta muted">
+      {% if formato.precio_validado_por %}
+      Aprobó {{ formato.precio_validado_por.get_full_name|default:formato.precio_validado_por.username }}
+      {% endif %}
+      {% if formato.precio_validado_en %}· {{ formato.precio_validado_en|date:"d/m/Y H:i" }}{% endif %}
+      {% if formato.precio_validacion_nota %}· {{ formato.precio_validacion_nota }}{% endif %}
+    </p>
+  </div>
+</aside>
+{% endif %}
+{% elif formato.validacion_precio == 'RECHAZADO' and formato.valor_inmueble_solicitado %}
+<span class="pbr-precio-badge pbr-precio-badge--rechazado" title="Cambio de precio rechazado; se mantiene precio de etapa">
+  Precio rechazado
+</span>
+{% endif %}

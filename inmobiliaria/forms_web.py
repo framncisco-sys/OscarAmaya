@@ -3247,14 +3247,23 @@ class FormatoAceptacionForm(forms.ModelForm):
                 "Indique el motivo del cambio de precio.",
             )
 
-        # El valor vigente del documento es el del sistema (hasta que gerencia apruebe).
+        # El valor vigente del documento: conservar decisión de gerencia salvo nueva solicitud.
+        nueva_solicitud = (
+            solicitado is not None
+            and sistema is not None
+            and not decimales_iguales(solicitado, sistema)
+            and motivo
+        ) or (solicitado is not None and sistema is None and motivo)
         if (
             self.instance
             and self.instance.pk
             and self.instance.validacion_precio
-            == FormatoAceptacion.ValidacionPrecio.APROBADO
+            in (
+                FormatoAceptacion.ValidacionPrecio.APROBADO,
+                FormatoAceptacion.ValidacionPrecio.RECHAZADO,
+            )
             and self.instance.valor_inmueble is not None
-            and not (solicitado is not None and sistema is not None and not decimales_iguales(solicitado, sistema) and motivo)
+            and not nueva_solicitud
         ):
             cleaned["valor_inmueble"] = self.instance.valor_inmueble
         elif sistema is not None:
@@ -3299,18 +3308,26 @@ class FormatoAceptacionForm(forms.ModelForm):
                 instance.precio_validado_por = None
                 instance.precio_validado_en = None
                 instance.precio_validacion_nota = ""
-        elif instance.validacion_precio == FormatoAceptacion.ValidacionPrecio.APROBADO:
-            if solicitado is not None:
-                instance.valor_inmueble = solicitado
+        elif instance.validacion_precio in (
+            FormatoAceptacion.ValidacionPrecio.APROBADO,
+            FormatoAceptacion.ValidacionPrecio.RECHAZADO,
+        ):
+            # Conservar precio y trazabilidad ya definidos por gerencia.
+            pass
+        elif instance.validacion_precio == FormatoAceptacion.ValidacionPrecio.PENDIENTE:
+            if sistema is not None:
+                instance.valor_inmueble = sistema
         else:
             if sistema is not None:
                 instance.valor_inmueble = sistema
             instance.valor_inmueble_solicitado = None
             instance.precio_solicitud_motivo = ""
-            if instance.validacion_precio == FormatoAceptacion.ValidacionPrecio.PENDIENTE:
-                instance.validacion_precio = FormatoAceptacion.ValidacionPrecio.NO_APLICA
-                instance.precio_solicitado_por = None
-                instance.precio_solicitado_en = None
+            instance.precio_validado_por = None
+            instance.precio_validado_en = None
+            instance.precio_validacion_nota = ""
+            instance.precio_solicitado_por = None
+            instance.precio_solicitado_en = None
+            instance.validacion_precio = FormatoAceptacion.ValidacionPrecio.NO_APLICA
 
         if formato_aceptacion_credito_extra_columns_ready():
             _aplicar_pistas_observaciones_financiamiento(instance)
@@ -3319,6 +3336,12 @@ class FormatoAceptacionForm(forms.ModelForm):
             y = int(plazo_sync)
             if 1 <= y <= _ANOS_PLAZO_MAX:
                 instance.num_cuota_txt = str(y * 12)
+        if instance.tipo_financiamiento != FormatoAceptacion.TipoFinanciamiento.CONTADO:
+            if instance.valor_inmueble is not None:
+                p1s = instance.prima_1 or Decimal("0")
+                p2s = instance.prima_2 or Decimal("0")
+                vf = (Decimal(instance.valor_inmueble) - p1s - p2s).quantize(Decimal("0.01"))
+                instance.valor_financiamiento = max(Decimal("0"), vf)
         # Detalle automático del plan a plazos (para imprimir / PDF)
         if formato_aceptacion_credito_extra_columns_ready():
             from .cuotas_calendario import texto_plan_financiamiento_a_plazos

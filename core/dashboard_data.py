@@ -29,6 +29,49 @@ def _filtro_lote_venta(prefix: str = "lotes") -> Q:
     return Q(**{f"{p}tipo": _LOTE, f"{p}en_alquiler": False})
 
 
+def _qs_pagos_confirmados(qs):
+    """Abonos confirmados en cuenta (misma regla que reportes contables)."""
+    return qs.filter(
+        Q(validacion_abono=Pago.ValidacionAbono.VALIDADO)
+        | Q(validacion_abono=Pago.ValidacionAbono.NO_APLICA)
+    ).exclude(validacion_abono=Pago.ValidacionAbono.RECHAZADO)
+
+
+def _recaudo_dashboard(*, user, contratos_restringidos: bool) -> dict:
+    pagos_qs = Pago.objects.all()
+    if contratos_restringidos:
+        from inmobiliaria.contratos_acceso import filtrar_pagos_queryset_por_vendedor
+
+        pagos_qs = filtrar_pagos_queryset_por_vendedor(pagos_qs, user)
+
+    confirmados = _qs_pagos_confirmados(pagos_qs)
+    hoy = timezone.localdate()
+    mes_inicio = hoy.replace(day=1)
+
+    total = confirmados.aggregate(s=Sum("monto"))["s"] or Decimal("0")
+    mes = (
+        confirmados.filter(fecha__gte=mes_inicio).aggregate(s=Sum("monto"))["s"]
+        or Decimal("0")
+    )
+    pendiente = (
+        pagos_qs.filter(validacion_abono=Pago.ValidacionAbono.PENDIENTE).aggregate(
+            s=Sum("monto")
+        )["s"]
+        or Decimal("0")
+    )
+    formatos_qs = FormatoAceptacion.objects.exclude(
+        validacion_gerencia=FormatoAceptacion.ValidacionGerencia.RECHAZADO
+    )
+    reservas_en_formatos = formatos_qs.aggregate(s=Sum("prima_1"))["s"] or Decimal("0")
+    return {
+        "total_recaudado": total,
+        "recaudado_mes": mes,
+        "pagos_confirmados_count": confirmados.count(),
+        "recaudo_pendiente_validacion": pendiente,
+        "reservas_en_formatos": reservas_en_formatos,
+    }
+
+
 def build_dashboard_bienes_raices_context(
     *,
     user,
@@ -259,6 +302,7 @@ def build_dashboard_context(
         validacion_gerencia=FormatoAceptacion.ValidacionGerencia.RECHAZADO
     ).count()
     total_alquiler = Inmueble.objects.filter(en_alquiler=True).count()
+    recaudo = _recaudo_dashboard(user=user, contratos_restringidos=contratos_restringidos)
 
     ctx: dict = {
         "dashboard_actualizado": ahora,
@@ -278,6 +322,7 @@ def build_dashboard_context(
         "proyecto_rows": proyecto_rows,
         "reservas_por_vencer": reservas_por_vencer,
         "reservas_vencidas_ct": reservas_vencidas_ct,
+        **recaudo,
         "dashboard_charts": {
             "estado": [
                 {
@@ -306,6 +351,8 @@ def build_dashboard_context(
                 "reservados": reservados,
                 "vendidos": vendidos,
                 "valor_disponible": float(valor_disponible),
+                "total_recaudado": float(recaudo["total_recaudado"]),
+                "recaudado_mes": float(recaudo["recaudado_mes"]),
             },
         },
         # Compatibilidad con plantilla antigua

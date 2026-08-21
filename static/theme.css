@@ -870,6 +870,136 @@ html[data-pbr-reduced-motion="1"] .app-header--hide {
   color: #4b5563;
 }
 
+/* Precio negociado (aprobado por gerencia) */
+.pbr-precio-negociado-sello {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 2px solid #0d9488;
+  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 45%, #fffbeb 100%);
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.12);
+}
+
+.pbr-precio-negociado-sello__icon {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #0d9488;
+  color: #fff;
+}
+
+.pbr-precio-negociado-sello__titulo {
+  margin: 0 0 0.35rem;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #0f766e;
+  letter-spacing: 0.02em;
+}
+
+.pbr-precio-negociado-sello__montos {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+  line-height: 1.35;
+}
+
+.pbr-precio-negociado-sello__antes {
+  color: #64748b;
+  text-decoration: line-through;
+  margin-right: 0.35rem;
+}
+
+.pbr-precio-negociado-sello__flecha {
+  color: #0d9488;
+  font-weight: 700;
+  margin: 0 0.35rem;
+}
+
+.pbr-precio-negociado-sello__vigente {
+  color: #0f766e;
+  font-size: 1.2rem;
+}
+
+.pbr-precio-negociado-sello__usd {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin-left: 0.25rem;
+}
+
+.pbr-precio-negociado-sello__meta {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.pbr-precio-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.pbr-precio-badge--aprobado {
+  background: linear-gradient(135deg, #ccfbf1, #fef3c7);
+  color: #0f766e;
+  border: 1px solid #5eead4;
+}
+
+.pbr-precio-badge--pendiente {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.pbr-precio-badge--rechazado {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.pbr-precio-negociado-inline {
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  background: #ecfdf5;
+  border: 1px dashed #14b8a6;
+  color: #0f766e;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.formato-form--precio-negociado .pbr-precios-lote-panel {
+  border-color: #14b8a6 !important;
+  background: linear-gradient(180deg, #ecfdf5, #eff6ff) !important;
+}
+
+.formato-form--precio-negociado #id_valor_inmueble {
+  border-color: #0d9488;
+  background: #f0fdfa;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.15);
+}
+
+.table-row--precio-negociado {
+  background: linear-gradient(90deg, rgba(204, 251, 241, 0.45), transparent 70%);
+}
+
+.table-row--precio-negociado td:first-child {
+  box-shadow: inset 4px 0 0 #0d9488;
+}
+
+.table-row--precio-pendiente {
+  background: linear-gradient(90deg, rgba(254, 243, 199, 0.35), transparent 70%);
+}
+
 .badge--borrador {
   background: #f3f4f6;
   color: #4b5563;
@@ -5538,6 +5668,19 @@ html[data-pbr-reduced-motion="1"] .pbr-system-loader__fill {
 
 .dash-kpi--sold p {
   color: #1d4ed8;
+}
+
+.dash-kpi--money {
+  border-left-color: #0f766e;
+}
+
+.dash-kpi--money p {
+  color: #0f766e;
+}
+
+.dash-kpi__value--money {
+  font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+  letter-spacing: -0.02em;
 }
 
 .dash-proyectos {

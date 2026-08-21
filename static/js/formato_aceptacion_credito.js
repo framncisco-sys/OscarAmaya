@@ -130,6 +130,16 @@
     return "$" + formatMoneyUS(n);
   }
 
+  function parseInteresAnual(el) {
+    if (!el) return 0;
+    var raw = String(el.value || "").trim();
+    if (!raw) return 0;
+    var m = raw.match(/(\d+(?:\.\d+)?)/);
+    if (!m) return 0;
+    var v = parseFloat(m[1]);
+    return isFinite(v) && v >= 0 ? v : 0;
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     var proyectos = parseJSONScript("formato-proyectos-data") || [];
     var cat = parseJSONScript("formato-catalogo-inmuebles-data") || {};
@@ -147,6 +157,36 @@
     var areaM2 = document.getElementById("id_area_m2_txt");
     var areaV2 = document.getElementById("id_area_v2_txt");
     var valorInm = document.getElementById("id_valor_inmueble");
+    var formRoot = document.getElementById("formato-aceptacion-form");
+    var valorInmInicial = valorInm ? valorInm.value : "";
+
+    function debeConservarPrecioVigente() {
+      if (!formRoot) return false;
+      if (formRoot.getAttribute("data-pbr-precio-fijado") === "1") return true;
+      if (formRoot.getAttribute("data-pbr-validacion-precio") === "APROBADO") return true;
+      var valorSol = document.getElementById("id_valor_inmueble_solicitado");
+      var valorSis = document.getElementById("id_valor_inmueble_sistema");
+      if (!valorSol || !valorSol.value) return false;
+      var sol = parseFloat(String(valorSol.value).replace(/[$,]/g, ""));
+      var sis = valorSis ? parseFloat(String(valorSis.value).replace(/[$,]/g, "")) : NaN;
+      if (!isFinite(sol) || !isFinite(sis) || Math.abs(sol - sis) < 0.005) return false;
+      var ini = parseFloat(String(valorInmInicial).replace(/[$,]/g, ""));
+      return isFinite(ini) && Math.abs(ini - sol) < 0.005;
+    }
+
+    function restaurarPrecioVigente() {
+      if (!debeConservarPrecioVigente() || !valorInm) return;
+      var vigente =
+        (formRoot && formRoot.getAttribute("data-pbr-precio-vigente")) ||
+        valorInmInicial;
+      if (!vigente) return;
+      var p = parseFloat(String(vigente).replace(/[$,]/g, ""));
+      if (!isFinite(p)) return;
+      setMoney(valorInm, p);
+      forzarActualizacionPlanCuotas(true);
+      actualizarPrecioNegociadoInline();
+    }
+
     var prima1 = document.getElementById("id_prima_1");
     var prima2 = document.getElementById("id_prima_2");
     var valorFin = document.getElementById("id_valor_financiamiento");
@@ -161,6 +201,37 @@
     var prima1Fecha = document.getElementById("id_prima_1_fecha");
     var prima2Fecha = document.getElementById("id_prima_2_fecha");
     var tbodyListado = document.getElementById("fmt-listado-cuotas-body");
+    var planCuotasServidor = parseJSONScript("formato-plan-cuotas-servidor") || null;
+    var usuarioEditoPlan = false;
+    var actualizacionProgramatica = false;
+
+    function debeUsarPlanServidor() {
+      if (!planCuotasServidor || !planCuotasServidor.length || usuarioEditoPlan) return false;
+      if (!formRoot) return true;
+      var fijado = formRoot.getAttribute("data-pbr-precio-fijado") === "1";
+      var aprobado = formRoot.getAttribute("data-pbr-validacion-precio") === "APROBADO";
+      return fijado || aprobado || !!formRoot.getAttribute("data-pbr-precio-vigente");
+    }
+
+    function cuota13DesdeServidor() {
+      if (!planCuotasServidor || !planCuotasServidor.length) return null;
+      for (var i = 0; i < planCuotasServidor.length; i += 1) {
+        var concepto = String(planCuotasServidor[i].concepto || "");
+        if (concepto.indexOf("Cuota 13") !== 0) continue;
+        var m = parseFloat(String(planCuotasServidor[i].monto || "").replace(/,/g, ""));
+        return isFinite(m) && m > 0 ? m : null;
+      }
+      return null;
+    }
+
+    function valorInmuebleVigente() {
+      if (debeConservarPrecioVigente() && formRoot) {
+        var vigenteRaw = formRoot.getAttribute("data-pbr-precio-vigente") || "";
+        var p = parseFloat(String(vigenteRaw).replace(/[$,]/g, ""));
+        if (isFinite(p) && p > 0) return p;
+      }
+      return parseMoney(valorInm);
+    }
 
     var mapOk = !!(selPol && selLote && hidLote && hidPol);
 
@@ -188,7 +259,7 @@
         if (numCuota) numCuota.value = "";
         if (interes) interes.value = "";
         setPlazosCamposEnabled(false);
-        rebuildListadoCuotas();
+        forzarActualizacionPlanCuotas(true);
         return;
       }
       setPlazosCamposEnabled(true);
@@ -198,7 +269,7 @@
     function recalcLetra() {
       if (esContado()) {
         if (letra) letra.value = "";
-        rebuildListadoCuotas();
+        forzarActualizacionPlanCuotas(true);
         return;
       }
       if (plazo) {
@@ -209,7 +280,7 @@
         if (numCuota) numCuota.value = n > 0 ? String(n) : "";
         // La cuota 1–12 la escribe el vendedor; no se calcula ni se pisa aquí.
       }
-      rebuildListadoCuotas();
+      forzarActualizacionPlanCuotas(debeUsarPlanServidor());
       actualizarResumenPlan();
     }
 
@@ -226,16 +297,21 @@
           "Elija plazo (1–6 años). Escriba la cuota de los meses 1–12 (sin interés). Desde el mes 13 ya va con intereses.";
         return;
       }
-      var n = years * 12;
-      var principal = parseMoney(valorFin);
-      var interVal = parseFloat(String((interes && interes.value) || ""));
-      if (!isFinite(interVal) || interVal < 0) interVal = 0;
+      var n = nCuotasDesdeFormulario();
+      if (!n) {
+        box.textContent =
+          "Elija plazo (1–6 años). Escriba la cuota de los meses 1–12 (sin interés). Desde el mes 13 ya va con intereses.";
+        return;
+      }
+      var principal = principalFinanciamiento();
+      var interVal = parseInteresAnual(interes);
       var letraVend = parseMoney(letra);
       if (!letraVend || letraVend <= 0) {
         box.textContent =
           "Escriba la cuota de los meses 1–12 (sin interés). Desde el mes 13 se reparte el saldo restante con intereses.";
         return;
       }
+      var cuota13Srv = debeUsarPlanServidor() ? cuota13DesdeServidor() : null;
       var plan = planCuotasAPlazos(principal, letraVend, interVal, n);
       if (n <= 12) {
         box.textContent =
@@ -248,30 +324,85 @@
           " cuotas.";
         return;
       }
+      var cuota13Mostrar =
+        cuota13Srv !== null && cuota13Srv > 0 ? cuota13Srv : plan.cuota13;
       box.textContent =
         "Meses 1–12: cuota del vendedor $" +
         formatMoneyUS(plan.letra) +
         " sin interés. Desde el mes 13: $" +
-        formatMoneyUS(plan.cuota13) +
+        formatMoneyUS(cuota13Mostrar) +
         " mensuales (saldo restante ÷ meses que faltan, con " +
         interVal +
         "% anual).";
+    }
+
+    function principalFinanciamiento() {
+      var vi = valorInmuebleVigente();
+      var p1 = parseMoney(prima1);
+      var p2 = parseMoney(prima2);
+      var fin = vi - p1 - p2;
+      if (fin < 0) fin = 0;
+      fin = Math.round(fin * 100) / 100;
+      actualizacionProgramatica = true;
+      try {
+        if (valorFin) setMoney(valorFin, fin);
+      } finally {
+        actualizacionProgramatica = false;
+      }
+      return fin;
     }
 
     function recalcFin() {
       if (esContado()) {
         if (valorFin) setMoney(valorFin, 0);
         if (letra) letra.value = "";
-        rebuildListadoCuotas();
+        forzarActualizacionPlanCuotas(true);
         return;
       }
-      var vi = parseMoney(valorInm);
-      var p1 = parseMoney(prima1);
-      var p2 = parseMoney(prima2);
-      var fin = vi - p1 - p2;
-      if (fin < 0) fin = 0;
-      if (valorFin) setMoney(valorFin, fin);
+      principalFinanciamiento();
       recalcLetra();
+    }
+
+    function actualizarPrecioNegociadoInline() {
+      var lineNeg = document.getElementById("pbr-precio-negociado-line");
+      var panel = document.getElementById("pbr-precios-lote-panel");
+      if (!lineNeg || !formRoot) return;
+      var valPrecio = formRoot.getAttribute("data-pbr-validacion-precio") || "";
+      if (valPrecio !== "APROBADO") {
+        lineNeg.hidden = true;
+        lineNeg.textContent = "";
+        return;
+      }
+      var vigenteRaw = formRoot.getAttribute("data-pbr-precio-vigente") || "";
+      var sistemaRaw = formRoot.getAttribute("data-pbr-precio-sistema") || "";
+      var vigente = parseFloat(String(vigenteRaw).replace(/[$,]/g, ""));
+      var sistema = parseFloat(String(sistemaRaw).replace(/[$,]/g, ""));
+      if (valorInm && valorInm.value) {
+        var viDom = parseMoney(valorInm);
+        if (isFinite(viDom) && viDom > 0) vigente = viDom;
+      }
+      if (!isFinite(vigente) || vigente <= 0) {
+        lineNeg.hidden = true;
+        return;
+      }
+      if (isFinite(sistema) && sistema > 0 && Math.abs(vigente - sistema) < 0.005) {
+        lineNeg.hidden = true;
+        return;
+      }
+      lineNeg.hidden = false;
+      var lbl = function (n) {
+        return "$" + formatMoneyUS(n);
+      };
+      var txt =
+        "✓ Precio negociado aprobado: " +
+        lbl(vigente) +
+        " USD (no usar precio de etapa";
+      if (isFinite(sistema) && sistema > 0) {
+        txt += "; etapa " + lbl(sistema);
+      }
+      txt += ")";
+      lineNeg.textContent = txt;
+      if (panel) panel.classList.add("pbr-precios-lote-panel--negociado");
     }
 
     var porcentajePrimaProyecto = null;
@@ -665,6 +796,7 @@
             aviso.textContent = "";
           }
         }
+        actualizarPrecioNegociadoInline();
       }
 
       function aplicarInmueble(invId, opts) {
@@ -696,8 +828,13 @@
               ? L.precio
               : "";
         var faltante = !!L.precio_etapa_faltante || !precioVenta;
+        var formRoot = document.getElementById("formato-aceptacion-form");
+        var precioFijado =
+          formRoot && formRoot.getAttribute("data-pbr-precio-fijado") === "1";
+        var conservarPrecioVigente =
+          allowExisting && (precioFijado || debeConservarPrecioVigente());
         if (valorInm) {
-          if (!faltante) {
+          if (!faltante && !conservarPrecioVigente) {
             var p = parseFloat(String(precioVenta).replace(/,/g, ""));
             if (isFinite(p)) setMoney(valorInm, p);
           } else if (!allowExisting) {
@@ -707,7 +844,7 @@
         }
         var valorSis = document.getElementById("id_valor_inmueble_sistema");
         if (valorSis) {
-          if (!faltante) {
+          if (!faltante && !(allowExisting && precioFijado)) {
             var ps = parseFloat(String(precioVenta).replace(/,/g, ""));
             if (isFinite(ps)) setMoney(valorSis, ps);
           } else if (!allowExisting) {
@@ -735,7 +872,9 @@
         }
         mostrarPreciosLote(L);
         if (L.proyecto_id) {
-          var yaTieneReserva = allowExisting && isFinite(parseMoney(prima1));
+          var yaTieneReserva =
+            allowExisting &&
+            (precioFijado || debeConservarPrecioVigente() || isFinite(parseMoney(prima1)));
           if (yaTieneReserva) {
             // Edición: cargar config del proyecto sin pisar reserva/prima guardadas.
             var pCfg = proyectoPorId(L.proyecto_id);
@@ -752,10 +891,12 @@
               }
             }
             actualizarInfoPrimaProyecto();
-            recalcFin();
           } else {
             setConfigFinancieraDesdeProyectoId(L.proyecto_id);
           }
+        }
+        if (conservarPrecioVigente) {
+          restaurarPrecioVigente();
         } else {
           recalcFin();
         }
@@ -846,6 +987,7 @@
       }
 
       restoreLote();
+      forzarActualizacionPlanCuotas(true);
     }
 
     [prima1, prima2, valorInm].forEach(function (el) {
@@ -1129,24 +1271,89 @@
     aplicarTipoFinanciamiento();
 
     function nCuotasDesdeFormulario() {
+      if (plazo && plazo.value) {
+        var y = parseInt(String(plazo.value).trim(), 10);
+        if (isFinite(y) && y >= 1 && y <= 6) {
+          var nPlazo = y * 12;
+          if (numCuota) numCuota.value = String(nPlazo);
+          return nPlazo;
+        }
+      }
       var raw = numCuota && numCuota.value ? String(numCuota.value).trim() : "";
       if (raw && /^\d+$/.test(raw)) {
         var n = parseInt(raw, 10);
-        return n > 0 ? n : null;
-      }
-      if (plazo && plazo.value) {
-        var y = parseInt(String(plazo.value).trim(), 10);
-        if (isFinite(y) && y >= 1 && y <= 6) return y * 12;
+        if (n >= 12 && n <= 72 && n % 12 === 0) return n;
       }
       return null;
     }
 
     function letraParaListado(n) {
-      var L = letra && letra.value ? parseFloat(String(letra.value).replace(/,/g, "")) : NaN;
+      var L = parseMoney(letra);
       if (isFinite(L) && L > 0) return L;
-      var vf = parseMoney(valorFin);
+      var vf = principalFinanciamiento();
       if (isFinite(vf) && vf > 0 && n > 0) return Math.round((vf / n) * 100) / 100;
       return null;
+    }
+
+    function sincronizarCamposFinancierosBruto() {
+      if (formRoot && formRoot.getAttribute("data-pbr-validacion-precio") === "APROBADO") {
+        restaurarPrecioVigente();
+      }
+      if (plazo && plazo.value) {
+        var y = parseInt(String(plazo.value).trim(), 10);
+        if (isFinite(y) && y >= 1 && y <= 6 && numCuota) {
+          numCuota.value = String(y * 12);
+        }
+      }
+      principalFinanciamiento();
+    }
+
+    function renderListadoDesdeServidor(plan) {
+      if (!tbodyListado || !plan || !plan.length) return false;
+      tbodyListado.innerHTML = "";
+      plan.forEach(function (row) {
+        var tr = document.createElement("tr");
+        var montoStr = "—";
+        if (row.monto) {
+          var m = parseFloat(String(row.monto).replace(/,/g, ""));
+          montoStr = isFinite(m) && m > 0 ? fmtMoney(m) : "—";
+        }
+        tr.innerHTML =
+          "<td style=\"padding:0.35rem 0.5rem;border:1px solid #e2e8f0;\">" +
+          (row.linea || "") +
+          "</td><td style=\"padding:0.35rem 0.5rem;border:1px solid #e2e8f0;\">" +
+          (row.concepto || "") +
+          "</td><td style=\"padding:0.35rem 0.5rem;border:1px solid #e2e8f0;\">" +
+          (row.fecha || "—") +
+          "</td><td style=\"padding:0.35rem 0.5rem;border:1px solid #e2e8f0;text-align:right;\">" +
+          montoStr +
+          "</td>";
+        tbodyListado.appendChild(tr);
+      });
+      return true;
+    }
+
+    function forzarActualizacionPlanCuotas(preferirServidor) {
+      sincronizarCamposFinancierosBruto();
+      if (
+        preferirServidor !== false &&
+        planCuotasServidor &&
+        planCuotasServidor.length &&
+        !usuarioEditoPlan
+      ) {
+        renderListadoDesdeServidor(planCuotasServidor);
+        actualizarResumenPlan();
+        actualizarPrecioNegociadoInline();
+        return;
+      }
+      rebuildListadoCuotas();
+      actualizarPrecioNegociadoInline();
+    }
+
+    function marcarPlanEditadoPorUsuario() {
+      if (actualizacionProgramatica) return;
+      usuarioEditoPlan = true;
+      rebuildListadoCuotas();
     }
 
     function rebuildListadoCuotas() {
@@ -1185,11 +1392,19 @@
         (fechaPrimera && fechaPrimera.value ? parseDateInputValue(fechaPrimera.value) : null) ||
         (fechaPagoMensual && fechaPagoMensual.value ? parseDateInputValue(fechaPagoMensual.value) : null);
       if (n && !esContado()) {
-        var principal = parseMoney(valorFin);
-        var interVal = parseFloat(String((interes && interes.value) || ""));
-        if (!isFinite(interVal) || interVal < 0) interVal = 0;
+        var principal = principalFinanciamiento();
+        var interVal = parseInteresAnual(interes);
         var letraVal = parseMoney(letra);
         if (!isFinite(letraVal) || letraVal <= 0) letraVal = letraParaListado(n);
+        if (!isFinite(letraVal) || letraVal <= 0 || !isFinite(principal) || principal <= 0) {
+          var trWarn = document.createElement("tr");
+          trWarn.innerHTML =
+            "<td colspan=\"4\" class=\"muted\" style=\"padding:0.45rem 0.5rem;border:1px solid #e2e8f0;font-size:0.82rem;\">" +
+            "Complete valor del inmueble, primas, plazo y cuota meses 1–12 para ver el plan.</td>";
+          tbodyListado.appendChild(trWarn);
+          actualizarResumenPlan();
+          return;
+        }
         var plan = planCuotasAPlazos(principal, letraVal, interVal, n);
         var i;
         for (i = 0; i < n; i += 1) {
@@ -1235,8 +1450,8 @@
     ];
     listadoWatch.forEach(function (el) {
       if (!el) return;
-      el.addEventListener("input", rebuildListadoCuotas);
-      el.addEventListener("change", rebuildListadoCuotas);
+      el.addEventListener("input", marcarPlanEditadoPorUsuario);
+      el.addEventListener("change", marcarPlanEditadoPorUsuario);
     });
 
     // Reformatear montos al salir del campo (22,500.00)
@@ -1248,8 +1463,12 @@
       });
     });
 
-    recalcFin();
-    rebuildListadoCuotas();
-    actualizarResumenPlan();
+    forzarActualizacionPlanCuotas(true);
+    window.setTimeout(function () {
+      forzarActualizacionPlanCuotas(true);
+    }, 150);
+    window.setTimeout(function () {
+      forzarActualizacionPlanCuotas(true);
+    }, 800);
   });
 })();

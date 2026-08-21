@@ -1,5 +1,5 @@
 {% extends "app/base_app.html" %}
-{% load static pbr_ui %}
+{% load static pbr_ui money_fmt %}
 
 {% block title %}Dashboard | {{ marca_portal.nombre }}{% endblock %}
 
@@ -97,6 +97,20 @@
       <p><span class="dash-kpi__value" data-dash-count="{{ vendidos }}">{{ vendidos }}</span></p>
       <span class="dash-kpi__hint">Contado o cuotas liquidadas</span>
     </article>
+    <a class="card kpi dash-kpi dash-kpi--link dash-kpi--money" href="{% url 'app:pago_list' %}">
+      <span class="dash-kpi__icon" aria-hidden="true">{% pbr_icon "payment" size="lg" %}</span>
+      <h3>Total recaudado</h3>
+      <p><span class="dash-kpi__value dash-kpi__value--money">${{ total_recaudado|money_us }}</span></p>
+      <span class="dash-kpi__hint">
+        {% if total_recaudado %}
+        ${{ recaudado_mes|money_us }} USD este mes
+        {% if recaudo_pendiente_validacion %} · ${{ recaudo_pendiente_validacion|money_us }} por validar{% endif %}
+        {% else %}
+        Abonos confirmados en cuenta · registre pagos en Gestión
+        {% if reservas_en_formatos %} · ${{ reservas_en_formatos|money_us }} reservas en formatos{% endif %}
+        {% endif %}
+      </span>
+    </a>
     <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:formato_aceptacion_list' %}">
       <span class="dash-kpi__icon" aria-hidden="true">{% pbr_icon "file" size="lg" %}</span>
       <h3>Formatos activos</h3>

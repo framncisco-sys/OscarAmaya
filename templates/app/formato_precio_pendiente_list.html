@@ -55,4 +55,40 @@
 {% else %}
 <p class="muted">No hay cambios de precio pendientes.</p>
 {% endif %}
+
+{% if formatos_recientes %}
+<h2 class="page-title" style="font-size:1.05rem;margin:1.5rem 0 0.75rem;">Decisiones recientes</h2>
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Formato</th>
+        <th>Estado</th>
+        <th>Sistema</th>
+        <th>Solicitado</th>
+        <th>Vigente</th>
+        <th>Decidió</th>
+        <th>Fecha</th>
+        <th>Nota</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in formatos_recientes %}
+      <tr>
+        <td>
+          <a href="{% url 'app:formato_aceptacion_edit' f.pk %}">#{{ f.numero_formulario|stringformat:"04d" }}</a>
+        </td>
+        <td>{{ f.get_validacion_precio_display }}</td>
+        <td>{% if f.valor_inmueble_sistema %}${{ f.valor_inmueble_sistema|money_us }}{% else %}—{% endif %}</td>
+        <td>{% if f.valor_inmueble_solicitado %}${{ f.valor_inmueble_solicitado|money_us }}{% else %}—{% endif %}</td>
+        <td><strong>{% if f.valor_inmueble %}${{ f.valor_inmueble|money_us }}{% else %}—{% endif %}</strong></td>
+        <td>{% if f.precio_validado_por %}{{ f.precio_validado_por.get_full_name|default:f.precio_validado_por.username }}{% else %}—{% endif %}</td>
+        <td>{% if f.precio_validado_en %}{{ f.precio_validado_en|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+        <td>{{ f.precio_validacion_nota|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 {% endblock %}

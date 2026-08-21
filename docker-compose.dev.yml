@@ -55,8 +55,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_cambiar_en_env}
       DEBUG: ${DEBUG:-True}
       DJANGO_ALLOW_LOCALHOST_DB: "1"
-      # Si .env trae DATABASE_URL de producción, no debe ganar sobre POSTGRES_HOST=db
-      DJANGO_IGNORE_DATABASE_URL: "1"
+      # El .env local suele traer POSTGRES_HOST=localhost; no releerlo dentro del contenedor.
+      DJANGO_IGNORE_DATABASE_URL: "0"
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,web}
       # Sin PORT de PaaS: no se dispara el aviso de "BD en localhost" en settings.
     depends_on:
