@@ -27,11 +27,7 @@
       {% include "includes/_sidebar_sub_link.html" with href=pago_base_url|add:"?concepto=CONTADO" label="2. Contado: recibo total del lote" icon="payment" active=sidebar_nav.pago_contado_active %}
       {% include "includes/_sidebar_sub_link.html" with href=pago_base_url|add:"?concepto=RESERVA" label="3. Reserva pagada (recibo)" icon="clock" active=sidebar_nav.pago_reserva_active %}
       {% include "includes/_sidebar_sub_link.html" with href=pago_base_url|add:"?concepto=PRIMA" label="4. Prima pagada (recibo)" icon="payment" active=sidebar_nav.pago_prima_active %}
-      {% url 'app:contrato_create' as contrato_create_url %}
-      {% include "includes/_sidebar_sub_link.html" with href=contrato_create_url label="5. Nuevo plan de pagos" icon="chart" active=sidebar_nav.contrato_active %}
-      {% include "includes/_sidebar_sub_link.html" with href=pago_base_url|add:"?concepto=CUOTA" label="6. Recibos a plazos" icon="receipt" active=sidebar_nav.pago_cuota_active %}
-      {% url 'app:contrato_list' as contrato_list_url %}
-      {% include "includes/_sidebar_sub_link.html" with href=contrato_list_url label="Listado de planes de pagos" icon="clipboard" active=sidebar_nav.contrato_list_active stat=sidebar_stats.contratos_activos %}
+      {% include "includes/_sidebar_sub_link.html" with href=pago_base_url|add:"?concepto=CUOTA" label="5. Recibos a plazos" icon="receipt" active=sidebar_nav.pago_cuota_active %}
       {% url 'app:estado_cuenta_hub' as estado_cuenta_url %}
       {% include "includes/_sidebar_sub_link.html" with href=estado_cuenta_url label="Estado de cuenta (PDF)" icon="chart" active=sidebar_nav.estado_cuenta_active %}
       {% if sidebar_nav.pago_list_active and not request.GET.validacion %}

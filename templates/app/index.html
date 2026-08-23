@@ -7,7 +7,7 @@
   <div>
     <h1 class="page-title dash-header__title">Gestión · Desarrollos</h1>
     <p class="page-lead dash-header__lead">
-      Lotificaciones y cartera: 1 formato → 2 contado <em>o</em> 3–6 a plazos (reserva → prima → plan → cuotas).
+      Lotificaciones y cartera: 1 formato → 2 contado <em>o</em> 3–5 a plazos (reserva → prima → cuotas).
       Sin alquileres ni venta de casas.
     </p>
   </div>
@@ -67,17 +67,8 @@
     </a>
   </li>
   <li class="gestion-flujo__paso">
-    <a class="gestion-flujo__card" href="{% url 'app:contrato_create' %}">
-      <span class="gestion-flujo__num" aria-hidden="true">5</span>
-      <span class="gestion-flujo__body">
-        <strong>Nuevo plan de pagos</strong>
-        <small>Se carga solo desde el formato a plazos.</small>
-      </span>
-    </a>
-  </li>
-  <li class="gestion-flujo__paso">
     <a class="gestion-flujo__card" href="{% url 'app:pago_create' %}?concepto=CUOTA">
-      <span class="gestion-flujo__num" aria-hidden="true">6</span>
+      <span class="gestion-flujo__num" aria-hidden="true">5</span>
       <span class="gestion-flujo__body">
         <strong>Recibos a plazos</strong>
         <small>El asesor de ventas registra la cuota; gerencia valida antes del recibo.</small>
@@ -86,8 +77,7 @@
   </li>
 </ol>
 <p class="muted gestion-flujo__hint">
-  También: <a href="{% url 'app:contrato_list' %}">planes de pagos</a>,
-  <a href="{% url 'app:pago_list' %}">pagos</a>,
+  También: <a href="{% url 'app:pago_list' %}">pagos</a>,
   <a href="{% url 'app:formato_aceptacion_list' %}">formatos guardados</a>
   y <a href="{% url 'app:docs_list' %}">documentos PDF</a>.
 </p>

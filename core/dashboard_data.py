@@ -98,12 +98,6 @@ def build_dashboard_bienes_raices_context(
     ).count()
     disponibles_venta = inventario_venta.filter(estado=_EST.DISPONIBLE).count()
 
-    contratos_qs = Contrato.objects.all()
-    if contratos_restringidos:
-        from inmobiliaria.contratos_acceso import filtrar_contratos_queryset_por_vendedor
-
-        contratos_qs = filtrar_contratos_queryset_por_vendedor(contratos_qs, user)
-
     ctx: dict = {
         "dashboard_actualizado": ahora,
         "br_clientes": Cliente.objects.count(),
@@ -114,7 +108,9 @@ def build_dashboard_bienes_raices_context(
         "br_casas_venta": casas_venta,
         "br_lotes_venta": lotes_venta,
         "br_disponibles_venta": disponibles_venta,
-        "br_contratos_activos": contratos_qs.filter(estado=Contrato.Estado.ACTIVO).count(),
+        "br_formatos_activos": FormatoAceptacion.objects.exclude(
+            validacion_gerencia=FormatoAceptacion.ValidacionGerencia.RECHAZADO
+        ).count(),
         "br_ultimos_alquiler": (
             Inmueble.objects.filter(en_alquiler=True)
             .select_related("proyecto")

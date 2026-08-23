@@ -134,12 +134,12 @@
     </a>
     {% endif %}
     {% if dashboard_mis_contratos %}
-    <article class="card kpi dash-kpi">
-      <span class="dash-kpi__icon" aria-hidden="true">{% pbr_icon "clipboard" size="lg" %}</span>
-      <h3>Mis contratos</h3>
+    <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:formato_aceptacion_list' %}">
+      <span class="dash-kpi__icon" aria-hidden="true">{% pbr_icon "file" size="lg" %}</span>
+      <h3>Mis formatos</h3>
       <p><span class="dash-kpi__value" data-dash-count="{{ dashboard_mis_contratos.count }}">{{ dashboard_mis_contratos.count }}</span></p>
-      <span class="dash-kpi__hint">${{ dashboard_mis_contratos.comision_total|floatformat:2 }} comisión est.</span>
-    </article>
+      <span class="dash-kpi__hint">Formatos de aceptación en su cartera</span>
+    </a>
     {% endif %}
   </section>
 
@@ -302,10 +302,10 @@
       <h3>Lotes</h3>
       <p>Inventario por proyecto.</p>
     </a>
-    <a class="card modulo dash-modulo" href="{% url 'app:contrato_list' %}">
+    <a class="card modulo dash-modulo" href="{% url 'app:formato_aceptacion_list' %}">
       <span class="dash-modulo__icon">{% pbr_icon "file" size="lg" %}</span>
-      <h3>{% if contratos_restriccion_vendedor %}Mis contratos{% else %}Contratos{% endif %}</h3>
-      <p>Ventas, promesas y comisiones.</p>
+      <h3>Formatos de aceptación</h3>
+      <p>Reservas, primas y plan a plazos del asesor.</p>
     </a>
     <a class="card modulo dash-modulo" href="{% url 'app:pago_list' %}">
       <span class="dash-modulo__icon">{% pbr_icon "payment" size="lg" %}</span>

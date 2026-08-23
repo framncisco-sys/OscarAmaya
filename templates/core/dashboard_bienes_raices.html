@@ -36,11 +36,11 @@
     <p>{{ br_venta_total }}</p>
     <span class="dash-kpi__hint">{{ br_casas_venta }} casas · {{ br_lotes_venta }} lotes · {{ br_disponibles_venta }} disp.</span>
   </a>
-  <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:contrato_list' %}">
+  <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:formato_aceptacion_list' %}">
     <span class="dash-kpi__icon" aria-hidden="true">📄</span>
-    <h3>Contratos activos</h3>
-    <p>{{ br_contratos_activos }}</p>
-    <span class="dash-kpi__hint">Cartera formal</span>
+    <h3>Formatos activos</h3>
+    <p>{{ br_formatos_activos }}</p>
+    <span class="dash-kpi__hint">Cartera de venta (formato de aceptación)</span>
   </a>
   {% if puede_gestionar_vendedores_app %}
   <a class="card kpi dash-kpi dash-kpi--link" href="{% url 'app:vendedor_list' %}">
