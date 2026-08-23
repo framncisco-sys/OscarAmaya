@@ -15,6 +15,8 @@ pillow>=11,<13
 qrcode>=7.4,<9
 # Leer QR en escaneos del formato físico (alternativa a OCR)
 opencv-python-headless>=4.10,<5
+# Rasterizar planos PDF en mapa interactivo
+pymupdf>=1.24,<2
 # Media persistente (DigitalOcean Spaces, AWS S3, MinIO…)
 django-storages[s3]>=1.14,<2
 boto3>=1.35,<2

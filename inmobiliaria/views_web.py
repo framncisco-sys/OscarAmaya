@@ -108,6 +108,7 @@ from .models import (
     RecordatorioPago,
     Vendedor,
 )
+from .mapa_plano import auto_geometrias_plano, plano_imagen_png_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -3950,11 +3951,99 @@ def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
     return JsonResponse(
         {
             "plano_url": proyecto.plano_maestro.url if proyecto.plano_maestro else "",
+            "plano_imagen_url": (
+                reverse("app:api_mapa_plano_imagen", kwargs={"proyecto_id": proyecto.pk})
+                if proyecto.plano_maestro
+                else ""
+            ),
+            "plano_es_pdf": bool(
+                proyecto.plano_maestro
+                and proyecto.plano_maestro.name
+                and proyecto.plano_maestro.name.lower().endswith(".pdf")
+            ),
             "proyecto_id": proyecto.pk,
             "proyecto_nombre": proyecto.nombre,
             "features": features,
             "lotes": lista_lotes,
             "resumen": _resumen_estados_mapa(lotes, geometria_attr="geometria_json"),
+        }
+    )
+
+
+@login_required
+@require_GET
+@never_cache
+def api_mapa_plano_imagen(request: HttpRequest, proyecto_id: int) -> HttpResponse:
+    """PNG del plano maestro (rasteriza PDF si hace falta) para el mapa Leaflet."""
+    proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
+    if not proyecto.plano_maestro:
+        raise Http404("Sin plano maestro.")
+    png_bytes, _w, _h = plano_imagen_png_bytes(proyecto)
+    if not png_bytes:
+        raise Http404("No se pudo generar imagen del plano.")
+    resp = HttpResponse(png_bytes, content_type="image/png")
+    resp["Cache-Control"] = "private, max-age=3600"
+    return resp
+
+
+@login_required
+@require_POST
+def api_mapa_auto_geometria(request: HttpRequest, proyecto_id: int) -> JsonResponse:
+    """
+    Detecta y guarda polígonos sobre el plano maestro para lotes sin geometría.
+    """
+    proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        payload = {}
+
+    poligono_id = payload.get("poligono_id") or request.GET.get("poligono_id")
+    poligono_id_int = int(poligono_id) if poligono_id else None
+    sobrescribir = bool(payload.get("sobrescribir"))
+
+    lotes = list(
+        Inmueble.objects.select_related("poligono", "proyecto")
+        .filter(proyecto_id=proyecto_id, tipo=Inmueble.Tipo.LOTE)
+        .order_by("poligono__orden", "codigo")
+    )
+    if poligono_id_int:
+        lotes = [l for l in lotes if l.poligono_id == poligono_id_int]
+
+    resultado = auto_geometrias_plano(
+        proyecto,
+        lotes,
+        poligono_id=poligono_id_int,
+        sobrescribir=sobrescribir,
+    )
+    if not resultado.get("ok"):
+        return JsonResponse(
+            {"ok": False, "error": resultado.get("error", "No se pudo detectar geometrías.")},
+            status=400,
+        )
+
+    geometrias: dict = resultado.get("geometrias") or {}
+    guardados = 0
+    with transaction.atomic():
+        for lote in lotes:
+            geom = geometrias.get(lote.pk)
+            if not geom:
+                continue
+            if lote.geometria_json and not sobrescribir:
+                continue
+            lote.geometria_json = geom
+            lote.save(update_fields=["geometria_json"])
+            guardados += 1
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "guardados": guardados,
+            "detectados": len(geometrias),
+            "total_lotes": resultado.get("total_lotes", 0),
+            "metodo": resultado.get("metodo", ""),
+            "textos_detectados": resultado.get("textos_detectados", 0),
+            "regiones_detectadas": resultado.get("regiones_detectadas", 0),
         }
     )
 

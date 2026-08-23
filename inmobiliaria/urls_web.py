@@ -323,6 +323,16 @@ urlpatterns = [
     ),
     path("api/mapa/proyecto/<int:proyecto_id>/", views.api_mapa_proyecto, name="api_mapa_proyecto"),
     path(
+        "api/mapa/proyecto/<int:proyecto_id>/plano.png",
+        views.api_mapa_plano_imagen,
+        name="api_mapa_plano_imagen",
+    ),
+    path(
+        "api/mapa/proyecto/<int:proyecto_id>/auto-geometria/",
+        views.api_mapa_auto_geometria,
+        name="api_mapa_auto_geometria",
+    ),
+    path(
         "api/mapa/inmueble/<int:inmueble_id>/guardar/",
         views.api_mapa_guardar_lote,
         name="api_mapa_guardar_lote",

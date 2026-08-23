@@ -6,6 +6,7 @@
   var selPoligono = document.getElementById("mapa-poligono");
   var selLote = document.getElementById("mapa-lote");
   var btnReload = document.getElementById("mapa-reload");
+  var btnAuto = document.getElementById("mapa-auto");
   var btnSave = document.getElementById("mapa-save");
   var mapContainer = document.getElementById("mapa-lotes");
   var resumenEl = document.getElementById("mapa-resumen");
@@ -23,6 +24,8 @@
   var currentData = null;
   var currentLoteId = "";
   var polygonLayersById = {};
+  var autoGeometriaRunning = false;
+  var autoGeometriaDoneFor = "";
   var autoRefreshTimer = null;
   var imageWidth = 100;
   var imageHeight = 100;
@@ -118,6 +121,78 @@
         : "") +
       " · actualizado " +
       new Date().toLocaleTimeString("es-SV", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function setResumenMensaje(html) {
+    if (!resumenEl) return;
+    resumenEl.hidden = false;
+    resumenEl.innerHTML = html;
+  }
+
+  function autoGeometriaUrl() {
+    var pid = selProyecto.value;
+    if (!pid || !cfg.apiAutoGeometriaBase) return "";
+    return cfg.apiAutoGeometriaBase.replace(/0\/?$/, pid + "/");
+  }
+
+  function ejecutarAutoGeometria(force) {
+    var pid = selProyecto.value;
+    if (!pid || autoGeometriaRunning) {
+      return Promise.resolve(false);
+    }
+    var key = pid + ":" + (selPoligono.value || "");
+    if (!force && autoGeometriaDoneFor === key) {
+      return Promise.resolve(false);
+    }
+    var url = autoGeometriaUrl();
+    if (!url) return Promise.resolve(false);
+
+    autoGeometriaRunning = true;
+    if (btnAuto) btnAuto.disabled = true;
+    setResumenMensaje(
+      '<span class="mapa-resumen__aviso">Detectando y delimitando lotes en el plano…</span>'
+    );
+
+    var payload = {};
+    if (selPoligono.value) payload.poligono_id = parseInt(selPoligono.value, 10);
+
+    return fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": cfg.csrfToken || "",
+      },
+      body: JSON.stringify(payload),
+      credentials: "same-origin",
+    })
+      .then(function (res) {
+        return res.json().then(function (body) {
+          if (!res.ok || !body.ok) {
+            var err = (body && body.error) || "No se pudo detectar lotes automáticamente.";
+            setResumenMensaje('<span class="mapa-resumen__aviso">' + err + "</span>");
+            return false;
+          }
+          if (body.guardados > 0) {
+            setResumenMensaje(
+              "<strong>" +
+                body.guardados +
+                "</strong> lote(s) delimitados automáticamente en el plano."
+            );
+          }
+          return true;
+        });
+      })
+      .catch(function () {
+        setResumenMensaje(
+          '<span class="mapa-resumen__aviso">Error de red al detectar lotes en el plano.</span>'
+        );
+        return false;
+      })
+      .finally(function () {
+        autoGeometriaRunning = false;
+        autoGeometriaDoneFor = key;
+        if (btnAuto) btnAuto.disabled = false;
+      });
   }
 
   function showDetalleLote(lote) {
@@ -396,6 +471,23 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         currentData = data;
+        var needsAuto =
+          data.resumen &&
+          data.resumen.sin_geometria > 0 &&
+          data.resumen.total > 0;
+        if (needsAuto) {
+          return ejecutarAutoGeometria(false).then(function (didAuto) {
+            if (didAuto) {
+              return fetch(url).then(function (r2) { return r2.json(); });
+            }
+            return data;
+          });
+        }
+        return data;
+      })
+      .then(function (data) {
+        if (!data) return;
+        currentData = data;
         renderMapData(data);
         fillLoteOptions();
         renderResumen(data.resumen);
@@ -411,13 +503,14 @@
       map.removeLayer(overlay);
       overlay = null;
     }
-    if (!data.plano_url) return;
+    if (!data.plano_url && !data.plano_imagen_url) return;
+    var imgUrl = data.plano_imagen_url || data.plano_url;
     var img = new Image();
     img.onload = function () {
       imageWidth = img.width || 100;
       imageHeight = img.height || 100;
       var bounds = boundsForImage(img.width, img.height);
-      overlay = L.imageOverlay(data.plano_url, bounds).addTo(map);
+      overlay = L.imageOverlay(imgUrl, bounds).addTo(map);
       map.fitBounds(bounds);
       (data.features || []).forEach(function (f) {
         var coords = ((f.geometry || {}).coordinates || [])[0] || [];
@@ -454,7 +547,16 @@
       });
       if (currentLoteId) drawSelectedGeometry(currentLoteId);
     };
-    img.src = data.plano_url;
+    img.src = imgUrl;
+  }
+
+  if (btnAuto) {
+    btnAuto.addEventListener("click", function () {
+      autoGeometriaDoneFor = "";
+      ejecutarAutoGeometria(true).then(function (ok) {
+        if (ok) fetchProyectoData();
+      });
+    });
   }
 
   map.on(L.Draw.Event.CREATED, function (e) {
@@ -470,10 +572,12 @@
   selProyecto.addEventListener("change", function () {
     refreshPoligonosByProyecto();
     currentLoteId = "";
+    autoGeometriaDoneFor = "";
     fetchProyectoData();
   });
   selPoligono.addEventListener("change", function () {
     currentLoteId = "";
+    autoGeometriaDoneFor = "";
     fetchProyectoData();
   });
   selLote.addEventListener("change", function () {

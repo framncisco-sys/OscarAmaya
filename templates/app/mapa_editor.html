@@ -7,7 +7,7 @@
   <div class="page-toolbar__intro">
     <h1 class="page-title">Mapa interactivo</h1>
     <p class="page-toolbar__meta">
-      Use el plano maestro del proyecto como imagen de fondo. Los colores y la tabla inferior se actualizan solos desde inventario, reservas y formatos de aceptación. Delimité cada lote una sola vez (polígono sobre el plano) para verlo pintado al hacer clic.
+      Use el plano maestro del proyecto como imagen de fondo. Al elegir un proyecto, los lotes se delimitan automáticamente en el plano con los colores de su estado (reservado, vendido, disponible). La tabla inferior también se actualiza desde inventario y formatos de aceptación.
     </p>
   </div>
 </header>
@@ -46,6 +46,7 @@
     </div>
     <div class="mapa-actions">
       <button type="button" id="mapa-reload" class="btn-secondary">Recargar</button>
+      <button type="button" id="mapa-auto" class="btn-secondary">Redetectar lotes</button>
       <button type="button" id="mapa-save" class="btn-primary">Guardar geometría</button>
     </div>
   </div>
@@ -87,7 +88,7 @@
   </section>
 
   <p class="field__help muted">
-    Use dibujo de polígono para calcar el lote. Las coordenadas se guardan en porcentaje (0..100), por eso funciona con cualquier tamaño de imagen.
+    La delimitación es automática desde el plano (PDF o imagen). Si un lote no coincide bien, selecciónelo y ajuste el polígono a mano; las coordenadas se guardan en porcentaje (0–100).
   </p>
 </div>
 {% endblock %}
@@ -102,6 +103,7 @@
   window.mapaEditorConfig = {
     apiProyectoBase: "{% url 'app:api_mapa_proyecto' 0 %}",
     apiGuardarBase: "{% url 'app:api_mapa_guardar_lote' 0 %}",
+    apiAutoGeometriaBase: "{% url 'app:api_mapa_auto_geometria' 0 %}",
     csrfToken: "{{ csrf_token }}",
   };
 </script>
