@@ -7,7 +7,7 @@
   <div class="page-toolbar__intro">
     <h1 class="page-title">Mapa interactivo</h1>
     <p class="page-toolbar__meta">
-      Use el plano maestro del proyecto como imagen de fondo, delimité los lotes (0–100&nbsp;% sobre la imagen) y al hacer clic vea el mismo detalle que en el mapa catastral (estado, cliente, contrato, precios).
+      Use el plano maestro del proyecto como imagen de fondo. Los colores y la tabla inferior se actualizan solos desde inventario, reservas y formatos de aceptación. Delimité cada lote una sola vez (polígono sobre el plano) para verlo pintado al hacer clic.
     </p>
   </div>
 </header>
@@ -50,6 +50,8 @@
     </div>
   </div>
 
+  <div id="mapa-resumen" class="mapa-resumen muted" hidden aria-live="polite"></div>
+
   <div class="mapa-catastral-leyenda" aria-label="Leyenda de estatus">
     <span class="mapa-catastral-leyenda__item"><span class="swatch swatch--contado"></span> Contado (vendido)</span>
     <span class="mapa-catastral-leyenda__item"><span class="swatch swatch--reservado"></span> Reservado</span>
@@ -58,6 +60,32 @@
   </div>
 
   <div id="mapa-lotes" class="mapa-lotes-canvas"></div>
+  <div id="mapa-lote-detalle" class="mapa-lote-detalle card" hidden></div>
+
+  <section class="mapa-lotes-panel card" id="mapa-lotes-panel" hidden>
+    <header class="mapa-lotes-panel__head">
+      <h2 class="page-title" style="font-size:1.05rem;margin:0;">Estado de lotes (automático)</h2>
+      <p class="muted" style="margin:0.35rem 0 0;font-size:0.88rem;">
+        Se llena desde reservas, formatos de aceptación e inventario. Haga clic en una fila para ver detalle o ubicar el lote en el plano.
+      </p>
+    </header>
+    <div class="data-panel mapa-lotes-panel__table-wrap">
+      <table class="table mapa-lotes-panel__table" id="mapa-lotes-tabla">
+        <thead>
+          <tr>
+            <th>Lote</th>
+            <th>Polígono</th>
+            <th>Estado</th>
+            <th>Cliente</th>
+            <th>Formato</th>
+            <th>En plano</th>
+          </tr>
+        </thead>
+        <tbody id="mapa-lotes-tabla-body"></tbody>
+      </table>
+    </div>
+  </section>
+
   <p class="field__help muted">
     Use dibujo de polígono para calcar el lote. Las coordenadas se guardan en porcentaje (0..100), por eso funciona con cualquier tamaño de imagen.
   </p>

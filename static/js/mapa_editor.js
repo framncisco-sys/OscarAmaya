@@ -8,6 +8,10 @@
   var btnReload = document.getElementById("mapa-reload");
   var btnSave = document.getElementById("mapa-save");
   var mapContainer = document.getElementById("mapa-lotes");
+  var resumenEl = document.getElementById("mapa-resumen");
+  var panelEl = document.getElementById("mapa-lotes-panel");
+  var tablaBody = document.getElementById("mapa-lotes-tabla-body");
+  var detalleEl = document.getElementById("mapa-lote-detalle");
   if (!selProyecto || !selPoligono || !selLote || !mapContainer) return;
 
   var map = L.map("mapa-lotes", { crs: L.CRS.Simple, minZoom: -2 });
@@ -18,6 +22,8 @@
   var overlay = null;
   var currentData = null;
   var currentLoteId = "";
+  var polygonLayersById = {};
+  var autoRefreshTimer = null;
   var imageWidth = 100;
   var imageHeight = 100;
 
@@ -69,6 +75,146 @@
   function styleForPlanoFeature(f) {
     var key = (f.properties && f.properties.mapa_style) || "disponible";
     return STYLES_PLANO[key] || STYLES_PLANO.disponible;
+  }
+
+  function badgeClass(styleKey) {
+    if (styleKey === "contado") return "badge badge--vendido";
+    if (styleKey === "reservado") return "badge badge--reservado";
+    if (styleKey === "bloqueado") return "badge badge--bloqueado";
+    return "badge badge--disponible";
+  }
+
+  function loteRowById(loteId) {
+    if (!currentData || !currentData.lotes) return null;
+    for (var i = 0; i < currentData.lotes.length; i++) {
+      if (String(currentData.lotes[i].id) === String(loteId)) return currentData.lotes[i];
+    }
+    return null;
+  }
+
+  function renderResumen(resumen) {
+    if (!resumenEl || !resumen) return;
+    if (!resumen.total) {
+      resumenEl.hidden = true;
+      return;
+    }
+    resumenEl.hidden = false;
+    resumenEl.innerHTML =
+      "<strong>" +
+      resumen.total +
+      "</strong> lote(s): " +
+      (resumen.disponible || 0) +
+      " disponibles · " +
+      (resumen.reservado || 0) +
+      " reservados · " +
+      (resumen.contado || 0) +
+      " vendidos · " +
+      (resumen.bloqueado || 0) +
+      " bloqueados" +
+      (resumen.sin_geometria
+        ? " · <span class=\"mapa-resumen__aviso\">" +
+          resumen.sin_geometria +
+          " sin polígono dibujado en el plano</span>"
+        : "") +
+      " · actualizado " +
+      new Date().toLocaleTimeString("es-SV", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function showDetalleLote(lote) {
+    if (!detalleEl || !lote) {
+      if (detalleEl) detalleEl.hidden = true;
+      return;
+    }
+    detalleEl.hidden = false;
+    detalleEl.innerHTML = lote.popup_html || "";
+  }
+
+  function focusLoteOnMap(loteId) {
+    var layer = polygonLayersById[String(loteId)];
+    if (layer && layer.openPopup) {
+      layer.openPopup();
+      if (layer.getBounds && layer.getBounds().isValid()) {
+        map.fitBounds(layer.getBounds(), { padding: [24, 24], maxZoom: 2 });
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function seleccionarLote(loteId, loteRow) {
+    currentLoteId = String(loteId || "");
+    selLote.value = currentLoteId;
+    drawSelectedGeometry(currentLoteId);
+    if (loteRow) showDetalleLote(loteRow);
+    if (tablaBody) {
+      Array.prototype.forEach.call(tablaBody.querySelectorAll("tr"), function (tr) {
+        tr.classList.toggle("is-selected", tr.getAttribute("data-lote-id") === currentLoteId);
+      });
+    }
+    if (currentLoteId && !focusLoteOnMap(currentLoteId) && loteRow) {
+      showDetalleLote(loteRow);
+    }
+  }
+
+  function renderLotesTabla(lotes) {
+    if (!tablaBody || !panelEl) return;
+    tablaBody.innerHTML = "";
+    if (!lotes || !lotes.length) {
+      panelEl.hidden = true;
+      return;
+    }
+    panelEl.hidden = false;
+    lotes.forEach(function (l) {
+      var tr = document.createElement("tr");
+      tr.setAttribute("data-lote-id", String(l.id));
+      tr.tabIndex = 0;
+      var fmtCell = "—";
+      if (l.formato_numero) {
+        var num = String(l.formato_numero);
+        while (num.length < 4) num = "0" + num;
+        if (l.formato_url) {
+          fmtCell = '<a href="' + l.formato_url + '" class="link-action">#' + num + "</a>";
+        } else {
+          fmtCell = "#" + num;
+        }
+      }
+      tr.innerHTML =
+        "<td><strong>" +
+        (l.codigo_display || l.codigo) +
+        "</strong></td>" +
+        "<td>" +
+        (l.poligono_nombre || "—") +
+        "</td>" +
+        '<td><span class="' +
+        badgeClass(l.mapa_style) +
+        '">' +
+        (l.estado_display || l.estado) +
+        "</span></td>" +
+        "<td>" +
+        (l.cliente || "—") +
+        "</td>" +
+        "<td>" +
+        fmtCell +
+        "</td>" +
+        "<td>" +
+        (l.tiene_geometria ? "Sí" : '<span class="muted">Sin dibujar</span>') +
+        "</td>";
+      tr.addEventListener("click", function () {
+        seleccionarLote(l.id, l);
+      });
+      tr.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter" || ev.key === " ") {
+          ev.preventDefault();
+          seleccionarLote(l.id, l);
+        }
+      });
+      tablaBody.appendChild(tr);
+    });
+    if (currentLoteId) {
+      Array.prototype.forEach.call(tablaBody.querySelectorAll("tr"), function (tr) {
+        tr.classList.toggle("is-selected", tr.getAttribute("data-lote-id") === currentLoteId);
+      });
+    }
   }
 
   function getFeatureByLoteId(loteId) {
@@ -252,12 +398,15 @@
         currentData = data;
         renderMapData(data);
         fillLoteOptions();
+        renderResumen(data.resumen);
+        renderLotesTabla(data.lotes);
       });
   }
 
   function renderMapData(data) {
     geoLayer.clearLayers();
     drawnItems.clearLayers();
+    polygonLayersById = {};
     if (overlay) {
       map.removeLayer(overlay);
       overlay = null;
@@ -289,14 +438,18 @@
             (f.properties.poligono_nombre || "Sin polígono") +
             ")";
         pol.bindPopup(html, { maxWidth: 420, className: "mapa-catastral-popup-wrap" });
+        pol.bindTooltip(f.properties.codigo_display || f.properties.codigo || "Lote", {
+          permanent: true,
+          direction: "center",
+          className: "mapa-lote-tooltip",
+        });
         pol.feature = f;
         pol.on("click", function () {
           var id = this.feature && this.feature.id ? String(this.feature.id) : "";
           if (!id) return;
-          selLote.value = id;
-          currentLoteId = id;
-          drawSelectedGeometry(id);
+          seleccionarLote(id, loteRowById(id));
         });
+        polygonLayersById[String(f.id)] = pol;
         geoLayer.addLayer(pol);
       });
       if (currentLoteId) drawSelectedGeometry(currentLoteId);
@@ -324,12 +477,16 @@
     fetchProyectoData();
   });
   selLote.addEventListener("change", function () {
-    currentLoteId = selLote.value || "";
-    drawSelectedGeometry(currentLoteId);
+    seleccionarLote(selLote.value || "", loteRowById(selLote.value));
   });
   btnSave.addEventListener("click", function () {
     saveCurrentGeometry(true);
   });
+
+  if (autoRefreshTimer) window.clearInterval(autoRefreshTimer);
+  autoRefreshTimer = window.setInterval(function () {
+    if (selProyecto.value) fetchProyectoData();
+  }, 90000);
 
   // Inicializa pantalla: si hay un proyecto preseleccionado (o solo uno), cargar lotes de inmediato.
   if (!selProyecto.value && selProyecto.options.length === 2) {

@@ -3789,6 +3789,101 @@ class ParametroMoraDeleteView(AppLoginRequiredMixin, SensitiveDeleteMixin, Delet
         return ctx
 
 
+def _formatos_por_inmueble(inmueble_ids: list[int]) -> dict[int, FormatoAceptacion]:
+    """Último formato de aceptación activo por lote (vía contrato vinculado)."""
+    out: dict[int, FormatoAceptacion] = {}
+    if not inmueble_ids:
+        return out
+    qs = (
+        FormatoAceptacion.objects.filter(contrato__inmueble_id__in=inmueble_ids)
+        .exclude(validacion_gerencia=FormatoAceptacion.ValidacionGerencia.RECHAZADO)
+        .select_related("contrato")
+        .order_by("contrato__inmueble_id", "-numero_formulario")
+    )
+    for fmt in qs:
+        if not fmt.contrato_id:
+            continue
+        iid = fmt.contrato.inmueble_id
+        if iid not in out:
+            out[iid] = fmt
+    return out
+
+
+def _cliente_nombre_lote_mapa(
+    inmueble: Inmueble,
+    contrato: Contrato | None,
+    formato: FormatoAceptacion | None,
+) -> str:
+    if inmueble.estado == Inmueble.Estado.RESERVADO and inmueble.cliente_reserva_id:
+        c = inmueble.cliente_reserva
+        return f"{(c.nombres or '').strip()} {(c.apellidos or '').strip()}".strip() or "—"
+    if formato and (formato.nombre_cliente or "").strip():
+        return formato.nombre_cliente.strip()
+    if contrato:
+        c = contrato.cliente
+        return f"{(c.nombres or '').strip()} {(c.apellidos or '').strip()}".strip() or "—"
+    return "—"
+
+
+def _resumen_estados_mapa(lotes, *, geometria_attr: str = "geometria_json") -> dict[str, int]:
+    res: dict[str, int] = {
+        "disponible": 0,
+        "reservado": 0,
+        "contado": 0,
+        "bloqueado": 0,
+        "sin_geometria": 0,
+        "total": 0,
+    }
+    for lote in lotes:
+        res["total"] += 1
+        sk = _mapa_catastral_style_por_estado(lote.estado)
+        res[sk] = res.get(sk, 0) + 1
+        if not getattr(lote, geometria_attr, None):
+            res["sin_geometria"] += 1
+    return res
+
+
+def _lote_mapa_item_dict(
+    lote: Inmueble,
+    contrato: Contrato | None,
+    formato: FormatoAceptacion | None,
+    *,
+    modo: str,
+) -> dict:
+    style_key = _mapa_catastral_style_por_estado(lote.estado)
+    tiene_plano = bool(lote.geometria_json)
+    tiene_catastral = bool(lote.geometria_catastral_geojson)
+    item: dict = {
+        "id": lote.pk,
+        "codigo": lote.codigo,
+        "codigo_display": lote.codigo_display,
+        "estado": lote.estado,
+        "estado_display": lote.get_estado_display(),
+        "mapa_style": style_key,
+        "poligono_id": lote.poligono_id,
+        "poligono_nombre": lote.poligono.nombre if lote.poligono else "",
+        "cliente": _cliente_nombre_lote_mapa(lote, contrato, formato),
+        "reserva_hasta": lote.reserva_hasta.isoformat() if lote.reserva_hasta else "",
+        "precio_lista": str(lote.precio_lista) if lote.precio_lista is not None else "",
+        "tiene_geometria_plano": tiene_plano,
+        "tiene_geometria_catastral": tiene_catastral,
+        "tiene_geometria": tiene_plano if modo == "plano" else tiene_catastral,
+        "formato_id": formato.pk if formato else None,
+        "formato_numero": formato.numero_formulario if formato else None,
+        "formato_url": (
+            reverse("app:formato_aceptacion_edit", kwargs={"pk": formato.pk})
+            if formato
+            else ""
+        ),
+        "popup_html": _popup_html_mapa_catastral(lote, contrato, formato=formato),
+    }
+    if formato and formato.valor_inmueble is not None:
+        item["valor_formato"] = str(formato.valor_inmueble)
+    else:
+        item["valor_formato"] = ""
+    return item
+
+
 @login_required
 def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
     proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
@@ -3814,6 +3909,8 @@ def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
             if c.inmueble_id not in contratos_por_inmueble:
                 contratos_por_inmueble[c.inmueble_id] = c
 
+    formatos_por_inmueble = _formatos_por_inmueble(inmueble_ids)
+
     _leyenda = {
         "contado": "Contado (vendido)",
         "reservado": "Reservado",
@@ -3822,10 +3919,13 @@ def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
     }
 
     features = []
+    lista_lotes = []
     for lote in lotes:
+        c = contratos_por_inmueble.get(lote.pk)
+        fmt = formatos_por_inmueble.get(lote.pk)
+        lista_lotes.append(_lote_mapa_item_dict(lote, c, fmt, modo="plano"))
         if not lote.geometria_json:
             continue
-        c = contratos_por_inmueble.get(lote.pk)
         style_key = _mapa_catastral_style_por_estado(lote.estado)
         features.append(
             {
@@ -3841,7 +3941,7 @@ def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
                     "venta_leyenda": _leyenda.get(style_key, lote.get_estado_display()),
                     "poligono_id": lote.poligono_id,
                     "poligono_nombre": lote.poligono.nombre if lote.poligono else "",
-                    "popup_html": _popup_html_mapa_catastral(lote, c),
+                    "popup_html": _popup_html_mapa_catastral(lote, c, formato=fmt),
                 },
                 "geometry": lote.geometria_json,
             }
@@ -3853,18 +3953,8 @@ def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
             "proyecto_id": proyecto.pk,
             "proyecto_nombre": proyecto.nombre,
             "features": features,
-            "lotes": [
-                {
-                    "id": i.pk,
-                    "codigo": i.codigo,
-                    "codigo_display": i.codigo_display,
-                    "estado": i.estado,
-                    "poligono_id": i.poligono_id,
-                    "poligono_nombre": i.poligono.nombre if i.poligono else "",
-                    "tiene_geometria_plano": bool(i.geometria_json),
-                }
-                for i in lotes
-            ],
+            "lotes": lista_lotes,
+            "resumen": _resumen_estados_mapa(lotes, geometria_attr="geometria_json"),
         }
     )
 
@@ -4006,10 +4096,20 @@ def _truncate_txt(s: str, n: int = 240) -> str:
 
 
 def _popup_html_mapa_catastral(
-    inmueble: Inmueble, contrato: Contrato | None = None
+    inmueble: Inmueble,
+    contrato: Contrato | None = None,
+    *,
+    formato: FormatoAceptacion | None = None,
 ) -> str:
     if contrato is None:
         contrato = _contrato_visible_para_inmueble(inmueble)
+    if formato is None and contrato:
+        formato = (
+            FormatoAceptacion.objects.filter(contrato_id=contrato.pk)
+            .exclude(validacion_gerencia=FormatoAceptacion.ValidacionGerencia.RECHAZADO)
+            .order_by("-numero_formulario")
+            .first()
+        )
     pol = inmueble.poligono.nombre if inmueble.poligono else "—"
     proyecto_nombre = inmueble.proyecto.nombre if inmueble.proyecto else "—"
     estado_txt = inmueble.get_estado_display()
@@ -4108,10 +4208,50 @@ def _popup_html_mapa_catastral(
 
     bloques.append("</dl></section>")
 
-    # 3) Contrato y condiciones (si existe)
+    # 3) Formato de aceptación (fuente operativa de venta)
+    if formato:
+        bloques.append('<section class="mapa-catastral-popup__section">')
+        bloques.append(
+            '<h4 class="mapa-catastral-popup__h4">Formato de aceptación</h4>'
+        )
+        bloques.append('<dl class="mapa-catastral-popup__dl">')
+        bloques.append(
+            dl_row("Nº formato", f"{formato.numero_formulario:04d}")
+        )
+        bloques.append(dl_row("Cliente en formato", formato.nombre_cliente or "—"))
+        bloques.append(
+            dl_row("Valor inmueble", _fmt_money_sv(formato.valor_inmueble))
+        )
+        bloques.append(
+            dl_row(
+                "Financiamiento",
+                formato.get_tipo_financiamiento_display()
+                if getattr(formato, "tipo_financiamiento", None)
+                else "—",
+            )
+        )
+        if formato.prima_1:
+            bloques.append(dl_row("Reserva", _fmt_money_sv(formato.prima_1)))
+        if formato.prima_2:
+            bloques.append(dl_row("Prima", _fmt_money_sv(formato.prima_2)))
+        if formato.letra_mensual:
+            bloques.append(
+                dl_row("Cuota 1–12", _fmt_money_sv(formato.letra_mensual))
+            )
+        bloques.append(
+            dl_row(
+                "Validación gerencia",
+                formato.get_validacion_gerencia_display(),
+            )
+        )
+        bloques.append("</dl></section>")
+
+    # 4) Plan interno / contrato (solo referencia técnica)
     if contrato:
         bloques.append('<section class="mapa-catastral-popup__section">')
-        bloques.append('<h4 class="mapa-catastral-popup__h4">Contrato y condiciones</h4>')
+        bloques.append(
+            '<h4 class="mapa-catastral-popup__h4">Plan interno (referencia)</h4>'
+        )
         bloques.append('<dl class="mapa-catastral-popup__dl">')
         bloques.append(dl_row("Número de contrato", contrato.numero))
         bloques.append(dl_row("Estado del contrato", contrato.get_estado_display()))
@@ -4165,9 +4305,12 @@ def _popup_html_mapa_catastral(
 
     edit_url = reverse("app:inmueble_update", kwargs={"pk": inmueble.pk})
     acciones = [f'<a href="{html.escape(edit_url)}">Editar inmueble</a>']
-    if contrato:
+    if formato:
+        fmt_url = reverse("app:formato_aceptacion_edit", kwargs={"pk": formato.pk})
+        acciones.append(f'<a href="{html.escape(fmt_url)}">Ver formato</a>')
+    elif contrato:
         contrato_url = reverse("app:contrato_update", kwargs={"pk": contrato.pk})
-        acciones.append(f'<a href="{html.escape(contrato_url)}">Ver contrato</a>')
+        acciones.append(f'<a href="{html.escape(contrato_url)}">Ver plan interno</a>')
     bloques.append(
         f'<p class="mapa-catastral-popup__actions">{" · ".join(acciones)}</p>'
     )
@@ -4217,26 +4360,19 @@ def api_mapa_catastral(request: HttpRequest, proyecto_id: int) -> JsonResponse:
             if c.inmueble_id not in contratos_por_inmueble:
                 contratos_por_inmueble[c.inmueble_id] = c
 
+    formatos_por_inmueble = _formatos_por_inmueble(inmueble_ids)
+
     features = []
     lista_lotes = []
     for lote in lotes:
-        lista_lotes.append(
-            {
-                "id": lote.pk,
-                "codigo": lote.codigo,
-                "codigo_display": lote.codigo_display,
-                "estado": lote.estado,
-                "poligono_id": lote.poligono_id,
-                "poligono_nombre": lote.poligono.nombre if lote.poligono else "",
-                "tiene_geometria_catastral": bool(lote.geometria_catastral_geojson),
-            }
-        )
+        c = contratos_por_inmueble.get(lote.pk)
+        fmt = formatos_por_inmueble.get(lote.pk)
+        lista_lotes.append(_lote_mapa_item_dict(lote, c, fmt, modo="catastral"))
         geom = lote.geometria_catastral_geojson
         if not geom or not isinstance(geom, dict) or geom.get("type") != "Polygon":
             continue
 
         style_key = _mapa_catastral_style_por_estado(lote.estado)
-        c = contratos_por_inmueble.get(lote.pk)
 
         features.append(
             {
@@ -4257,7 +4393,7 @@ def api_mapa_catastral(request: HttpRequest, proyecto_id: int) -> JsonResponse:
                     }.get(style_key, lote.get_estado_display()),
                     "poligono_id": lote.poligono_id,
                     "poligono_nombre": lote.poligono.nombre if lote.poligono else "",
-                    "popup_html": _popup_html_mapa_catastral(lote, c),
+                    "popup_html": _popup_html_mapa_catastral(lote, c, formato=fmt),
                 },
                 "geometry": geom,
             }
@@ -4270,6 +4406,9 @@ def api_mapa_catastral(request: HttpRequest, proyecto_id: int) -> JsonResponse:
             "proyecto_nombre": proyecto.nombre,
             "features": features,
             "lotes": lista_lotes,
+            "resumen": _resumen_estados_mapa(
+                lotes, geometria_attr="geometria_catastral_geojson"
+            ),
         }
     )
 
