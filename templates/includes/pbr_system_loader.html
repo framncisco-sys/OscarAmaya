@@ -1,15 +1,34 @@
-{# Barra de progreso al cargar el sistema — Paredes (azul/café) + Sistema A&Z (naranja/morado) #}
+{% load static %}
+{# Barra de progreso al cargar el sistema — Paredes + A&Z #}
 <div id="pbr-system-loader" class="pbr-system-loader" role="dialog" aria-modal="true" aria-labelledby="pbr-loader-title" aria-describedby="pbr-loader-desc">
-  <div class="pbr-system-loader__backdrop" aria-hidden="true"></div>
+  <div class="pbr-system-loader__backdrop" aria-hidden="true">
+    <div class="pbr-system-loader__orb pbr-system-loader__orb--1"></div>
+    <div class="pbr-system-loader__orb pbr-system-loader__orb--2"></div>
+  </div>
   <div class="pbr-system-loader__card">
+    <div class="pbr-system-loader__logo-ring" aria-hidden="true">
+      <img src="{% static 'icons/pwa-192.png' %}?v={{ pbr_icon_v }}" alt="" class="pbr-system-loader__logo" width="56" height="56" decoding="async">
+    </div>
     <p id="pbr-loader-title" class="pbr-system-loader__paredes">
       <span class="pbr-c-blue">PAREDES</span>
       <span class="pbr-c-cafe"> DESARROLLO</span>
       <span class="pbr-c-blue"> INMOBILIARIO</span>
     </p>
-    <div class="pbr-system-loader__track" aria-hidden="true">
-      <div id="pbr-system-loader-fill" class="pbr-system-loader__fill"></div>
+    <div class="pbr-system-loader__track-wrap">
+      <div class="pbr-system-loader__track" aria-hidden="true">
+        <div id="pbr-system-loader-fill" class="pbr-system-loader__fill">
+          <span class="pbr-system-loader__fill-shine"></span>
+        </div>
+      </div>
+      <div class="pbr-system-loader__steps" id="pbr-system-loader-steps" aria-hidden="true">
+        <span class="pbr-system-loader__step" data-step="0"></span>
+        <span class="pbr-system-loader__step" data-step="1"></span>
+        <span class="pbr-system-loader__step" data-step="2"></span>
+        <span class="pbr-system-loader__step" data-step="3"></span>
+        <span class="pbr-system-loader__step" data-step="4"></span>
+      </div>
     </div>
+    <p class="pbr-system-loader__status" id="pbr-system-loader-status" aria-live="polite">Iniciando sistema…</p>
     <p id="pbr-loader-desc" class="pbr-system-loader__proyecto" aria-label="Un proyecto de A y Z">
       <span class="pbr-system-loader__proyecto-intro">Un proyecto de</span>
       <span class="pbr-system-loader__proyecto-brand">
@@ -20,4 +39,13 @@
     </p>
     <p class="pbr-system-loader__pct muted" id="pbr-system-loader-pct" aria-live="polite">0%</p>
   </div>
+</div>
+
+{# Barra superior global (navegación, formularios, peticiones) #}
+<div id="pbr-top-progress" class="pbr-top-progress" aria-hidden="true">
+  <div class="pbr-top-progress__track">
+    <div id="pbr-top-progress-bar" class="pbr-top-progress__bar"></div>
+    <div class="pbr-top-progress__glow"></div>
+  </div>
+  <p class="pbr-top-progress__label" id="pbr-top-progress-label" hidden></p>
 </div>

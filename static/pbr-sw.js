@@ -17,6 +17,7 @@ const PRECACHE_URLS = [
   "/static/icons/apple-touch-icon-120.png?v=__PBR_CACHE_VERSION__",
   "/static/js/pbr-viewport.js?v=__PBR_CACHE_VERSION__",
   "/static/js/pbr-offline.js?v=__PBR_CACHE_VERSION__",
+  "/static/js/pbr-progress.js?v=__PBR_CACHE_VERSION__",
   "/static/js/pbr-loader.js?v=__PBR_CACHE_VERSION__",
   "/static/js/pbr-header.js?v=__PBR_CACHE_VERSION__",
   "/static/js/pbr-sidebar.js?v=__PBR_CACHE_VERSION__",

@@ -17,9 +17,9 @@
     /* iOS/PWA: contenido visible aunque falle theme.css o el loader */
     html, body.app-body { background: #eef2f7; color: #0f172a; }
     html[data-pbr-class="mobile"] body.app-body { min-height: 100%; min-height: -webkit-fill-available; }
-    /* iPhone: nunca bloquear la app con el loader */
-    html[data-pbr-class="mobile"] #pbr-system-loader,
-    html[data-pbr-view="phone"] #pbr-system-loader { display: none !important; }
+    /* Móvil: splash completo oculto; barra superior ligera vía pbr-progress. */
+    html[data-pbr-class="mobile"] #pbr-system-loader:not(.pbr-system-loader--mobile-skip),
+    html[data-pbr-view="phone"] #pbr-system-loader:not(.pbr-system-loader--mobile-skip) { display: none !important; }
     html[data-pbr-class="mobile"] body.pbr-loader-active,
     html[data-pbr-view="phone"] body.pbr-loader-active { overflow: visible !important; }
     #pbr-system-loader.pbr-system-loader--done { display: none !important; opacity: 0 !important; visibility: hidden !important; }
@@ -82,7 +82,8 @@
   </script>
   <title>{% block title %}Paredes Bienes Raíces{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'theme.css' %}?v={{ pbr_cache_v }}">
-  <script src="{% static 'js/pbr-viewport.js' %}?v={{ pbr_cache_v }}" defer></script>
+  <script src="{% static 'js/pbr-viewport.js' %}?v={{ pbr_cache_v }}"></script>
+  <script src="{% static 'js/pbr-progress.js' %}?v={{ pbr_cache_v }}" defer></script>
   <script src="{% static 'js/pbr-offline.js' %}?v={{ pbr_cache_v }}" defer></script>
   <script src="{% static 'js/pbr-loader.js' %}?v={{ pbr_cache_v }}" defer></script>
   <script src="{% static 'js/pbr-header.js' %}?v={{ pbr_cache_v }}" defer></script>
@@ -93,7 +94,7 @@
 {% timezone "America/El_Salvador" %}
   {% include "includes/pbr_system_loader.html" %}
   <script>
-    /* iPhone: quitar loader al instante (no esperar pbr-loader.js). */
+    /* Respaldo: ocultar splash si tarda demasiado (no bloquear la app). */
     (function () {
       var html = document.documentElement;
       var mobile =
@@ -106,10 +107,10 @@
         document.body.classList.remove("pbr-loader-active");
         window.setTimeout(function () {
           if (l.parentNode) l.parentNode.removeChild(l);
-        }, mobile ? 40 : 220);
+        }, mobile ? 80 : 280);
+        if (window.pbrProgress) window.pbrProgress.done(true);
       }
-      if (mobile) dismissLoader();
-      window.setTimeout(dismissLoader, mobile ? 900 : 3200);
+      window.setTimeout(dismissLoader, mobile ? 2800 : 5400);
     })();
   </script>
   <div id="pbr-offline-bar" class="pbr-offline-bar pbr-offline-bar--offline" role="status" aria-live="polite" hidden>
