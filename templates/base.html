@@ -17,9 +17,7 @@
     /* iOS/PWA: contenido visible aunque falle theme.css o el loader */
     html, body.app-body { background: #eef2f7; color: #0f172a; }
     html[data-pbr-class="mobile"] body.app-body { min-height: 100%; min-height: -webkit-fill-available; }
-    /* Móvil: splash completo oculto; barra superior ligera vía pbr-progress. */
-    html[data-pbr-class="mobile"] #pbr-system-loader:not(.pbr-system-loader--mobile-skip),
-    html[data-pbr-view="phone"] #pbr-system-loader:not(.pbr-system-loader--mobile-skip) { display: none !important; }
+    /* Móvil: splash compacto (no bloquea scroll del body). */
     html[data-pbr-class="mobile"] body.pbr-loader-active,
     html[data-pbr-view="phone"] body.pbr-loader-active { overflow: visible !important; }
     #pbr-system-loader.pbr-system-loader--done { display: none !important; opacity: 0 !important; visibility: hidden !important; }

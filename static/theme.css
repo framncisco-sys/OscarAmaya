@@ -5465,9 +5465,43 @@ html[data-pbr-view="phone"] body.pbr-loader-active {
   overflow: visible;
 }
 
-html[data-pbr-class="mobile"] .pbr-system-loader:not(.pbr-system-loader--mobile-skip),
-html[data-pbr-view="phone"] .pbr-system-loader:not(.pbr-system-loader--mobile-skip) {
-  display: none !important;
+html[data-pbr-class="mobile"] .pbr-system-loader,
+html[data-pbr-view="phone"] .pbr-system-loader {
+  align-items: flex-start;
+  padding-top: max(2.5rem, env(safe-area-inset-top));
+}
+
+html[data-pbr-class="mobile"] .pbr-system-loader__card,
+html[data-pbr-view="phone"] .pbr-system-loader__card {
+  width: min(360px, 94vw);
+  padding: 1.25rem 1.15rem 1rem;
+  margin-top: 0.5rem;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.16);
+}
+
+html[data-pbr-class="mobile"] .pbr-system-loader__logo-ring,
+html[data-pbr-view="phone"] .pbr-system-loader__logo-ring {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 0.75rem;
+}
+
+html[data-pbr-class="mobile"] .pbr-system-loader__logo,
+html[data-pbr-view="phone"] .pbr-system-loader__logo {
+  width: 44px;
+  height: 44px;
+}
+
+html[data-pbr-class="mobile"] .pbr-system-loader__paredes,
+html[data-pbr-view="phone"] .pbr-system-loader__paredes {
+  font-size: 0.68rem;
+  margin-bottom: 0.85rem;
+}
+
+html[data-pbr-class="mobile"] .pbr-system-loader__proyecto,
+html[data-pbr-view="phone"] .pbr-system-loader__proyecto {
+  margin-top: 0.65rem;
+  font-size: 0.72rem;
 }
 
 .pbr-system-loader--mobile-skip {

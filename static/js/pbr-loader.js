@@ -75,20 +75,17 @@
     }, reduce ? 120 : 520);
   }
 
-  /* Móvil: splash completo oculto por CSS; solo barra superior ligera. */
+  /* Móvil: splash compacto con logo, pasos y barra superior. */
   if (isMobile) {
-    document.body.classList.remove("pbr-loader-active");
-    loader.classList.add("pbr-system-loader--mobile-skip");
     if (window.pbrProgress && typeof window.pbrProgress.start === "function") {
       window.pbrProgress.start("Cargando…");
-      window.pbrProgress.set(35);
     }
     var mobileStart = performance.now();
     function mobileTick(now) {
       if (done) return;
-      var t = Math.min(1, (now - mobileStart) / 900);
-      setProgress(t * 85);
-      if (window.pbrProgress) window.pbrProgress.set(35 + t * 55);
+      var t = Math.min(1, (now - mobileStart) / 1100);
+      setProgress(t * 92);
+      if (window.pbrProgress) window.pbrProgress.set(12 + t * 78);
       if (t < 1) rafId = requestAnimationFrame(mobileTick);
     }
     rafId = requestAnimationFrame(mobileTick);
@@ -96,11 +93,11 @@
       "load",
       function () {
         setProgress(100);
-        window.setTimeout(finish, 180);
+        window.setTimeout(finish, 220);
       },
       { once: true }
     );
-    window.setTimeout(finish, 2200);
+    window.setTimeout(finish, 2400);
     return;
   }
 
