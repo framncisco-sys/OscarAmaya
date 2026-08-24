@@ -2916,6 +2916,10 @@ class FormatoAceptacionForm(forms.ModelForm):
                 self.fields[fname].help_text = (
                     "La escribe el asesor de ventas. Meses 1–12 sin interés; desde el mes 13 ya va con intereses."
                 )
+            if fname == "valor_financiamiento":
+                self.fields[fname].help_text = (
+                    "Se calcula automáticamente: valor del inmueble − reserva − prima a pagar."
+                )
 
         sis = self.fields.get("valor_inmueble_sistema")
         if sis:
@@ -2937,6 +2941,9 @@ class FormatoAceptacionForm(forms.ModelForm):
         if sol:
             sol.required = False
             sol.help_text = "Opcional. Si indica un monto distinto, gerencia debe aprobarlo."
+        vf = self.fields.get("valor_financiamiento")
+        if vf:
+            vf.widget.attrs["readonly"] = True
         mot = self.fields.get("precio_solicitud_motivo")
         if mot:
             mot.required = False

@@ -255,7 +255,8 @@
         else el.classList.remove("is-readonly");
       });
       if (valorFin) {
-        valorFin.readOnly = !enabled;
+        valorFin.readOnly = true;
+        valorFin.classList.add("is-readonly");
       }
     }
 
@@ -458,7 +459,7 @@
         actualizarInfoPrimaProyecto();
         return;
       }
-      var vi = parseMoney(valorInm);
+      var vi = valorInmuebleVigente();
       if (!isFinite(vi) || vi <= 0) {
         actualizarInfoPrimaProyecto();
         return;
@@ -998,51 +999,58 @@
       forzarActualizacionPlanCuotas(true);
     }
 
-    [prima1, prima2, valorInm].forEach(function (el) {
-      if (el) el.addEventListener("input", recalcFin);
-      if (el) el.addEventListener("change", recalcFin);
-    });
-    if (prima1) {
-      prima1.addEventListener("input", function () {
-        // Si corrigen la reserva a mano, recalcular solo la prima a pagar.
-        var vi = parseMoney(valorInm);
-        if (
-          porcentajePrimaProyecto != null &&
-          isFinite(porcentajePrimaProyecto) &&
-          isFinite(vi) &&
-          vi > 0 &&
-          prima2
-        ) {
-          var r = parseMoney(prima1);
-          if (isFinite(r)) {
-            var rest = (vi * porcentajePrimaProyecto) / 100 - r;
-            if (rest < 0) rest = 0;
-            setMoney(prima2, rest);
-          }
-        }
-        actualizarInfoPrimaProyecto();
-        recalcFin();
-      });
-      prima1.addEventListener("change", function () {
-        var vi = parseMoney(valorInm);
-        if (
-          porcentajePrimaProyecto != null &&
-          isFinite(porcentajePrimaProyecto) &&
-          isFinite(vi) &&
-          vi > 0 &&
-          prima2
-        ) {
-          var r = parseMoney(prima1);
-          if (isFinite(r)) {
-            var rest = (vi * porcentajePrimaProyecto) / 100 - r;
-            if (rest < 0) rest = 0;
-            setMoney(prima2, rest);
-          }
-        }
-        actualizarInfoPrimaProyecto();
-        recalcFin();
-      });
+    function formatearMontoBlur(el) {
+      if (!el) return;
+      var n = parseMoney(el);
+      if (String(el.value || "").trim() !== "") setMoney(el, n);
     }
+
+    function recalcPrima2DesdeReserva() {
+      var vi = valorInmuebleVigente();
+      if (
+        porcentajePrimaProyecto != null &&
+        isFinite(porcentajePrimaProyecto) &&
+        isFinite(vi) &&
+        vi > 0 &&
+        prima2 &&
+        prima1
+      ) {
+        var r = parseMoney(prima1);
+        if (isFinite(r)) {
+          var rest = (vi * porcentajePrimaProyecto) / 100 - r;
+          if (rest < 0) rest = 0;
+          actualizacionProgramatica = true;
+          try {
+            setMoney(prima2, rest);
+          } finally {
+            actualizacionProgramatica = false;
+          }
+        }
+      }
+      actualizarInfoPrimaProyecto();
+    }
+
+    function recalcFinDesdeMontos(opts) {
+      opts = opts || {};
+      if (opts.fromReserva) recalcPrima2DesdeReserva();
+      else actualizarInfoPrimaProyecto();
+      usuarioEditoPlan = true;
+      recalcFin();
+    }
+
+    [prima1, prima2, valorInm].forEach(function (el) {
+      if (!el) return;
+      el.addEventListener("input", function () {
+        recalcFinDesdeMontos({ fromReserva: el === prima1 });
+      });
+      el.addEventListener("change", function () {
+        recalcFinDesdeMontos({ fromReserva: el === prima1 });
+      });
+      el.addEventListener("blur", function () {
+        formatearMontoBlur(el);
+        recalcFinDesdeMontos({ fromReserva: el === prima1 });
+      });
+    });
     if (valorInm) {
       valorInm.addEventListener("change", function () {
         aplicarReservaYPrimaDesdeProyecto();
@@ -1061,10 +1069,6 @@
       }
     }
     actualizarInfoPrimaProyecto();
-    if (valorFin) {
-      valorFin.addEventListener("input", recalcLetra);
-      valorFin.addEventListener("change", recalcLetra);
-    }
     if (plazo) {
       plazo.addEventListener("change", recalcLetra);
     }
@@ -1443,8 +1447,6 @@
     }
 
     var listadoWatch = [
-      prima1,
-      prima2,
       prima1Fecha,
       prima2Fecha,
       fechaPrimera,
@@ -1452,7 +1454,6 @@
       numCuota,
       plazo,
       letra,
-      valorFin,
       interes,
       tipoFin,
     ];
@@ -1463,11 +1464,11 @@
     });
 
     // Reformatear montos al salir del campo (22,500.00)
-    [valorInm, prima1, prima2, valorFin, letra].forEach(function (el) {
+    [valorInm, letra].forEach(function (el) {
       if (!el) return;
       el.addEventListener("blur", function () {
-        var n = parseMoney(el);
-        if (String(el.value || "").trim() !== "") setMoney(el, n);
+        formatearMontoBlur(el);
+        if (el === valorInm) recalcFinDesdeMontos();
       });
     });
 
