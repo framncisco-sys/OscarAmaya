@@ -27,6 +27,63 @@ from .recibo_text import format_monto_sv, monto_usd_letras_es
 logger = logging.getLogger(__name__)
 
 
+def _pdf_upload_folder(doc: DocumentoEmitido) -> str:
+    if doc.pdf_file.name:
+        folder = os.path.dirname(doc.pdf_file.name.replace("\\", "/"))
+        if folder:
+            return folder
+    dt = doc.emitido_en or timezone.now()
+    return dt.strftime("docs/%Y/%m")
+
+
+def _purge_pdf_copies(doc: DocumentoEmitido, *, keep: str | None = None) -> None:
+    """Elimina PDF antiguos del mismo número (p. ej. copias con sufijo aleatorio)."""
+    storage = doc.pdf_file.storage
+    folder = _pdf_upload_folder(doc)
+    keep_norm = (keep or "").replace("\\", "/")
+    candidates: set[str] = set()
+    if hasattr(storage, "listdir"):
+        try:
+            _dirs, files = storage.listdir(folder)
+            for fn in files:
+                if fn == f"{doc.numero}.pdf" or (
+                    fn.startswith(f"{doc.numero}_") and fn.endswith(".pdf")
+                ):
+                    candidates.add(f"{folder}/{fn}".replace("\\", "/"))
+        except OSError:
+            pass
+    candidates.add(f"{folder}/{doc.numero}.pdf".replace("\\", "/"))
+    if doc.pdf_file.name:
+        candidates.add(doc.pdf_file.name.replace("\\", "/"))
+    for path in candidates:
+        if keep_norm and path == keep_norm:
+            continue
+        try:
+            if storage.exists(path):
+                storage.delete(path)
+        except Exception:
+            logger.exception("No se pudo borrar PDF antiguo %s", path)
+
+
+def _persistir_pdf_documento(doc: DocumentoEmitido, pdf_bytes: bytes) -> None:
+    """Guarda el PDF con nombre fijo `{numero}.pdf`, sin dejar copias obsoletas en media/."""
+    doc.hash_sha256 = _sha256(pdf_bytes)
+    filename = f"{doc.numero}.pdf"
+    folder = _pdf_upload_folder(doc)
+    if doc.pdf_file.name:
+        try:
+            doc.pdf_file.delete(save=False)
+        except Exception:
+            logger.exception(
+                "No se pudo borrar el PDF previo del documento %s.", doc.numero
+            )
+    _purge_pdf_copies(doc)
+    storage = doc.pdf_file.storage
+    path = storage.save(f"{folder}/{filename}", ContentFile(pdf_bytes))
+    doc.pdf_file.name = path
+    doc.save(update_fields=["hash_sha256", "pdf_file"])
+
+
 @dataclass(frozen=True)
 class CorrelativoConfig:
     usar_mes: bool = True
@@ -1023,9 +1080,7 @@ def emitir_recibo_ingreso(*, pago, emitido_por=None) -> tuple[DocumentoEmitido, 
     )
 
     pdf_bytes = _pdf_recibo_ingreso_bytes(doc=doc, pago=pago)
-    doc.hash_sha256 = _sha256(pdf_bytes)
-    doc.pdf_file.save(f"{numero}.pdf", ContentFile(pdf_bytes), save=False)
-    doc.save(update_fields=["hash_sha256", "pdf_file"])
+    _persistir_pdf_documento(doc, pdf_bytes)
 
     notif = ReciboNotificacionInfo(
         correo_enviado=False,
@@ -1075,9 +1130,7 @@ def emitir_promesa_venta(*, contrato, emitido_por=None) -> DocumentoEmitido:
         },
     )
     pdf_bytes = _html_to_pdf_bytes(html)
-    doc.hash_sha256 = _sha256(pdf_bytes)
-    doc.pdf_file.save(f"{numero}.pdf", ContentFile(pdf_bytes), save=False)
-    doc.save(update_fields=["hash_sha256", "pdf_file"])
+    _persistir_pdf_documento(doc, pdf_bytes)
     return doc
 
 
@@ -1325,12 +1378,9 @@ def emitir_recibo_comision_vendedor(
         marca_slug=marca_slug,
         liquidacion=liq,
     )
-    doc.hash_sha256 = _sha256(pdf_bytes)
-    doc.pdf_file.save(f"{numero}.pdf", ContentFile(pdf_bytes), save=False)
+    _persistir_pdf_documento(doc, pdf_bytes)
     doc.save(
         update_fields=[
-            "hash_sha256",
-            "pdf_file",
             "monto_comision_usd",
             "comision_porcentaje_recibo",
             "comision_concepto",
@@ -1443,12 +1493,9 @@ def emitir_recibo_comision_alquiler(
         ),
     )
     pdf_bytes = _html_to_pdf_bytes(html)
-    doc.hash_sha256 = _sha256(pdf_bytes)
-    doc.pdf_file.save(f"{numero}.pdf", ContentFile(pdf_bytes), save=False)
+    _persistir_pdf_documento(doc, pdf_bytes)
     doc.save(
         update_fields=[
-            "hash_sha256",
-            "pdf_file",
             "monto_comision_usd",
             "comision_porcentaje_recibo",
             "comision_concepto",
@@ -1547,10 +1594,8 @@ def regenerar_pdf_documento(doc: DocumentoEmitido) -> bytes:
 def regenerar_pdf_y_persistir(doc: DocumentoEmitido) -> bytes:
     """Regenera bytes del PDF y vuelve a guardarlos en `pdf_file` cuando el almacenamiento lo permite."""
     pdf_bytes = regenerar_pdf_documento(doc)
-    doc.hash_sha256 = _sha256(pdf_bytes)
     try:
-        doc.pdf_file.save(f"{doc.numero}.pdf", ContentFile(pdf_bytes), save=False)
-        doc.save(update_fields=["hash_sha256", "pdf_file"])
+        _persistir_pdf_documento(doc, pdf_bytes)
     except Exception:
         logger.exception(
             "PDF regenerado en memoria pero no se pudo volver a guardarlo (documento %s).",
