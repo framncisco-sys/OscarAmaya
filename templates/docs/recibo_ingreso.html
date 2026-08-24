@@ -370,7 +370,13 @@
     <td class="r" width="25%" style="width:25%;">{{ recargo_no_cobrado_fmt }}</td>
   </tr>
   {% endif %}
-  {% if precio_inmueble_fmt and desglose_lineas_fmt|length > 1 %}
+  {% if precio_negociado_aprobado and precio_etapa_referencia_fmt %}
+  <tr class="meta">
+    <td class="c" width="15%" style="width:15%;"></td>
+    <td width="60%" style="width:60%;">Precio de etapa (referencia) {{ precio_etapa_referencia_fmt }} · <strong>Precio autorizado {{ precio_autorizado_fmt }}</strong></td>
+    <td class="r" width="25%" style="width:25%;"></td>
+  </tr>
+  {% elif precio_inmueble_fmt and desglose_lineas_fmt|length > 1 %}
   <tr class="meta">
     <td class="c" width="15%" style="width:15%;"></td>
     <td width="60%" style="width:60%;">Valor del inmueble {{ precio_inmueble_fmt }}</td>
@@ -388,6 +394,9 @@
   <tr>
     <td class="col-saldo">
       <table class="rd-saldo">
+        {% if precio_negociado_aprobado %}
+        <tr><td>Precio autorizado</td><td class="r">{{ precio_autorizado_fmt }}</td></tr>
+        {% endif %}
         <tr><td>Recibido</td><td class="r">{{ recibido_fmt }}</td></tr>
         <tr><td>Saldo anterior</td><td class="r">{{ saldo_anterior_fmt }}</td></tr>
         <tr><td>Nuevo saldo</td><td class="r">{{ nuevo_saldo_fmt }}</td></tr>

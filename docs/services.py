@@ -467,6 +467,87 @@ def _saldos_desde_calendario(pago, *, capital_este):
     return saldo_anterior, nuevo
 
 
+def _formato_aceptacion_para_recibo(pago):
+    """Formato vinculado al pago o al contrato (precio negociado)."""
+    from inmobiliaria.models import FormatoAceptacion
+
+    fmt = getattr(pago, "formato_aceptacion", None)
+    if fmt is not None:
+        return fmt
+
+    contrato = pago.contrato
+    fmt = (
+        FormatoAceptacion.objects.filter(contrato_id=contrato.pk)
+        .order_by("-actualizado_en", "-pk")
+        .first()
+    )
+    if fmt is not None:
+        return fmt
+
+    inmueble = getattr(contrato, "inmueble", None)
+    if inmueble is None:
+        return None
+
+    codigo = (getattr(inmueble, "codigo_display", None) or inmueble.codigo or "").strip()
+    if not codigo:
+        return None
+
+    qs = FormatoAceptacion.objects.filter(num_lote__iexact=codigo)
+    proyecto = getattr(inmueble, "proyecto", None)
+    if proyecto is not None and (proyecto.nombre or "").strip():
+        qs = qs.filter(nombre_proyecto__iexact=(proyecto.nombre or "").strip())
+    pol = ""
+    if getattr(inmueble, "poligono_id", None) and inmueble.poligono_id:
+        pol = (inmueble.poligono.nombre or "").strip()
+    if pol:
+        qs = qs.filter(poligono_txt__iexact=pol)
+    return qs.order_by("-actualizado_en", "-pk").first()
+
+
+def _precio_inmueble_vigente_recibo(pago, *, sincronizar_contrato: bool = True):
+    """
+    Precio del inmueble para saldos y PDF del recibo.
+    Prioriza el precio autorizado en formato (negociado/aprobado) sobre contrato.precio_final.
+    """
+    from decimal import Decimal
+
+    from inmobiliaria.formato_precio import (
+        asegurar_precio_vigente_formato,
+        precio_vigente_formato,
+    )
+
+    contrato = pago.contrato
+    fmt = _formato_aceptacion_para_recibo(pago)
+    if fmt is not None:
+        asegurar_precio_vigente_formato(fmt, persistir=True)
+        precio_fmt = precio_vigente_formato(fmt)
+        if precio_fmt is not None and precio_fmt > 0:
+            precio_fmt = Decimal(precio_fmt).quantize(Decimal("0.01"))
+            if sincronizar_contrato and contrato.precio_final != precio_fmt:
+                Contrato.objects.filter(pk=contrato.pk).update(precio_final=precio_fmt)
+                contrato.precio_final = precio_fmt
+            return precio_fmt, fmt
+
+    precio = Decimal(contrato.precio_final or 0).quantize(Decimal("0.01"))
+    return precio, fmt
+
+
+def _meta_precio_recibo(pago) -> dict:
+    """Etiquetas de precio autorizado / etapa para el PDF del recibo."""
+    precio, fmt = _precio_inmueble_vigente_recibo(pago, sincronizar_contrato=True)
+    ctx = {
+        "precio_inmueble_fmt": format_monto_sv(precio),
+        "precio_autorizado_fmt": format_monto_sv(precio),
+        "precio_etapa_referencia_fmt": "",
+        "precio_negociado_aprobado": False,
+    }
+    if fmt is not None and fmt.tiene_precio_negociado_aprobado:
+        ctx["precio_negociado_aprobado"] = True
+        if fmt.valor_inmueble_sistema is not None:
+            ctx["precio_etapa_referencia_fmt"] = format_monto_sv(fmt.valor_inmueble_sistema)
+    return ctx
+
+
 def _saldos_recibo(pago) -> dict:
     """
     Saldo anterior / recibido / nuevo saldo para el pie del recibo digital.
@@ -482,7 +563,7 @@ def _saldos_recibo(pago) -> dict:
     from inmobiliaria.models import CuotaProgramada, Pago
 
     contrato = pago.contrato
-    precio = Decimal(contrato.precio_final or 0).quantize(Decimal("0.01"))
+    precio, _fmt = _precio_inmueble_vigente_recibo(pago, sincronizar_contrato=True)
 
     conceptos_capital = {
         Pago.Concepto.RESERVA,
@@ -824,8 +905,9 @@ def _contexto_recibo_ingreso(*, doc, pago) -> dict:
     concepto_detalle = pago.get_concepto_display()
     if lineas_fmt:
         concepto_detalle = " / ".join(et for et, _monto, _cant in lineas_fmt)
+    meta_precio = _meta_precio_recibo(pago)
     concepto_detalle = (
-        f"{concepto_detalle} / VALOR DEL INMUEBLE {format_monto_sv(contrato.precio_final)}"
+        f"{concepto_detalle} / VALOR DEL INMUEBLE {meta_precio['precio_inmueble_fmt']}"
     )
     vendedor = ""
     if hasattr(contrato, "nombre_vendedor_documentos"):
@@ -867,9 +949,9 @@ def _contexto_recibo_ingreso(*, doc, pago) -> dict:
             contrato.fecha_firma.strftime("%d / %m / %Y") if contrato.fecha_firma else "—"
         ),
         "vendedor_nombre": vendedor,
-        "precio_inmueble_fmt": format_monto_sv(contrato.precio_final),
         "recibido_por_nombre": _nombre_recibido_por_recibo(doc=doc, pago=pago),
         "logo_pie_empresa_src": "logo_paredes_desarrollos_pie.png",
+        **meta_precio,
         **_saldos_recibo(pago),
         **branding_pdf_context(proyecto),
     }
