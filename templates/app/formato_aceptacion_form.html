@@ -1,5 +1,5 @@
 ﻿{% extends "app/base_app.html" %}
-{% load static money_fmt %}
+{% load static money_fmt l10n %}
 {% block title %}{{ form_title }} | Paredes Bienes Raíces{% endblock %}
 {% block app_content %}
 <style>
@@ -416,7 +416,7 @@
 </div>
 {% endif %}
 
-<form id="formato-aceptacion-form" method="post" class="form-stack{% if object and object.tiene_precio_negociado_aprobado %} formato-form--precio-negociado{% endif %}" enctype="multipart/form-data" style="max-width: 920px; margin: 0 auto;" data-pbr-offline="skip" novalidate{% if object %} data-pbr-validacion-precio="{{ object.validacion_precio }}" data-pbr-precio-fijado="{% if object.validacion_precio == 'APROBADO' or object.validacion_precio == 'RECHAZADO' or object.validacion_precio == 'PENDIENTE' %}1{% else %}0{% endif %}" data-pbr-precio-vigente="{{ object.valor_inmueble }}" data-pbr-precio-sistema="{{ object.valor_inmueble_sistema }}"{% endif %}>
+<form id="formato-aceptacion-form" method="post" class="form-stack{% if object and object.tiene_precio_negociado_aprobado %} formato-form--precio-negociado{% endif %}" enctype="multipart/form-data" style="max-width: 920px; margin: 0 auto;" data-pbr-offline="skip" novalidate{% if object %} data-pbr-validacion-precio="{{ object.validacion_precio }}" data-pbr-precio-fijado="{% if object.validacion_precio == 'APROBADO' or object.validacion_precio == 'RECHAZADO' or object.validacion_precio == 'PENDIENTE' %}1{% else %}0{% endif %}" data-pbr-precio-vigente="{% localize off %}{{ object.valor_inmueble }}{% endlocalize %}" data-pbr-precio-sistema="{% localize off %}{{ object.valor_inmueble_sistema }}{% endlocalize %}"{% endif %}>
   {% csrf_token %}
   {% if form.non_field_errors %}
     <div class="alert" role="alert">{{ form.non_field_errors }}</div>

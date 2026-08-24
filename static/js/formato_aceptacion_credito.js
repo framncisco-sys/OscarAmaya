@@ -14,9 +14,17 @@
     }
   }
 
-  function parseMoney(el) {
-    if (!el || el.value === undefined || el.value === null) return 0;
-    var t = String(el.value).replace(/\$/g, "").replace(/\s/g, "").trim();
+  function parseMoney(elOrStr) {
+    if (elOrStr === undefined || elOrStr === null) return 0;
+    var t;
+    if (typeof elOrStr === "string" || typeof elOrStr === "number") {
+      t = String(elOrStr);
+    } else if (elOrStr.value !== undefined && elOrStr.value !== null) {
+      t = String(elOrStr.value);
+    } else {
+      return 0;
+    }
+    t = t.replace(/\$/g, "").replace(/\s/g, "").trim();
     if (!t) return 0;
     if (t.indexOf(",") >= 0 && t.indexOf(".") >= 0) {
       if (t.lastIndexOf(",") > t.lastIndexOf(".")) {
@@ -167,10 +175,10 @@
       var valorSol = document.getElementById("id_valor_inmueble_solicitado");
       var valorSis = document.getElementById("id_valor_inmueble_sistema");
       if (!valorSol || !valorSol.value) return false;
-      var sol = parseFloat(String(valorSol.value).replace(/[$,]/g, ""));
-      var sis = valorSis ? parseFloat(String(valorSis.value).replace(/[$,]/g, "")) : NaN;
+      var sol = parseMoney(valorSol.value);
+      var sis = valorSis ? parseMoney(valorSis.value) : NaN;
       if (!isFinite(sol) || !isFinite(sis) || Math.abs(sol - sis) < 0.005) return false;
-      var ini = parseFloat(String(valorInmInicial).replace(/[$,]/g, ""));
+      var ini = parseMoney(valorInmInicial);
       return isFinite(ini) && Math.abs(ini - sol) < 0.005;
     }
 
@@ -180,8 +188,8 @@
         (formRoot && formRoot.getAttribute("data-pbr-precio-vigente")) ||
         valorInmInicial;
       if (!vigente) return;
-      var p = parseFloat(String(vigente).replace(/[$,]/g, ""));
-      if (!isFinite(p)) return;
+      var p = parseMoney(vigente);
+      if (!isFinite(p) || p <= 0) return;
       setMoney(valorInm, p);
       forzarActualizacionPlanCuotas(true);
       actualizarPrecioNegociadoInline();
@@ -227,7 +235,7 @@
     function valorInmuebleVigente() {
       if (debeConservarPrecioVigente() && formRoot) {
         var vigenteRaw = formRoot.getAttribute("data-pbr-precio-vigente") || "";
-        var p = parseFloat(String(vigenteRaw).replace(/[$,]/g, ""));
+        var p = parseMoney(vigenteRaw);
         if (isFinite(p) && p > 0) return p;
       }
       return parseMoney(valorInm);
@@ -375,8 +383,8 @@
       }
       var vigenteRaw = formRoot.getAttribute("data-pbr-precio-vigente") || "";
       var sistemaRaw = formRoot.getAttribute("data-pbr-precio-sistema") || "";
-      var vigente = parseFloat(String(vigenteRaw).replace(/[$,]/g, ""));
-      var sistema = parseFloat(String(sistemaRaw).replace(/[$,]/g, ""));
+      var vigente = parseMoney(vigenteRaw);
+      var sistema = parseMoney(sistemaRaw);
       if (valorInm && valorInm.value) {
         var viDom = parseMoney(valorInm);
         if (isFinite(viDom) && viDom > 0) vigente = viDom;
