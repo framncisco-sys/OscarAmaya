@@ -4310,6 +4310,40 @@ html[data-pbr-reduced-motion="1"] .app-sidebar__session-avatar-dot {
   padding: 0.85rem 1rem;
 }
 
+.mapa-lote-detalle-simple {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.mapa-lote-detalle-simple__titulo {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--pbr-text, #0f172a);
+}
+
+.mapa-lote-detalle-simple__estado {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.95rem;
+}
+
+.mapa-lote-detalle-simple__estado .swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.mapa-lote-detalle-simple__persona {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
 .mapa-lotes-panel {
   margin-top: 1rem;
   padding: 0.85rem 1rem 1rem;

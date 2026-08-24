@@ -2,6 +2,7 @@
   "use strict";
 
   var cfg = window.mapaEditorConfig || {};
+  var soloConsulta = !!cfg.soloConsulta;
   var selProyecto = document.getElementById("mapa-proyecto");
   var selPoligono = document.getElementById("mapa-poligono");
   var selLote = document.getElementById("mapa-lote");
@@ -30,18 +31,21 @@
   var imageWidth = 100;
   var imageHeight = 100;
 
-  var drawControl = new L.Control.Draw({
-    edit: { featureGroup: drawnItems, remove: true },
-    draw: {
-      rectangle: { shapeOptions: { color: "#003366", weight: 2 } },
-      circle: false,
-      circlemarker: false,
-      marker: false,
-      polyline: false,
-      polygon: { allowIntersection: false, showArea: true },
-    },
-  });
-  map.addControl(drawControl);
+  var drawControl = null;
+  if (!soloConsulta) {
+    drawControl = new L.Control.Draw({
+      edit: { featureGroup: drawnItems, remove: true },
+      draw: {
+        rectangle: { shapeOptions: { color: "#003366", weight: 2 } },
+        circle: false,
+        circlemarker: false,
+        marker: false,
+        polyline: false,
+        polygon: { allowIntersection: false, showArea: true },
+      },
+    });
+    map.addControl(drawControl);
+  }
 
   function boundsForImage(width, height) {
     return [[0, 0], [height, width]];
@@ -302,6 +306,7 @@
   }
 
   function drawSelectedGeometry(loteId) {
+    if (soloConsulta) return;
     drawnItems.clearLayers();
     var feature = getFeatureByLoteId(loteId);
     if (!feature) return;
@@ -472,6 +477,7 @@
       .then(function (data) {
         currentData = data;
         var needsAuto =
+          !soloConsulta &&
           data.resumen &&
           data.resumen.sin_geometria > 0 &&
           data.resumen.total > 0;
@@ -559,14 +565,15 @@
     });
   }
 
-  map.on(L.Draw.Event.CREATED, function (e) {
-    drawnItems.clearLayers();
-    drawnItems.addLayer(e.layer);
-    if (selLote.value) {
-      // Guardado inmediato al terminar el dibujo (sin recargar la página).
-      saveCurrentGeometry(false);
-    }
-  });
+  if (!soloConsulta) {
+    map.on(L.Draw.Event.CREATED, function (e) {
+      drawnItems.clearLayers();
+      drawnItems.addLayer(e.layer);
+      if (selLote.value) {
+        saveCurrentGeometry(false);
+      }
+    });
+  }
 
   btnReload.addEventListener("click", fetchProyectoData);
   selProyecto.addEventListener("change", function () {
@@ -583,9 +590,11 @@
   selLote.addEventListener("change", function () {
     seleccionarLote(selLote.value || "", loteRowById(selLote.value));
   });
-  btnSave.addEventListener("click", function () {
-    saveCurrentGeometry(true);
-  });
+  if (btnSave) {
+    btnSave.addEventListener("click", function () {
+      saveCurrentGeometry(true);
+    });
+  }
 
   if (autoRefreshTimer) window.clearInterval(autoRefreshTimer);
   autoRefreshTimer = window.setInterval(function () {

@@ -7,7 +7,11 @@
   <div class="page-toolbar__intro">
     <h1 class="page-title">Mapa interactivo</h1>
     <p class="page-toolbar__meta">
+      {% if mapa_solo_consulta %}
+      Consulte el plano del proyecto: lotes en color según estado (disponible, reservado, vendido). Al seleccionar un lote verá si está reservado y a nombre de quién.
+      {% else %}
       Use el plano maestro del proyecto como imagen de fondo. Al elegir un proyecto, los lotes se delimitan automáticamente en el plano con los colores de su estado (reservado, vendido, disponible). La tabla inferior también se actualiza desde inventario y formatos de aceptación.
+      {% endif %}
     </p>
   </div>
 </header>
@@ -37,7 +41,7 @@
       </div>
     </div>
     <div class="field">
-      <label class="field__label" for="mapa-lote">Lote a editar</label>
+      <label class="field__label" for="mapa-lote">{% if mapa_solo_consulta %}Lote a consultar{% else %}Lote a editar{% endif %}</label>
       <div class="field__control">
         <select id="mapa-lote">
           <option value="">Seleccione lote</option>
@@ -46,8 +50,10 @@
     </div>
     <div class="mapa-actions">
       <button type="button" id="mapa-reload" class="btn-secondary">Recargar</button>
+      {% if not mapa_solo_consulta %}
       <button type="button" id="mapa-auto" class="btn-secondary">Redetectar lotes</button>
       <button type="button" id="mapa-save" class="btn-primary">Guardar geometría</button>
+      {% endif %}
     </div>
   </div>
 
@@ -88,7 +94,11 @@
   </section>
 
   <p class="field__help muted">
+    {% if mapa_solo_consulta %}
+    Haga clic en un lote del plano o en la tabla para ver estado y titular de reserva. Los colores se actualizan solos desde inventario.
+    {% else %}
     La delimitación es automática desde el plano (PDF o imagen). Si un lote no coincide bien, selecciónelo y ajuste el polígono a mano; las coordenadas se guardan en porcentaje (0–100).
+    {% endif %}
   </p>
 </div>
 {% endblock %}
@@ -105,6 +115,7 @@
     apiGuardarBase: "{% url 'app:api_mapa_guardar_lote' 0 %}",
     apiAutoGeometriaBase: "{% url 'app:api_mapa_auto_geometria' 0 %}",
     csrfToken: "{{ csrf_token }}",
+    soloConsulta: {% if mapa_solo_consulta %}true{% else %}false{% endif %},
   };
 </script>
 <script src="{% static 'js/mapa_editor.js' %}?v={{ pbr_cache_v }}"></script>

@@ -893,11 +893,14 @@ class MapaEditorView(AppLoginRequiredMixin, TemplateView):
     template_name = "app/mapa_editor.html"
 
     def get_context_data(self, **kwargs):
+        from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
         ctx = super().get_context_data(**kwargs)
         ctx["proyectos"] = Proyecto.objects.order_by("nombre")
         ctx["poligonos"] = Poligono.objects.select_related("proyecto").order_by(
             "proyecto__nombre", "orden", "nombre"
         )
+        ctx["mapa_solo_consulta"] = es_vendedor_restringido(self.request.user)
         return ctx
 
 
@@ -3816,6 +3819,12 @@ def _formatos_por_inmueble(inmueble_ids: list[int]) -> dict[int, FormatoAceptaci
     return out
 
 
+def _mapa_solo_consulta_usuario(user) -> bool:
+    from inmobiliaria.vendedor_acceso import es_vendedor_restringido
+
+    return es_vendedor_restringido(user)
+
+
 def _cliente_nombre_lote_mapa(
     inmueble: Inmueble,
     contrato: Contrato | None,
@@ -3856,6 +3865,7 @@ def _lote_mapa_item_dict(
     formato: FormatoAceptacion | None,
     *,
     modo: str,
+    consulta_simple: bool = False,
 ) -> dict:
     style_key = _mapa_catastral_style_por_estado(lote.estado)
     tiene_plano = bool(lote.geometria_json)
@@ -3882,7 +3892,11 @@ def _lote_mapa_item_dict(
             if formato
             else ""
         ),
-        "popup_html": _popup_html_mapa_catastral(lote, contrato, formato=formato),
+        "popup_html": (
+            _popup_html_mapa_consulta_simple(lote, contrato, formato=formato)
+            if consulta_simple
+            else _popup_html_mapa_catastral(lote, contrato, formato=formato)
+        ),
     }
     if formato and formato.valor_inmueble is not None:
         item["valor_formato"] = str(formato.valor_inmueble)
@@ -3894,6 +3908,7 @@ def _lote_mapa_item_dict(
 @login_required
 def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
     proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
+    consulta_simple = _mapa_solo_consulta_usuario(request.user)
     lotes = (
         Inmueble.objects.select_related("poligono", "cliente_reserva", "proyecto")
         .filter(proyecto_id=proyecto_id, tipo=Inmueble.Tipo.LOTE)
@@ -3930,7 +3945,11 @@ def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
     for lote in lotes:
         c = contratos_por_inmueble.get(lote.pk)
         fmt = formatos_por_inmueble.get(lote.pk)
-        lista_lotes.append(_lote_mapa_item_dict(lote, c, fmt, modo="plano"))
+        lista_lotes.append(
+            _lote_mapa_item_dict(
+                lote, c, fmt, modo="plano", consulta_simple=consulta_simple
+            )
+        )
         if not lote.geometria_json:
             continue
         style_key = _mapa_catastral_style_por_estado(lote.estado)
@@ -3948,7 +3967,11 @@ def api_mapa_proyecto(request: HttpRequest, proyecto_id: int) -> JsonResponse:
                     "venta_leyenda": _leyenda.get(style_key, lote.get_estado_display()),
                     "poligono_id": lote.poligono_id,
                     "poligono_nombre": lote.poligono.nombre if lote.poligono else "",
-                    "popup_html": _popup_html_mapa_catastral(lote, c, formato=fmt),
+                    "popup_html": (
+                        _popup_html_mapa_consulta_simple(lote, c, formato=fmt)
+                        if consulta_simple
+                        else _popup_html_mapa_catastral(lote, c, formato=fmt)
+                    ),
                 },
                 "geometry": lote.geometria_json,
             }
@@ -3998,6 +4021,11 @@ def api_mapa_auto_geometria(request: HttpRequest, proyecto_id: int) -> JsonRespo
     """
     Detecta y guarda polígonos sobre el plano maestro para lotes sin geometría.
     """
+    if _mapa_solo_consulta_usuario(request.user):
+        return JsonResponse(
+            {"ok": False, "error": "Su usuario solo puede consultar el mapa."},
+            status=403,
+        )
     proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
     try:
         payload = json.loads(request.body.decode("utf-8") or "{}")
@@ -4107,6 +4135,11 @@ def api_inmueble_estado(request: HttpRequest, inmueble_id: int) -> JsonResponse:
 @login_required
 @require_POST
 def api_mapa_guardar_lote(request: HttpRequest, inmueble_id: int) -> JsonResponse:
+    if _mapa_solo_consulta_usuario(request.user):
+        return JsonResponse(
+            {"ok": False, "error": "Su usuario solo puede consultar el mapa."},
+            status=403,
+        )
     if not check_sensitive_write(request):
         return JsonResponse(
             {
@@ -4188,6 +4221,63 @@ def _truncate_txt(s: str, n: int = 240) -> str:
     if len(t) <= n:
         return t
     return t[: n - 1] + "…"
+
+
+def _popup_html_mapa_consulta_simple(
+    inmueble: Inmueble,
+    contrato: Contrato | None = None,
+    *,
+    formato: FormatoAceptacion | None = None,
+) -> str:
+    """Vista resumida para asesor: estado con color y titular de reserva/venta."""
+    style_key = _mapa_catastral_style_por_estado(inmueble.estado)
+    swatch = f"swatch swatch--{style_key}"
+    estado_txt = inmueble.get_estado_display()
+    persona = _cliente_nombre_lote_mapa(inmueble, contrato, formato)
+    if persona == "—":
+        persona = ""
+
+    titulo = f"Lote {html.escape(inmueble.codigo_display)}"
+    bloque_estado = (
+        f'<p class="mapa-lote-detalle-simple__estado">'
+        f'<span class="{swatch}" aria-hidden="true"></span> '
+        f"<strong>{html.escape(estado_txt)}</strong></p>"
+    )
+    bloque_persona = ""
+    if inmueble.estado == Inmueble.Estado.RESERVADO:
+        if persona:
+            bloque_persona = (
+                f'<p class="mapa-lote-detalle-simple__persona">'
+                f"Reservado a nombre de <strong>{html.escape(persona)}</strong></p>"
+            )
+        else:
+            bloque_persona = (
+                '<p class="mapa-lote-detalle-simple__persona muted">'
+                "Reservado (sin cliente registrado)</p>"
+            )
+    elif inmueble.estado == Inmueble.Estado.VENDIDO:
+        if persona:
+            bloque_persona = (
+                f'<p class="mapa-lote-detalle-simple__persona">'
+                f"Vendido a nombre de <strong>{html.escape(persona)}</strong></p>"
+            )
+        else:
+            bloque_persona = (
+                '<p class="mapa-lote-detalle-simple__persona muted">'
+                "Vendido (sin comprador en sistema)</p>"
+            )
+    elif persona:
+        bloque_persona = (
+            f'<p class="mapa-lote-detalle-simple__persona">'
+            f"Cliente: <strong>{html.escape(persona)}</strong></p>"
+        )
+
+    return (
+        f'<div class="mapa-lote-detalle-simple">'
+        f'<p class="mapa-lote-detalle-simple__titulo">{titulo}</p>'
+        f"{bloque_estado}{bloque_persona}"
+        f"</div>"
+    )
 
 
 def _popup_html_mapa_catastral(

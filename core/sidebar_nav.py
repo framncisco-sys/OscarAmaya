@@ -239,7 +239,8 @@ def build_sidebar_nav(url_name: str | None, *, pago_concepto: str | None = None)
         "poligono_active": u in {"poligono_list", "poligono_create", "poligono_update"},
         "inmueble_list_active": u
         in {"inmueble_list", "inmueble_create", "inmueble_update", "inmueble_delete"},
-        "mapa_editor_active": u in {"mapa_editor", "api_mapa_proyecto", "api_mapa_guardar_lote"},
+        "mapa_editor_active": u
+        in {"mapa_editor", "api_mapa_proyecto", "api_mapa_guardar_lote", "api_mapa_plano_imagen"},
         "mapa_catastral_active": u
         in {"mapa_catastral", "api_mapa_catastral", "api_mapa_catastral_guardar"},
         "contrato_active": u

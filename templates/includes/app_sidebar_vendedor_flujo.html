@@ -30,6 +30,8 @@
       {% include "includes/_sidebar_sub_link.html" with href=pago_base_url|add:"?concepto=CUOTA" label="5. Recibos a plazos" icon="receipt" active=sidebar_nav.pago_cuota_active %}
       {% url 'app:estado_cuenta_hub' as estado_cuenta_url %}
       {% include "includes/_sidebar_sub_link.html" with href=estado_cuenta_url label="Estado de cuenta (PDF)" icon="chart" active=sidebar_nav.estado_cuenta_active %}
+      {% url 'app:mapa_editor' as mapa_editor_url %}
+      {% include "includes/_sidebar_sub_link.html" with href=mapa_editor_url label="Mapa interactivo" icon="map" active=sidebar_nav.mapa_editor_active %}
       {% if sidebar_nav.pago_list_active and not request.GET.validacion %}
       {% include "includes/_sidebar_sub_link.html" with href=pago_list_url label="Todos los pagos / estado de recibos" icon="payment" active=True stat=sidebar_stats.pagos_pendientes_validacion %}
       {% else %}
