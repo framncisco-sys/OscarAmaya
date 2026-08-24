@@ -677,6 +677,87 @@
 {{ formato_catalogo_inmuebles|json_script:"formato-catalogo-inmuebles-data" }}
 {{ formato_lote_estado_url_tpl|json_script:"formato-lote-estado-url-tpl" }}
 {% if formato_plan_cuotas_json %}{{ formato_plan_cuotas_json|json_script:"formato-plan-cuotas-servidor" }}{% endif %}
+<script>
+(function () {
+  "use strict";
+  function parseMontoInline(raw) {
+    var t = String(raw || "")
+      .replace(/\$/g, "")
+      .replace(/\s/g, "")
+      .trim();
+    if (!t) return 0;
+    if (t.indexOf(",") >= 0 && t.indexOf(".") >= 0) {
+      if (t.lastIndexOf(",") > t.lastIndexOf(".")) {
+        t = t.replace(/\./g, "").replace(",", ".");
+      } else {
+        t = t.replace(/,/g, "");
+      }
+    } else if (t.indexOf(",") >= 0) {
+      var parts = t.split(",");
+      if (parts.length === 2 && /^\d{1,2}$/.test(parts[1])) {
+        t = parts[0].replace(/\./g, "") + "." + parts[1];
+      } else {
+        t = t.replace(/,/g, "");
+      }
+    }
+    var n = parseFloat(t);
+    return isFinite(n) ? n : 0;
+  }
+  function valorInmuebleInline(form) {
+    var raw = form.getAttribute("data-pbr-precio-vigente") || "";
+    var v = parseMontoInline(raw);
+    if (v > 0) return v;
+    var el = document.getElementById("id_valor_inmueble");
+    return el ? parseMontoInline(el.value) : 0;
+  }
+  function fmtUsd(n) {
+    return (
+      "$" +
+      n.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    );
+  }
+  function recalcFinInline() {
+    if (window.pbrRecalcFinFormato) {
+      window.pbrRecalcFinFormato();
+      return;
+    }
+    var form = document.getElementById("formato-aceptacion-form");
+    var p1 = document.getElementById("id_prima_1");
+    var p2 = document.getElementById("id_prima_2");
+    var vf = document.getElementById("id_valor_financiamiento");
+    var tipo = document.getElementById("id_tipo_financiamiento");
+    if (!form || !p1 || !p2 || !vf) return;
+    if (tipo && String(tipo.value || "") === "CONTADO") {
+      vf.value = fmtUsd(0);
+      return;
+    }
+    var fin = valorInmuebleInline(form) - parseMontoInline(p1.value) - parseMontoInline(p2.value);
+    if (fin < 0) fin = 0;
+    fin = Math.round(fin * 100) / 100;
+    vf.value = fmtUsd(fin);
+    var live = document.getElementById("pbr-valor-financiamiento-live");
+    if (live) live.textContent = fmtUsd(fin);
+  }
+  function bindInline() {
+    var p1 = document.getElementById("id_prima_1");
+    var p2 = document.getElementById("id_prima_2");
+    if (!p1 || !p2) return;
+    ["input", "change", "keyup", "blur"].forEach(function (ev) {
+      p1.addEventListener(ev, recalcFinInline);
+      p2.addEventListener(ev, recalcFinInline);
+    });
+    recalcFinInline();
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bindInline);
+  } else {
+    bindInline();
+  }
+})();
+</script>
 <script src="{% static 'js/formato_aceptacion_credito.js' %}?v={{ pbr_cache_v }}" defer></script>
 <script src="{% static 'js/formato_aceptacion_masks.js' %}?v={{ pbr_cache_v }}" defer></script>
 <script>

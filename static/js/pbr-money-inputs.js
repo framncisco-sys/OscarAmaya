@@ -49,6 +49,7 @@
 
   function bind(el) {
     if (!el || el.dataset.pbrMoneyBound === "1") return;
+    if (el.getAttribute("data-pbr-calc") === "1") return;
     el.dataset.pbrMoneyBound = "1";
     var isMoney = el.classList.contains("input-monto-us");
     var withSymbol = el.classList.contains("input-monto-us--symbol");
@@ -63,6 +64,15 @@
 
     el.addEventListener("blur", reformat);
     el.addEventListener("change", reformat);
+    el.addEventListener("input", function () {
+      try {
+        el.dispatchEvent(
+          new CustomEvent("pbr-money-change", { bubbles: true })
+        );
+      } catch (e) {
+        /* noop */
+      }
+    });
     // Al enfocar, dejar editable sin forzar; al salir se formatea.
     if (el.value) reformat();
   }

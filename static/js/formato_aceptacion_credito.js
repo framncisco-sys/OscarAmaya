@@ -55,7 +55,19 @@
   function setMoney(el, n) {
     if (!el) return;
     if (!isFinite(n) || n < 0) n = 0;
-    el.value = "$" + formatMoneyUS(n);
+    var formatted = "$" + formatMoneyUS(n);
+    if (el.value !== formatted) {
+      el.value = formatted;
+      try {
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+      } catch (e) {
+        /* IE11 */
+      }
+    }
+    if (el.id === "id_valor_financiamiento") {
+      var live = document.getElementById("pbr-valor-financiamiento-live");
+      if (live) live.textContent = formatted;
+    }
   }
 
   function pmtCuota(principal, annualPct, months) {
@@ -212,6 +224,7 @@
     var planCuotasServidor = parseJSONScript("formato-plan-cuotas-servidor") || null;
     var usuarioEditoPlan = false;
     var actualizacionProgramatica = false;
+    var precioVigenteRestaurado = false;
 
     function debeUsarPlanServidor() {
       if (!planCuotasServidor || !planCuotasServidor.length || usuarioEditoPlan) return false;
@@ -242,6 +255,31 @@
     }
 
     var mapOk = !!(selPol && selLote && hidLote && hidPol);
+
+    function ensureValorFinLive() {
+      if (!valorFin) return;
+      var live = document.getElementById("pbr-valor-financiamiento-live");
+      if (live) return;
+      var field = valorFin.closest(".field");
+      if (!field) return;
+      live = document.createElement("p");
+      live.id = "pbr-valor-financiamiento-live";
+      live.className = "pbr-valor-fin-live";
+      live.style.cssText =
+        "font-size:0.88rem;margin:0.35rem 0 0;font-weight:700;color:#0f766e;";
+      field.appendChild(live);
+      if (valorFin.value) live.textContent = String(valorFin.value).trim();
+    }
+
+    function esCampoMontoFinanciamiento(el) {
+      if (!el || !el.id) return false;
+      return (
+        el.id === "id_prima_1" ||
+        el.id === "id_prima_2" ||
+        el.id === "id_valor_inmueble" ||
+        el.id === "id_valor_inmueble_solicitado"
+      );
+    }
 
     function esContado() {
       return tipoFin && String(tipoFin.value || "") === "CONTADO";
@@ -371,6 +409,10 @@
       principalFinanciamiento();
       recalcLetra();
     }
+
+    window.pbrRecalcFinFormato = function (opts) {
+      recalcFinDesdeMontos(opts || {});
+    };
 
     function actualizarPrecioNegociadoInline() {
       var lineNeg = document.getElementById("pbr-precio-negociado-line");
@@ -1038,19 +1080,40 @@
       recalcFin();
     }
 
+    function onFormMontoFinanciamiento(ev) {
+      var t = ev.target;
+      if (!esCampoMontoFinanciamiento(t)) return;
+      if (ev.type === "blur") formatearMontoBlur(t);
+      recalcFinDesdeMontos({ fromReserva: t.id === "id_prima_1" });
+    }
+
+    ensureValorFinLive();
     [prima1, prima2, valorInm].forEach(function (el) {
       if (!el) return;
-      el.addEventListener("input", function () {
-        recalcFinDesdeMontos({ fromReserva: el === prima1 });
-      });
-      el.addEventListener("change", function () {
-        recalcFinDesdeMontos({ fromReserva: el === prima1 });
-      });
-      el.addEventListener("blur", function () {
-        formatearMontoBlur(el);
-        recalcFinDesdeMontos({ fromReserva: el === prima1 });
+      ["input", "change", "keyup", "blur"].forEach(function (evName) {
+        el.addEventListener(evName, function () {
+          recalcFinDesdeMontos({ fromReserva: el === prima1 });
+        });
       });
     });
+    var valorSol = document.getElementById("id_valor_inmueble_solicitado");
+    if (valorSol) {
+      ["input", "change", "keyup", "blur"].forEach(function (evName) {
+        valorSol.addEventListener(evName, function () {
+          recalcFinDesdeMontos();
+        });
+      });
+    }
+    if (formRoot) {
+      ["input", "change", "keyup", "blur"].forEach(function (evName) {
+        formRoot.addEventListener(evName, onFormMontoFinanciamiento, true);
+      });
+      formRoot.addEventListener(
+        "pbr-money-change",
+        onFormMontoFinanciamiento,
+        true
+      );
+    }
     if (valorInm) {
       valorInm.addEventListener("change", function () {
         aplicarReservaYPrimaDesdeProyecto();
@@ -1307,9 +1370,15 @@
       return null;
     }
 
-    function sincronizarCamposFinancierosBruto() {
-      if (formRoot && formRoot.getAttribute("data-pbr-validacion-precio") === "APROBADO") {
+    function sincronizarCamposFinancierosBruto(soloMontos) {
+      if (
+        !soloMontos &&
+        formRoot &&
+        formRoot.getAttribute("data-pbr-validacion-precio") === "APROBADO" &&
+        !precioVigenteRestaurado
+      ) {
         restaurarPrecioVigente();
+        precioVigenteRestaurado = true;
       }
       if (plazo && plazo.value) {
         var y = parseInt(String(plazo.value).trim(), 10);
@@ -1346,7 +1415,7 @@
     }
 
     function forzarActualizacionPlanCuotas(preferirServidor) {
-      sincronizarCamposFinancierosBruto();
+      sincronizarCamposFinancierosBruto(true);
       if (
         preferirServidor !== false &&
         planCuotasServidor &&
@@ -1474,10 +1543,9 @@
 
     forzarActualizacionPlanCuotas(true);
     window.setTimeout(function () {
-      forzarActualizacionPlanCuotas(true);
+      ensureValorFinLive();
+      principalFinanciamiento();
+      forzarActualizacionPlanCuotas(false);
     }, 150);
-    window.setTimeout(function () {
-      forzarActualizacionPlanCuotas(true);
-    }, 800);
   });
 })();

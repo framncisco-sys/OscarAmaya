@@ -2944,6 +2944,11 @@ class FormatoAceptacionForm(forms.ModelForm):
         vf = self.fields.get("valor_financiamiento")
         if vf:
             vf.widget.attrs["readonly"] = True
+            vf.widget.attrs["data-pbr-calc"] = "1"
+        for fname in ("prima_1", "prima_2"):
+            pf = self.fields.get(fname)
+            if pf:
+                pf.widget.attrs["data-pbr-recalc-fin"] = "1"
         mot = self.fields.get("precio_solicitud_motivo")
         if mot:
             mot.required = False
