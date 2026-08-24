@@ -212,10 +212,25 @@
     }
 
     .rd-foot { width: 100%; border-collapse: collapse; margin-top: 12px; table-layout: fixed; }
-    .rd-foot > tbody > tr > td { vertical-align: top; padding: 0 4px; border: none; }
-    .rd-foot .col-saldo { width: 28%; padding-left: 0; }
-    .rd-foot .col-msg { width: 36%; text-align: center; padding-top: 6px; }
-    .rd-foot .col-firma { width: 36%; text-align: center; padding-top: 2px; padding-right: 0; }
+    .rd-foot > tbody > tr > td { vertical-align: middle; padding: 0 4px; border: none; }
+    .rd-foot .col-saldo { width: 26%; padding-left: 0; vertical-align: top; }
+    .rd-foot .col-msg { width: 22%; text-align: center; padding-top: 4px; }
+    .rd-foot .col-sello { width: 26%; text-align: center; vertical-align: middle; }
+    .rd-foot .col-firma { width: 26%; text-align: center; padding-top: 2px; padding-right: 0; }
+
+    .rd-sello-wrap {
+      margin: 0 auto;
+      text-align: center;
+      padding: 4px 6px 0;
+    }
+    .rd-sello-wrap img {
+      height: 52px;
+      max-height: 52px;
+      width: auto;
+      max-width: 220px;
+      display: block;
+      margin: 0 auto;
+    }
 
     .rd-saldo { width: 100%; border-collapse: collapse; border: 1.5px solid #111; }
     .rd-saldo td {
@@ -243,7 +258,7 @@
       color: #333;
     }
     .rd-firma-block {
-      margin: 18px 10px 0;
+      margin: 8px 6px 0;
       text-align: center;
     }
     .rd-firma-nombre {
@@ -262,18 +277,8 @@
       font-weight: bold;
       text-transform: uppercase;
     }
-    .rd-pie-logo-wrap {
-      margin-top: 10px;
-      text-align: center;
-    }
-    .rd-pie-logo-wrap img {
-      height: 52px;
-      max-height: 52px;
-      width: auto;
-      max-width: 320px;
-    }
     .rd-pie {
-      margin-top: 6px;
+      margin-top: 8px;
       font-size: 8.5px;
       color: #666;
       text-align: center;
@@ -408,6 +413,12 @@
         <p class="aviso">EVITE CONTRATIEMPOS<br>MANTENGA AL DÍA SU CRÉDITO</p>
       </div>
     </td>
+    <td class="col-sello">
+      <div class="rd-sello-wrap">
+        <img src="{{ logo_pie_empresa_src|default:'logo_paredes_desarrollos_pie.png' }}"
+             alt="Paredes Desarrollos Inmobiliarios, S.A.S. de C.V. — San Miguel Centro, El Salvador">
+      </div>
+    </td>
     <td class="col-firma">
       <div class="rd-firma-block">
         <div class="rd-firma-nombre">{{ recibido_por_nombre|default:"OSCAR RENE PAREDES" }}</div>
@@ -416,12 +427,6 @@
     </td>
   </tr>
 </table>
-
-<div class="rd-pie-logo-wrap">
-  <img src="{{ logo_pie_empresa_src|default:'logo_paredes_desarrollos_pie.png' }}"
-       alt="Paredes Desarrollos Inmobiliarios, S.A.S. de C.V. — San Miguel Centro, El Salvador"
-       style="height:52px; width:auto; max-width:320px;">
-</div>
 
 <p class="rd-pie">
   {{ monto_letras }} · Comprobante {{ doc.numero }} · Emitido {{ doc.emitido_en|date:"d/m/Y H:i" }}.
