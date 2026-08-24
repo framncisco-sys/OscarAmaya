@@ -536,7 +536,7 @@
             " (" +
             (f.properties.poligono_nombre || "Sin polígono") +
             ")";
-        pol.bindPopup(html, { maxWidth: 420, className: "mapa-catastral-popup-wrap" });
+        pol.bindPopup(html, { maxWidth: 300, minWidth: 240, className: "mapa-catastral-popup-wrap" });
         pol.bindTooltip(f.properties.codigo_display || f.properties.codigo || "Lote", {
           permanent: true,
           direction: "center",

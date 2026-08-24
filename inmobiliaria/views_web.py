@@ -4231,17 +4231,24 @@ def _popup_html_mapa_consulta_simple(
 ) -> str:
     """Vista resumida para asesor: estado con color y titular de reserva/venta."""
     style_key = _mapa_catastral_style_por_estado(inmueble.estado)
-    swatch = f"swatch swatch--{style_key}"
     estado_txt = inmueble.get_estado_display()
     persona = _cliente_nombre_lote_mapa(inmueble, contrato, formato)
     if persona == "—":
         persona = ""
 
-    titulo = f"Lote {html.escape(inmueble.codigo_display)}"
-    bloque_estado = (
-        f'<p class="mapa-lote-detalle-simple__estado">'
-        f'<span class="{swatch}" aria-hidden="true"></span> '
-        f"<strong>{html.escape(estado_txt)}</strong></p>"
+    titulo = html.escape(inmueble.codigo_display)
+    badge_cls = f"mapa-lote-detalle-simple__badge mapa-lote-detalle-simple__badge--{style_key}"
+
+    def _fmt_area(value) -> str:
+        if value is None:
+            return "—"
+        return f"{value:,.4f}".rstrip("0").rstrip(".")
+
+    bloque_head = (
+        f'<header class="mapa-lote-detalle-simple__head">'
+        f'<p class="mapa-lote-detalle-simple__titulo">Lote {titulo}</p>'
+        f'<span class="{badge_cls}">{html.escape(estado_txt)}</span>'
+        f"</header>"
     )
     bloque_persona = ""
     if inmueble.estado == Inmueble.Estado.RESERVADO:
@@ -4272,25 +4279,23 @@ def _popup_html_mapa_consulta_simple(
             f"Cliente: <strong>{html.escape(persona)}</strong></p>"
         )
 
-    def _fmt_area(value) -> str:
-        if value is None:
-            return "—"
-        return f"{value:,.4f}".rstrip("0").rstrip(".")
-
     bloque_datos = (
         '<section class="mapa-lote-detalle-simple__datos">'
         '<h4 class="mapa-lote-detalle-simple__h4">Datos del lote</h4>'
-        '<dl class="mapa-lote-detalle-simple__dl">'
-        f"<dt>Precio de lista</dt><dd>{html.escape(_fmt_money_sv(inmueble.precio_lista))}</dd>"
-        f"<dt>Área (m²)</dt><dd>{html.escape(_fmt_area(inmueble.area_m2))}</dd>"
-        f"<dt>Área (v²)</dt><dd>{html.escape(_fmt_area(inmueble.area_varas_cuadradas))}</dd>"
-        "</dl></section>"
+        '<table class="mapa-lote-detalle-simple__tabla">'
+        "<tbody>"
+        f"<tr><th scope=\"row\">Precio de lista</th>"
+        f"<td>{html.escape(_fmt_money_sv(inmueble.precio_lista))}</td></tr>"
+        f"<tr><th scope=\"row\">Área (m²)</th>"
+        f"<td>{html.escape(_fmt_area(inmueble.area_m2))}</td></tr>"
+        f"<tr><th scope=\"row\">Área (v²)</th>"
+        f"<td>{html.escape(_fmt_area(inmueble.area_varas_cuadradas))}</td></tr>"
+        "</tbody></table></section>"
     )
 
     return (
         f'<div class="mapa-lote-detalle-simple">'
-        f'<p class="mapa-lote-detalle-simple__titulo">{titulo}</p>'
-        f"{bloque_estado}{bloque_persona}{bloque_datos}"
+        f"{bloque_head}{bloque_persona}{bloque_datos}"
         f"</div>"
     )
 
