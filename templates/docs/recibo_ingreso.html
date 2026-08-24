@@ -212,22 +212,36 @@
     }
 
     .rd-foot { width: 100%; border-collapse: collapse; margin-top: 12px; table-layout: fixed; }
-    .rd-foot > tbody > tr > td { vertical-align: middle; padding: 0 4px; border: none; }
-    .rd-foot .col-saldo { width: 26%; padding-left: 0; vertical-align: top; }
-    .rd-foot .col-msg { width: 22%; text-align: center; padding-top: 4px; }
-    .rd-foot .col-sello { width: 26%; text-align: center; vertical-align: middle; }
-    .rd-foot .col-firma { width: 26%; text-align: center; padding-top: 2px; padding-right: 0; }
+    .rd-foot > tbody > tr > td { vertical-align: middle; padding: 0; border: none; }
+    .rd-foot .col-saldo { width: 36%; padding-left: 0; vertical-align: top; }
+    .rd-foot .col-bloque-firmas { width: 64%; padding-left: 6px; vertical-align: middle; }
+
+    .rd-foot-grupo {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: auto;
+      margin: 0;
+    }
+    .rd-foot-grupo > tbody > tr > td {
+      vertical-align: middle;
+      padding: 0 3px;
+      border: none;
+      white-space: nowrap;
+    }
+    .rd-foot-grupo .col-msg { width: 1%; text-align: center; padding-right: 6px; }
+    .rd-foot-grupo .col-sello { width: 1%; text-align: center; padding: 0 4px; }
+    .rd-foot-grupo .col-firma { width: 1%; text-align: center; padding-left: 6px; }
 
     .rd-sello-wrap {
       margin: 0 auto;
       text-align: center;
-      padding: 4px 6px 0;
+      padding: 0;
     }
     .rd-sello-wrap img {
       height: 52px;
       max-height: 52px;
       width: auto;
-      max-width: 220px;
+      max-width: 180px;
       display: block;
       margin: 0 auto;
     }
@@ -258,7 +272,7 @@
       color: #333;
     }
     .rd-firma-block {
-      margin: 8px 6px 0;
+      margin: 0;
       text-align: center;
     }
     .rd-firma-nombre {
@@ -407,23 +421,29 @@
         <tr><td>Nuevo saldo</td><td class="r">{{ nuevo_saldo_fmt }}</td></tr>
       </table>
     </td>
-    <td class="col-msg">
-      <div class="rd-msg">
-        <p class="aut">AUTORIZADO</p>
-        <p class="aviso">EVITE CONTRATIEMPOS<br>MANTENGA AL DÍA SU CRÉDITO</p>
-      </div>
-    </td>
-    <td class="col-sello">
-      <div class="rd-sello-wrap">
-        <img src="{{ logo_pie_empresa_src|default:'logo_paredes_desarrollos_pie.png' }}"
-             alt="Paredes Desarrollos Inmobiliarios S.A. de C.V. — San Miguel Centro, El Salvador">
-      </div>
-    </td>
-    <td class="col-firma">
-      <div class="rd-firma-block">
-        <div class="rd-firma-nombre">{{ recibido_por_nombre|default:"OSCAR RENE PAREDES" }}</div>
-        <div class="rd-firma-line">RECIBIDO POR</div>
-      </div>
+    <td class="col-bloque-firmas">
+      <table class="rd-foot-grupo">
+        <tr>
+          <td class="col-msg">
+            <div class="rd-msg">
+              <p class="aut">AUTORIZADO</p>
+              <p class="aviso">EVITE CONTRATIEMPOS<br>MANTENGA AL DÍA SU CRÉDITO</p>
+            </div>
+          </td>
+          <td class="col-sello">
+            <div class="rd-sello-wrap">
+              <img src="{{ logo_pie_empresa_src|default:'logo_paredes_desarrollos_pie.png' }}"
+                   alt="Paredes Desarrollos Inmobiliarios S.A. de C.V. — San Miguel Centro, El Salvador">
+            </div>
+          </td>
+          <td class="col-firma">
+            <div class="rd-firma-block">
+              <div class="rd-firma-nombre">{{ recibido_por_nombre|default:"OSCAR RENE PAREDES" }}</div>
+              <div class="rd-firma-line">RECIBIDO POR</div>
+            </div>
+          </td>
+        </tr>
+      </table>
     </td>
   </tr>
 </table>
