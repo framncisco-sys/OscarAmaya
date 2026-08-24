@@ -4272,10 +4272,25 @@ def _popup_html_mapa_consulta_simple(
             f"Cliente: <strong>{html.escape(persona)}</strong></p>"
         )
 
+    def _fmt_area(value) -> str:
+        if value is None:
+            return "—"
+        return f"{value:,.4f}".rstrip("0").rstrip(".")
+
+    bloque_datos = (
+        '<section class="mapa-lote-detalle-simple__datos">'
+        '<h4 class="mapa-lote-detalle-simple__h4">Datos del lote</h4>'
+        '<dl class="mapa-lote-detalle-simple__dl">'
+        f"<dt>Precio de lista</dt><dd>{html.escape(_fmt_money_sv(inmueble.precio_lista))}</dd>"
+        f"<dt>Área (m²)</dt><dd>{html.escape(_fmt_area(inmueble.area_m2))}</dd>"
+        f"<dt>Área (v²)</dt><dd>{html.escape(_fmt_area(inmueble.area_varas_cuadradas))}</dd>"
+        "</dl></section>"
+    )
+
     return (
         f'<div class="mapa-lote-detalle-simple">'
         f'<p class="mapa-lote-detalle-simple__titulo">{titulo}</p>'
-        f"{bloque_estado}{bloque_persona}"
+        f"{bloque_estado}{bloque_persona}{bloque_datos}"
         f"</div>"
     )
 
