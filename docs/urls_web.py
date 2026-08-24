@@ -9,6 +9,11 @@ urlpatterns = [
     path("docs/promesa/<int:contrato_id>/", views.emitir_promesa, name="emitir_promesa"),
     path("docs/recibo/<int:pago_id>/", views.emitir_recibo, name="emitir_recibo"),
     path(
+        "docs/recibo/<int:pago_id>/whatsapp/",
+        views.recibo_whatsapp_pago,
+        name="recibo_whatsapp_pago",
+    ),
+    path(
         "docs/recibo-comision/<int:contrato_id>/",
         views.emitir_recibo_comision,
         name="emitir_recibo_comision",

@@ -23,7 +23,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import connection, transaction
-from django.db.models import Max, ProtectedError, Sum
+from django.db.models import Max, OuterRef, ProtectedError, Subquery, Sum
 from django.db.utils import ProgrammingError
 from django.http import (
     FileResponse,
@@ -2889,11 +2889,17 @@ class PagoListView(AppLoginRequiredMixin, ListView):
     paginate_by = 40
 
     def get_queryset(self):
+        from docs.models import DocumentoEmitido, DocumentoTipo
+
+        recibo_doc = DocumentoEmitido.objects.filter(
+            tipo=DocumentoTipo.RECIBO_INGRESO,
+            pago_id=OuterRef("pk"),
+        ).order_by("-id")
         qs = Pago.objects.select_related(
             "contrato",
             "contrato__cliente",
             "validado_por",
-        )
+        ).annotate(recibo_doc_id=Subquery(recibo_doc.values("id")[:1]))
         qs = filtrar_pagos_queryset_por_vendedor(qs, self.request.user)
         cid = (self.request.GET.get("contrato") or "").strip()
         if cid.isdigit():

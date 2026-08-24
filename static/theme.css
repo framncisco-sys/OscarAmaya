@@ -1038,6 +1038,16 @@ html[data-pbr-reduced-motion="1"] .app-header--hide {
   align-items: center;
 }
 
+.action-cluster--recibo {
+  gap: 0.25rem;
+}
+
+.action-cluster__sep {
+  color: var(--pbr-muted, #64748b);
+  font-weight: 400;
+  user-select: none;
+}
+
 .formato-list-docs {
   display: flex;
   flex-wrap: wrap;

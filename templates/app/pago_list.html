@@ -40,7 +40,7 @@
       Pendientes{% if pagos_pendientes_validacion_ct %} ({{ pagos_pendientes_validacion_ct }}){% endif %}
     </a>
     <a href="{% url 'app:pago_list' %}?validacion=validado" class="btn-secondary btn-sm"{% if filtro_validacion == 'validado' %} aria-current="page"{% endif %}>
-      Validados (imprimir)
+      Validados (PDF / WhatsApp)
     </a>
     {% else %}
     {% if puede_validar_abonos_app %}
@@ -60,7 +60,7 @@
   <ol class="muted" style="margin:0;padding-left:1.2rem;font-size:0.9rem;line-height:1.5;">
     <li>Usted registra el pago (reserva, prima, contado o cuota) con voucher.</li>
     <li>Gerencia verifica el depósito en cuenta → marca <strong>Validado</strong>.</li>
-    <li>Ahí aparece <strong>Imprimir / PDF</strong>; además se envía solo al cliente por correo y/o WhatsApp si hay datos.</li>
+    <li>Cuando esté <strong>Validado</strong> use <strong>Descargar PDF</strong> o <strong>Enviar por WhatsApp</strong> por separado.</li>
   </ol>
 </section>
 {% endif %}
@@ -140,10 +140,26 @@
           {% elif p.pendiente_validacion_gerente %}
           <span class="muted" style="font-size:0.85rem;">Esperando gerencia — aún no se puede imprimir</span>
           {% elif p.puede_emitir_recibo_cliente %}
+          {% if pago_list_vendedor %}
+          <span class="action-cluster action-cluster--recibo">
+            {% if p.recibo_doc_id %}
+            <a href="{% url 'app:doc_download' p.recibo_doc_id %}" class="link-action link-action--pdf">Descargar PDF</a>
+            {% else %}
+            <form method="post" action="{% url 'app:emitir_recibo' p.pk %}" class="inline-form" style="display:inline;" data-pbr-offline="skip">
+              {% csrf_token %}
+              <input type="hidden" name="accion" value="pdf">
+              <button type="submit" class="link-action link-action--pdf" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit;font-weight:700;">Descargar PDF</button>
+            </form>
+            {% endif %}
+            <span class="action-cluster__sep" aria-hidden="true">·</span>
+            <a href="{% url 'app:recibo_whatsapp_pago' p.pk %}{% if filtro_validacion %}?validacion={{ filtro_validacion }}{% endif %}" class="link-action link-action--wa">Enviar por WhatsApp</a>
+          </span>
+          {% else %}
           <form method="post" action="{% url 'app:emitir_recibo' p.pk %}" class="inline-form" style="display:inline;" data-pbr-offline="skip">
             {% csrf_token %}
             <button type="submit" class="link-action" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit;font-weight:700;">Descargar PDF / WhatsApp</button>
           </form>
+          {% endif %}
           {% elif p.validacion_abono == 'RECHAZADO' %}
           <span class="muted" style="font-size:0.85rem;">Sin recibo (rechazado)</span>
           {% else %}

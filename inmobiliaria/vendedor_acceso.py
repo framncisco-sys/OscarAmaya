@@ -48,6 +48,7 @@ RUTAS_VENDEDOR_FLUJO: frozenset[str] = frozenset(
         "doc_download",
         "emitir_promesa",
         "emitir_recibo",
+        "recibo_whatsapp_pago",
         # Consulta en vivo del estado del lote (formato, sin guardar)
         "api_inmueble_estado",
     }

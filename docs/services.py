@@ -1015,7 +1015,9 @@ def _contexto_recibo_ingreso(*, doc, pago) -> dict:
     return ctx
 
 
-def emitir_recibo_ingreso(*, pago, emitido_por=None) -> tuple[DocumentoEmitido, ReciboNotificacionInfo]:
+def emitir_recibo_ingreso(
+    *, pago, emitido_por=None, notificar: bool = True
+) -> tuple[DocumentoEmitido, ReciboNotificacionInfo]:
     if not pago.puede_emitir_recibo_cliente:
         raise ValueError(
             "El abono (reserva, prima, cuota o abono a capital) debe ser validado por gerencia antes de emitir el recibo."
@@ -1058,15 +1060,16 @@ def emitir_recibo_ingreso(*, pago, emitido_por=None) -> tuple[DocumentoEmitido, 
             meta_solo_texto=False,
             twilio_pdf=False,
         )
-        try:
-            from .recibo_notificacion import notificar_recibo_emitido
+        if notificar:
+            try:
+                from .recibo_notificacion import notificar_recibo_emitido
 
-            notif = notificar_recibo_emitido(existente, pago)
-        except Exception:
-            logger.exception(
-                "Fallo al notificar recibo existente %s (correo/WhatsApp); el PDF sí se actualizó.",
-                existente.numero,
-            )
+                notif = notificar_recibo_emitido(existente, pago)
+            except Exception:
+                logger.exception(
+                    "Fallo al notificar recibo existente %s (correo/WhatsApp); el PDF sí se actualizó.",
+                    existente.numero,
+                )
         return existente, notif
 
     numero = _next_correlativo(tipo=DocumentoTipo.RECIBO_INGRESO, cfg=CorrelativoConfig())
@@ -1090,15 +1093,16 @@ def emitir_recibo_ingreso(*, pago, emitido_por=None) -> tuple[DocumentoEmitido, 
         meta_solo_texto=False,
         twilio_pdf=False,
     )
-    try:
-        from .recibo_notificacion import notificar_recibo_emitido
+    if notificar:
+        try:
+            from .recibo_notificacion import notificar_recibo_emitido
 
-        notif = notificar_recibo_emitido(doc, pago)
-    except Exception:
-        logger.exception(
-            "Fallo al notificar recibo %s (correo/WhatsApp); el PDF sí se guardó.",
-            doc.numero,
-        )
+            notif = notificar_recibo_emitido(doc, pago)
+        except Exception:
+            logger.exception(
+                "Fallo al notificar recibo %s (correo/WhatsApp); el PDF sí se guardó.",
+                doc.numero,
+            )
 
     return doc, notif
 

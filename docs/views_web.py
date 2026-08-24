@@ -460,13 +460,98 @@ def emitir_recibo(request: HttpRequest, pago_id: int) -> HttpResponse:
             "Este abono fue rechazado por gerencia. No se emite recibo al cliente.",
         )
         return redirect("app:pago_list")
-    doc, notif = emitir_recibo_ingreso(pago=pago, emitido_por=request.user)
+    accion = (request.POST.get("accion") or "").strip().lower()
+    notificar = accion != "pdf"
+    doc, notif = emitir_recibo_ingreso(
+        pago=pago, emitido_por=request.user, notificar=notificar
+    )
+    if accion == "pdf":
+        return redirect("app:doc_download", doc_id=doc.id)
     return respuesta_despues_emitir_recibo(
         request,
         pago=pago,
         doc=doc,
         notif=notif,
         continue_url=reverse("app:docs_list"),
+    )
+
+
+@login_required
+def recibo_whatsapp_pago(request: HttpRequest, pago_id: int) -> HttpResponse:
+    """Pantalla para enviar el recibo al cliente por WhatsApp (asesor de ventas)."""
+    from docs.recibo_notificacion import (
+        datos_envio_whatsapp_personal,
+        telefono_para_recibo,
+    )
+
+    pago = get_object_or_404(
+        Pago.objects.select_related(
+            "contrato",
+            "contrato__cliente",
+            "formato_aceptacion",
+        ),
+        pk=pago_id,
+    )
+    if not usuario_puede_ver_contrato(request.user, pago.contrato):
+        raise Http404("Pago no disponible")
+    if pago.pendiente_validacion_gerente:
+        messages.error(
+            request,
+            "Este abono aún no está validado por gerencia. No hay recibo para enviar.",
+        )
+        return redirect("app:pago_list")
+    if pago.validacion_abono == Pago.ValidacionAbono.RECHAZADO:
+        messages.error(request, "Este abono fue rechazado. No se emite recibo al cliente.")
+        return redirect("app:pago_list")
+    if not pago.puede_emitir_recibo_cliente:
+        messages.error(request, "Este pago no tiene recibo disponible para el cliente.")
+        return redirect("app:pago_list")
+
+    try:
+        doc, _notif = emitir_recibo_ingreso(
+            pago=pago,
+            emitido_por=request.user,
+            notificar=False,
+        )
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("app:pago_list")
+
+    tel = telefono_para_recibo(pago) or (
+        getattr(pago.contrato.cliente, "telefono", "") or ""
+    ).strip()
+    if not tel:
+        messages.warning(
+            request,
+            "El cliente no tiene teléfono en el formato ni en la ficha. "
+            "Agregue un número para abrir WhatsApp automáticamente.",
+        )
+
+    wa = construir_url_whatsapp_recibo(pago.contrato.cliente, doc, pago)
+    url_pdf = reverse("app:doc_download", args=[doc.id])
+    continue_url = reverse("app:pago_list")
+    if (request.GET.get("validacion") or "").strip().lower() == "validado":
+        continue_url = reverse("app:pago_list") + "?validacion=validado"
+
+    datos = datos_envio_whatsapp_personal(pago.contrato.cliente, doc, pago) or {}
+    return render(
+        request,
+        "app/recibo_abrir_whatsapp.html",
+        {
+            "doc_numero": doc.numero,
+            "wa_url": wa,
+            "url_pdf": url_pdf,
+            "continue_url": continue_url,
+            "share_payload": {
+                "doc_numero": doc.numero,
+                "pdf_url": url_pdf,
+                "pdf_nombre": datos.get("pdf_nombre")
+                or f"{doc.numero.replace('/', '-')}.pdf",
+                "wa_url": wa or "",
+                "mensaje": datos.get("mensaje") or "",
+                "mensaje_con_enlace": datos.get("mensaje_con_enlace") or "",
+            },
+        },
     )
 
 
