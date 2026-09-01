@@ -1,4 +1,5 @@
 ﻿{% extends "app/base_app.html" %}
+{% load money_fmt %}
 {% block title %}{{ form_title }} | {{ marca_portal.nombre }}{% endblock %}
 
 {% block app_content %}
@@ -89,9 +90,9 @@
     <br>
     <strong>Cliente:</strong> {{ contrato.cliente }}<br>
     <strong>Inmueble:</strong> {{ contrato.inmueble.codigo_display }} — {{ contrato.inmueble.proyecto.nombre }}<br>
-    <strong>Precio de venta:</strong> ${{ precio_final|floatformat:2 }} USD
+    <strong>Precio de venta:</strong> ${{ precio_final|money_us }} USD
     {% if monto_sugerido %}
-      · <strong>Comisión bruta sugerida:</strong> ${{ monto_sugerido|floatformat:2 }} USD
+      · <strong>Comisión bruta sugerida:</strong> ${{ monto_sugerido|money_us }} USD
     {% endif %}
   </p>
   {% if liquidacion_preview %}

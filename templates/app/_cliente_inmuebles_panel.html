@@ -1,3 +1,4 @@
+{% load money_fmt %}
 {% if cliente_pk %}
 <section class="card cliente-inmuebles-panel" aria-label="Inmuebles vinculados al cliente">
   <header class="cliente-inmuebles-panel__head">
@@ -19,13 +20,13 @@
         {% for i in cliente_alquileres_local %}
         <li>
           <a href="{% url 'app:local_alquiler_ficha' i.pk %}" class="link-action"><strong>{{ i.codigo_display }}</strong></a> — local
-          {% if i.detalle_local_alquiler.renta_mensual %} · ${{ i.detalle_local_alquiler.renta_mensual|floatformat:2 }}/mes{% endif %}
+          {% if i.detalle_local_alquiler.renta_mensual %} · ${{ i.detalle_local_alquiler.renta_mensual|money_us }}/mes{% endif %}
         </li>
         {% endfor %}
         {% for i in cliente_alquileres_casa %}
         <li>
           <a href="{% url 'app:casa_alquiler_ficha' i.pk %}" class="link-action"><strong>{{ i.codigo_display }}</strong></a> — casa
-          {% if i.detalle_casa_alquiler.arrendamiento_mensual %} · ${{ i.detalle_casa_alquiler.arrendamiento_mensual|floatformat:2 }}/mes{% endif %}
+          {% if i.detalle_casa_alquiler.arrendamiento_mensual %} · ${{ i.detalle_casa_alquiler.arrendamiento_mensual|money_us }}/mes{% endif %}
         </li>
         {% endfor %}
       </ul>

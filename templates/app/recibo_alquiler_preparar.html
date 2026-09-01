@@ -1,4 +1,5 @@
 ﻿{% extends "app/base_app.html" %}
+{% load money_fmt %}
 {% block title %}{{ form_title }} | Paredes Bienes Raíces{% endblock %}
 
 {% block app_content %}
@@ -12,7 +13,7 @@
     <strong>Módulo:</strong> Alquileres (independiente de ventas y contratos)<br>
     <strong>Inmueble:</strong> {{ inmueble.get_tipo_display }} {{ inmueble.codigo_display }} — {{ inmueble.proyecto.nombre }}<br>
     {% if renta_mensual %}
-      <strong>Renta mensual (referencia):</strong> ${{ renta_mensual|floatformat:2 }} USD
+      <strong>Renta mensual (referencia):</strong> ${{ renta_mensual|money_us }} USD
     {% else %}
       <strong>Renta mensual:</strong> no registrada en la ficha — indique el monto de comisión abajo.
     {% endif %}

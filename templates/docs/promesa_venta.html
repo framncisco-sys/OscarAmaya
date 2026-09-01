@@ -1,4 +1,5 @@
 {% extends "docs/_base_pdf.html" %}
+{% load money_fmt %}
 {% block pdf_brand_captions %}
 {% include "docs/_pdf_brand_captions.html" with razon_social=razon_social_vendedor pie_inmobiliaria="Promoción y venta del proyecto señalado" %}
 {% endblock %}
@@ -183,7 +184,7 @@
 
 <p class="prom-indent">
   El precio total convenido por la transferencia del bien objeto de esta promesa es de
-  <strong>${{ contrato.precio_final|floatformat:2 }} ({{ contrato.precio_final|floatformat:2 }} dólares de los Estados Unidos de América)</strong>,
+  <strong>${{ contrato.precio_final|money_us }} ({{ contrato.precio_final|money_us }} dólares de los Estados Unidos de América)</strong>,
   obligación que <strong>EL PROMITENTE COMPRADOR</strong> asume en los términos acordados en el contrato referido
   y en los comprobantes de pago que al efecto se emitan.
 </p>
@@ -218,7 +219,7 @@
     {% if contrato.cuota_mensual_estimada %}
     <tr>
       <td class="lbl">Cuota mensual estimada</td>
-      <td>${{ contrato.cuota_mensual_estimada|floatformat:2 }}</td>
+      <td>${{ contrato.cuota_mensual_estimada|money_us }}</td>
     </tr>
     {% endif %}
     {% if contrato.notas %}

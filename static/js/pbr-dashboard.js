@@ -33,7 +33,7 @@
 
   function formatMoney(n) {
     if (typeof n !== "number" || isNaN(n)) return "0";
-    return n.toLocaleString("es-HN", { maximumFractionDigits: 0 });
+    return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
   }
 
   function animateCount(el, target, duration) {

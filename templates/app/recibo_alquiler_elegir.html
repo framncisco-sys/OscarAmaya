@@ -1,4 +1,5 @@
 {% extends "app/base_app.html" %}
+{% load money_fmt %}
 {% block title %}{{ page_title }} | Paredes Bienes Raíces{% endblock %}
 {% block app_content %}
 <header class="page-toolbar">
@@ -27,7 +28,7 @@
       <td><strong>{{ i.codigo_display }}</strong></td>
       <td>{{ i.proyecto.nombre }}</td>
       <td>{{ i.get_tipo_display }}</td>
-      <td>{% if i.renta_ref %}${{ i.renta_ref|floatformat:2 }}{% else %}—{% endif %}</td>
+      <td>{% if i.renta_ref %}${{ i.renta_ref|money_us }}{% else %}—{% endif %}</td>
       <td>
         <a href="{% url 'app:emitir_recibo_comision_alquiler' i.pk %}" class="link-action">Preparar recibo</a>
         {% if segmento == 'local' %}

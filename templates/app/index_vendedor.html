@@ -1,5 +1,5 @@
 ﻿{% extends "app/base_app.html" %}
-{% load static %}
+{% load static money_fmt %}
 {% block title %}Mi flujo de venta | {{ marca_portal.nombre }}{% endblock %}
 
 {% block app_content %}
@@ -59,7 +59,7 @@
     {% if vend_progreso_comision.monto_comision_estimada %}
     <p class="vend-comision__monto muted">
       Comisión estimada de su cartera:
-      <strong>${{ vend_progreso_comision.monto_comision_estimada|floatformat:2 }}</strong>
+      <strong>${{ vend_progreso_comision.monto_comision_estimada|money_us }}</strong>
     </p>
     {% endif %}
 
@@ -92,7 +92,7 @@
         <p class="vend-comision__next">{{ it.siguiente }}</p>
         {% if it.comision_monto %}
         <p class="muted" style="margin:0.25rem 0 0.55rem;font-size:0.86rem;">
-          Comisión ref.: ${{ it.comision_monto|floatformat:2 }}
+          Comisión ref.: ${{ it.comision_monto|money_us }}
         </p>
         {% endif %}
         <a class="vend-comision__action" href="{{ it.accion_url }}">{{ it.accion_label }} →</a>

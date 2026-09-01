@@ -1,4 +1,5 @@
 ﻿{% extends "app/base_app.html" %}
+{% load money_fmt %}
 {% block title %}Planes de pagos | Paredes Bienes Raíces{% endblock %}
 {% block app_content %}
 <header class="page-toolbar">
@@ -24,7 +25,7 @@
   <p class="muted" style="margin:0;">
     <strong>{{ contratos_resumen_total }}</strong> plan(es) en su vista.
     {% if contratos_resumen_comision_con_monto %}
-      Comisión estimada acumulada (donde hay % o monto definido): <strong>${{ contratos_resumen_comision_suma|floatformat:2 }}</strong>
+      Comisión estimada acumulada (donde hay % o monto definido): <strong>${{ contratos_resumen_comision_suma|money_us }}</strong>
       en <strong>{{ contratos_resumen_comision_con_monto }}</strong> plan(es).
     {% else %}
       Aún no hay comisión calculable (defina porcentaje o monto fijo en cada plan).
@@ -54,7 +55,7 @@
       <td><strong>{{ c.numero }}</strong></td>
       <td>{{ c.cliente }}</td>
       <td>{{ c.inmueble.codigo_display }} — {{ c.inmueble.proyecto.nombre }}</td>
-      <td class="right">${{ c.precio_final }}</td>
+      <td class="right">${{ c.precio_final|money_us }}</td>
       <td><span class="badge badge--{{ c.estado|lower }}">{{ c.get_estado_display }}</span></td>
       <td>
         {% if c.validacion_gerencia == 'PENDIENTE' %}

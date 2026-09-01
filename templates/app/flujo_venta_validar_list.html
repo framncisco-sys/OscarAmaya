@@ -1,4 +1,5 @@
 {% extends "app/base_app.html" %}
+{% load money_fmt %}
 {% block title %}Validar flujo de venta | {{ marca_portal.nombre }}{% endblock %}
 
 {% block app_content %}
@@ -86,7 +87,7 @@
         <td><strong>{{ c.numero }}</strong></td>
         <td>{{ c.cliente }}</td>
         <td class="muted">{{ c.inmueble.codigo_display }} — {{ c.inmueble.proyecto.nombre }}</td>
-        <td class="right">${{ c.precio_final }}</td>
+        <td class="right">${{ c.precio_final|money_us }}</td>
         <td>
           <a href="{% url 'app:flujo_venta_validar_contrato' c.pk %}?accion=validar" class="link-action" style="font-weight:700;">Validar</a>
           ·

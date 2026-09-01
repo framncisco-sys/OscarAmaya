@@ -83,7 +83,7 @@
       <span class="dash-kpi__icon" aria-hidden="true">{% pbr_icon "check" size="lg" %}</span>
       <h3>Disponibles</h3>
       <p><span class="dash-kpi__value" data-dash-count="{{ disponibles }}">{{ disponibles }}</span></p>
-      <span class="dash-kpi__hint">$<span data-dash-money="{{ valor_inventario_disponible|floatformat:0 }}">{{ valor_inventario_disponible|floatformat:0 }}</span> USD en lista</span>
+      <span class="dash-kpi__hint">$<span data-dash-money="{{ valor_inventario_disponible|money_us_int }}">{{ valor_inventario_disponible|money_us_int }}</span> USD en lista</span>
     </article>
     <article class="card kpi dash-kpi dash-kpi--warn">
       <span class="dash-kpi__icon" aria-hidden="true">{% pbr_icon "clock" size="lg" %}</span>
@@ -159,7 +159,7 @@
           <div class="dash-chart-center" aria-hidden="true">
             <span class="dash-chart-center__n" id="pbr-dash-chart-center">{{ total_inventario_venta }}</span>
             <span class="dash-chart-center__l">lotes</span>
-            <span class="dash-chart-center__v" id="pbr-dash-chart-valor">${{ valor_inventario_disponible|floatformat:0 }}</span>
+            <span class="dash-chart-center__v" id="pbr-dash-chart-valor">${{ valor_inventario_disponible|money_us_int }}</span>
             <span class="dash-chart-center__s">USD disponibles</span>
           </div>
         </div>
@@ -259,7 +259,7 @@
           <div class="dash-proy__stat dash-proy__stat--disp">
             <span class="dash-proy__stat-n">{{ row.disponibles }}</span>
             <span class="dash-proy__stat-l">Disponibles</span>
-            {% if row.valor_disponible %}<span class="dash-proy__stat-h">${{ row.valor_disponible|floatformat:0 }} lista</span>{% endif %}
+            {% if row.valor_disponible %}<span class="dash-proy__stat-h">${{ row.valor_disponible|money_us_int }} lista</span>{% endif %}
           </div>
           <div class="dash-proy__stat dash-proy__stat--res">
             <span class="dash-proy__stat-n">{{ row.reservados }}</span>
@@ -337,7 +337,7 @@
             <td data-label="Proyecto">{{ i.proyecto.nombre }}</td>
             <td data-label="Tipo">{% if i.tipo == "LOTE" %}Lote{% else %}{{ i.get_tipo_display }}{% endif %}</td>
             <td data-label="Estado"><span class="badge badge--{{ i.estado|lower }}">{{ i.get_estado_display }}</span></td>
-            <td class="right" data-label="Precio">${{ i.precio_lista|floatformat:2 }}</td>
+            <td class="right" data-label="Precio">${{ i.precio_lista|money_us }}</td>
           </tr>
           {% empty %}
           <tr><td colspan="5" class="muted">No hay lotes en inventario.</td></tr>
